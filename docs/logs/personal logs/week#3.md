@@ -22,13 +22,13 @@ Week of Sep 15-21st
 
 
 
-#Aakash Tirathdas
+# Aakash Tirathdas
 
-#Ansh Rastogi
+# Ansh Rastogi
 
-#Harjot Sahota
+# Harjot Sahota
 
-#Mithish Ravisankar Geetha
+# Mithish Ravisankar Geetha
 
-#Mohamed Sakr
+# Mohamed Sakr
 
