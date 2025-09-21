@@ -3,7 +3,7 @@
 ## Date Range
 Week of Sep 15-21st
 
-![Mandira Samarasekara Peer Eval SS](/images/MandiraPeerEval.png)
+![Mandira Samarasekara Peer Eval SS](images/MandiraPeerEval.png)
 
 ## Tasks Worked On
 - Participated in team discussion on functional and non-functional requirements.
