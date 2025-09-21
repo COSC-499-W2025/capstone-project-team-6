@@ -15,6 +15,7 @@ Work Performed: Sep 15-21st
 ## Team Members 
 - maddysam356 → Mandira Samarasekara
 - MithishR → Mithish Ravisankar
+- HarjotSahota → Harjot Sahota
 
 ## Completed Tasks 
 - Drafted functional and non-functional requirements (All members).  
