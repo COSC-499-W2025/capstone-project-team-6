@@ -22,6 +22,26 @@ Week of Sep 15-21st
 - **Features I was responsible for (this milestone):** Research into system feasibility and privacy considerations.
 - **Progress in the last 2 weeks:** Researched privacy and OS differences, contributed insights to requirement updates.
 
+# Mithish Ravisankar Geetha
+
+## Date Range
+
+Week of Sep 15-21st
+![Mithish Ravisankar Peer Eval SS](images/MithishW3PeerEval.png)
+
+## Tasks Worked On
+
+- Collaborated with the team regarding our project requirements.
+- Had an insightful discussion with Teams 2, 3, 4 and 5 regarding their project requirements.
+- Modified our team's project requirements after discussing with other teams.
+- Reflected about the in-class discussion in the quiz and discussed with my team accordingly.
+- Learnt about the basics of data mining in a system, Windows file structure and scalability.
+
+## Weekly Goals Recap
+
+- **Features I was responsible for (this milestone):** Expanding project requirements and researching about data mining.
+- **Progress in the last 2 weeks:** Researched about scalability and OS differences.
+
 # Aakash Tirathdas
 
 # Ansh Rastogi
@@ -46,7 +66,5 @@ Week of Sep 15-21st
 - **Progress in the last 2 weeks:** Drafted end-to-end functional and non-functional requirements for the artifact-mining dashboard.
 
 # Harjot Sahota
-
-# Mithish Ravisankar Geetha
 
 # Mohamed Sakr

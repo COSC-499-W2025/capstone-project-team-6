@@ -18,6 +18,10 @@ Work Performed: Sep 15-21st
 ## Team Members
 
 - maddysam356 → Mandira Samarasekara
+- MithishR → Mithish Ravisankar
+- HarjotSahota → Harjot Sahota
+
+- maddysam356 → Mandira Samarasekara
 - anshr18 -> Ansh Rastogi
 
 ## Completed Tasks
