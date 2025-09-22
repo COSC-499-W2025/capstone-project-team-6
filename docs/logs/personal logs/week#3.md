@@ -85,6 +85,25 @@ Week of Sep 15-21st
 
 # Harjot Sahota
 
+## Date Range
+
+Week of Sep 15-21st
+
+<img width="1071" height="624" alt="Screenshot 2025-09-21 at 8 28 01 PM" src="https://github.com/user-attachments/assets/4a0d0311-cf11-4807-b2d6-08cc3869c7f5" />
+
+## Tasks Worked On
+
+- Participated in team discussions on functional and non-functional requirements.
+- Completed the quiz for this week
+- helped make a comprehensive set of functional and non-functional requirements for our project
+- Refined and updated our project requirements in response to peer feedback.
+- Learned the fundamentals of data mining in a system, Windows file structure, and scalability concerns.
+
+# Weekly Goals Recap
+
+- **Features I was responsible for (this milestone):** creating project requirements and learning more about the project.
+
+- **Progress in the last 2 weeks:** made a set of functional and non-functional requirements for our project.
 # Mohamed Sakr
 
 ## Date Range
