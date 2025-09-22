@@ -22,6 +22,7 @@ Work Performed: Sep 15-21st
 - HarjotSahota → Harjot Sahota
 - aakash-tir → Aakash Tirathdas
 - anshr18 -> Ansh Rastogi
+- mgjim101 -> Mohamed Sakr
 
 ## Completed Tasks
 
