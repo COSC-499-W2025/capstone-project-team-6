@@ -86,3 +86,22 @@ Week of Sep 15-21st
 # Harjot Sahota
 
 # Mohamed Sakr
+
+## Date Range
+
+Week of Sep 15-21st
+
+![Mohamed Sakr Peer Eval SS](images/MohamedSakrChecklist.png)
+
+## Tasks Worked On
+
+- Contributed to drafting the project’s functional and non-functional requirements document.
+- Participated in internal team sessions to scope and refine those requirements.
+- Collaborated with Teams 2, 3, 4, and 5 to align on shared project requirements.
+- Researched approaches for implementing AI agents in the solution.
+- Completed the reflection quiz summarizing insights from the class discussion.
+
+## Weekly Goals Recap
+
+- **Features I was responsible for (this milestone):** Research into agentic AI for crawling through files.
+- **Progress in the last 2 weeks:** Researched functional and non-functional requirements as well as agentic AI solutions.
