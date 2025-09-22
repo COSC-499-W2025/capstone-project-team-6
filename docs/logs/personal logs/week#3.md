@@ -43,6 +43,24 @@ Week of Sep 15-21st
 - **Progress in the last 2 weeks:** Researched about scalability and OS differences.
 
 # Aakash Tirathdas
+## Date Range
+
+Week of Sep 15-21st
+![Aakash PeerEval SS W3](images/aakashpeerevalW3.png)
+
+## Tasks Worked On
+- Collaborated and discussed with team about potential approches to the project and how it would be different from other groups.
+- Came up with a list of functional and non-function requirements for our take on the project
+- Had discussions with teams 2, 3, 4, 5 on said requirements in the previous point.
+- Completed the quiz after reflection of the requirments with the team afte the disscussion session with other teams.
+- Started looking at the possibilty of using agents and the basic structure of the project in my own time. 
+
+# Weekly Goals Recap
+
+- **Features I was responsible for (this milestone):** Research on potential use of AI agents comparitively to a system file crawler 
+
+- **Progress in the last 2 weeks:** Started research on system file crawlers similar to Windirstat and the Windows file structure.
+
 
 # Ansh Rastogi
 
