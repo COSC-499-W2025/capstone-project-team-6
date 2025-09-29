@@ -58,7 +58,26 @@ Week of Sep 22-28st
 - **Features I was responsible for (this milestone):** Drafted UML and defined core use cases.
 - **Progress in the last 2 weeks:** Conducted research on how to extract files for the system
 
+
 # Harjot Sahota
+
+Week of Sep 22-28st
+
+<img width="1074" height="629" alt="Screenshot 2025-09-28 at 9 04 47 PM" src="https://github.com/user-attachments/assets/ea9f1ab9-6bdd-407d-a387-34e0b352f9ac" />
+
+## Tasks Worked On
+
+- Worked on UML diagram
+- helped create the project's system architecture document
+- helped assign and create tasks
+- Attended our group meetings to discuss project tasks and progress
+- participated in in-class discussions and took note of other teams ideas and concepts
+- researched about using a desktop application vs. web application for our project
+
+## Weekly Goals Recap
+
+- **Features I was responsible for (this milestone):** Worked on UML diagram, also researched wether we should use a desktop application or web application for our project
+- **Progress in the last 2 weeks:** helped figure out our techstack and presented research on desktop application vs. web application for our project to the team
 
 # Mohamed Sakr
 
