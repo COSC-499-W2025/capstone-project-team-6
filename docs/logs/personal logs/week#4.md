@@ -23,6 +23,24 @@ Week of Sep 22-28st
 
 # Ansh Rastogi
 
+## Date Range
+
+Week of Sep 22-28st
+
+![Ansh Rastogi Peer Eval SS](images/AnshRastogi_PeerEval_SS_W4.png)
+
+## Tasks Worked On
+
+- Helped compile the initial system architecture write-up.
+- Contributed to drafting UML diagrams and outlining primary use cases.
+- Built and iterated on UML diagrams (use cases, relationships) to support the proposal.
+- Organized meeting times and supported task distribution.
+
+## Weekly Goals Recap
+
+- **Features I was responsible for (this milestone):** Drafted UML and defined core use cases.
+- **Progress in the last 2 weeks:** Conducted research on how to extract files for the system
+
 # Harjot Sahota
 
 # Mohamed Sakr
