@@ -1,4 +1,21 @@
-# Mandia Samarasekara
+# Mandira Samarasekara  
+
+## Date Range  
+
+Week of Sep 22–28st  
+
+![Mandira Samarasekara Peer Eval SS](images/MandiraSamarasekaraWeek4.png)  
+
+## Tasks Worked On  
+
+- Took part in class discussions to understand other teams’ architecture and discussed potential differences and challenges.  
+- Researched whether to build a web application or a desktop application for the project.  
+- Worked on the system architecture design and made a few improvements to the current version.  
+
+## Weekly Goals Recap  
+
+- **Features I was responsible for (this milestone):** Contributed to architecture design and suggested improvements.  
+- **Progress in the last 2 weeks:** Gained insights from class discussions, researched web vs desktop app approaches, and refined the system’s architecture.  
 
 # Mithish Ravisankar Geetha
 ## Date Range
