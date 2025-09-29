@@ -4,7 +4,7 @@
 
 Week of Sep 22–28st  
 
-![Mandira Samarasekara Peer Eval SS](images/MandiraSamarasekaraWeek4.png)  
+![Mandira Samarasekara Peer Eval SS](images/MandiraPeerEval2.png)  
 
 ## Tasks Worked On  
 
