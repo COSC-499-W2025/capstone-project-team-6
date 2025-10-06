@@ -3,7 +3,7 @@
 ## Date Range
 
 Week of Sep 29th-Oct 5th
-![Mandira Peer Eval SS](images/MandiraWeek5.jpg)
+![Mandira Peer Eval SS](images/MandiraWeek5.png)
 
 ## Tasks Worked On
 
