@@ -2,12 +2,20 @@
 
 ## Date Range
 
+Week of Sep 29th-Oct 5th
+![Mandira Peer Eval SS](images/MandiraWeek5.jpg)
+
 ## Tasks Worked On
+
+- Designed DFD Level 1
+- Adjusted DFD Level 0
+- Attended group meetings to discuss DFD requirements
 
 ## Weekly Goals Recap
 
-- **Features I was responsible for (this milestone):**
-- **Progress in the last 2 weeks:**
+- **Features I was responsible for (this milestone):** Designing and refining the DFDs.
+- **Progress in the last 2 weeks:** Adjusted and improved Level 0 DFD, completed Level 1 DFD, and actively participated in requirement discussions.
+
 
 # Mithish Ravisankar Geetha
 
