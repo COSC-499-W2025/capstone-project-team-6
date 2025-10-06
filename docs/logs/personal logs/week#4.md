@@ -20,6 +20,22 @@ Week of Sep 22-28st
 - **Progress in the last weeks** Research on desktop vs web app, tech stack and system architecture goals.
 
 # Aakash Tirathdas
+## Date Range
+
+Week of Sep 22-28st
+![Mithish Peer Eval SS](images/aakash_week4.png)
+## Tasks Worked On
+
+- Helped on working the project’s system architecture document.
+- Participated in class discussions  to understand other team's architecture, discussed with the team about potential differences and challenges.
+- Resarched on the potential of an AI agentic system vs a laptop crawler system an dwhy each can be implemneted (decided on a laptop crawler with an agentic analyser if excess time is present)
+- Drafted majority of the use cases and filled out parts in the team proposal. 
+- Attended group meetings, assigned tasks and discussed future requirements.
+
+## Weekly Goals Recap
+
+- **Features I was responsible for (this milestone):** Wrote a majority of the Use cases and research on agentic systems
+- **Progress in the last weeks** Research on the agentic system and laptop crawler. Breif Architecture diagram finallised
 
 # Ansh Rastogi
 
