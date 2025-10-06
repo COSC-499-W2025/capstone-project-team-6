@@ -59,13 +59,17 @@ Week of Sep 29th-Oct 5th
 # Mohamed Sakr
 
 ## Date Range
-
+Week of Sep 29th-Oct 5th
+![Mohamed's Peer Eval SS](images/MohamedSakrW5.png)
 
 ## Tasks Worked On
-
+- Contributed the Level 0 and Level 1 data-flow diagrams (DFDs).
+- Participated in class reviews to examine other teams’ DFDs.
+- Collaborated with my team to analyze differences and anticipate potential challenges.
+- Researched databases and platforms for the project
 
 
 ## Weekly Goals Recap
 
-- **Features I was responsible for (this milestone):** 
-- **Progress in the last 2 weeks:** 
+- **Features I was responsible for (this milestone):**  Worked on DFD Level 0 and 1
+- **Progress in the last 2 weeks:** Researching databases and platforms for the project
