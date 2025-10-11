@@ -1,0 +1,11 @@
+requests==2.32.3
+python-dotenv==1.0.1
+pandas==2.2.3
+numpy==2.1.2
+
+# Linting and formatting (useful during development)
+flake8==7.1.1
+black==24.8.0
+
+# Testing
+pytest==8.3.3
