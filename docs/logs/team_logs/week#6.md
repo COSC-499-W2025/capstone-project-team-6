@@ -2,7 +2,7 @@
 
 ## Team 6
 
-**Work Performed:** Oct 13th–19th
+**Work Performed:** Oct 06th-12th
 
 ## Milestone Goals Recap
 
