@@ -227,7 +227,7 @@ Build the UI to consume the service. Generate one-page résumé and web-portfoli
 ## Overview
 This DFD shows how data flows between the user, system processes, local storage, and output in the **Mining Digital Work Artifacts** system.
 
-![Architecture Diagram](architecture.png)
+![Data Flow Diagram](docs/Images/DFD1.png)
 
 ## Entities
 - **User** – logs in, uploads files, views dashboard, and can request data deletion or exports.  
@@ -263,10 +263,6 @@ This DFD shows how data flows between the user, system processes, local storage,
 - **D2 – Logs and Scan Receipts**  
   Stores logs, receipts, and deletion confirmations.
 
----
-
-**Summary:**  
-The user uploads work artifacts, which are sorted, analyzed, and stored locally. Results are displayed through a dashboard and can be exported. All data is encrypted and deletable upon user request.
 
 
 
