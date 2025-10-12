@@ -32,7 +32,7 @@
 ## Completed Tasks
 
 - **Updated Requirements and added to README** — *Aakash, Harjot, Ansh*  
-- **Updated DFD Level 1 and added to README** — *Mandira*  
+- **Updated DFD Level 1 and added to README** — *Mandira,Aakash*  
 - **Updated System Architecture and linked to README** — *Aakash, Harjot*  
 - **Updated Proposal and linked to README** — *Mohamed, Ansh*  
 - **Updated WBS and linked to README** — *Mandira, Mithish*  
