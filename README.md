@@ -218,3 +218,58 @@ Build the UI to consume the service. Generate one-page résumé and web-portfoli
 - No cloud persistence required; local-first with encryption.  
 - Linux desktop support is out of scope initially (per proposal).
 
+
+
+
+
+ # Data Flow Diagram (DFD Level 1)
+
+## Overview
+This DFD shows how data flows between the user, system processes, local storage, and output in the **Mining Digital Work Artifacts** system.
+
+![Architecture Diagram](architecture.png)
+
+## Entities
+- **User** – logs in, uploads files, views dashboard, and can request data deletion or exports.  
+- **Export Destination** – receives final exported outputs.
+
+---
+
+## Processes
+- **P1 – Login**  
+  Load user configurations and start session.
+
+- **P2 – Upload**  
+  Upload zipped folder and give consent; store data in local encrypted DB.
+
+- **P3 – File Sorting**  
+  Discard irrelevant files and pass relevant ones for analysis.
+
+- **P4 – Analysis**  
+  Analyze files (code or non-code), extract metadata, optionally use LLM, and prepare summaries for storage.
+
+- **P5 – Data Deletion**  
+  Handle user’s data wipe requests and remove logs and stored data.
+
+- **P4 (continued) – Display Dashboard Output**  
+  Present analyzed results, logs, and visualizations; allow export.
+
+---
+
+## Data Stores
+- **D1 – Local Encrypted DB**  
+  Stores user data, uploaded files, and analysis results.  
+
+- **D2 – Logs and Scan Receipts**  
+  Stores logs, receipts, and deletion confirmations.
+
+---
+
+**Summary:**  
+The user uploads work artifacts, which are sorted, analyzed, and stored locally. Results are displayed through a dashboard and can be exported. All data is encrypted and deletable upon user request.
+
+
+
+
+
+
