@@ -1,0 +1,18 @@
+# Core Dependencies
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# Database (SQLite - built into Python)
+sqlalchemy==2.0.31
+
+# Environment Variables
+python-dotenv==1.0.1
+
+# Testing
+pytest==8.2.2
+pytest-cov==5.0.0
+httpx==0.28.1
+
+# Code Quality
+black==24.4.2
+flake8==7.1.0
