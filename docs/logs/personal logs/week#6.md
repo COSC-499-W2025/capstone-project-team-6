@@ -3,6 +3,9 @@
 ## Date Range
 Oct 06th–12th
 
+![Mandira Peer Eval SS](images/MandiraWeek6.png)
+
+
 ## Tasks Worked On
 - Created the Work Breakdown Structure (WBS) for the project.  
 - Updated the Data Flow Diagram (DFD) Level 1 with assistance from **Aakash**.  
