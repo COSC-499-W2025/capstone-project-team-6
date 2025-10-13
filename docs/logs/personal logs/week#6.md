@@ -71,8 +71,15 @@ created our front end environment using electron and react.
 # Mohamed Sakr
 
 ## Date Range
+Oct 06th–12th
 
+![Mohamed Peer Eval SS](images/MohamedW6.png)
 ## Tasks Worked On
+- Edited the project proposal based on the newly released project requirements
+- Created the Kanban board for the project
+- Researched the possible implementation of RAG and LLMs 
 
 ## Weekly Goals Recap
+- **Features I was responsible for (this milestone):** Project proposal and kanban board
+- **Progress in the last 2 weeks:** Researching the implementation of RAG and LLMs for this project
 
