@@ -22,11 +22,18 @@ Team coordination and meeting facilitation ensured that all updates were complet
 # Mithish Ravisankar Geetha
 
 ## Date Range
+October 06-12
+
+![Mithish Peer Eval SS](images/MithishWeek6.jpg)
 
 ## Tasks Worked On
+- Created the docker file for the project and set up the initial project structure.
+- Revised and understood how Docker containerization works and set up the local environment.
+- Added issues into the Kanban board and assigned weekly tasks to team members.
+- Attended team meetings to coordinate progress and assign tasks.
 
 ## Weekly Goals Recap
-
+The goal for this week was to set up our local environments and create the foundation of our project. This included creating our docker file, and I tested it by running the project in two devices to check if the containerization works. Furthermore, after our discussion in the team meeting, I added the initial issues to be worked on in the Kanban board and this will be updated frequently going forward from the next sprint.
 
 
 
