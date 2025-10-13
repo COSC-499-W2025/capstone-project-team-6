@@ -52,12 +52,19 @@ Team coordination and meeting facilitation ensured that all updates were complet
 
 
 # Harjot Sahota
+<img width="1075" height="628" alt="Screenshot 2025-10-12 at 10 42 29 PM" src="https://github.com/user-attachments/assets/c92236e8-0b38-4ff0-b65f-c686a37177ba" />
 
 ## Date Range
+Oct 06th–12th
 
 ## Tasks Worked On
-
+- Helped edit system arhitecture
+- Helped update our Sytstem requirements
+- Setup our frontend environment with electron and react (vite)
+  
 ## Weekly Goals Recap
+The goal for this week was to update and upload our system architecture and our requirements. I also researched and 
+created our front end environment using electron and react.
 
 
   
