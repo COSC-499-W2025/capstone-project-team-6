@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-
+cd "$(dirname "$0")"
 echo "Stopping old containers..."
 docker rm -f capstone_container 2>/dev/null || true
 docker-compose down -v --remove-orphans || true
