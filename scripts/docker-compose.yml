@@ -1,14 +1,16 @@
+version: '3.9'
+
 services:
-  capstone:
-    container_name: capstone_container
+  backend:
     build:
       context: ..
       dockerfile: scripts/Dockerfile
+    container_name: capstone_backend
     ports:
       - "8000:8000"
-      - "5173:5173"
+    volumes:
+      - ..:/app
+      - /app/venv
     env_file:
       - .env
-    volumes:
-      - ../:/app
-    command: bash -c "python -m pip install --upgrade pip && concurrently 'uvicorn src.backend.main:app --host 0.0.0.0 --port 8000' 'npm --prefix src/frontend run dev'"
+    command: uvicorn src.backend.main:app --host 0.0.0.0 --port 8000

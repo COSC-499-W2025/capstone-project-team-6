@@ -97,11 +97,6 @@ scripts\win_run.bat
 - Backend (FastAPI) → http://localhost:8000/docs
 - Frontend (React/Vite) → http://localhost:5173
 
-### 4. Launch Electron App
-After the containers are running:
-- macOS: `./scripts/launch_electron.sh`
-- Windows: `scripts\launch_electron.bat`
-
 
 ## Development Workflow
 
