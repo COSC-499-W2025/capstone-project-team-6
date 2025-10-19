@@ -40,6 +40,7 @@ On Windows:
 ```bash
 uv pip install -r requirements.txt
 ```
+```
 
 ## Installed Packages
 
