@@ -42,4 +42,10 @@ def login(req: LoginRequest):
         return {"message": "Login successful"}
     raise HTTPException(status_code=401, detail="Invalid username or password")
 
+@app.post("/signup")
+def signup(req: LoginRequest):
+    if req.username in users:
+        raise HTTPException(status_code=400, detail="Username already exists")
+    users[req.username] = req.password
+    return {"message": "Signup successful"}
 
