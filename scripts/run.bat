@@ -1,16 +1,19 @@
 @echo off
-echo Stopping old containers...
-docker rm -f capstone_container 2>/dev/null || true
-docker-compose down -v --remove-orphans || true
+SETLOCAL ENABLEDELAYEDEXPANSION
 
-echo Building new Docker images...
-docker-compose build
+REM Navigate to the script's directory
+cd /d %~dp0
+
+echo Stopping old containers...
+docker rm -f capstone_container >nul 2>&1
+docker-compose down -v --remove-orphans >nul 2>&1
+
+echo Building and updating Docker images...
+docker compose build --no-cache
 
 echo Launching containers...
-docker-compose up -d
+docker compose up -d
 
-echo Running services:
-echo  - FastAPI: http://localhost:8000/docs
+echo Running!
+echo  - Backend:  http://localhost:8000/docs
 echo  - Frontend: http://localhost:5173
-
-pause
