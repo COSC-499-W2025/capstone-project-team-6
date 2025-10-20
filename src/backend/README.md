@@ -8,11 +8,13 @@ This is the Python FastAPI backend for an Electron-based desktop application.
 - **Backend**: FastAPI (Python API server)
 - **Database**: SQLite (local database)
 - **Desktop**: Electron
+- **Containerization**: Docker & Docker Compose
 
 ## Prerequisites
 
 - Python 3.13.7
 - uv package manager
+- Docker & Docker Compose (for full environment setup)
 
 ## Setup Instructions
 
@@ -78,6 +80,25 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 The FastAPI server will start and automatically reload on code changes.
 
+## Dockerized Setup
+
+The project includes Docker support for running both the backend and Electron-based frontend simultaneously.
+
+### 1. Build and Launch Containers (macOS)
+```
+chmod +x scripts/run.sh
+./scripts/run.sh
+```
+### 2. Build and Launch Containers (Windows)
+```
+scripts\win_run.bat
+```
+
+### 3. Access Services
+- Backend (FastAPI) → http://localhost:8000/docs
+- Frontend (React/Vite) → http://localhost:5173
+
+
 ## Development Workflow
 
 ### Running Tests
@@ -124,7 +145,7 @@ backend/
 ## Integration with Electron
 
 The FastAPI backend runs as a local API server that the Electron app communicates with via HTTP requests. The React frontend (in the Electron renderer process) will make API calls to `http://localhost:8000` (or configured port).
-
+≈≈
 ### Communication Flow
 ```
 Electron Main Process
