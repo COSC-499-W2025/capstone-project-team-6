@@ -62,3 +62,7 @@ Thumbs.db
 *.db
 *.sqlite
 *.sqlite3
+
+# Uploads
+uploads/
+!uploads/.gitkeep
