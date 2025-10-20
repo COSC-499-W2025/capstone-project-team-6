@@ -59,9 +59,19 @@ The goal for this week was to learn about react and electron and how it's linked
 # Harjot Sahota
 
 ## Date Range
+October 13-20
 
+<img width="865" height="547" alt="Screenshot 2025-10-19 at 9 25 19 PM" src="https://github.com/user-attachments/assets/ceebc4a8-7494-4d54-8e5d-ca6a37c0fadc" />
 ## Tasks Worked On
 ## Weekly Goals Recap
+- Recearched more about electron and react js, learnt about react (vite), and learnt more about sqlite and how to set it up
+- setup our database environment (sqlite)
+- wrote tests for our database
+- tested review on docker, wrote test commands given and approved the pr after testing docker image
+- studied for the quiz (oct 15)
+
+- **Features I was responsible for (this milestone):** I was responisble for setting up our database using SQLite
+- **Progress in the last 2 weeks:**  I setup our frontend environment using electron + react (vite), I setup our database using SQLite
 
 # Mohamed Sakr
 
