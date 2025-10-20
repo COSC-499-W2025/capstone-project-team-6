@@ -9,7 +9,7 @@ def create_database():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS test_table (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name tester
+            name TEXT
         )
     """)
 
