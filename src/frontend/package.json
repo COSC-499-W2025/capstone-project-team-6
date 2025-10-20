@@ -19,11 +19,15 @@
     "concurrently": "^9.2.1",
     "cross-env": "^7.0.3",
     "electron": "^38.2.2",
+    "electron-reload": "^2.0.0-alpha.1",
     "vite": "^6.3.6",
     "wait-on": "^8.0.5"
   },
   "dependencies": {
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-arm64-gnu": "6.3.6"
   }
 }
