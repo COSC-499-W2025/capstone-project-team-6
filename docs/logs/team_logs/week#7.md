@@ -75,20 +75,20 @@
 ## Completed / In progress tasks per user
 
 # Mandira Samarasekara
-![Mandira Samarasekara](Images/MandiraWeek7.jpg)
+![Mandira Samarasekara](Images/MandiraWeek7.png)
 
 
 # Mohamed Sakr
-![Mohamed Sakr](Images/MohomadWeek7.jpg)
+![Mohamed Sakr](Images/MohomadWeek7.png)
 
 # Mithish Ravisankar Geetha
-![Mithish Ravisankar Geetha](Images/MithishWeek7.jpg)
+![Mithish Ravisankar Geetha](Images/MithishWeek7.png)
 
 # Aakash
-![Aakash](Images/AakashWeek7.jpg)
+![Aakash](Images/AakashWeek7.png)
 
 # Ansh Rastogi
-![Ansh Rastogi](Images/AnshWeek7.jpg)
+![Ansh Rastogi](Images/AnshWeek7.png)
 
 # Harjot Sahota
-![Harjot Sahota](Images/HarjotWeek7.jpg)
+![Harjot Sahota](Images/HarjotWeek7.png)
