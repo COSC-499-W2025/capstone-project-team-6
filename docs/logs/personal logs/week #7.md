@@ -66,12 +66,15 @@ The goal for this week was to learn about react and electron and how it's linked
 # Mohamed Sakr
 
 ## Date Range
+October 13-20
 
+![Mohamed Peer Eval SS](images/MohamedW7.png)
 ## Tasks Worked On
-
+- Researched about Electron and React.
+- Tested the features added to this sprint. 
+- Studied for the quiz held on Wednesday Oct 15.
+- Researched and worked on the database design.
+- Helped set up the database
 ## Weekly Goals Recap
-- **Features I was responsible for (this milestone):**
-- **Progress in the last 2 weeks:** 
-
-- **Features I was responsible for (this milestone):** 
-- **Progress in the last 2 weeks:** 
+- **Features I was responsible for (this milestone):** Designing the database schema, picking a database stack, and setting up the database
+- **Progress in the last 2 weeks:** Studying electron and react, learning how to build databases to store files.
