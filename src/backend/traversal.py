@@ -26,6 +26,13 @@ def bfs_traverse(root_path: str | Path):
     while queue:
         current_dir = queue.popleft()
 
+        parent= current_dir.parent
+        # if parent node is a project remove from queue
+        if parent in node_info and node_info[parent]["project"]:
+            # 2 checks since root wont have a parent and node_info will be false
+            continue
+
+
         #dfs
         has_file = dfs_for_file(current_dir)
         node_info[current_dir]["project"] = has_file
