@@ -88,7 +88,7 @@
 ![Aakash](Images/AakashWeek7.png)
 
 # Ansh Rastogi
-![Ansh Rastogi](Images/AnshWeek7.png)
+![Ansh Rastogi](Images/AnchWeek7.png)
 
 # Harjot Sahota
 ![Harjot Sahota](Images/HarjotWeek7.png)
