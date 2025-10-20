@@ -19,7 +19,8 @@ First we have a system that goes through the zipped folder in a breath first sea
 
 ![](images/traversal.png)
 
-Start with the red line. This shows the breath first search portion. At every breath first search we do a depth first search of height 1. This is represented by the blue line. 
+Start with the purple lines, it does a DFS on the root folder where all are folders and moves through the first node(root node).
+Next the red line. This shows the breath first search portion. At every breath first search we do a depth first search of height 1. This is represented by the blue line. 
 Check if it is a folder, file or empty
 - if folder check next location at that height. 
 - if file mark the parent folder a project. all files/folders the parent folder are part of the project and have no need to be checked 
