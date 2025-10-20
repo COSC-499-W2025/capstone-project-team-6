@@ -3,84 +3,53 @@ from collections import deque
 from typing import Iterable, Union
 
 #Note traverse symlink is for folders that go into other folders that are not heirachally there in the topology so we will be ignoring these
-def bfs_fs(
-        root: Union[str, Path],
-        *,
-        traverse_symlink_dirs: bool = False,
-    ) -> Iterable[Path]:
+def bfs_traverse(root_path: str | Path):
+    """
+    Performs a breadth-first traversal starting at root_path.
+    checks if it contains files using dfs_for_file().
+    returns a dictionary where each directory path maps to its 'project' boolean.
+    """
+    root = Path(root_path)
 
+    if not root.exists():
+        raise FileNotFoundError(f"The path {root} does not exist.")
+    if not root.is_dir():
+        raise ValueError(f"The path {root} is not a directory.")
 
-    root = Path(root)
-    q = deque([root])
+    #replace with this with a class instead of a dictionary
+    #dictionary to store directory info
+    node_info = {root: {"project": False}}
 
-    #Track visited directories
-    visited = set()
+    #Queue for BFS
+    queue = deque([root])
 
-    #generate unique key for each directory
-    def dir_key(p: Path):
-        try:
-            st = p.stat(follow_symlinks=False)
-            return (st.st_dev, st.st_ino) # st.st_dev - device id, st.ino inode number (can remove later if not needed)
-        except Exception:
-            # Fallback: resolved path string 
-            try:
-                return ("path", str(p.resolve(strict=False)))
-            except Exception:
-                return ("path", str(p))
+    while queue:
+        current_dir = queue.popleft()
 
-    #add root as visited 
-    if root.is_dir():
-        visited.add(dir_key(root))
+        #dfs
+        has_file = dfs_for_file(current_dir)
+        node_info[current_dir]["project"] = has_file
 
-    # while q not empty
-    while q:
-        current = q.popleft()
-        yield current
-
-        #Only descend into directories
-        try:
-            if not current.is_dir():
-                continue
-
-            #loop through child nodes
-            for child in sorted(current.iterdir(), key=lambda p: p.name.lower()):
-                # Always yield the child (files, dirs, and symlinks alike)
-                yield child
-
-                # Decide whether to traverse further
-                try:
-                    if child.is_dir():
-                        #Will be skipping symlinks at this stage
-                        if child.is_symlink() and not traverse_symlink_dirs:
-                            continue
-                        
-                        # if the child is as folder check if it is already visited
-                        k = dir_key(child)
-                        if k in visited:
-                            continue
-                        #if not visited add it to visited
-                        visited.add(k)
-                        # add all child nodes to queue
-                        q.append(child)
-                except PermissionError:
-                    # Can't stat or descend this child; just skip
-                    continue
-                except FileNotFoundError:
-                    # It vanished between listing and stat; skip
-                    continue
-
-        except PermissionError:
-            # Can't read this directory; skip
-            continue
-        except FileNotFoundError:
-            # Directory vanished; skip
+        if has_file:
+            #no need to check for the rest of the sub items
             continue
 
+        try:
+            for item in current_dir.iterdir():
+                #if dir (extra check) add to queue with project false
+                if item.is_dir():
+                    #initialize child node with default project=False
+                    node_info[item] = {"project": False}
+                    queue.append(item)
+        except (PermissionError, FileNotFoundError):
+            continue  # Skip folders that can't be read
+
+    return node_info
 
 
-from pathlib import Path
 
-def has_file_in_subitems(path: str | Path) -> bool:
+
+def dfs_for_file(path: str | Path) -> bool:
     """
     Does a Depth first search of depth =1
     returns true if there is file in the sub items of the directory
