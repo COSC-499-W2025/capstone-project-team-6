@@ -1,22 +1,161 @@
+"""SQLite helpers for user authentication."""
+
+from __future__ import annotations
+
+import os
 import sqlite3
+from contextlib import contextmanager
+from pathlib import Path
+from typing import Dict, Optional
 
-DB_NAME = "myapp.db"
+import bcrypt
 
-def create_database():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS test_table (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT
+DEFAULT_USERS: Dict[str, str] = {
+    "testuser": "password123",
+    "mithish": "abc123",
+}
+
+
+class UserAlreadyExistsError(Exception):
+    """Raised when attempting to create a user that already exists."""
+
+
+def _default_db_path() -> Path:
+    return Path(__file__).resolve().parent.parent / "myapp.db"
+
+
+def _resolve_db_path() -> Path:
+    env_path = os.getenv("MYAPP_DB_PATH")
+    if env_path:
+        return Path(env_path).expanduser().resolve()
+    return _default_db_path()
+
+
+_DB_PATH = _resolve_db_path()
+
+
+def get_db_path() -> Path:
+    return _DB_PATH
+
+
+def set_db_path(path: Path | str) -> Path:
+    global _DB_PATH
+    previous = _DB_PATH
+    _DB_PATH = Path(path).expanduser().resolve()
+    return previous
+
+
+def _ensure_parent_dir(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+
+@contextmanager
+def get_connection() -> sqlite3.Connection:
+    """Context manager that yields a SQLite connection with row access by name."""
+
+    db_path = get_db_path()
+    _ensure_parent_dir(db_path)
+    conn = sqlite3.connect(db_path,
+                           detect_types=sqlite3.PARSE_DECLTYPES,
+                           check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+def init_db() -> None:
+    """Create required tables if they do not already exist."""
+
+    with get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
         )
-    """)
+        conn.commit()
 
-    conn.commit()
-    conn.close()
-    print("SQLite setup complete!!!!!!!")
 
-# makes sure you only create the database when you exectute the script and not when you import it
+def reset_db() -> None:
+    """Helper for tests: drop the database file and recreate schema."""
+
+    db_path = get_db_path()
+    if db_path.exists():
+        db_path.unlink()
+    init_db()
+
+
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def verify_password(password: str, password_hash: str) -> bool:
+    try:
+        return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
+    except ValueError:
+        # Happens if stored hash is malformed.
+        return False
+
+
+def create_user(username: str, password: str) -> int:
+    if not username:
+        raise ValueError("Username is required")
+    if not password:
+        raise ValueError("Password is required")
+
+    hashed = hash_password(password)
+
+    with get_connection() as conn:
+        try:
+            cursor = conn.execute(
+                "INSERT INTO users (username, password_hash) VALUES (?, ?)",
+                (username, hashed),
+            )
+            conn.commit()
+        except sqlite3.IntegrityError as exc:
+            raise UserAlreadyExistsError("Username already exists") from exc
+
+        return cursor.lastrowid
+
+
+def get_user(username: str) -> Optional[sqlite3.Row]:
+    with get_connection() as conn:
+        return conn.execute(
+            "SELECT id, username, password_hash, created_at FROM users WHERE username = ?",
+            (username,),
+        ).fetchone()
+
+
+def authenticate_user(username: str, password: str) -> bool:
+    record = get_user(username)
+    if record is None:
+        return False
+    return verify_password(password, record["password_hash"])
+
+
+def seed_default_users(default_users: Optional[Dict[str, str]] = None) -> None:
+    users = default_users or DEFAULT_USERS
+    for username, password in users.items():
+        try:
+            create_user(username, password)
+        except UserAlreadyExistsError:
+            continue
+
+
+def initialize() -> None:
+    init_db()
+    seed_default_users()
+
+
 if __name__ == "__main__":
-    create_database()
+    initialize()
+    print(f"SQLite setup complete at {get_db_path()}")
+
