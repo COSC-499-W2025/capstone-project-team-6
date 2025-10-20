@@ -71,3 +71,23 @@
 - The **Docker**, **Login/Signup**, and **Database** setups mark key infrastructure milestones for future integration.  
 - Research on **LLMs** and **Electron** significantly advanced the team’s technical preparedness for implementation.  
 - Team is on track for next week’s milestone focusing on **frontend–backend integration** and **LLM connection setup**.  
+
+## Completed / In progress tasks per user
+
+# Mandira Samarasekara
+![Mandira Samarasekara](images/MandiraWeek7.jpg)
+
+# Mohamed Sakr
+![Mohamed Sakr](images/MohomadWeek7.jpg)
+
+# Mithish Ravisankar Geetha
+![Mithish Ravisankar Geetha](images/MithishWeek7.jpg)
+
+# Aakash
+![Aakash](images/AakashWeek7.jpg)
+
+# Ansh Rastogi
+![Ansh Rastogi](images/AnshWeek7.jpg)
+
+# Harjot Sahota
+![Harjot Sahota](images/HarjotWeek7.jpg)
