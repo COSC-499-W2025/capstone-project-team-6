@@ -86,7 +86,17 @@ October 13-20
 
 ## Date Range
 
+October 13-20
+
+![Mohamed Peer Eval SS](images/MohamedW7.png)
+
 ## Tasks Worked On
+
+- Researched about Electron and React.
+- Tested the features added to this sprint.
+- Studied for the quiz held on Wednesday Oct 15.
+- Researched and worked on the database design.
+- Helped set up the database
 
 ## Weekly Goals Recap
 
