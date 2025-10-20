@@ -78,3 +78,31 @@ def bfs_fs(
 
 
 
+from pathlib import Path
+
+def has_file_in_subitems(path: str | Path) -> bool:
+    """
+    Does a Depth first search of depth =1
+    returns true if there is file in the sub items of the directory
+
+    """
+    p = Path(path)
+
+    #proceed if it’s a directory
+    if not p.is_dir():
+        raise ValueError(f"The path {p} is not a directory.")
+
+    #Iterate over immediate children
+    try:
+        for item in p.iterdir():
+            if item.is_file():
+                return True  # found at least one file
+    except PermissionError:
+        # Can't access folder contents; treat as empty
+        return False
+    except FileNotFoundError:
+        # Folder may have been deleted during traversal
+        return False
+
+    # If we finish the loop without finding files
+    return False
