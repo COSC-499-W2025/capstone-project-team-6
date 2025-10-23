@@ -1,16 +1,17 @@
 # Project Consent Form: Mining Digital Work Artifacts
 
-
 ## 1. Purpose of the Application
 
 This application analyzes a **zipped project folder** that you provide to generate summaries, metrics, and résumé-ready highlights.  
-With your consent, the app may optionally use an **external AI model (OpenAI API)** to enhance the quality of summaries.  
-If you do **not** consent, the analysis will occur **locally** on your device using the **Llama Stack** (a locally hosted AI model) and deterministic methods.
+
+All analysis is performed **locally on your device** using the **Llama Stack**, a privacy-preserving AI framework.  
+No data is transmitted to any external server or third-party API.
 
 
 ## 2. Scope of Data Access
 
-When you upload a ZIP file, the app will **only** access the contents within that ZIP. It will not scan or access files outside the uploaded folder.
+When you upload a ZIP file, the app will **only** access the contents within that ZIP.  
+It will not scan or access any other files or directories on your device.
 
 The application may extract and process the following:
 
@@ -20,74 +21,65 @@ The application may extract and process the following:
 - Image metadata (for creative project context)
 
 
-## 3. Optional External Processing (OpenAI API)
+## 3. Local Analysis (Llama Stack)
 
-If you consent, the app may transmit limited text data to the **OpenAI API** for high-quality summarization.  
+All data analysis occurs locally using the **Llama Stack**, which runs entirely on your device.  
 
-**Details:**
-- **Provider:** OpenAI (API access only)  
-- **Data Shared:** Short text excerpts (e.g., documentation, commit messages) and numerical metrics (e.g., file counts, dates). In some cases where further anlysis is required the entire file maybe shared with OpenAI.  
-- **Purpose:** To generate project summaries and skill highlights.  
-- **Data Retention:** OpenAI may retain inputs and outputs for up to **30 days** for abuse monitoring.  
-  - Data is **not** used for model training.  
-  - The app enables **Zero-Data-Retention (ZDR)** mode whenever available.
+**Features of Local Processing:**
+- No internet connection is required for analysis.  
+- All computations and model inferences are performed locally using **Llama models** (via Ollama/vLLM).  
+- The model and its runtime environment are sandboxed to prevent unauthorized data access.  
+- Summaries and metrics are generated using local templates and natural language generation tools.  
 
-
-## 4. Local-Only Analysis (Llama Stack)
-
-If you do not consent to external processing, the app performs all analysis locally using the **Llama Stack**, an open-source, privacy-preserving framework.
-
-**Features of Local Mode:**
-- Processes all data locally on your device.  
-- Uses a locally hosted **Llama model** (via Ollama/vLLM).  
-- Generates summaries using local templates and lightweight NLP.  
-
-**Note:** This mode maximizes privacy but may produce less fluent summaries compared to the OpenAI-enhanced version.
+**Privacy Considerations:**
+- Your data **never leaves your device**.  
+- No external APIs or cloud-based services are contacted.  
+- The model and system logs remain local and are not shared or synced automatically.  
 
 
-## 5. Data Storage
+## 4. Data Storage
 
 Stored **locally** on your device:
-- SQLite database with project metadata, metrics, summaries, and consent record.  
-- Extracted text snippets (local use only).  
+- SQLite database containing project metadata, metrics, summaries, and your consent record.  
+- Extracted text snippets used for local analysis only.  
 - Timestamped consent log.  
 
-You can disable local logging of prompts/responses at any time.
+You may disable local logging of prompts/responses at any time in **Settings → Privacy**.
 
 
-## 6. Data Deletion
+## 5. Data Deletion
 
 You may delete all stored data through **Settings → Privacy → Delete All Data**.  
-This will remove all local databases, caches, and consent records.  
-If OpenAI API was used, note that their **30-day retention period** cannot be shortened by this deletion.
+This action removes:
+- All local databases, caches, summaries, and consent records.  
+- Any temporary extracted files or logs generated during processing.
+
+Since no external data transmission occurs, deletion is immediate and complete.
 
 
-## 7. Voluntary Participation
+## 6. Voluntary Participation
 
 Your participation and data submission are voluntary.  
-You may withdraw consent anytime via **Settings → Consent**, after which no further external data transmission will occur.
+You may withdraw consent at any time through **Settings → Consent**, after which the application will cease all data analysis and delete existing data if requested.
 
 
-## 8. Related Privacy Policies
+## 7. Related Privacy Policies
 
-- **OpenAI API Privacy & Retention:** [https://openai.com/enterprise-privacy](https://openai.com/enterprise-privacy)  
-- **Llama Stack (Meta):** [https://ai.meta.com/llama/](https://ai.meta.com/llama/)
+- **Llama Stack (Meta):** [https://ai.meta.com/llama/](https://ai.meta.com/llama/)  
+- **Ollama Runtime:** [https://ollama.ai/privacy](https://ollama.ai/privacy)
 
 
-## 9. Consent Decision
+## 8. Consent Decision
 
-Please select **one** of the following:
+Please confirm the following:
 
-### A. Use OpenAI API (Cloud-Based)
-- [ ] I consent to the app analyzing my uploaded ZIP and transmitting **limited text/code snippets** to the **OpenAI API** for improved summaries. I understand OpenAI may retain data for up to 30 days for security purposes and that Zero-Data-Retention mode is enabled when available.  
-
-### B. Use Local Llama Stack (On-Device)
-- [ ] I do **not** consent to external data transmission. The app will analyze my ZIP locally using the **Llama Stack**.  
+- [ ] I consent to the app analyzing my uploaded ZIP **locally** using the **Llama Stack**.  
+  I understand that no data will be transmitted externally, and all processing occurs on my device for maximum privacy.  
 
 
 ### Developer Implementation Notes (Not Displayed to User)
 
 - Display this form before accessing any uploaded files.  
-- Store user choice as `{ useExternalAI: true/false }` in the consent table or JSON config.  
-- Immediately halt any external API requests if consent is withdrawn.  
+- Store user consent as `{ useExternalAI: false }` in the consent table or JSON config.  
+- Ensure all AI analysis runs locally within the Llama Stack runtime.  
 - Generate a **timestamped PDF “Consent Receipt”** containing this version and the user’s decision.
