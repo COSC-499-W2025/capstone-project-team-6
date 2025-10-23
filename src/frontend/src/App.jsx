@@ -145,7 +145,7 @@ function App() {
           }}
         >
           {mode === "login"
-            ? "Don't have an account?  up"
+            ? "Don't have an account? Sign up"
             : "Already have an account? Log in"}
         </button>
       </div>
