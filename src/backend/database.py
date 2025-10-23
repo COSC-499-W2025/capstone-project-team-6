@@ -106,7 +106,7 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 
 def create_user(username: str, password: str) -> int:
-    if not username:
+    if not username or not username.strip():
         raise ValueError("Username is required")
     if not password:
         raise ValueError("Password is required")

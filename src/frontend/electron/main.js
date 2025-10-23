@@ -4,6 +4,12 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 800,
     height: 600,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      enableRemoteModule: false,
+      webSecurity: false, // Disable for development
+    },
   });
 
   // For now this is where our react with vite runs 
