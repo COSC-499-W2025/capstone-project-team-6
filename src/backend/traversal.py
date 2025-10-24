@@ -116,3 +116,90 @@ class DirectoryNode:
     def __repr__(self):
         return (f"DirectoryNode(path={self.path.name}, is_project={self.is_project}, "
                 f"score={self.score:.1f}, subprojects={self.subproject_count})")
+    
+
+class ProjectHeuristics:
+    """
+    Defines scoring rules for project detection.
+
+    list was generated and sorted into levels, scores were assigned manually
+    """
+    
+    # Strong indicators - Common files found in all project roots 
+    STRONG_INDICATORS = {
+        '.git': 100,
+        '.gitignore': 15,
+        'package.json': 80,
+        'pyproject.toml': 80,
+        'Cargo.toml': 80,
+        'go.mod': 80,
+        'pom.xml': 80,
+        'build.gradle': 80,
+        'build.gradle.kts': 80,
+        'Gemfile': 70,
+        'composer.json': 70,
+        'CMakeLists.txt': 70,
+        'Makefile': 60,
+        '.sln': 80,  # Visual Studio solution
+        '.csproj': 70,
+        'tsconfig.json': 60,
+        'webpack.config.js': 50,
+        'vite.config.js': 50,
+        'rollup.config.js': 50,
+    }
+    
+    # Medium indicators - documentation
+    MEDIUM_INDICATORS = {
+        'README.md': 30,
+        'README.rst': 30,
+        'README.txt': 25,
+        'README': 20,
+        'Dockerfile': 40,
+        'docker-compose.yml': 40,
+        'docker-compose.yaml': 40,
+        '.dockerignore': 20,
+        'requirements.txt': 35,
+        'setup.py': 60,
+        'setup.cfg': 40,
+        'environment.yml': 30,
+        'Pipfile': 50,
+        'poetry.lock': 50,
+        '.env.example': 25,
+        '.editorconfig': 15,
+    }
+    
+    # Weak indicators - misc project files
+    WEAK_INDICATORS = {
+        'LICENSE': 15,
+        'LICENSE.txt': 15,
+        'LICENSE.md': 15,
+        '.gitattributes': 10,
+        '.prettierrc': 10,
+        '.eslintrc': 10,
+        '.eslintrc.js': 10,
+        '.eslintrc.json': 10,
+        'jest.config.js': 15,
+        'pytest.ini': 15,
+        '.travis.yml': 20,
+        '.gitlab-ci.yml': 20,
+        '.github': 25,  # Directory
+        '.circleci': 20,  # Directory
+    }
+    
+    # Negative indicators - these suggest NOT a project root
+    NEGATIVE_INDICATORS = {
+        'node_modules': -50,
+        '__pycache__': -30,
+        '.pytest_cache': -20,
+        'venv': -40,
+        'env': -40,
+        '.venv': -40,
+        'virtualenv': -40,
+        'target': -30,  # Java/Rust build output
+        'build': -25,
+        'dist': -25,
+        '.next': -30,
+        '.cache': -20,
+        'coverage': -20,
+        '.coverage': -15,
+    }
