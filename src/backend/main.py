@@ -7,8 +7,10 @@ import uuid
 from datetime import datetime
 from typing import List
 
+from . import database
+
+
 app = FastAPI(title="Desktop App Backend", version="0.1.0")
-users = {"testuser": "password123", "mithish": "abc123"}
 
 # Configuration
 UPLOAD_DIR = Path(__file__).parent / "uploads"
@@ -43,6 +45,11 @@ def read_root():
 def health_check():
     """API health check"""
     return {"status": "healthy"}
+
+
+@app.on_event("startup")
+def startup() -> None:
+    database.initialize()
 
 
 @app.post("/api/upload")
@@ -174,17 +181,21 @@ async def upload_multiple_files(files: List[UploadFile] = File(...)):
         "failed": len([r for r in results if r["status"] == "error"]),
         "results": results
     }
+
+
+
 @app.post("/login")
 def login(req: LoginRequest):
     print("Received:", req.dict())  # Debug line
-    if req.username in users and users[req.username] == req.password:
+    if database.authenticate_user(req.username, req.password):
         return {"message": "Login successful"}
     raise HTTPException(status_code=401, detail="Invalid username or password")
 
 
 @app.post("/signup")
 def signup(req: LoginRequest):
-    if req.username in users:
+    try:
+        database.create_user(req.username, req.password)
+    except database.UserAlreadyExistsError:
         raise HTTPException(status_code=400, detail="Username already exists")
-    users[req.username] = req.password
     return {"message": "Signup successful"}

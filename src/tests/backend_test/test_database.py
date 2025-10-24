@@ -1,23 +1,48 @@
-import os
-import sqlite3
-import sys
+"""Tests for SQLite database helper module."""
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../backend")))
-from database import create_database, DB_NAME  
+from pathlib import Path
 
-DB_PATH = "src/backend/myapp.db"
+import pytest
 
-def test_database_creation():
-    """Check if database file is created."""
-    create_database()
-    assert os.path.exists(DB_NAME), "Database file should be created."
+from src.backend import database
 
-def test_table_exists():
-    """Verify that the test_table is created in the database."""
-    create_database()
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='test_table';")
-    result = cursor.fetchone()
-    conn.close()
-    assert result is not None, "test_table should exist in the database."
+
+@pytest.fixture
+def temp_db_path(tmp_path):
+    db_file = tmp_path / "auth_test.db"
+    previous = database.set_db_path(db_file)
+    database.reset_db()
+    yield db_file
+    database.set_db_path(previous)
+
+
+def test_initialize_creates_users_table(temp_db_path):
+    with database.get_connection() as conn:
+        cursor = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='users';"
+        )
+        assert cursor.fetchone() is not None
+
+
+def test_create_user_inserts_record(temp_db_path):
+    new_id = database.create_user("alice", "secret")
+    assert isinstance(new_id, int)
+
+    user = database.get_user("alice")
+    assert user is not None
+    assert user["username"] == "alice"
+    assert user["password_hash"] != "secret"
+
+
+def test_duplicate_username_raises(temp_db_path):
+    database.create_user("bob", "secret1")
+    with pytest.raises(database.UserAlreadyExistsError):
+        database.create_user("bob", "secret2")
+
+
+def test_authenticate_user(temp_db_path):
+    database.create_user("carol", "mypassword")
+
+    assert database.authenticate_user("carol", "mypassword") is True
+    assert database.authenticate_user("carol", "wrong") is False
+    assert database.authenticate_user("unknown", "mypassword") is False
