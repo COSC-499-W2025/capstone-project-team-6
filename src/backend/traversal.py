@@ -129,36 +129,44 @@ class ProjectHeuristics:
         return all_indicators
     
 
-#how does this fit with dfs???
-def calculate_project_score(directory: Path) -> tuple[float, List[str]]:
+def calculate_project_score(directory: Path) -> tuple[float, List[str], bool, int]:
     """
-    Calculate a project score for a directory based on its immediate children.
+    Calculate a project score for a directory based on its direct children.
+    scoring and directory analysis done
     
     Args:
-        directory: Path to the directory to score
+        directory: Path to the directory to analyze
         
     Returns:
-        Tuple of (score, list of indicators found)
+        Tuple of (score, list of indicators found, has_files, subdirectory_count)
     """
     score = 0.0
     indicators_found = []
+    has_files = False
+    subdir_count = 0
     all_indicators = ProjectHeuristics.get_all_indicators()
     
     try:
         for item in directory.iterdir():
             item_name = item.name
             
-            # Check if this item is an indicator
+            # Check if this item is a project indicator
             if item_name in all_indicators:
                 points = all_indicators[item_name]
                 score += points
                 indicators_found.append(f"{item_name} ({points:+.0f})")
+            
+            # Count files and subdirectories
+            if item.is_file():
+                has_files = True
+            elif item.is_dir():
+                subdir_count += 1
                 
     except (PermissionError, FileNotFoundError):
         # Can't access directory
-        return 0.0, []
+        return 0.0, [], False, 0
     
-    return score, indicators_found
+    return score, indicators_found, has_files, subdir_count
 
 def Folder_traversal(root_path: str | Path):
     """
@@ -209,41 +217,6 @@ def Folder_traversal(root_path: str | Path):
             continue  # Skip folders that can't be read
 
     return node_info
-
-
-
-
-def dfs_for_file(path: str | Path) -> tuple[bool, int]:
-    """
-    Does a Depth first search of depth =1
-    returns:
-        Tuple of (has_files, subdirectory_count)
-    
-
-    """
-    p = Path(path)
-
-    has_files= False
-    #check for sub dir
-    subdir_count = 0
-
-    #proceed if it’s a directory
-    if not p.is_dir():
-        raise ValueError(f"The path {p} is not a directory.")
-
-    #Iterate over immediate children
-    try:
-        for item in p.iterdir():
-            if item.is_file():
-                has_files= True  # found at least one file
-            elif item.is_dir():
-                subdir_count+=1
-    
-    except (PermissionError,FileNotFoundError):
-        # Can't access folder contents; treat as empty
-        pass
-
-    return has_files, subdir_count
 
 
 # informal testing 
