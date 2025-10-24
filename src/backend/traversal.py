@@ -129,6 +129,7 @@ class ProjectHeuristics:
         return all_indicators
     
 
+#how does this fit with dfs???
 def calculate_project_score(directory: Path) -> tuple[float, List[str]]:
     """
     Calculate a project score for a directory based on its immediate children.
@@ -212,13 +213,19 @@ def Folder_traversal(root_path: str | Path):
 
 
 
-def dfs_for_file(path: str | Path) -> bool:
+def dfs_for_file(path: str | Path) -> tuple[bool, int]:
     """
     Does a Depth first search of depth =1
-    returns true if there is file in the sub items of the directory
+    returns:
+        Tuple of (has_files, subdirectory_count)
+    
 
     """
     p = Path(path)
+
+    has_files= False
+    #check for sub dir
+    subdir_count = 0
 
     #proceed if it’s a directory
     if not p.is_dir():
@@ -228,16 +235,15 @@ def dfs_for_file(path: str | Path) -> bool:
     try:
         for item in p.iterdir():
             if item.is_file():
-                return True  # found at least one file
-    except PermissionError:
+                has_files= True  # found at least one file
+            elif item.is_dir():
+                subdir_count+=1
+    
+    except (PermissionError,FileNotFoundError):
         # Can't access folder contents; treat as empty
-        return False
-    except FileNotFoundError:
-        # Folder may have been deleted during traversal
-        return False
+        pass
 
-    # If we finish the loop without finding files
-    return False
+    return has_files, subdir_count
 
 
 # informal testing 
