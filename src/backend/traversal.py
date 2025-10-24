@@ -168,7 +168,7 @@ def calculate_project_score(directory: Path) -> tuple[float, List[str], bool, in
     
     return score, indicators_found, has_files, subdir_count
 
-def Folder_traversal(root_path: str | Path):
+def Folder_traversal(root_path: str | Path) -> Dict[Path, DirectoryNode]:
     """
     Performs a breadth-first traversal starting at root_path.
 
@@ -189,37 +189,40 @@ def Folder_traversal(root_path: str | Path):
     returns:
         Dictionary mapping path to directory node.
     """
-    root = Path(root_path)
+    #assign absolute path
+    root = Path(root_path).resolve()
 
     if not root.exists():
         raise FileNotFoundError(f"The path {root} does not exist.")
     if not root.is_dir():
         raise ValueError(f"The path {root} is not a directory.")
 
-    #replace with this with a class instead of a dictionary
-    #dictionary to store directory info
-    node_info = {root: {"project": False}}
-
-    #Queue for BFS
+    #store all directory nodes
+    node_info: Dict[Path, DirectoryNode] = {}
+    
+    #initialize root node
+    node_info[root] = DirectoryNode(path=root)
+    
+    # Queue for BFS
     queue = deque([root])
 
+    #First pass 
     while queue:
         current_dir = queue.popleft()
+        current_node = node_info[current_dir]
 
-        parent= current_dir.parent
-        # if parent node is a project remove from queue
-        if parent in node_info and node_info[parent]["project"]:
-            # 2 checks since root wont have a parent and node_info will be false
-            continue
-
+        #parent check not needed anymore as the nodes are not needed anymore
 
         #dfs
-        has_file = dfs_for_file(current_dir)
-        node_info[current_dir]["project"] = has_file
+        score, indicators, has_files, subdir_count = calculate_project_score(current_dir)
+        #populate the data into the class
+        current_node.score = score
+        current_node.indicators_found = indicators
+        current_node.has_files = has_files
 
-        if has_file:
-            #no need to check for the rest of the sub items
-            continue
+        # check project status
+        is_project = score >= ProjectHeuristics.PROJECT_THRESHOLD
+        current_node.is_project = is_project
 
         try:
             for item in current_dir.iterdir():
