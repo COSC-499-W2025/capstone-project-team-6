@@ -1,5 +1,7 @@
 from pathlib import Path
 from collections import deque
+from dataclasses import dataclass, field
+from typing import Dict, List, Set
 
 def Folder_traversal(root_path: str | Path):
     """
@@ -89,3 +91,28 @@ if __name__ == "__main__":
     results = Folder_traversal(path)
     for directory, info in results.items():
         print(f"{directory} → project: {info['project']}")
+
+
+@dataclass
+class DirectoryNode:
+    """
+    Represents a directory in the file system with project detection metadata.
+
+    path - stores the path
+    is_project - tells whether the current node/directory is considered as a project or a container
+    score - hueristic score on the current node for being a project
+    indicators_found - shows the list of positive and negative indicators to calculate the points
+    subpoject_count - is the number of subprojects to see if the current node needs to reject its project status and pass it onto the sub folders inside it
+    has_files - general check
+
+    """
+    path: Path
+    is_project: bool = False
+    score: float = 0.0
+    indicators_found: List[str] = field(default_factory=list)
+    subproject_count: int = 0
+    has_files: bool = False
+    
+    def __repr__(self):
+        return (f"DirectoryNode(path={self.path.name}, is_project={self.is_project}, "
+                f"score={self.score:.1f}, subprojects={self.subproject_count})")
