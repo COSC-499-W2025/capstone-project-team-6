@@ -285,14 +285,26 @@ def Folder_traversal(root_path: str | Path) -> Dict[Path, DirectoryNode]:
 
     return node_info
 
-'''
+
 # informal testing 
 if __name__ == "__main__":
     current_dir = Path(__file__).parent      # directory where this file is
-    path = current_dir / "Test-traversal"  
-    results = Folder_traversal(path)
-    for directory, info in results.items():
-        print(f"{directory} → project: {info['project']}")
-'''
+    test_path = current_dir / "../tests/backend_test/Test-traversal"
+    test_path= test_path.resolve()
+
+    if not test_path.exists():
+        print(f"Test path {test_path} not found. Run test_traversal.py first to create it.")
+        exit(1)
+    
+    print(f"Analyzing: {test_path}")
+    print(f"Project threshold: {ProjectHeuristics.PROJECT_THRESHOLD} points\n")
+    
+    results = Folder_traversal(test_path)
+    
+    print(f"\n{'='*80}")
+    print(f"OPTIMIZATION RESULTS")
+    print(f"{'='*80}\n")
+    print(f"Total directories discovered: {len(results)}")
+
 
 
