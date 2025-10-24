@@ -171,8 +171,23 @@ def calculate_project_score(directory: Path) -> tuple[float, List[str], bool, in
 def Folder_traversal(root_path: str | Path):
     """
     Performs a breadth-first traversal starting at root_path.
-    checks if it contains files using dfs_for_file().
-    returns a dictionary where each directory path maps to its 'project' boolean.
+
+    What it does:
+    1. scores each directory at depth 1
+    2. checks direct children for nested projects
+        if 2+ subdirectories then not considered a project itself
+        if 1 or 0 subprojects sub project absorbed into parent
+
+    Passes
+    pass 1 - BFS traversal, score directories, stop/ prune at projects
+    pass 2 - count subprojects
+    pass 3 - Apply nested project rules
+
+    args:
+        root_path - start directory
+
+    returns:
+        Dictionary mapping path to directory node.
     """
     root = Path(root_path)
 
