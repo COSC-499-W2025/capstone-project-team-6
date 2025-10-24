@@ -1,8 +1,6 @@
 from pathlib import Path
 from collections import deque
-from typing import Iterable, Union
 
-#Note traverse symlink is for folders that go into other folders that are not heirachally there in the topology so we will be ignoring these
 def Folder_traversal(root_path: str | Path):
     """
     Performs a breadth-first traversal starting at root_path.

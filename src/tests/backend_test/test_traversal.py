@@ -2,8 +2,8 @@ from pathlib import Path
 import shutil
 import os
 import pytest
-
-from traversal import Folder_traversal, dfs_for_file
+# this import is finiky, try src.backend.traversal if the current import does not work
+from backend.traversal import Folder_traversal, dfs_for_file
 
 def test_dfs_for_file_depth1():
     current_dir = Path(__file__).parent
