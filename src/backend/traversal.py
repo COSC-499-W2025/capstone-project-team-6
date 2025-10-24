@@ -267,6 +267,22 @@ def Folder_traversal(root_path: str | Path) -> Dict[Path, DirectoryNode]:
                 node_info[parent].subproject_count += 1
 
 
+    # Third pass - check and deal with sub projects
+    for path, node in node_info.items():
+        #If a directory has 2+ subprojects, it's NOT a project itself
+        #sub projects are also already labelled as projects
+        if node.subproject_count >= 2:
+            node.is_project = False
+        
+        #If a directory has exactly 1 subproject, absorb it
+        elif node.subproject_count == 1:
+            if node.is_project:
+                #Parent is project, mark child as not a project
+                for child_path, child_node in node_info.items():
+                    if child_path.parent == path and child_node.is_project:
+                        child_node.is_project = False
+                        break
+
     return node_info
 
 '''
