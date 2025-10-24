@@ -224,19 +224,45 @@ def Folder_traversal(root_path: str | Path) -> Dict[Path, DirectoryNode]:
         is_project = score >= ProjectHeuristics.PROJECT_THRESHOLD
         current_node.is_project = is_project
 
-        try:
-            for item in current_dir.iterdir():
-                #if dir (extra check) add to queue with project false
-                if item.is_dir():
-                    #initialize child node with default project=False
-                    node_info[item] = {"project": False}
-                    queue.append(item)
-        except (PermissionError, FileNotFoundError):
-            continue  # Skip folders that can't be read
+
+        # check if project
+        if is_project:
+            # check if subdirectories contain projects
+            try:
+                for item in current_dir.iterdir():
+                    # check if folder
+                    if item.is_dir():
+                        #Score this immediate child to detect nested projects
+                        child_score, child_indicators, child_has_files, _ = calculate_project_score(item)
+                        
+                        # if potential project fill in details
+                        if child_score >= ProjectHeuristics.PROJECT_THRESHOLD:
+                            child_node = DirectoryNode(
+                                path=item,
+                                score=child_score,
+                                indicators_found=child_indicators,
+                                is_project=True,
+                                has_files=child_has_files
+                            )
+                            node_info[item] = child_node
+                            # NOT IN QUEUE
+            except (PermissionError, FileNotFoundError):
+                pass
+        else:
+            #not a project go through sub directory and add to queue
+            try:
+                for item in current_dir.iterdir():
+                    if item.is_dir():
+                        node_info[item] = DirectoryNode(path=item)
+                        queue.append(item)
+            except (PermissionError, FileNotFoundError):
+                continue
+
+
 
     return node_info
 
-
+'''
 # informal testing 
 if __name__ == "__main__":
     current_dir = Path(__file__).parent      # directory where this file is
@@ -244,5 +270,6 @@ if __name__ == "__main__":
     results = Folder_traversal(path)
     for directory, info in results.items():
         print(f"{directory} → project: {info['project']}")
+'''
 
 
