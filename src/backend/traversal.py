@@ -259,6 +259,13 @@ def Folder_traversal(root_path: str | Path) -> Dict[Path, DirectoryNode]:
                 continue
 
 
+    # Second pass: Count subprojects
+    for path, node in node_info.items():
+        if node.is_project:
+            parent = path.parent
+            if parent in node_info:
+                node_info[parent].subproject_count += 1
+
 
     return node_info
 
