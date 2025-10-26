@@ -26,7 +26,7 @@ October 21-26
 - **Features I was responsible for (this milestone):** Create command line interface and shell interface for the project and link everything merged so far. 
 - **Progress in the last 2 weeks:** Completed the login page, completed containerization work.
 
-The goal for this week was to initially create a project dashboard, however I realized that the frontend is not needed for this milestone, hence I closed the PR associated with that. I then worked on the command line interface for the project and I linked everything sone so far in this. Created the CLI prompts took a lot of time as it had several bugs and I had to go through python documentation as well. The CLI now works with login/sign up -> file analysis. The consent form and file upload will be linked to the CLI in the next sprint. 
+The goal for this week was to initially create a project dashboard, however I realized that the frontend is not needed for this milestone, hence I closed the PR associated with that. I then worked on the command line interface for the project and I linked everything done so far in this. Created the CLI prompts took a lot of time as it had several bugs and I had to go through python documentation as well. The CLI now works with login/sign up -> file analysis. The consent form and file upload will be linked to the CLI in the next sprint. 
 
 
 # Aakash  
