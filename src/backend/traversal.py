@@ -3,12 +3,17 @@ from collections import deque
 from typing import Iterable, Union
 
 #Note traverse symlink is for folders that go into other folders that are not heirachally there in the topology so we will be ignoring these
-def Folder_traversal(root_path: str | Path):
+def Folder_traversal(root_path: Union[str, Path]):
     """
     Performs a breadth-first traversal starting at root_path.
     checks if it contains files using dfs_for_file().
     returns a dictionary where each directory path maps to its 'project' boolean.
     """
+    from .session import get_session
+    session = get_session()
+    if not session["logged_in"]:
+        raise PermissionError("Please login first")
+        
     root = Path(root_path)
 
     if not root.exists():
@@ -56,7 +61,7 @@ def Folder_traversal(root_path: str | Path):
 
 
 
-def dfs_for_file(path: str | Path) -> bool:
+def dfs_for_file(path: Union[str, Path]) -> bool:
     """
     Does a Depth first search of depth =1
     returns true if there is file in the sub items of the directory
