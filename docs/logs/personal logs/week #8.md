@@ -20,7 +20,7 @@ October 21-26
 - Linked the analysis on the CLI.
 - Tested the features I have added.
 - Assigned teammate's to tasks and conducted meetings. 
-- Tested othet teammates code.
+- Tested other teammates code.
 ## Weekly Goals Recap
 
 - **Features I was responsible for (this milestone):** Create command line interface and shell interface for the project and link everything merged so far. 
