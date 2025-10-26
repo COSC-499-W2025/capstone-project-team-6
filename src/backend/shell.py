@@ -41,7 +41,7 @@ Type 'exit' to quit.
             self.current_user = username
             self.prompt = f'mda({username})> '
         else:
-            print("\n❌ Invalid username or password")
+            print("\nInvalid username or password")
 
     def do_signup(self, arg: str) -> None:
         """Create a new account. Usage: signup username password"""
@@ -85,7 +85,9 @@ Type 'exit' to quit.
     def do_logout(self, _: str) -> None:
         """Logout from current session."""
         if self.current_user:
-            print(f"\n👋 Goodbye, {self.current_user}!")
+            from .session import clear_session
+            clear_session()
+            print(f"\nGoodbye, {self.current_user}!")
             self.current_user = None
             self.prompt = 'mda> '
         else:
@@ -106,7 +108,7 @@ Type 'exit' to quit.
 
     def _display_analysis(self, results: dict) -> None:
         """Display folder analysis results."""
-        print("\n📊 Analysis Results:")
+        print("\nAnalysis Results:")
         print("-" * 60)
 
         projects = []
@@ -118,12 +120,12 @@ Type 'exit' to quit.
             else:
                 non_projects.append(directory)
 
-        print(f"\n🗂️  Found {len(projects)} projects:")
+        print(f"\nFound {len(projects)} projects:")
         for proj in projects:
             print(f"   • {proj}")
 
         if non_projects:
-            print(f"\n📁 Non-project folders ({len(non_projects)}):")
+            print(f"\nNon-project folders ({len(non_projects)}):")
             for folder in non_projects:
                 print(f"   • {folder}")
 
