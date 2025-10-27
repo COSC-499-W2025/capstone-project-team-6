@@ -33,10 +33,24 @@ The goal for this week was to initially create a project dashboard, however I re
 # Aakash
 
 ## Date Range
+October 21-26
 
+![aakash w8 peer eval](images/aakashlogs-w8.png)
 ## Tasks Worked On
+- Completed the Folder Sorting and project identification
+    - Created 2 new classes DirectoryNode and Project Heuristics
+    - updated the DFS function to calculate the heuristic score
+    - for more details of this look at doc/Folder-parsing-explained,md
+- Implemented the Heuristic evaluation for a project root
+- Attended team meetings and helped prioritize and distribute tasks for the week
+- Helped review Ansh code on zipped folder implementation in folder sorting and Tests for the folder sorting. 
+- Documented my working a markdown file in documents explaining about the new traversal features
+
 
 ## Weekly Goals Recap
+- **Features I was responsible for (this milestone):**
+- Complete File sorting and project identification- the heuristic evaluation and testing of code.
+(Note I completed my code but got help from Ansh to write the tests for my code).
 
 # Ansh Rastogi
 
