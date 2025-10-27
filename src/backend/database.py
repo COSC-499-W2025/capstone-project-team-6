@@ -83,7 +83,32 @@ def init_db() -> None:
         )
         conn.commit()
 
+def init_uploaded_files_table() -> None:
+    """Create the uploaded_files table if it doesn't exist."""
+    with get_connection() as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS uploaded_files (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                file_name TEXT NOT NULL,
+                extracted_text TEXT,
+                uploaded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+        conn.commit()
 
+def save_uploaded_file(file_name: str, text: str, uploaded_at: Optional[str] = None) -> int:
+    """Inserts a new result into uploaded_files."""
+    uploaded_at = uploaded_at or "CURRENT_TIMESTAMP"
+    with get_connection() as conn:
+        cursor = conn.execute(
+            "INSERT INTO uploaded_files (file_name, extracted_text, uploaded_at) VALUES (?, ?, datetime('now'))",
+            (file_name, text),
+        )
+        conn.commit()
+        return cursor.lastrowid
+    
 def reset_db() -> None:
     """Helper for tests: drop the database file and recreate schema."""
 
@@ -91,6 +116,7 @@ def reset_db() -> None:
     if db_path.exists():
         db_path.unlink()
     init_db()
+    init_uploaded_files_table()
 
 
 def hash_password(password: str) -> str:
@@ -157,6 +183,7 @@ def seed_default_users(default_users: Optional[Dict[str, str]] = None) -> None:
 def initialize() -> None:
     init_db()
     seed_default_users()
+    init_uploaded_files_table()
 
 
 if __name__ == "__main__":
