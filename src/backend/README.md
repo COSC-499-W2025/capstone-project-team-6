@@ -42,7 +42,6 @@ On Windows:
 ```bash
 uv pip install -r requirements.txt
 ```
-```
 
 ## Installed Packages
 
@@ -65,6 +64,58 @@ uv pip install -r requirements.txt
 ### Code Quality
 - **black 24.4.2** - Code formatter
 - **flake8 7.1.0** - Linting tool
+
+## Using the CLI
+
+The project provides a command-line interface (CLI) for interacting with the backend. The CLI tool is named `mda` (Mine Digital Artifacts).
+
+### Installation
+
+The CLI is automatically installed when you install the package:
+
+```bash
+pip install -e .
+```
+
+### Authentication Commands
+
+```bash
+# Login to the system
+mda login <username> <password>
+
+# Signing up
+mda signup <username> <password>
+```
+
+### Analysis Commands
+
+```
+# Analyze a directory for projects
+mda analyze <path>
+```
+
+The analyze command will:
+
+1. Scan the directory structure
+2. Identify project boundaries using heuristics
+3. Score directories based on project indicators (like .git, package.json, etc.)
+4. Display found projects with their scores and indicators
+
+### Common Error Messages
+
+- `Please login first`: You need to log in before using analysis features
+- `Invalid credentials`: Username or password is incorrect
+- `Path does not exist`: The specified directory path is invalid
+- `Already logged in`: A user is already logged in (use logout first)
+
+### Notes
+
+- You must be logged in to use analysis features
+- The system maintains a local session
+- All commands will provide feedback on success or failure
+- Use `mda --help` for command usage details
+
+Other features will be added and updated when implemented.
 
 ## Running the Backend
 

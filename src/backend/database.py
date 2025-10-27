@@ -164,7 +164,11 @@ def authenticate_user(username: str, password: str) -> bool:
     record = get_user(username)
     if record is None:
         return False
-    return verify_password(password, record["password_hash"])
+    if verify_password(password, record["password_hash"]):
+        from .session import save_session
+        save_session(username)
+        return True
+    return False
 
 
 def seed_default_users(default_users: Optional[Dict[str, str]] = None) -> None:
