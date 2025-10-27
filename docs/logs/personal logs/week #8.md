@@ -1,10 +1,42 @@
-# Mandira Samarasekara
+# Mandira Samarasekara  
 
-## Date Range
+## Date Range  
+October 21–26  
 
-## Tasks Worked On
+![Mandira Peer Eval SS](images/MandiraWeek8.png)  
 
-## Weekly Goals Recap
+## Tasks Worked On  
+
+- Created **consent-form.md**, which contains the updated consent form text reflecting the use of **Llama Stack (local AI)** only, and removed references to external AIs (OpenAI).  
+- Developed **consent.py**, a Python script that displays the consent form in the terminal, prompts the user for “yes” or “no,” and stores the response as a boolean variable.  
+  - The variable is passed to the file upload program (to be linked) to determine whether to proceed with file parsing.  
+- Conducted research on **Large Language Models (LLMs)** and compared their strengths and weaknesses.  
+  - Compiled all findings and viable alternatives in **LLM-comparisons.md** for future consideration.  
+- Created and ran **unit tests (test_consent.py)** to validate the consent workflow.  
+  - Tests include checking printed text, input variants, error handling, EOF handling, and message output.  
+- Tested other teammates' code.  
+- Serviced many PRs.  
+
+### Tests  
+- `test_prints_consent_form_once`  
+- `test_yes_variants_return_true`  
+- `test_no_variants_return_false`  
+- `test_invalid_then_yes`  
+- `test_invalid_then_no`  
+- `test_eof_returns_false`  
+
+**Path:** `capstone-project-team-6\src\tests\backend_test\test_consent.py`  
+
+## Weekly Goals Recap  
+
+- The focus this week was on implementing the **consent system** and ensuring proper **user input validation and testing**.  
+- Also researched and documented **alternative LLMs** for flexibility in future development.  
+- Tested and reviewed teammates’ PRs to maintain overall project stability.  
+- Currently working on **integrating all the individual components together**:  
+  `login/signup -> file upload -> consent -> analysis`  
+
+**Closes:** Issue #26  
+
 
 # Mithish Ravisankar Geetha
 
