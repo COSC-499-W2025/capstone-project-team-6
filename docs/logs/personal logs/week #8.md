@@ -130,9 +130,17 @@ October 21-26
 - **Progress in the last 2 weeks:** created our sqlite database and Completed the OCR integration using Tesseract
   
 # Mohamed Sakr
-
+![Mohamed Peer Eval SS](images/Mohamedw8.png)
 ## Date Range
-
+October 21-26
 ## Tasks Worked On
-
+- Implemented a local SQLite-backed auth store for the login workflow. 
+- Added a persistent users table with bcrypt-hashed passwords, connection helpers, and default seeding via FastAPI startup. 
+- Replaced the in-memory credential dictionary, updated the auth endpoints to query the database, and expanded tests to cover DB operations. 
+- Introduced the bcrypt dependency.
+- Wrote tests for the user database
+- Helped design, pick stack, and implement upload_files database
+- Ran tests for user database and file upload functionality
 ## Weekly Goals Recap
+- **Features I was responsible for (this milestone):** Migrated the login flow to a SQLite-backed authentication store. Added a persistent users table with bcrypt-hashed passwords, connection utilities, and default seeding on FastAPI startup. Replaced the in-memory credentials, updated auth endpoints to query the database, expanded tests to cover DB operations, and introduced the bcrypt dependency.
+- **Progress in the last 2 weeks:** created user database and helped design file_upload database.
