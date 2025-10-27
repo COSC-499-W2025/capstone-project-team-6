@@ -189,6 +189,12 @@ def Folder_traversal(root_path: str | Path) -> Dict[Path, DirectoryNode]:
     returns:
         Dictionary mapping path to directory node.
     """
+    from .session import get_session
+    session = get_session()
+    if not session["logged_in"]:
+        raise PermissionError("Please login first")
+        
+    root = Path(root_path)
     #assign absolute path
     root = Path(root_path).resolve()
 
@@ -258,6 +264,10 @@ def Folder_traversal(root_path: str | Path) -> Dict[Path, DirectoryNode]:
             except (PermissionError, FileNotFoundError):
                 continue
 
+def dfs_for_file(path: Union[str, Path]) -> bool:
+    """
+    Does a Depth first search of depth =1
+    returns true if there is file in the sub items of the directory
 
     # Second pass: Count subprojects
     for path, node in node_info.items():
