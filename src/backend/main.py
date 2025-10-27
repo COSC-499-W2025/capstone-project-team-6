@@ -8,6 +8,8 @@ from datetime import datetime
 from typing import List
 
 from . import database
+from . import text_extractor
+import os
 
 
 app = FastAPI(title="Desktop App Backend", version="0.1.0")
@@ -93,6 +95,16 @@ async def upload_file(file: UploadFile = File(...)):
         # Save file
         async with aiofiles.open(file_path, 'wb') as f:
             await f.write(content)
+        
+        # Save to database
+        try:
+            # Extract text
+            text = text_extractor.extract_text(str(file_path))
+            # Save filename and text to database
+            database.save_uploaded_file(file.filename, text, datetime.now())
+
+        except Exception as e:
+            print(f"Failed to process {file.filename}: {e}")
 
         return {
             "status": "success",
@@ -158,6 +170,13 @@ async def upload_multiple_files(files: List[UploadFile] = File(...)):
             # Save file
             async with aiofiles.open(file_path, 'wb') as f:
                 await f.write(content)
+
+            # Text Extraction + Save to DB
+            try:
+                text = text_extractor.extract_text(str(file_path))
+                database.save_uploaded_file(file.filename, text, datetime.now())
+            except Exception as e:
+                print(f"Failed to process {file.filename}: {e}")
 
             results.append({
                 "filename": unique_filename,
