@@ -97,21 +97,21 @@ All tests passed successfully across modules.
 - Next milestone will prioritize **linking consent and upload systems**, and **finalizing end-to-end CLI integration** for analysis.  
 
 ## Project Burnup Chart  
-![BurnupWeek8](images/BurnupWeek8.png)  
+![BurnupWeek8](Images/BurnupWeek8.png)  
 
 ## Completed / In Progress Tasks per User  
 
 # Mandira Samarasekara  
-![Mandira Samarasekara](images/MandiraWeek8.png)  
+![Mandira Samarasekara](Images/MandiraWeek8.png)  
 
 # Mohamed Sakr  
-![Mohamed Sakr](images/MohomadWeek8.png)  
+![Mohamed Sakr](Images/MohomadWeek8.png)  
 
 # Mithish Ravisankar Geetha  
-![Mithish Ravisankar Geetha](images/MithishWeek8.png)  
+![Mithish Ravisankar Geetha](Images/MithishWeek8.png)  
 
 # Aakash  
-![Aakash](images/AakashWeek8.png)  
+![Aakash](Images/AakashWeek8.png)  
 
 # Ansh Rastog
-![Ansh](images/AnshWeek8.png)  
+![Ansh](Images/AnshWeek8.png)  
