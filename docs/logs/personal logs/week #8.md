@@ -64,12 +64,25 @@ October 21-26
 
 # Harjot Sahota
 
+<img width="1074" height="624" alt="Screenshot 2025-10-26 at 9 19 41 PM" src="https://github.com/user-attachments/assets/993650e0-ffb8-44b1-85ba-d46b4ff71b8d" />
+
 ## Date Range
+
+October 21-26
 
 ## Tasks Worked On
 
+- extended our database to include a new table called uploaded_files for sorting file_name, extracted_text, and uploaded_at for every file the user uploads
+- researched about OCR, and the different OCR tools we could possibly choose, and decided to use Tesseract OCR to extract text from files
+- implemented text_extractor.py to automatically extract text from uploaded files, it uses Tesseract OCR and pdf2image for image and PDF files, reads text-based files directly, and returns the extracted text in a consistent format for database storage.
+- created tests for our uploaded_files table in sqlite database
+- created tests for text_extractor.py, and manually tested my code before created a pull request
+
 ## Weekly Goals Recap
 
+- **Features I was responsible for (this milestone):** Implemented backend support for OCR text extraction and database integration. Added a new uploaded_files table, connected it to the file upload system, and ensured extracted text from images and PDFs is stored automatically in SQLite.
+- **Progress in the last 2 weeks:** created our sqlite database and Completed the OCR integration using Tesseract
+  
 # Mohamed Sakr
 
 ## Date Range
