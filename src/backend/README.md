@@ -42,7 +42,6 @@ On Windows:
 ```bash
 uv pip install -r requirements.txt
 ```
-```
 
 ## Installed Packages
 
@@ -65,6 +64,28 @@ uv pip install -r requirements.txt
 ### Code Quality
 - **black 24.4.2** - Code formatter
 - **flake8 7.1.0** - Linting tool
+
+## Using the CLI
+
+The project runs on a command-line interface (CLI) for interacting with the backend. Here are the available commands:
+
+### Authentication
+
+```bash
+
+# Login to the system
+mda login <username> <password>
+
+# Signing up
+mda signup <username> <password>
+
+# Directory Analysis
+mda analyze <path>
+```
+Other features will be added and updated when implemented. 
+
+
+You must be logged in to use file operations. The system will prompt for your password when needed.
 
 ## Running the Backend
 
