@@ -1,33 +1,5 @@
 {
-  "name": "frontend",
-  "version": "1.0.0",
-  "main": "electron/main.js",
-  "scripts": {
-    "dev:renderer": "vite",
-    "dev:electron": "cross-env NODE_ENV=development wait-on http://localhost:5173 && electron .",
-    "dev": "concurrently -k -n RENDERER,ELECTRON \"npm:dev:renderer\" \"npm:dev:electron\"",
-    "build": "vite build",
-    "preview": "vite preview",
-    "start": "electron ."
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.7.0",
-    "concurrently": "^9.2.1",
-    "cross-env": "^7.0.3",
-    "electron": "^38.2.2",
-    "electron-reload": "^2.0.0-alpha.1",
-    "vite": "^6.3.6",
-    "wait-on": "^8.0.5"
-  },
-  "dependencies": {
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0"
-  },
-  "optionalDependencies": {
-    "@rollup/rollup-linux-arm64-gnu": "6.3.6"
+    "vite": "^7.1.10"
   }
 }
