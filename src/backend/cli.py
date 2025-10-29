@@ -72,7 +72,7 @@ def display_analysis(results: dict) -> None:
     non_projects = []
     
     for directory, info in results.items():
-        if info.is_project:
+        if info["project"]:
             projects.append(directory)
         else:
             non_projects.append(directory)
