@@ -1,7 +1,7 @@
 from pathlib import Path
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Dict, List, Set, Protocol, Iterator
+from typing import Dict, List, Set, Protocol, Iterator, Union
 from abc import ABC, abstractmethod
 import zipfile
 
@@ -534,7 +534,7 @@ def dfs_for_file(path: Union[str, Path]) -> bool:
     """
     Does a Depth first search of depth =1
     returns true if there is file in the sub items of the directory
-
+    """
     # Second pass: Count subprojects
     for path, node in node_info.items():
         if node.is_project:
@@ -558,9 +558,7 @@ def dfs_for_file(path: Union[str, Path]) -> bool:
                     if child_path.parent == path and child_node.is_project:
                         child_node.is_project = False
                         break
-
     return node_info
-
 
 def Folder_traversal_fs(root_path: str | Path) -> Dict[str, DirectoryNode]:
     """
@@ -783,24 +781,25 @@ if __name__ == "__main__":
     print("\n" + "="*80)
     print("Usage Examples:")
     print("="*80)
-    print("""
+    print("\nFor folder traversal and project detection:")
 # For regular directories (both functions work):
-from backend.traversal import Folder_traversal, Folder_traversal_fs
 
-results = Folder_traversal("/path/to/directory")
-# OR
-results = Folder_traversal_fs("/path/to/directory")
+# from backend.traversal import Folder_traversal, Folder_traversal_fs
 
-# For ZIP files (use Folder_traversal_fs):
-results = Folder_traversal_fs("/path/to/file.zip")
+# results = Folder_traversal("/path/to/directory")
+# # OR
+# results = Folder_traversal_fs("/path/to/directory")
 
-# Results are dictionaries mapping paths to DirectoryNode objects
-for path, node in results.items():
-    if node.is_project:
-        print(f"Project found: {path}")
-        print(f"  Score: {node.score}")
-        print(f"  Indicators: {node.indicators_found}")
-""")
+# # For ZIP files (use Folder_traversal_fs):
+# results = Folder_traversal_fs("/path/to/file.zip")
+
+# # Results are dictionaries mapping paths to DirectoryNode objects
+# for path, node in results.items():
+#     if node.is_project:
+#         print(f"Project found: {path}")
+#         print(f"  Score: {node.score}")
+#         print(f"  Indicators: {node.indicators_found}")
+
 
 
 
