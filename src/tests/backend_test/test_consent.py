@@ -1,9 +1,20 @@
 # tests/test_consent.py
 import builtins
 from unittest.mock import patch
-
+from pathlib import Path
 import pytest
+
 from backend.consent import ask_for_consent
+from backend.database import (
+    initialize,
+    reset_db,
+    create_user,
+    get_db_path,
+    check_user_consent,
+    save_user_consent,
+    get_connection
+)
+from backend.session import get_session, save_session
 
 
 def _run_with_inputs(inputs, capsys):
@@ -64,3 +75,143 @@ def test_eof_returns_false(capsys):
     with patch.object(builtins, "input", side_effect=EOFError):
         result = ask_for_consent()
     assert result is False
+
+
+# Integration Tests
+def test_database_consent_storage(temp_db, test_user):
+    """Test storing and retrieving consent status in database."""
+    username = test_user["username"]
+    
+    # Initially no consent record should exist
+    assert not check_user_consent(username)
+    
+    # Save consent as True
+    save_user_consent(username, True)
+    
+    # Check consent was saved
+    with get_connection() as conn:
+        record = conn.execute(
+            "SELECT has_consented, consent_date FROM user_consent WHERE username = ?",
+            (username,)
+        ).fetchone()
+    
+    assert record is not None
+    assert record["has_consented"] == 1
+    assert record["consent_date"] is not None
+    
+    # Verify using the check function
+    assert check_user_consent(username)
+
+
+def test_consent_update(temp_db, test_user):
+    """Test updating consent status."""
+    username = test_user["username"]
+    
+    # Set initial consent
+    save_user_consent(username, True)
+    first_date = None
+    
+    # Get initial consent date
+    with get_connection() as conn:
+        record = conn.execute(
+            "SELECT consent_date FROM user_consent WHERE username = ?",
+            (username,)
+        ).fetchone()
+        first_date = record["consent_date"]
+    
+    # Update consent to False
+    save_user_consent(username, False)
+    
+    # Check update
+    with get_connection() as conn:
+        record = conn.execute(
+            "SELECT has_consented, consent_date FROM user_consent WHERE username = ?",
+            (username,)
+        ).fetchone()
+    
+    assert record["has_consented"] == 0
+    assert record["consent_date"] != first_date
+
+
+def test_consent_with_session(temp_db, test_user):
+    """Test consent checking with active session."""
+    username = test_user["username"]
+    save_session(username)
+    session = get_session()
+    
+    assert session["logged_in"]
+    assert session["username"] == username
+    assert not check_user_consent(session["username"])
+    
+    # Update consent
+    save_user_consent(username, True)
+    assert check_user_consent(session["username"])
+
+
+def test_cli_consent_integration(temp_db, test_user):
+    """Test CLI consent integration."""
+    from backend.cli import main
+    import sys
+    from io import StringIO
+    
+    username = test_user["username"]
+    password = test_user["password"]
+    
+    # Test login with consent prompting
+    with patch('sys.argv', ['mda', 'login', username, password]), \
+         patch('backend.consent.ask_for_consent', return_value=True), \
+         patch('sys.stdout', new=StringIO()) as fake_out:
+        
+        result = main()
+        assert result == 0
+        output = fake_out.getvalue()
+        assert "Login successful" in output
+        
+        # Verify consent was saved
+        assert check_user_consent(username)
+
+
+def test_analyze_consent_enforcement(temp_db, test_user):
+    """Test that analyze command enforces consent requirement."""
+    from backend.cli import main
+    import sys
+    from io import StringIO
+    
+    username = test_user["username"]
+    
+    # Save session but no consent
+    save_session(username)
+    
+    # Try to analyze without consent
+    with patch('sys.argv', ['mda', 'analyze', '.']), \
+         patch('sys.stdout', new=StringIO()) as fake_out:
+        
+        result = main()
+        assert result == 1
+        output = fake_out.getvalue()
+        assert "Please provide consent" in output
+        
+    # Now give consent and try again
+    save_user_consent(username, True)
+    with patch('sys.argv', ['mda', 'analyze', '.']), \
+         patch('sys.stdout', new=StringIO()) as fake_out:
+        
+        result = main()
+        # It might still fail for other reasons (like path not existing)
+        # but it shouldn't fail due to consent
+        assert "Please provide consent" not in fake_out.getvalue()
+
+
+def test_consent_foreign_key_constraint(temp_db):
+    """Test that consent records require valid users."""
+    username = "nonexistentuser"
+    
+    # Attempt to save consent for non-existent user should fail
+    with pytest.raises(Exception) as exc_info:
+        with get_connection() as conn:
+            conn.execute(
+                "INSERT INTO user_consent (username, has_consented) VALUES (?, ?)",
+                (username, True)
+            )
+    
+    assert "FOREIGN KEY constraint failed" in str(exc_info.value)
