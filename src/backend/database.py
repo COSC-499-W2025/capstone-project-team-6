@@ -81,6 +81,17 @@ def init_db() -> None:
             );
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_consent (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                has_consented BOOLEAN NOT NULL DEFAULT 0,
+                consent_date TEXT,
+                FOREIGN KEY (username) REFERENCES users(username)
+            );
+            """
+        )
         conn.commit()
 
 def init_uploaded_files_table() -> None:
@@ -169,6 +180,42 @@ def authenticate_user(username: str, password: str) -> bool:
         save_session(username)
         return True
     return False
+
+def check_user_consent(username: str) -> bool:
+    """Check if user has given consent.
+    
+    Args:
+        username: The username to check consent for
+        
+    Returns:
+        bool: True if user has consented, False otherwise
+    """
+    with get_connection() as conn:
+        result = conn.execute(
+            "SELECT has_consented FROM user_consent WHERE username = ?",
+            (username,)
+        ).fetchone()
+        return bool(result["has_consented"]) if result else False
+
+def save_user_consent(username: str, has_consented: bool) -> None:
+    """Save user's consent status.
+    
+    Args:
+        username: The username to save consent for
+        has_consented: Whether user has consented or not
+    """
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO user_consent (username, has_consented, consent_date)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(username) DO UPDATE SET
+                has_consented = excluded.has_consented,
+                consent_date = CURRENT_TIMESTAMP
+            """,
+            (username, has_consented)
+        )
+        conn.commit()
 
 
 def seed_default_users(default_users: Optional[Dict[str, str]] = None) -> None:
