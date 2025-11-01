@@ -1,7 +1,7 @@
 from pathlib import Path
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Dict, List, Set, Protocol, Iterator
+from typing import Dict, List, Set, Protocol, Iterator, Union
 from abc import ABC, abstractmethod
 import zipfile
 
@@ -534,7 +534,7 @@ def dfs_for_file(path: Union[str, Path]) -> bool:
     """
     Does a Depth first search of depth =1
     returns true if there is file in the sub items of the directory
-
+    """
     # Second pass: Count subprojects
     for path, node in node_info.items():
         if node.is_project:
@@ -780,27 +780,27 @@ if __name__ == "__main__":
     else:
         print(f"\nZIP test directory not found: {zip_test_dir}")
 
-    print("\n" + "="*80)
-    print("Usage Examples:")
-    print("="*80)
-    print("""
-# For regular directories (both functions work):
-from backend.traversal import Folder_traversal, Folder_traversal_fs
+    # print("\n" + "="*80)
+    # print("Usage Examples:")
+    # print("="*80)
+    # print(""")
+# # For regular directories (both functions work):
+# from backend.traversal import Folder_traversal, Folder_traversal_fs
 
-results = Folder_traversal("/path/to/directory")
-# OR
-results = Folder_traversal_fs("/path/to/directory")
+# results = Folder_traversal("/path/to/directory")
+# # OR
+# results = Folder_traversal_fs("/path/to/directory")
 
-# For ZIP files (use Folder_traversal_fs):
-results = Folder_traversal_fs("/path/to/file.zip")
+# # For ZIP files (use Folder_traversal_fs):
+# results = Folder_traversal_fs("/path/to/file.zip")
 
-# Results are dictionaries mapping paths to DirectoryNode objects
-for path, node in results.items():
-    if node.is_project:
-        print(f"Project found: {path}")
-        print(f"  Score: {node.score}")
-        print(f"  Indicators: {node.indicators_found}")
-""")
+# # Results are dictionaries mapping paths to DirectoryNode objects
+# for path, node in results.items():
+#     if node.is_project:
+#         print(f"Project found: {path}")
+#         print(f"  Score: {node.score}")
+#         print(f"  Indicators: {node.indicators_found}")
+# """)
 
 
 
