@@ -489,12 +489,7 @@ def Folder_traversal(root_path: Union[str, Path]) -> Dict[Path, DirectoryNode]:
                         queue.append(item)
             except (PermissionError, FileNotFoundError):
                 continue
-
-def dfs_for_file(path: Union[str, Path]) -> bool:
-    """
-    Does a Depth first search of depth =1
-    returns true if there is file in the sub items of the directory
-    """
+            
     # Second pass: Count subprojects
     for path, node in node_info.items():
         if node.is_project:
