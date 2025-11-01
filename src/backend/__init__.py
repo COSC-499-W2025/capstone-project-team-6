@@ -1,6 +1,6 @@
 """Mining Digital Artifacts (MDA) package initialization."""
 
-from .traversal import Folder_traversal, dfs_for_file
+from .traversal import Folder_traversal_fs
 from .database import (
     initialize,
     create_user,
@@ -14,8 +14,7 @@ from .shell import MDAShell
 
 __all__ = [
     # Traversal functionality
-    'Folder_traversal',
-    'dfs_for_file',
+    'Folder_traversal_fs',
     
     # Database functionality
     'initialize',
