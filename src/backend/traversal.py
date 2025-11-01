@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Set, Protocol, Iterator, Union
 from abc import ABC, abstractmethod
 import zipfile
-from .session import get_session
+
 
 class FileSystemEntry(Protocol):
     """Protocol defining a file system entry (file or directory)."""
@@ -419,7 +419,7 @@ def Folder_traversal_fs(root_path: Union[str, Path]) -> Dict[str, DirectoryNode]
     Returns:
         Dictionary mapping path string to directory node.
     """
-
+    from .session import get_session
     session = get_session()
     if not session["logged_in"]:
         raise PermissionError("Please login first")
@@ -559,68 +559,58 @@ def Folder_traversal_fs(root_path: Union[str, Path]) -> Dict[str, DirectoryNode]
 
 
 # informal testing
-if __name__ == "__main__":
-    import sys
-
-    current_dir = Path(__file__).parent
-
-    # Demo: Test with ZIP file
-    print("\n" + "="*80)
-    print("DEMO 2: ZIP File Traversal (New Feature)")
-    print("="*80)
-
-    zip_test_dir = current_dir / "../tests/backend_test/Test-zip-traversal"
-
-    if zip_test_dir.exists():
-        zip_files = list(zip_test_dir.glob("*.zip"))
-
-        if zip_files:
-            # Test with the first available ZIP file
-            zip_path = zip_files[0]
-            print(f"\nAnalyzing ZIP file: {zip_path.name}")
-            print(f"Full path: {zip_path}")
-            print(f"Project threshold: {ProjectHeuristics.PROJECT_THRESHOLD} points\n")
-
-            try:
-                results = Folder_traversal_fs(zip_path)
-
-                print(f"Total directories discovered: {len(results)}")
-                project_count = sum(1 for n in results.values() if n.is_project)
-                print(f"Projects found: {project_count}\n")
-
-                print("Detected projects:")
-                for path_str, node in results.items():
-                    if node.is_project:
-                        print(f"  ✓ {path_str or '(root)'} - Score: {node.score}")
-
-            except Exception as e:
-                print(f"Error processing ZIP: {e}")
-        else:
-            print("\nNo ZIP files found. Run create_test_zip.py first.")
-    else:
-        print(f"\nZIP test directory not found: {zip_test_dir}")
-
-    print("\n" + "="*80)
-    print("Usage Examples:")
-    print("="*80)
-    print("\nFor folder traversal and project detection:")
-# For regular directories (both functions work):
-
-# from backend.traversal import Folder_traversal, Folder_traversal_fs
-
-# results = Folder_traversal("/path/to/directory")
-# # OR
-# results = Folder_traversal_fs("/path/to/directory")
-
-# # For ZIP files (use Folder_traversal_fs):
-# results = Folder_traversal_fs("/path/to/file.zip")
-
-# # Results are dictionaries mapping paths to DirectoryNode objects
-# for path, node in results.items():
-#     if node.is_project:
-#         print(f"Project found: {path}")
-#         print(f"  Score: {node.score}")
-#         print(f"  Indicators: {node.indicators_found}")
+#if __name__ == "__main__":
+#    import sys
+#
+#    current_dir = Path(__file__).parent
+#
+#    # Demo: Test with ZIP file
+#    print("\n" + "="*80)
+#    print("DEMO 2: ZIP File Traversal (New Feature)")
+#    print("="*80)
+#
+#    zip_test_dir = current_dir / "../tests/backend_test/Test-zip-traversal"
+#
+#    if zip_test_dir.exists():
+#        zip_files = list(zip_test_dir.glob("*.zip"))
+#
+#        if zip_files:
+#            # Test with the first available ZIP file
+#            zip_path = zip_files[0]
+#            print(f"\nAnalyzing ZIP file: {zip_path.name}")
+#            print(f"Full path: {zip_path}")
+#            print(f"Project threshold: {ProjectHeuristics.PROJECT_THRESHOLD} points\n")
+#
+#            try:
+#                results = Folder_traversal_fs(zip_path)
+#
+#                print(f"Total directories discovered: {len(results)}")
+#                project_count = sum(1 for n in results.values() if n.is_project)
+#                print(f"Projects found: {project_count}\n")
+#
+#                print("Detected projects:")
+#                for path_str, node in results.items():
+#                    if node.is_project:
+#                        print(f"  ✓ {path_str or '(root)'} - Score: {node.score}")
+#
+#            except Exception as e:
+#                print(f"Error processing ZIP: {e}")
+#        else:
+#            print("\nNo ZIP files found. Run create_test_zip.py first.")
+#    else:
+#        print(f"\nZIP test directory not found: {zip_test_dir}")
+#
+#    print("\n" + "="*80)
+#    print("Usage Examples:")
+#    print("="*80)
+#    print("\nFor folder traversal and project detection:")
+#
+#    # Results are dictionaries mapping paths to DirectoryNode objects
+#    for path, node in results.items():
+#        if node.is_project:
+#            print(f"Project found: {path}")
+#            print(f"  Score: {node.score}")
+#            print(f"  Indicators: {node.indicators_found}")
 
 
 
