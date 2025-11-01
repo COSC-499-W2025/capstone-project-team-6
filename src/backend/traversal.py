@@ -564,24 +564,6 @@ if __name__ == "__main__":
 
     current_dir = Path(__file__).parent
 
-    # Demo: Test with regular directory
-    print("="*80)
-    print("DEMO 1: Regular Directory Traversal")
-    print("="*80)
-
-    test_path = current_dir / "../tests/backend_test/Test-traversal"
-    test_path = test_path.resolve()
-
-    if test_path.exists():
-        print(f"\nAnalyzing regular directory: {test_path}")
-        print(f"Project threshold: {ProjectHeuristics.PROJECT_THRESHOLD} points\n")
-
-        results = Folder_traversal(test_path)
-
-        print(f"Total directories discovered: {len(results)}")
-        project_count = sum(1 for n in results.values() if n.is_project)
-        print(f"Projects found: {project_count}\n")
-
     # Demo: Test with ZIP file
     print("\n" + "="*80)
     print("DEMO 2: ZIP File Traversal (New Feature)")
