@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Optional
 
 from . import (
-    Folder_traversal,
+    Folder_traversal_fs,
     initialize,
     create_user,
     authenticate_user,
@@ -98,7 +98,7 @@ def analyze_folder(path: Path) -> dict:
     Returns:
         dict: Analysis results containing project information
     """
-    return Folder_traversal(path)
+    return Folder_traversal_fs(path)
 
 
 def display_analysis(results: dict) -> None:
