@@ -1,13 +1,13 @@
 name: Auto Merge After 2 Approvals 
 
 on:
-  workflow_dispatch:           # allows manual trigger from Actions tab
+  workflow_dispatch:          
   push:
-    branches: [ CI-PR-2, Development ]
+    branches: [ Development ]
   pull_request_review:
-    types: [submitted]         # runs when a review is submitted
+    types: [submitted]        
   check_suite:
-    types: [completed]         # runs after CI finishes
+    types: [completed]       
 
 jobs:
   echo:
