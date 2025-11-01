@@ -1,6 +1,9 @@
 name: Linting and Tests CI
 
 on:
+  push:
+    branches: [CI-Pipeline]
+
   pull_request:
     branches: [CI-Pipeline, Development]
 
