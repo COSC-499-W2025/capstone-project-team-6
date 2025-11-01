@@ -248,9 +248,9 @@ def main() -> int:
             if not path.exists():
                 print(f"\n❌ Path does not exist: {path}")
                 return 1
-            if not path.is_dir():
-                print(f"\n❌ Path is not a directory: {path}")
-                return 1
+            #if not path.is_dir():
+            #    print(f"\n❌ Path is not a directory: {path}")
+            #    return 1
                 
             print(f"\n📂 Analyzing folder: {path}")
             results = analyze_folder(path)
