@@ -1,13 +1,13 @@
 name: Auto Merge After 2 Approvals 
 
 on:
-  workflow_dispatch:          
+  workflow_dispatch:         
   push:
-    branches: [ Development ]
+    branches: [ CI-PR-2, Development ]
   pull_request_review:
-    types: [submitted]        
+    types: [submitted]       
   check_suite:
-    types: [completed]       
+    types: [completed]        
 
 jobs:
   echo:
