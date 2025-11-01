@@ -1,0 +1,85 @@
+# Project Consent Form: Mining Digital Work Artifacts
+
+## 1. Purpose of the Application
+
+This application analyzes a **zipped project folder** that you provide to generate summaries, metrics, and résumé-ready highlights.  
+
+All analysis is performed **locally on your device** using the **Llama Stack**, a privacy-preserving AI framework.  
+No data is transmitted to any external server or third-party API.
+
+
+## 2. Scope of Data Access
+
+When you upload a ZIP file, the app will **only** access the contents within that ZIP.  
+It will not scan or access any other files or directories on your device.
+
+The application may extract and process the following:
+
+- File metadata (names, sizes, timestamps, types)  
+- Readable text (e.g., README files, notes, documentation, comments)  
+- Programming code (for classification and metrics)  
+- Image metadata (for creative project context)
+
+
+## 3. Local Analysis (Llama Stack)
+
+All data analysis occurs locally using the **Llama Stack**, which runs entirely on your device.  
+
+**Features of Local Processing:**
+- No internet connection is required for analysis.  
+- All computations and model inferences are performed locally using **Llama models** (via Ollama/vLLM).  
+- The model and its runtime environment are sandboxed to prevent unauthorized data access.  
+- Summaries and metrics are generated using local templates and natural language generation tools.  
+
+**Privacy Considerations:**
+- Your data **never leaves your device**.  
+- No external APIs or cloud-based services are contacted.  
+- The model and system logs remain local and are not shared or synced automatically.  
+
+
+## 4. Data Storage
+
+Stored **locally** on your device:
+- SQLite database containing project metadata, metrics, summaries, and your consent record.  
+- Extracted text snippets used for local analysis only.  
+- Timestamped consent log.  
+
+You may disable local logging of prompts/responses at any time in **Settings → Privacy**.
+
+
+## 5. Data Deletion
+
+You may delete all stored data through **Settings → Privacy → Delete All Data**.  
+This action removes:
+- All local databases, caches, summaries, and consent records.  
+- Any temporary extracted files or logs generated during processing.
+
+Since no external data transmission occurs, deletion is immediate and complete.
+
+
+## 6. Voluntary Participation
+
+Your participation and data submission are voluntary.  
+You may withdraw consent at any time through **Settings → Consent**, after which the application will cease all data analysis and delete existing data if requested.
+
+
+## 7. Related Privacy Policies
+
+- **Llama Stack (Meta):** [https://ai.meta.com/llama/](https://ai.meta.com/llama/)  
+- **Ollama Runtime:** [https://ollama.ai/privacy](https://ollama.ai/privacy)
+
+
+## 8. Consent Decision
+
+Please confirm the following:
+
+- [ ] I consent to the app analyzing my uploaded ZIP **locally** using the **Llama Stack**.  
+  I understand that no data will be transmitted externally, and all processing occurs on my device for maximum privacy.  
+
+
+### Developer Implementation Notes (Not Displayed to User)
+
+- Display this form before accessing any uploaded files.  
+- Store user consent as `{ useExternalAI: false }` in the consent table or JSON config.  
+- Ensure all AI analysis runs locally within the Llama Stack runtime.  
+- Generate a **timestamped PDF “Consent Receipt”** containing this version and the user’s decision.
