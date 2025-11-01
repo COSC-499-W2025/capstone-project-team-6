@@ -1,0 +1,128 @@
+# LLM Options for File Analysis and Summarization
+
+
+## Option A — OpenAI (API)
+
+### Privacy & Retention
+- OpenAI may **retain inputs/outputs for up to 30 days** for abuse detection.  
+- **Zero-Data-Retention (ZDR)** mode is available for eligible endpoints and use cases.  
+
+### File Capacity
+- Typical upload limits (Assistants / ChatGPT): **up to 512 MB per file**.  
+- Documented caps on tokens per file and vector store size.  
+- Common storage caps: 
+**Image file size support is capped at 20MB per image**.
+**Each end-user is capped at 10GB**.
+**Each organization is capped at 100GB.**.
+
+### Performance
+- **Good at:** mixed text/code reasoning; long-form summarization; codebase-aware answers when combined with retrieval (RAG).  
+- **Watch-outs:** must **chunk/index** first; avoid streaming entire ZIP archives.  
+
+### Fit for Your App
+- Strong choice for **RAG-backed summaries** when users consent to external processing.  
+- Always enable **ZDR** when available for privacy compliance.
+
+
+## Option B — Llama Stack (Local)
+
+### What It Is
+An **open-source stack** developed around Meta’s ecosystem to standardize inference, RAG, agents, and safety through a unified API.  
+It can target **local engines** (Ollama, vLLM) or hosted providers.
+
+### Privacy
+- When run locally (e.g., with **Ollama**), **all data stays on-device**.  
+- No external uploads or network calls are required.
+
+### Performance
+- **Good at:** privacy-preserving summaries over local indexes.  
+- **Ideal for:** fully offline workflows aligned with local-first design goals.  
+
+### Watch-outs
+- Quality depends on the **model and hardware**.  
+- **Slower on CPU-only** systems.  
+- Requires custom prompt and template design for best output.
+
+### Fit for Your App
+- Recommended default for **local-only analysis**.  
+- Best-effort private LLM option for users who decline cloud processing.
+
+
+## Option C — LangChain (Framework)
+
+### What It Is
+- **LangChain** is a **framework**, not a model.  
+- Provides components for:
+  - Loaders and text splitters  
+  - Retrievers and RAG orchestration  
+  - Tracing, evaluation, and agent workflows (via LangSmith / LangGraph)
+
+### Fit for Your App
+- Use LangChain to **connect and orchestrate** your retrieval logic and preferred backends (OpenAI, Claude, or local Llama).  
+- Handles **tooling and evaluation**, but you still select the LLM provider.
+
+
+## Strong Alternates
+
+### Anthropic Claude (API)
+- Supports **very large context windows** (up to 1 M tokens on Sonnet 4 beta).  
+- **Files API**: large upload support (up to **500 MB per file**, batch 256 MB).  
+- **Retention:** around 30 days for API traffic; separate from recent consumer changes.  
+- **Note:** recent 5-year consumer retention policies do **not** apply to API/enterprise use.
+
+### Google Gemini (Vertex AI)
+- Handles **very long contexts** (1–2 M tokens depending on version).  
+- File limits: typically **50 MB per file** via API, **up to 3 000 files per prompt** on Gemini 2.5 models.  
+- Best used for **large document sets** via Vertex Batch or Cloud Storage.
+
+
+## File Analysis Performance
+
+### What LLMs Handle Well (with RAG)
+- **Text & Code:** `.md`, `.txt`, `.py`, `.js`, `.java`, notebooks, JSON, CSV.  
+- **Structured Docs:** searchable PDFs, `.docx`, `.html`.  
+- **Tasks:** project summaries, skill extraction, timeline narratives, résumé bullet points.
+
+### Where They Are Error-Prone (and Fixes)
+- **Scanned PDFs or image-heavy layouts:** use OCR first; keep images local unless user consents to vision models.  
+- **Proprietary binaries** (`.psd`, `.ai`, complex `.pptx`): extract text with libraries instead of sending entire files.  
+- **Large repositories:** always **chunk + retrieve** instead of sending giant contexts.  
+- **Media (audio/video):** out of scope until later milestones; focus on text first.
+
+
+## Feasibility — Time and Capacity
+
+### Local Extraction / Indexing
+- Unzip + walk + text extraction: **tens of MB/s** on modern hardware.  
+- PDF/Office extraction is slower.  
+- Embedding locally: **1–5 k tokens/s (CPU)**; faster on GPU.  
+- Deterministic summaries: nearly instant once metrics/snippets exist.
+
+### RAG + External LLM
+- **Prompt latency:** seconds for short prompts; up to minutes for large contexts.  
+- **Efficiency:** retrieval is faster and cheaper than sending multi-hundred-thousand-token prompts.  
+- **Context windows:** Claude / Gemini support 1 M+ tokens depending on tier.
+
+
+## AI model comparison table
+
+| Choice | “How good” at analyzing files | Best file types | Error-prone types | Feasible analysis time | Upload / capacity notes |
+|:--|:--|:--|:--|:--|:--|
+| **OpenAI (API)** | Excellent with RAG for code + docs; strong summarization | Text, code, PDFs with text, DOCX, HTML | Scanned PDFs, binaries (pre-extract) | Seconds for doc summaries; avoid huge contexts; scale via batching | 512 MB per file; vector store and file count caps; about 100 GB project/org storage; Zero-Data-Retention available on eligible endpoints. |
+| **Llama Stack (local Llama via Ollama/vLLM)** | Good to very good (depends on model and hardware); ideal for privacy | Same as above after local extraction | Same as above | Fast on GPU; slower on CPU; no network latency | No cloud caps — limited by your RAM, VRAM, or disk; all data stays local. |
+| **LangChain (framework)** | N/A — used to orchestrate RAG and other tools | N/A | N/A | N/A | Works with any of the above providers; adds tracing and evaluation. |
+| **Anthropic Claude (API)** | Very good with long contexts; strong reasoning | Text, code, PDFs; great for large docs via API | Vision or layout tasks vary by route | Seconds to minutes depending on context size; supports up to 1 M tokens via API (beta) | 32 MB standard request; Files API up to 500 MB per file; Batch 256 MB; recent policy changes mainly affect consumer tiers. |
+| **Google Gemini (Vertex)** | Very good; supports huge contexts on certain models | Text, PDFs; scales via Batch or Vertex | Console direct upload has lower limits; prefer API or Cloud Storage | Seconds to minutes for long contexts; Batch mode for high throughput | Around 50 MB per file via API; up to 3 000 files per prompt; supports 1 M–2 M token contexts. |
+
+
+## Sources
+
+1. [OpenAI Help Center](https://help.openai.com/en/articles/9309188-add-files-from-connected-apps-in-chatgpt)
+
+2. [Llama Stack](https://llamastack.github.io/)
+
+3. [LangChain](https://python.langchain.com/docs/introduction/)
+
+4. [Claude API](https://docs.claude.com/en/api/overview)
+
+5. [Google Cloud — Gemini 2.5 Pro](https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/2-5-pro)
