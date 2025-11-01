@@ -34,7 +34,7 @@ source .venv/bin/activate
 
 On Windows:
 ```bash
-.venv\Scripts\activate
+source .venv/Scripts/activate
 ```
 
 ### 3. Install Dependencies
@@ -144,7 +144,10 @@ chmod +x scripts/run.sh
 ```
 scripts\win_run.bat
 ```
-
+If this does not work 
+```
+scripts/run.bat
+```
 ### 3. Access Services
 - Backend (FastAPI) → http://localhost:8000/docs
 - Frontend (React/Vite) → http://localhost:5173
