@@ -2,7 +2,7 @@ name: Linting and Tests CI
 
 on:
   pull_request:
-    branches: [Development]
+    branches: [CI-Pipeline, Development]
 
 jobs:
   lint-and-test:
