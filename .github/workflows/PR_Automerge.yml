@@ -1,12 +1,17 @@
-name: Auto Merge After 2 Approvals
+name: Test Manual Trigger
 
 on:
+  workflow_dispatch:   # manually trigger
   pull_request_review:
     types: [submitted]
   check_suite:
     types: [completed]
 
 jobs:
+  echo:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Hello"
   auto-merge:
     runs-on: ubuntu-latest
     permissions:
