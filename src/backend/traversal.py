@@ -228,7 +228,7 @@ class DirectoryNode:
     has_files - general check
 
     """
-    path: Path | str
+    path: Union[Path, str]
     is_project: bool = False
     score: float = 0.0
     indicators_found: List[str] = field(default_factory=list)
@@ -434,7 +434,7 @@ def calculate_project_score_fs(fs: FileSystemInterface, directory_path: str) -> 
 
     return score, indicators_found, has_files, subdir_count
 
-def Folder_traversal(root_path: str | Path) -> Dict[Path, DirectoryNode]:
+def Folder_traversal(root_path: Union[str, Path]) -> Dict[Path, DirectoryNode]:
     """
     Performs a breadth-first traversal starting at root_path.
 
@@ -560,7 +560,7 @@ def dfs_for_file(path: Union[str, Path]) -> bool:
                         break
     return node_info
 
-def Folder_traversal_fs(root_path: str | Path) -> Dict[str, DirectoryNode]:
+def Folder_traversal_fs(root_path: Union[str, Path]) -> Dict[str, DirectoryNode]:
     """
     Performs a breadth-first traversal starting at root_path.
     Supports both regular file systems and ZIP archives.
