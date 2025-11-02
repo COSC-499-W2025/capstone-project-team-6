@@ -46,4 +46,6 @@ jobs:
       - name: Run Unit Tests
         run: |
           echo "Running backend unit tests"
+          export PYTHONPATH=$(pwd)
           pytest src/tests/backend_test -v --disable-warnings --maxfail=1
+
