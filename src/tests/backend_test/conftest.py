@@ -30,11 +30,15 @@ def test_user(temp_db):
     database.create_user(username, password)
     yield {"username": username, "password": password}
     
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse=True)    
 def fake_session(tmp_path, monkeypatch):
     """Simulate a logged-in user for tests."""
+    import json
+    from backend import session  
     session_path = tmp_path / ".mda-session.json"
     session_data = {"logged_in": True, "username": "testuser"}
     session_path.write_text(json.dumps(session_data))
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(session, "SESSION_FILE", session_path)
+
     yield
