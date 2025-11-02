@@ -72,7 +72,7 @@ def display_analysis(results: dict) -> None:
     non_projects = []
     
     for directory, info in results.items():
-        if info["project"]:
+        if info.is_project:
             projects.append(directory)
         else:
             non_projects.append(directory)
@@ -168,3 +168,6 @@ def main() -> int:
         return 1
     
     return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
