@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Optional
 
 from . import (
-    Folder_traversal,
+    Folder_traversal_fs,
     initialize,
     create_user,
     authenticate_user,
@@ -98,7 +98,7 @@ def analyze_folder(path: Path) -> dict:
     Returns:
         dict: Analysis results containing project information
     """
-    return Folder_traversal(path)
+    return Folder_traversal_fs(path)
 
 
 def display_analysis(results: dict) -> None:
@@ -248,9 +248,9 @@ def main() -> int:
             if not path.exists():
                 print(f"\n❌ Path does not exist: {path}")
                 return 1
-            if not path.is_dir():
-                print(f"\n❌ Path is not a directory: {path}")
-                return 1
+            #if not path.is_dir():
+            #    print(f"\n❌ Path is not a directory: {path}")
+            #    return 1
                 
             print(f"\n📂 Analyzing folder: {path}")
             results = analyze_folder(path)

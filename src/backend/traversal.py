@@ -46,59 +46,6 @@ class FileSystemInterface(ABC):
         """Get a file system entry for a path."""
         ...
 
-
-class RegularFileEntry:
-    """Wrapper for regular file system Path objects."""
-
-    def __init__(self, path: Path):
-        self._path = path
-
-    @property
-    def name(self) -> str:
-        return self._path.name
-
-    @property
-    def path_str(self) -> str:
-        return str(self._path)
-
-    def is_file(self) -> bool:
-        return self._path.is_file()
-
-    def is_dir(self) -> bool:
-        return self._path.is_dir()
-
-    def __repr__(self):
-        return f"RegularFileEntry({self._path})"
-
-
-class ZipFileEntry:
-    """Wrapper for ZIP file entries."""
-
-    def __init__(self, zip_info: zipfile.ZipInfo, full_path: str):
-        self._info = zip_info
-        self._full_path = full_path
-        # Extract just the name (last component)
-        self._name = full_path.rstrip('/').split('/')[-1] if full_path else ''
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @property
-    def path_str(self) -> str:
-        # Normalize by removing trailing slash for directories
-        return self._full_path.rstrip('/')
-
-    def is_file(self) -> bool:
-        return not self._info.is_dir()
-
-    def is_dir(self) -> bool:
-        return self._info.is_dir()
-
-    def __repr__(self):
-        return f"ZipFileEntry({self._full_path})"
-
-
 class RegularFileSystem(FileSystemInterface):
     """File system interface for regular directories."""
 
@@ -213,6 +160,59 @@ class ZipFileSystem(FileSystemInterface):
         """Ensure ZIP file is closed."""
         if hasattr(self, 'zip_file'):
             self.zip_file.close()
+
+
+class RegularFileEntry:
+    """Wrapper for regular file system Path objects."""
+
+    def __init__(self, path: Path):
+        self._path = path
+
+    @property
+    def name(self) -> str:
+        return self._path.name
+
+    @property
+    def path_str(self) -> str:
+        return str(self._path)
+
+    def is_file(self) -> bool:
+        return self._path.is_file()
+
+    def is_dir(self) -> bool:
+        return self._path.is_dir()
+
+    def __repr__(self):
+        return f"RegularFileEntry({self._path})"
+
+
+class ZipFileEntry:
+    """Wrapper for ZIP file entries."""
+
+    def __init__(self, zip_info: zipfile.ZipInfo, full_path: str):
+        self._info = zip_info
+        self._full_path = full_path
+        # Extract just the name (last component)
+        self._name = full_path.rstrip('/').split('/')[-1] if full_path else ''
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def path_str(self) -> str:
+        # Normalize by removing trailing slash for directories
+        return self._full_path.rstrip('/')
+
+    def is_file(self) -> bool:
+        return not self._info.is_dir()
+
+    def is_dir(self) -> bool:
+        return self._info.is_dir()
+
+    def __repr__(self):
+        return f"ZipFileEntry({self._full_path})"
+
 
 
 @dataclass
@@ -354,46 +354,6 @@ class ProjectHeuristics:
         return all_indicators
     
 
-def calculate_project_score(directory: Path) -> tuple[float, List[str], bool, int]:
-    """
-    Calculate a project score for a directory based on its direct children.
-    scoring and directory analysis done
-
-    Args:
-        directory: Path to the directory to analyze
-
-    Returns:
-        Tuple of (score, list of indicators found, has_files, subdirectory_count)
-    """
-    score = 0.0
-    indicators_found = []
-    has_files = False
-    subdir_count = 0
-    all_indicators = ProjectHeuristics.get_all_indicators()
-
-    try:
-        for item in directory.iterdir():
-            item_name = item.name
-
-            # Check if this item is a project indicator
-            if item_name in all_indicators:
-                points = all_indicators[item_name]
-                score += points
-                indicators_found.append(f"{item_name} ({points:+.0f})")
-
-            # Count files and subdirectories
-            if item.is_file():
-                has_files = True
-            elif item.is_dir():
-                subdir_count += 1
-
-    except (PermissionError, FileNotFoundError):
-        # Can't access directory
-        return 0.0, [], False, 0
-
-    return score, indicators_found, has_files, subdir_count
-
-
 def calculate_project_score_fs(fs: FileSystemInterface, directory_path: str) -> tuple[float, List[str], bool, int]:
     """
     Calculate a project score for a directory using a file system interface.
@@ -434,131 +394,6 @@ def calculate_project_score_fs(fs: FileSystemInterface, directory_path: str) -> 
 
     return score, indicators_found, has_files, subdir_count
 
-def Folder_traversal(root_path: Union[str, Path]) -> Dict[Path, DirectoryNode]:
-    """
-    Performs a breadth-first traversal starting at root_path.
-
-    What it does:
-    1. scores each directory at depth 1
-    2. checks direct children for nested projects
-        if 2+ subdirectories then not considered a project itself
-        if 1 or 0 subprojects sub project absorbed into parent
-
-    Passes
-    pass 1 - BFS traversal, score directories, stop/ prune at projects
-    pass 2 - count subprojects
-    pass 3 - Apply nested project rules
-
-    args:
-        root_path - start directory
-
-    returns:
-        Dictionary mapping path to directory node.
-    """
-    from .session import get_session
-    session = get_session()
-    if not session["logged_in"]:
-        raise PermissionError("Please login first")
-        
-    root = Path(root_path)
-    #assign absolute path
-    root = Path(root_path).resolve()
-
-    if not root.exists():
-        raise FileNotFoundError(f"The path {root} does not exist.")
-    if not root.is_dir():
-        raise ValueError(f"The path {root} is not a directory.")
-
-    #store all directory nodes
-    node_info: Dict[Path, DirectoryNode] = {}
-    
-    #initialize root node
-    node_info[root] = DirectoryNode(path=root)
-    
-    # Queue for BFS
-    queue = deque([root])
-
-    #First pass 
-    while queue:
-        current_dir = queue.popleft()
-        current_node = node_info[current_dir]
-
-        #parent check not needed anymore as the nodes are not needed anymore
-
-        #dfs
-        score, indicators, has_files, subdir_count = calculate_project_score(current_dir)
-        #populate the data into the class
-        current_node.score = score
-        current_node.indicators_found = indicators
-        current_node.has_files = has_files
-
-        # check project status
-        is_project = score >= ProjectHeuristics.PROJECT_THRESHOLD
-        current_node.is_project = is_project
-
-
-        # check if project
-        if is_project:
-            # check if subdirectories contain projects
-            try:
-                for item in current_dir.iterdir():
-                    # check if folder
-                    if item.is_dir():
-                        #Score this immediate child to detect nested projects
-                        child_score, child_indicators, child_has_files, _ = calculate_project_score(item)
-                        
-                        # if potential project fill in details
-                        if child_score >= ProjectHeuristics.PROJECT_THRESHOLD:
-                            child_node = DirectoryNode(
-                                path=item,
-                                score=child_score,
-                                indicators_found=child_indicators,
-                                is_project=True,
-                                has_files=child_has_files
-                            )
-                            node_info[item] = child_node
-                            # NOT IN QUEUE
-            except (PermissionError, FileNotFoundError):
-                pass
-        else:
-            #not a project go through sub directory and add to queue
-            try:
-                for item in current_dir.iterdir():
-                    if item.is_dir():
-                        node_info[item] = DirectoryNode(path=item)
-                        queue.append(item)
-            except (PermissionError, FileNotFoundError):
-                continue
-
-def dfs_for_file(path: Union[str, Path]) -> bool:
-    """
-    Does a Depth first search of depth =1
-    returns true if there is file in the sub items of the directory
-    """
-    # Second pass: Count subprojects
-    for path, node in node_info.items():
-        if node.is_project:
-            parent = path.parent
-            if parent in node_info:
-                node_info[parent].subproject_count += 1
-
-
-    # Third pass - check and deal with sub projects
-    for path, node in node_info.items():
-        #If a directory has 2+ subprojects, it's NOT a project itself
-        #sub projects are also already labelled as projects
-        if node.subproject_count >= 2:
-            node.is_project = False
-        
-        #If a directory has exactly 1 subproject, absorb it
-        elif node.subproject_count == 1:
-            if node.is_project:
-                #Parent is project, mark child as not a project
-                for child_path, child_node in node_info.items():
-                    if child_path.parent == path and child_node.is_project:
-                        child_node.is_project = False
-                        break
-    return node_info
 
 def Folder_traversal_fs(root_path: Union[str, Path]) -> Dict[str, DirectoryNode]:
     """
@@ -584,6 +419,11 @@ def Folder_traversal_fs(root_path: Union[str, Path]) -> Dict[str, DirectoryNode]
     Returns:
         Dictionary mapping path string to directory node.
     """
+    from .session import get_session
+    session = get_session()
+    if not session["logged_in"]:
+        raise PermissionError("Please login first")
+
     # Convert to Path object
     root = Path(root_path).resolve()
 
@@ -719,86 +559,58 @@ def Folder_traversal_fs(root_path: Union[str, Path]) -> Dict[str, DirectoryNode]
 
 
 # informal testing
-if __name__ == "__main__":
-    import sys
-
-    current_dir = Path(__file__).parent
-
-    # Demo: Test with regular directory
-    print("="*80)
-    print("DEMO 1: Regular Directory Traversal")
-    print("="*80)
-
-    test_path = current_dir / "../tests/backend_test/Test-traversal"
-    test_path = test_path.resolve()
-
-    if test_path.exists():
-        print(f"\nAnalyzing regular directory: {test_path}")
-        print(f"Project threshold: {ProjectHeuristics.PROJECT_THRESHOLD} points\n")
-
-        results = Folder_traversal(test_path)
-
-        print(f"Total directories discovered: {len(results)}")
-        project_count = sum(1 for n in results.values() if n.is_project)
-        print(f"Projects found: {project_count}\n")
-
-    # Demo: Test with ZIP file
-    print("\n" + "="*80)
-    print("DEMO 2: ZIP File Traversal (New Feature)")
-    print("="*80)
-
-    zip_test_dir = current_dir / "../tests/backend_test/Test-zip-traversal"
-
-    if zip_test_dir.exists():
-        zip_files = list(zip_test_dir.glob("*.zip"))
-
-        if zip_files:
-            # Test with the first available ZIP file
-            zip_path = zip_files[0]
-            print(f"\nAnalyzing ZIP file: {zip_path.name}")
-            print(f"Full path: {zip_path}")
-            print(f"Project threshold: {ProjectHeuristics.PROJECT_THRESHOLD} points\n")
-
-            try:
-                results = Folder_traversal_fs(zip_path)
-
-                print(f"Total directories discovered: {len(results)}")
-                project_count = sum(1 for n in results.values() if n.is_project)
-                print(f"Projects found: {project_count}\n")
-
-                print("Detected projects:")
-                for path_str, node in results.items():
-                    if node.is_project:
-                        print(f"  ✓ {path_str or '(root)'} - Score: {node.score}")
-
-            except Exception as e:
-                print(f"Error processing ZIP: {e}")
-        else:
-            print("\nNo ZIP files found. Run create_test_zip.py first.")
-    else:
-        print(f"\nZIP test directory not found: {zip_test_dir}")
-
-    print("\n" + "="*80)
-    print("Usage Examples:")
-    print("="*80)
-    print("\nFor folder traversal and project detection:")
-# For regular directories (both functions work):
-
-# from backend.traversal import Folder_traversal, Folder_traversal_fs
-
-# results = Folder_traversal("/path/to/directory")
-# # OR
-# results = Folder_traversal_fs("/path/to/directory")
-
-# # For ZIP files (use Folder_traversal_fs):
-# results = Folder_traversal_fs("/path/to/file.zip")
-
-# # Results are dictionaries mapping paths to DirectoryNode objects
-# for path, node in results.items():
-#     if node.is_project:
-#         print(f"Project found: {path}")
-#         print(f"  Score: {node.score}")
-#         print(f"  Indicators: {node.indicators_found}")
+#if __name__ == "__main__":
+#    import sys
+#
+#    current_dir = Path(__file__).parent
+#
+#    # Demo: Test with ZIP file
+#    print("\n" + "="*80)
+#    print("DEMO 2: ZIP File Traversal (New Feature)")
+#    print("="*80)
+#
+#    zip_test_dir = current_dir / "../tests/backend_test/Test-zip-traversal"
+#
+#    if zip_test_dir.exists():
+#        zip_files = list(zip_test_dir.glob("*.zip"))
+#
+#        if zip_files:
+#            # Test with the first available ZIP file
+#            zip_path = zip_files[0]
+#            print(f"\nAnalyzing ZIP file: {zip_path.name}")
+#            print(f"Full path: {zip_path}")
+#            print(f"Project threshold: {ProjectHeuristics.PROJECT_THRESHOLD} points\n")
+#
+#            try:
+#                results = Folder_traversal_fs(zip_path)
+#
+#                print(f"Total directories discovered: {len(results)}")
+#                project_count = sum(1 for n in results.values() if n.is_project)
+#                print(f"Projects found: {project_count}\n")
+#
+#                print("Detected projects:")
+#                for path_str, node in results.items():
+#                    if node.is_project:
+#                        print(f"  ✓ {path_str or '(root)'} - Score: {node.score}")
+#
+#            except Exception as e:
+#                print(f"Error processing ZIP: {e}")
+#        else:
+#            print("\nNo ZIP files found. Run create_test_zip.py first.")
+#    else:
+#        print(f"\nZIP test directory not found: {zip_test_dir}")
+#
+#    print("\n" + "="*80)
+#    print("Usage Examples:")
+#    print("="*80)
+#    print("\nFor folder traversal and project detection:")
+#
+#    # Results are dictionaries mapping paths to DirectoryNode objects
+#    for path, node in results.items():
+#        if node.is_project:
+#            print(f"Project found: {path}")
+#            print(f"  Score: {node.score}")
+#            print(f"  Indicators: {node.indicators_found}")
 
 
 

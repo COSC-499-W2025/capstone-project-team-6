@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 from . import (
-    Folder_traversal,
+    Folder_traversal_fs,
     initialize,
     create_user,
     authenticate_user,
@@ -77,7 +77,7 @@ Type 'exit' to quit.
                 return
 
             print(f"\n📂 Analyzing folder: {path}")
-            results = Folder_traversal(path)
+            results = Folder_traversal_fs(path)
             self._display_analysis(results)
         except Exception as e:
             print(f"\n❌ Error: {e}")
