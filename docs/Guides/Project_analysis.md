@@ -13,7 +13,7 @@ We seperate the files into 5 sections
 5. ignored directories and files  - this list will change as we progress in the analysis
 
 ### Methods
-The order/hierachy call works as follows
+The order/hierarchy call works as follows
 
 classify_project -> classify_file -> other methods
 
