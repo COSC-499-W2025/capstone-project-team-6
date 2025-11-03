@@ -43,11 +43,36 @@ Through the creation of the pipeline and integration, the project will be much s
 
 # Aakash  
 
+
+
 ## Date Range  
+October 27 - November 2
+![Aakash Week 9](images/aakashlogs-w9.png)
 
 ## Tasks Worked On  
+- Worked on debugging and ensuring that the inegration of traversal.py is completely functional. 
+- Removed excess code from traversal.py and ensured that the zip file functions work as expected. 
+- Created the project traversal
+    - file identification
+    - file sorting
+- wrote tests for the file identification and file sorting
+- documented my work
+- participated in team discussions
+
+- Tested the folder restructuring for no errors and windows accomadation
+- updated few requirements so that it works on python 3.13 and 3.14
+
+- Started on llama stack initializationa and phase 2 of analysis with LLM (these are not merged so will not count towards this week)
 
 ## Weekly Goals Recap  
+- To complete a backbone version of the analysis with LMM with Mohamed Sakr. 
+- complete integration of everything uptil file traversal
+
+### what was accomplished
+- completed on phase 1/5 of analysis
+- started phase 2
+- phase 3,4 was given to other members of the team
+- phase 5 was planned to be completed next week
 
 
 # Ansh Rastogi  
