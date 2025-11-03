@@ -50,20 +50,18 @@ def test_extract_text_from_image():
     assert len(text) > 0, "OCR should extract some text"
     assert "test" in text.lower() or "ocr" in text.lower()
 
-
 def test_extract_text_from_pdf(tmp_path):
     """Should convert a real generated PDF to images and extract text."""
     # Creates a temporary PDF file with text
     pdf_path = tmp_path / "ocr_test.pdf"
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Arial", size=14)
-    pdf.cell(200, 10, txt="PDF OCR Extraction Works!", ln=True)
+    pdf.set_font("helvetica", size=14)  # built-in font, avoids warnings
+    pdf.cell(200, 10, "PDF OCR Extraction Works!", ln=1)
     pdf.output(str(pdf_path))
     # Read PDF back into memory as bytes
     pdf_bytes = pdf_path.read_bytes()
     # Pass bytes to extractor
     text = text_extractor.extract_text_from_bytes(pdf_bytes, "ocr_test.pdf")
-
     assert isinstance(text, str)
     assert "pdf" in text.lower() or "works" in text.lower()
