@@ -53,12 +53,7 @@ class FileClassifier:
         'spec.', '.spec.', '_spec.',
         'tests.', '.tests.'
     ]
-    
-    TEST_DIR_PATTERNS = [
-        '/test/', '/tests/', '/__tests__/',
-        '/spec/', '/specs/',
-        'test\\', 'tests\\', '__tests__\\',  # Windows paths
-    ]
+
     
     # Directories to ignore- misc and not important files
     #THESE FILE WILL BE NEEDED FOR META DATA AND GIT ANALYSIS LATER BUT IGNORED FOR NOW
@@ -121,14 +116,21 @@ class FileClassifier:
         normalized_path = file_path.replace('\\', '/').lower()
         normalized_name = filename.lower()
         
-        # Check filename patterns
+        # Check filename patterns (test_*, *_test.*, *.test.*, *.spec.*, etc.)
         for pattern in self.TEST_FILENAME_PATTERNS:
             if pattern in normalized_name:
                 return True
         
-        # Check directory patterns
-        for pattern in self.TEST_DIR_PATTERNS:
-            if pattern in normalized_path:
+        # Check if file is in a test directory
+        # Split path into components and check directory names
+        path_parts = normalized_path.split('/')
+        
+        # Known test directory names
+        test_dir_names = {'test', 'tests', '__tests__', 'spec', 'specs'}
+        
+        # Check each directory component (exclude the filename, which is the last part)
+        for part in path_parts[:-1]:
+            if part in test_dir_names:
                 return True
         
         return False

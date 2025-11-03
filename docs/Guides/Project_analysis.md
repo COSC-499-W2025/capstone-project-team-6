@@ -34,3 +34,17 @@ python src/tests/backend_test/informal_analysis_file_identification_test.py
 the output will be like below 
 ![](../images/project_traversal-informal.png)
 
+for more formal testing there is a pytest script which has 41 tests containing logic tests and tests on the Folder. For these tests i used the Test-zip-traversal/python_project.zip as a base as it checked all basic functions needed.
+
+to run the tests use the command 
+```
+pytest src/tests/backend_test/test_project_analyzer.py -v
+```
+
+to run a specific test use 
+```
+pytest src/tests/backend_test/test_project_analyzer.py::TestProjectClassification -v
+
+```
+
+The reason for each test can be gathered within the test file as everything is comment with a reason at the start of the test function.
