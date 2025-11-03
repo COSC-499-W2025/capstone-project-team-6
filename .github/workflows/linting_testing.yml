@@ -26,28 +26,38 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install flake8 pytest pytest-asyncio httpx mypy black isort bandit pip-audit pillow
+          pip install flake8 pytest pytest-asyncio httpx mypy black isort bandit pip-audit pillow pytesseract
+
       - name: Install Tesseract OCR
         run: |
           sudo apt-get update
           sudo apt-get install -y tesseract-ocr
+          which tesseract
+          tesseract --version
+          echo "TESSERACT PATH:"
+          ls /usr/bin/tesseract || true
+          echo "TESSERACT PATH FOUND AND ADDED TO ENV"
+          echo "TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata" >> $GITHUB_ENV
+          echo "/usr/bin" >> $GITHUB_PATH
 
       - name: Auto-format and Lint
         if: matrix.python-version == '3.14'
+        continue-on-error: true
         run: |
           echo "Running auto-format and lint checks"
-          black src --line-length 130 || true
-          isort src || true
-          flake8 src --max-line-length=130 --exclude=__pycache__,.pytest_cache  || true
-          mypy src  || true
-          bandit -r src  || true
-          pip-audit  || true
+          black src --line-length 130
+          isort src
+          flake8 src --max-line-length=130 --exclude=__pycache__,.pytest_cache --exit-zero
+          mypy src || true
+          bandit -r src || true
+          pip-audit || true
 
-            - name: Commit and push formatting fixes
+      - name: Commit and push formatting fixes
         if: matrix.python-version == '3.14' && github.event_name == 'push' && github.actor != 'dependabot[bot]'
         run: |
           git config --global user.name "github-actions[bot]"
@@ -60,10 +70,10 @@ jobs:
             git push
           fi
 
-
       - name: Run Unit Tests
         run: |
           echo "Running backend unit tests"
           export PYTHONPATH=$(pwd)
+          export TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata
+          export PATH=$PATH:/usr/bin
           pytest src/tests/backend_test -v --disable-warnings --maxfail=1
-
