@@ -1,9 +1,11 @@
 name: Linting and Tests CI
-
+permissions:
+  contents: write
 on:
   push:
     branches:
-      - '**'
+      - Development
+      - CI-UT-Pipeline
   pull_request:
     branches:
       - Development
