@@ -2,11 +2,23 @@
 
 ## Date Range  
 
+October 27 - November 2  
+
+![Mandira Week 9](images/MandiraWeek#9.png)
+
 ## Tasks Worked On  
 
-### Tests  
+- Began initial work on the **file analysis without LLMs** feature. The focus this week was on understanding how to reuse and extend the existing file classification module developed by Aakash for local, deterministic analysis.  
+- Set up the preliminary framework for analyzing project files based on metadata and structure (without depending on LLM-based extraction). The logic is partially implemented but not fully functional yet — still requires refinement and additional testing before merging.  
+- Conducted **thorough testing and review** of multiple teammates’ PRs to ensure consistency and prevent integration issues.  
+- Attended all scheduled **team meetings** and contributed to discussions about the upcoming analysis phases.  
+- Completed and submitted the **team weekly logs** for the group.  
 
 ## Weekly Goals Recap  
+
+The main goal for this week was to make progress on the **non-LLM file analysis component**. While the foundation has been set up, it remains incomplete and not ready to merge. The plan is to finalize and test the logic within the next few days.  
+
+In addition, I successfully reviewed several PRs, verified test coverage, and maintained active participation in team coordination and documentation.
 
 
 # Mithish Ravisankar Geetha  
