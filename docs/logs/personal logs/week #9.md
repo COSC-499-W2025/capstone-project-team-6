@@ -12,9 +12,8 @@
 # Mithish Ravisankar Geetha  
 
 ## Date Range  
-October 27 - November 2
 
-(The peer evaluation screenshot is missing as the Week 9 logs were closed at 7:20am on November 2 unexpectedly. I will attach the screenshot of the log once the assignment reopens. I have attached a screenshot of the page along with the date and timestamp for proof and verification.)
+October 27 - November 2
 
 ![Mithish Week 9](images/Week9screenshotMithish.png)
 
