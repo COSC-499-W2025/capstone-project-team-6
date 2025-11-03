@@ -6,6 +6,7 @@ October 27 - November 2
 
 ![Mandira Week 9](images/MandiraWeek#9.png)
 
+
 ## Tasks Worked On  
 
 - Began initial work on the **file analysis without LLMs** feature. The focus this week was on understanding how to reuse and extend the existing file classification module developed by Aakash for local, deterministic analysis.  
