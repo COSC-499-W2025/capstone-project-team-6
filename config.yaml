@@ -1,0 +1,26 @@
+# Llama Stack Configuration
+llama_stack:
+  url: "http://llama-stack:8000"  # Internal Docker network URL
+  timeout: 60  # Request timeout in seconds
+
+# Embedding Configuration
+embedding:
+  provider: "huggingface"
+  model: "sentence-transformers/all-MiniLM-L6-v2"
+  api_key: ${HUGGINGFACE_API_KEY}  # Optional for free tier
+  dimension: 384
+  batch_size: 32
+
+# Chat/Completion Configuration (Placeholder for Phase 4)
+chat:
+  provider: "together"  # Can change to "groq" later
+  model: "meta-llama/Llama-3.1-8B-Instruct"
+  api_key: ${TOGETHER_API_KEY}  # Set when needed
+  max_tokens: 2048
+  temperature: 0.7
+
+# Database Configuration (for later when you connect)
+database:
+  url: ${POSTGRES_URL}
+  password: ${POSTGRES_PASSWORD}
+  vector_dimension: 384
