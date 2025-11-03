@@ -26,7 +26,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -44,6 +43,13 @@ jobs:
           echo "TESSERACT PATH FOUND AND ADDED TO ENV"
           echo "TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata" >> $GITHUB_ENV
           echo "/usr/bin" >> $GITHUB_PATH
+      
+      - name: Install Poppler (for PDF OCR)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          which pdftoppm
+          pdftoppm -v || true
 
       - name: Auto-format and Lint
         if: matrix.python-version == '3.14'
