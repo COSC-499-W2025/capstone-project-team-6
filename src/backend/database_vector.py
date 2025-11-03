@@ -1,8 +1,10 @@
 import os
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
-from pgvector.sqlalchemy import Vector
-from sqlalchemy.orm import declarative_base, relationship, sessionmaker
+
 from dotenv import load_dotenv
+from pgvector.sqlalchemy import Vector
+from sqlalchemy import Column, ForeignKey, Integer, String, create_engine
+from sqlalchemy.orm import declarative_base, relationship, sessionmaker
+
 load_dotenv()
 
 # Get connection string from .env
@@ -15,6 +17,7 @@ if not DATABASE_URL:
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
+
 
 # Define the tables
 class Document(Base):
@@ -40,6 +43,7 @@ class DocumentChunk(Base):
 def init_db():
     Base.metadata.create_all(engine)
     print("Connected successfully and verified tables exist.")
+
 
 if __name__ == "__main__":
     init_db()

@@ -1,6 +1,8 @@
 import os
+
 from sqlalchemy.orm import Session
-from backend.database_vector import SessionLocal, Document, DocumentChunk
+
+from backend.database_vector import Document, DocumentChunk, SessionLocal
 
 
 def chunk_text(text, chunk_size=500):
@@ -8,9 +10,10 @@ def chunk_text(text, chunk_size=500):
     words = text.split()
     chunks = []
     for i in range(0, len(words), chunk_size):
-        chunk = " ".join(words[i:i + chunk_size])
+        chunk = " ".join(words[i : i + chunk_size])
         chunks.append(chunk)
     return chunks
+
 
 # Placeholder for embeddings (we will replace it with a real embedding model later)
 def generate_embedding(text):
@@ -21,18 +24,12 @@ def generate_embedding(text):
     return [0.0] * 1024  # Dummy vector with 1024 dimensions
 
 
-
 # Insert document + chunks
 def store_document(file_name, file_type, category, extracted_text):
     db: Session = SessionLocal()
     try:
         # Create new document entry
-        doc = Document(
-            file_name=file_name,
-            file_type=file_type,
-            category=category,
-            extracted_text=extracted_text
-        )
+        doc = Document(file_name=file_name, file_type=file_type, category=category, extracted_text=extracted_text)
         db.add(doc)
         db.commit()
         db.refresh(doc)
@@ -48,6 +45,7 @@ def store_document(file_name, file_type, category, extracted_text):
     finally:
         db.close()
 
+
 # Manual tests
 if __name__ == "__main__":
     sample_text = "This is a sample text that will be split into multiple chunks for testing."
@@ -57,4 +55,3 @@ if __name__ == "__main__":
     with open("/Users/harjotsahota/Desktop/sample.txt", "r") as f:
         content = f.read()
     store_document("sample.txt", "txt", "manual-test", content)
-
