@@ -9,12 +9,12 @@ These tests verify the complete authentication flow across multiple components:
 """
 
 import json
+# Import backend modules
+import sys
 from pathlib import Path
 
 import pytest
 
-# Import backend modules
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from backend import database, session
@@ -98,10 +98,7 @@ class TestSignupIntegration:
 
         # Step 5: Verify only one entry in database
         with database.get_connection() as conn:
-            count = conn.execute(
-                "SELECT COUNT(*) as count FROM users WHERE username = ?",
-                (username,)
-            ).fetchone()["count"]
+            count = conn.execute("SELECT COUNT(*) as count FROM users WHERE username = ?", (username,)).fetchone()["count"]
             assert count == 1, "Should only have one user entry"
 
         # Step 6: Verify no session created (since we didn't authenticate)

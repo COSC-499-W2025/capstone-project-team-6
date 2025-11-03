@@ -1,14 +1,14 @@
 """Shared fixtures for integration tests."""
 
 import os
+# Add src to path so we can import backend modules
+import sys
 import tempfile
 from pathlib import Path
 from typing import Generator
 
 import pytest
 
-# Add src to path so we can import backend modules
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from backend import database, session
