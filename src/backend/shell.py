@@ -5,8 +5,14 @@ import shlex
 from pathlib import Path
 from typing import Optional
 
-from . import (Folder_traversal_fs, UserAlreadyExistsError, authenticate_user,
-               create_user, initialize)
+from .traversal import Folder_traversal_fs
+from .database import (
+    initialize,
+    create_user,
+    authenticate_user,
+    UserAlreadyExistsError,
+)
+
 
 
 class MDAShell(cmd.Cmd):
