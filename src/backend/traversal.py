@@ -1,9 +1,9 @@
-from pathlib import Path
+import zipfile
+from abc import ABC, abstractmethod
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Dict, List, Set, Protocol, Iterator, Union
-from abc import ABC, abstractmethod
-import zipfile
+from pathlib import Path
+from typing import Dict, Iterator, List, Protocol, Set, Union
 
 
 class FileSystemEntry(Protocol):
@@ -46,6 +46,7 @@ class FileSystemInterface(ABC):
         """Get a file system entry for a path."""
         ...
 
+
 class RegularFileSystem(FileSystemInterface):
     """File system interface for regular directories."""
 
@@ -72,7 +73,7 @@ class ZipFileSystem(FileSystemInterface):
 
     def __init__(self, zip_path: Path):
         self.zip_path = zip_path
-        self.zip_file = zipfile.ZipFile(zip_path, 'r')
+        self.zip_file = zipfile.ZipFile(zip_path, "r")
         # Build a directory structure mapping
         self._build_directory_map()
 
@@ -81,11 +82,11 @@ class ZipFileSystem(FileSystemInterface):
         self.dir_map: Dict[str, List[zipfile.ZipInfo]] = {}
 
         # Add root
-        self.dir_map[''] = []
+        self.dir_map[""] = []
 
         # Process all entries
         for info in self.zip_file.infolist():
-            path = info.filename.rstrip('/')
+            path = info.filename.rstrip("/")
 
             # Add directory entries
             if info.is_dir():
@@ -93,23 +94,23 @@ class ZipFileSystem(FileSystemInterface):
                     self.dir_map[path] = []
 
             # Determine parent directory
-            if '/' in path:
-                parent = '/'.join(path.split('/')[:-1])
+            if "/" in path:
+                parent = "/".join(path.split("/")[:-1])
             else:
-                parent = ''
+                parent = ""
 
             # Add to parent's children
             if parent not in self.dir_map:
                 self.dir_map[parent] = []
 
             # Only add if not already present (avoid duplicates)
-            if not any(child.filename.rstrip('/') == path for child in self.dir_map[parent]):
+            if not any(child.filename.rstrip("/") == path for child in self.dir_map[parent]):
                 self.dir_map[parent].append(info)
 
     def iterdir(self, path: str) -> Iterator[FileSystemEntry]:
         """Iterate over entries in a ZIP directory."""
         # Normalize path (remove leading/trailing slashes)
-        path = path.strip('/')
+        path = path.strip("/")
 
         if path not in self.dir_map:
             return
@@ -120,10 +121,10 @@ class ZipFileSystem(FileSystemInterface):
 
     def exists(self, path: str) -> bool:
         """Check if a path exists in the ZIP file."""
-        path = path.strip('/')
+        path = path.strip("/")
 
         # Check if it's a directory in our map
-        if path in self.dir_map or path == '':
+        if path in self.dir_map or path == "":
             return True
 
         # Check if it's a file
@@ -135,7 +136,7 @@ class ZipFileSystem(FileSystemInterface):
 
     def get_entry(self, path: str) -> FileSystemEntry:
         """Get a file system entry for a ZIP path."""
-        path = path.strip('/')
+        path = path.strip("/")
 
         # Try to get as file first
         try:
@@ -147,7 +148,7 @@ class ZipFileSystem(FileSystemInterface):
         # Try as directory
         if path in self.dir_map:
             # Create a synthetic directory entry
-            info = zipfile.ZipInfo(filename=path + '/')
+            info = zipfile.ZipInfo(filename=path + "/")
             return ZipFileEntry(info, path)
 
         raise FileNotFoundError(f"Path {path} not found in ZIP")
@@ -158,7 +159,7 @@ class ZipFileSystem(FileSystemInterface):
 
     def __del__(self):
         """Ensure ZIP file is closed."""
-        if hasattr(self, 'zip_file'):
+        if hasattr(self, "zip_file"):
             self.zip_file.close()
 
 
@@ -193,7 +194,7 @@ class ZipFileEntry:
         self._info = zip_info
         self._full_path = full_path
         # Extract just the name (last component)
-        self._name = full_path.rstrip('/').split('/')[-1] if full_path else ''
+        self._name = full_path.rstrip("/").split("/")[-1] if full_path else ""
 
     @property
     def name(self) -> str:
@@ -202,7 +203,7 @@ class ZipFileEntry:
     @property
     def path_str(self) -> str:
         # Normalize by removing trailing slash for directories
-        return self._full_path.rstrip('/')
+        return self._full_path.rstrip("/")
 
     def is_file(self) -> bool:
         return not self._info.is_dir()
@@ -212,7 +213,6 @@ class ZipFileEntry:
 
     def __repr__(self):
         return f"ZipFileEntry({self._full_path})"
-
 
 
 @dataclass
@@ -228,6 +228,7 @@ class DirectoryNode:
     has_files - general check
 
     """
+
     path: Union[Path, str]
     is_project: bool = False
     score: float = 0.0
@@ -247,12 +248,14 @@ class DirectoryNode:
             return self.path.name
         else:
             # For string paths (ZIP entries), get last component
-            return self.path.rstrip('/').split('/')[-1] if self.path else ''
+            return self.path.rstrip("/").split("/")[-1] if self.path else ""
 
     def __repr__(self):
-        return (f"DirectoryNode(path={self.name}, is_project={self.is_project}, "
-                f"score={self.score:.1f}, subprojects={self.subproject_count})")
-    
+        return (
+            f"DirectoryNode(path={self.name}, is_project={self.is_project}, "
+            f"score={self.score:.1f}, subprojects={self.subproject_count})"
+        )
+
 
 class ProjectHeuristics:
     """
@@ -260,89 +263,89 @@ class ProjectHeuristics:
 
     list was generated and sorted into levels, scores were assigned manually
     """
-    
-    # Strong indicators - Common files found in all project roots 
+
+    # Strong indicators - Common files found in all project roots
     STRONG_INDICATORS = {
-        '.git': 100,
-        '.gitignore': 15,
-        'package.json': 80,
-        'pyproject.toml': 80,
-        'Cargo.toml': 80,
-        'go.mod': 80,
-        'pom.xml': 80,
-        'build.gradle': 80,
-        'build.gradle.kts': 80,
-        'Gemfile': 70,
-        'composer.json': 70,
-        'CMakeLists.txt': 70,
-        'Makefile': 60,
-        '.sln': 80,  # Visual Studio solution
-        '.csproj': 70,
-        'tsconfig.json': 60,
-        'webpack.config.js': 50,
-        'vite.config.js': 50,
-        'rollup.config.js': 50,
+        ".git": 100,
+        ".gitignore": 15,
+        "package.json": 80,
+        "pyproject.toml": 80,
+        "Cargo.toml": 80,
+        "go.mod": 80,
+        "pom.xml": 80,
+        "build.gradle": 80,
+        "build.gradle.kts": 80,
+        "Gemfile": 70,
+        "composer.json": 70,
+        "CMakeLists.txt": 70,
+        "Makefile": 60,
+        ".sln": 80,  # Visual Studio solution
+        ".csproj": 70,
+        "tsconfig.json": 60,
+        "webpack.config.js": 50,
+        "vite.config.js": 50,
+        "rollup.config.js": 50,
     }
-    
+
     # Medium indicators - documentation
     MEDIUM_INDICATORS = {
-        'README.md': 30,
-        'README.rst': 30,
-        'README.txt': 25,
-        'README': 20,
-        'Dockerfile': 40,
-        'docker-compose.yml': 40,
-        'docker-compose.yaml': 40,
-        '.dockerignore': 20,
-        'requirements.txt': 35,
-        'setup.py': 60,
-        'setup.cfg': 40,
-        'environment.yml': 30,
-        'Pipfile': 50,
-        'poetry.lock': 50,
-        '.env.example': 25,
-        '.editorconfig': 15,
+        "README.md": 30,
+        "README.rst": 30,
+        "README.txt": 25,
+        "README": 20,
+        "Dockerfile": 40,
+        "docker-compose.yml": 40,
+        "docker-compose.yaml": 40,
+        ".dockerignore": 20,
+        "requirements.txt": 35,
+        "setup.py": 60,
+        "setup.cfg": 40,
+        "environment.yml": 30,
+        "Pipfile": 50,
+        "poetry.lock": 50,
+        ".env.example": 25,
+        ".editorconfig": 15,
     }
-    
+
     # Weak indicators - misc project files
     WEAK_INDICATORS = {
-        'LICENSE': 15,
-        'LICENSE.txt': 15,
-        'LICENSE.md': 15,
-        '.gitattributes': 10,
-        '.prettierrc': 10,
-        '.eslintrc': 10,
-        '.eslintrc.js': 10,
-        '.eslintrc.json': 10,
-        'jest.config.js': 15,
-        'pytest.ini': 15,
-        '.travis.yml': 20,
-        '.gitlab-ci.yml': 20,
-        '.github': 25,  # Directory
-        '.circleci': 20,  # Directory
+        "LICENSE": 15,
+        "LICENSE.txt": 15,
+        "LICENSE.md": 15,
+        ".gitattributes": 10,
+        ".prettierrc": 10,
+        ".eslintrc": 10,
+        ".eslintrc.js": 10,
+        ".eslintrc.json": 10,
+        "jest.config.js": 15,
+        "pytest.ini": 15,
+        ".travis.yml": 20,
+        ".gitlab-ci.yml": 20,
+        ".github": 25,  # Directory
+        ".circleci": 20,  # Directory
     }
-    
+
     # Negative indicators - these suggest NOT a project root
     NEGATIVE_INDICATORS = {
-        'node_modules': -50,
-        '__pycache__': -30,
-        '.pytest_cache': -20,
-        'venv': -40,
-        'env': -40,
-        '.venv': -40,
-        'virtualenv': -40,
-        'target': -30,  # Java/Rust build output
-        'build': -25,
-        'dist': -25,
-        '.next': -30,
-        '.cache': -20,
-        'coverage': -20,
-        '.coverage': -15,
+        "node_modules": -50,
+        "__pycache__": -30,
+        ".pytest_cache": -20,
+        "venv": -40,
+        "env": -40,
+        ".venv": -40,
+        "virtualenv": -40,
+        "target": -30,  # Java/Rust build output
+        "build": -25,
+        "dist": -25,
+        ".next": -30,
+        ".cache": -20,
+        "coverage": -20,
+        ".coverage": -15,
     }
 
     # Score threshold to consider a directory as a project- keep at 50 or 75
     PROJECT_THRESHOLD = 75
-    
+
     @classmethod
     def get_all_indicators(cls) -> Dict[str, float]:
         """Combine all indicator dictionaries."""
@@ -352,7 +355,7 @@ class ProjectHeuristics:
         all_indicators.update(cls.WEAK_INDICATORS)
         all_indicators.update(cls.NEGATIVE_INDICATORS)
         return all_indicators
-    
+
 
 def calculate_project_score_fs(fs: FileSystemInterface, directory_path: str) -> tuple[float, List[str], bool, int]:
     """
@@ -420,6 +423,7 @@ def Folder_traversal_fs(root_path: Union[str, Path]) -> Dict[str, DirectoryNode]
         Dictionary mapping path string to directory node.
     """
     from .session import get_session
+
     session = get_session()
     if not session["logged_in"]:
         raise PermissionError("Please login first")
@@ -431,10 +435,10 @@ def Folder_traversal_fs(root_path: Union[str, Path]) -> Dict[str, DirectoryNode]
         raise FileNotFoundError(f"The path {root} does not exist.")
 
     # Determine if we're dealing with a ZIP file
-    if root.is_file() and root.suffix.lower() == '.zip':
+    if root.is_file() and root.suffix.lower() == ".zip":
         # Use ZIP file system
         fs = ZipFileSystem(root)
-        root_str = ''  # Root of ZIP is empty string
+        root_str = ""  # Root of ZIP is empty string
         is_zip = True
     elif root.is_dir():
         # Use regular file system
@@ -488,7 +492,7 @@ def Folder_traversal_fs(root_path: Union[str, Path]) -> Dict[str, DirectoryNode]
                                 score=child_score,
                                 indicators_found=child_indicators,
                                 is_project=True,
-                                has_files=child_has_files
+                                has_files=child_has_files,
                             )
                             node_info[child_path_str] = child_node
                             # NOT IN QUEUE
@@ -511,10 +515,10 @@ def Folder_traversal_fs(root_path: Union[str, Path]) -> Dict[str, DirectoryNode]
             # Find parent
             if is_zip:
                 # For ZIP paths, parent is everything before the last '/'
-                if '/' in path_str:
-                    parent_str = '/'.join(path_str.split('/')[:-1])
+                if "/" in path_str:
+                    parent_str = "/".join(path_str.split("/")[:-1])
                 else:
-                    parent_str = ''  # Root
+                    parent_str = ""  # Root
             else:
                 # For regular paths
                 parent_path = Path(path_str).parent
@@ -538,10 +542,10 @@ def Folder_traversal_fs(root_path: Union[str, Path]) -> Dict[str, DirectoryNode]
                     # Check if this is a direct child
                     if is_zip:
                         # For ZIP paths
-                        if '/' in child_path_str:
-                            child_parent = '/'.join(child_path_str.split('/')[:-1])
+                        if "/" in child_path_str:
+                            child_parent = "/".join(child_path_str.split("/")[:-1])
                         else:
-                            child_parent = ''
+                            child_parent = ""
                         if child_parent == path_str and child_node.is_project:
                             child_node.is_project = False
                             break
@@ -559,7 +563,7 @@ def Folder_traversal_fs(root_path: Union[str, Path]) -> Dict[str, DirectoryNode]
 
 
 # informal testing
-#if __name__ == "__main__":
+# if __name__ == "__main__":
 #    import sys
 #
 #    current_dir = Path(__file__).parent
@@ -611,7 +615,3 @@ def Folder_traversal_fs(root_path: Union[str, Path]) -> Dict[str, DirectoryNode]
 #            print(f"Project found: {path}")
 #            print(f"  Score: {node.score}")
 #            print(f"  Indicators: {node.indicators_found}")
-
-
-
-

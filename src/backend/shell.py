@@ -5,13 +5,8 @@ import shlex
 from pathlib import Path
 from typing import Optional
 
-from . import (
-    Folder_traversal_fs,
-    initialize,
-    create_user,
-    authenticate_user,
-    UserAlreadyExistsError
-)
+from . import (Folder_traversal_fs, UserAlreadyExistsError, authenticate_user,
+               create_user, initialize)
 
 
 class MDAShell(cmd.Cmd):
@@ -22,7 +17,7 @@ Type 'help' or '?' to list commands.
 Type 'exit' to quit.
 ============================================================
     """
-    prompt = 'mda> '
+    prompt = "mda> "
     current_user: Optional[str] = None
 
     def preloop(self) -> None:
@@ -39,7 +34,7 @@ Type 'exit' to quit.
         if authenticate_user(username, password):
             print("\n✅ Login successful!")
             self.current_user = username
-            self.prompt = f'mda({username})> '
+            self.prompt = f"mda({username})> "
         else:
             print("\nInvalid username or password")
 
@@ -86,10 +81,11 @@ Type 'exit' to quit.
         """Logout from current session."""
         if self.current_user:
             from .session import clear_session
+
             clear_session()
             print(f"\nGoodbye, {self.current_user}!")
             self.current_user = None
-            self.prompt = 'mda> '
+            self.prompt = "mda> "
         else:
             print("\n❌ Not logged in")
 

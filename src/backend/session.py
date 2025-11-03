@@ -6,18 +6,18 @@ from typing import Dict, Optional
 
 SESSION_FILE = Path.home() / ".mda-session.json"
 
+
 def save_session(username: str) -> None:
     """Save session data to file."""
-    session_data = {
-        "logged_in": True,
-        "username": username
-    }
+    session_data = {"logged_in": True, "username": username}
     SESSION_FILE.write_text(json.dumps(session_data))
+
 
 def clear_session() -> None:
     """Clear the session data."""
     if SESSION_FILE.exists():
         SESSION_FILE.unlink()
+
 
 def get_session() -> Dict:
     """Get the current session data."""

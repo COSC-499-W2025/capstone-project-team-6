@@ -1,11 +1,13 @@
 """Tests for text_extractor OCR functions."""
-import pytest
-from pathlib import Path
-from PIL import Image, ImageDraw
-from fpdf import FPDF
-from src.backend import text_extractor
-from backend import database
 
+from pathlib import Path
+
+import pytest
+from fpdf import FPDF
+from PIL import Image, ImageDraw
+
+from backend import database
+from src.backend import text_extractor
 
 
 def test_extract_text_from_plain_text(tmp_path):
