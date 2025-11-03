@@ -26,4 +26,11 @@ a dictioary made of a string and list is passed back (file type, list of files)
 
 classify file uses the other functions as helper functions to label a file based on their extention and directory name. In basic it is done with a series of if statements.
 
+to test this informally use the command in terminal 
+```
+python src/tests/backend_test/informal_analysis_file_identification_test.py
+```
+
+the output will be like below 
+![](../images/project_traversal-informal.png)
 
