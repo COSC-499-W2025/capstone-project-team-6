@@ -1,0 +1,46 @@
+version: "2"
+
+# Image configuration
+image:
+  type: remote
+  
+# Provider configurations
+providers:
+  # Inference provider (for chat/completions - Phase 4)
+  inference:
+    - provider_id: together
+      provider_type: remote::together
+      config:
+        url: https://api.together.xyz/v1
+        api_key: ${TOGETHER_API_KEY}
+
+  # Embedding provider (Hugging Face)
+  embeddings:
+    - provider_id: huggingface
+      provider_type: remote::huggingface
+      config:
+        url: https://api-inference.huggingface.co/models
+        api_key: ${HUGGINGFACE_API_KEY}
+
+# Model configurations
+models:
+  # Chat model (Phase 4)
+  - model_id: llama3-1-8b-chat
+    provider_id: together
+    model_type: llm
+    metadata:
+      model: meta-llama/Llama-3.1-8B-Instruct
+      
+  # Embedding model (Phase 2/3)
+  - model_id: all-minilm-l6-v2
+    provider_id: huggingface
+    model_type: embedding
+    metadata:
+      model: sentence-transformers/all-MiniLM-L6-v2
+      embedding_dimension: 384
+
+
+# Safety configuration 
+safety:
+  - provider_id: meta-reference
+    provider_type: inline::llama-guard
