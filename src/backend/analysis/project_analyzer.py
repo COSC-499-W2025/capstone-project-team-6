@@ -257,9 +257,9 @@ class FileClassifier:
             normalized_path = file_path.replace('\\', '/')
             
             # Check if file is under project root
-            if not (normalized_path.startswith(project_root + '/') or 
-                    (normalized_path == project_root)):
-                continue
+            if project_root:
+                if not normalized_path.startswith(project_root + '/'):
+                    continue
             
             # Skip directories (they end with /)
             if normalized_path.endswith('/'):
@@ -282,7 +282,7 @@ class FileClassifier:
             
             if file_type == 'code':
                 language = classification['language']
-                
+
                 if classification['is_test']:
                     result['files']['tests'].append(classification)
 
