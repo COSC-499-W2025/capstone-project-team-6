@@ -124,13 +124,24 @@ I also ensured backward compatibility by verifying that all existing tests still
 
 # Harjot Sahota  
 
+<img width="1075" height="627" alt="Screenshot 2025-11-02 at 11 17 20 PM" src="https://github.com/user-attachments/assets/a4897cbb-8b7e-41ed-87d8-c0d1a0eed27f" />
+
 ## Date Range  
+October 27 - November 2
 
 ## Tasks Worked On  
+- Set up and configured a Supabase cloud pgvector database (mining-artifacts-db) for the project
+- Created two new backend modules: `database_vector.py` connects to Supabase, defines schemas for documents and document_chunks. `vector_service.py` handles text chunking, generates placeholder embeddings, and stores them in pgvector.
+- Manually tested the setup using Python scripts (python -m backend.database_vector and python -m backend.vector_service)
+- Participated in team discussions about future LLM integration and how this database will connect to our upload flow.
+- researched about embedding models, vector databases and how to set them up
+- updated file upload flow to handle files entirely in memory using FastAPI.
 
 ## Weekly Goals Recap  
 
-
+- **Features I was responsible for (this milestone):** I was responsible for researching and selecting the most suitable vector database for our project. After evaluating multiple options, I implemented Supabase pgvector and integrated it with our backend to store document embeddings and text chunks.
+- **Progress in the last 2 weeks:** Successfully set up and connected the Supabase pgvector database to our backend. Implemented the schema, created services for document chunking and embedding storage, and verified through manual testing that data is correctly stored in the cloud database. 
+  
 # Mohamed Sakr  
 
 ## Date Range  
