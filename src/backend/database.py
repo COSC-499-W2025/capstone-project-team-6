@@ -10,7 +10,6 @@ from typing import Dict, Optional
 
 import bcrypt
 
-
 DEFAULT_USERS: Dict[str, str] = {
     "testuser": "password123",
     "mithish": "abc123",
@@ -56,9 +55,7 @@ def get_connection() -> sqlite3.Connection:
 
     db_path = get_db_path()
     _ensure_parent_dir(db_path)
-    conn = sqlite3.connect(db_path,
-                           detect_types=sqlite3.PARSE_DECLTYPES,
-                           check_same_thread=False)
+    conn = sqlite3.connect(db_path, detect_types=sqlite3.PARSE_DECLTYPES, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     try:
         yield conn
@@ -94,6 +91,7 @@ def init_db() -> None:
         )
         conn.commit()
 
+
 def init_uploaded_files_table() -> None:
     """Create the uploaded_files table if it doesn't exist."""
     with get_connection() as conn:
@@ -109,6 +107,7 @@ def init_uploaded_files_table() -> None:
         )
         conn.commit()
 
+
 def save_uploaded_file(file_name: str, text: str, uploaded_at: Optional[str] = None) -> int:
     """Inserts a new result into uploaded_files."""
     uploaded_at = uploaded_at or "CURRENT_TIMESTAMP"
@@ -119,7 +118,8 @@ def save_uploaded_file(file_name: str, text: str, uploaded_at: Optional[str] = N
         )
         conn.commit()
         return cursor.lastrowid
-    
+
+
 def reset_db() -> None:
     """Helper for tests: drop the database file and recreate schema."""
 
@@ -177,29 +177,29 @@ def authenticate_user(username: str, password: str) -> bool:
         return False
     if verify_password(password, record["password_hash"]):
         from .session import save_session
+
         save_session(username)
         return True
     return False
 
+
 def check_user_consent(username: str) -> bool:
     """Check if user has given consent.
-    
+
     Args:
         username: The username to check consent for
-        
+
     Returns:
         bool: True if user has consented, False otherwise
     """
     with get_connection() as conn:
-        result = conn.execute(
-            "SELECT has_consented FROM user_consent WHERE username = ?",
-            (username,)
-        ).fetchone()
+        result = conn.execute("SELECT has_consented FROM user_consent WHERE username = ?", (username,)).fetchone()
         return bool(result["has_consented"]) if result else False
+
 
 def save_user_consent(username: str, has_consented: bool) -> None:
     """Save user's consent status.
-    
+
     Args:
         username: The username to save consent for
         has_consented: Whether user has consented or not
@@ -213,7 +213,7 @@ def save_user_consent(username: str, has_consented: bool) -> None:
                 has_consented = excluded.has_consented,
                 consent_date = CURRENT_TIMESTAMP
             """,
-            (username, has_consented)
+            (username, has_consented),
         )
         conn.commit()
 
@@ -236,4 +236,3 @@ def initialize() -> None:
 if __name__ == "__main__":
     initialize()
     print(f"SQLite setup complete at {get_db_path()}")
-

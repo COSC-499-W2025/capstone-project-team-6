@@ -1,5 +1,6 @@
 # consent_prompt.py
 
+
 def ask_for_consent() -> bool:
     """
     Display the consent form in the terminal and prompt for yes/no.

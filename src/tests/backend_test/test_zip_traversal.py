@@ -2,9 +2,11 @@
 Tests for ZIP file traversal functionality.
 Tests the Folder_traversal_fs function with various ZIP file structures.
 """
-import pytest
-from pathlib import Path
+
 import sys
+from pathlib import Path
+
+import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -31,8 +33,8 @@ class TestZipTraversal:
         results = Folder_traversal_fs(zip_path)
 
         # Check that root was detected as a project
-        assert '' in results, "Root directory should be in results"
-        root_node = results['']
+        assert "" in results, "Root directory should be in results"
+        root_node = results[""]
 
         # Root should be detected as a project (has package.json, README.md, .gitignore)
         assert root_node.is_project, "Root should be detected as a project"
@@ -40,12 +42,12 @@ class TestZipTraversal:
 
         # Check that indicators were found
         assert len(root_node.indicators_found) > 0
-        indicator_names = ' '.join(root_node.indicators_found)
-        assert 'package.json' in indicator_names
+        indicator_names = " ".join(root_node.indicators_found)
+        assert "package.json" in indicator_names
 
         # src and tests directories should not be traversed (root is a project)
-        assert 'src' not in results or not results['src'].is_project
-        assert 'tests' not in results or not results['tests'].is_project
+        assert "src" not in results or not results["src"].is_project
+        assert "tests" not in results or not results["tests"].is_project
 
     def test_nested_projects_zip(self):
         """Test traversal of a ZIP with multiple nested projects."""
@@ -56,24 +58,24 @@ class TestZipTraversal:
         results = Folder_traversal_fs(zip_path)
 
         # Root should have 3 subprojects, so it should NOT be a project itself
-        root_node = results['']
+        root_node = results[""]
         assert root_node.subproject_count == 3
         assert not root_node.is_project, "Root with 3 subprojects should not be a project"
 
         # Each project should be detected
-        assert 'projectA' in results, "projectA should be found"
-        assert 'projectB' in results, "projectB should be found"
-        assert 'projectC' in results, "projectC should be found"
+        assert "projectA" in results, "projectA should be found"
+        assert "projectB" in results, "projectB should be found"
+        assert "projectC" in results, "projectC should be found"
 
         # Each project should be marked as a project
-        assert results['projectA'].is_project, "projectA should be a project"
-        assert results['projectB'].is_project, "projectB should be a project"
-        assert results['projectC'].is_project, "projectC should be a project"
+        assert results["projectA"].is_project, "projectA should be a project"
+        assert results["projectB"].is_project, "projectB should be a project"
+        assert results["projectC"].is_project, "projectC should be a project"
 
         # Children of projects should not be further traversed
-        assert 'projectA/src' not in results
-        assert 'projectB/src' not in results
-        assert 'projectC/src' not in results
+        assert "projectA/src" not in results
+        assert "projectB/src" not in results
+        assert "projectC/src" not in results
 
     def test_python_project_zip(self):
         """Test traversal of a Python project ZIP."""
@@ -84,12 +86,12 @@ class TestZipTraversal:
         results = Folder_traversal_fs(zip_path)
 
         # Root should be detected as a Python project
-        root_node = results['']
+        root_node = results[""]
         assert root_node.is_project, "Root should be detected as a Python project"
 
         # Check for Python-specific indicators
-        indicator_names = ' '.join(root_node.indicators_found)
-        assert any(ind in indicator_names for ind in ['pyproject.toml', 'setup.py', 'requirements.txt'])
+        indicator_names = " ".join(root_node.indicators_found)
+        assert any(ind in indicator_names for ind in ["pyproject.toml", "setup.py", "requirements.txt"])
 
         # Check that score is high enough
         assert root_node.score >= ProjectHeuristics.PROJECT_THRESHOLD
@@ -103,14 +105,14 @@ class TestZipTraversal:
         results = Folder_traversal_fs(zip_path)
 
         # Root should NOT be detected as a project
-        root_node = results['']
+        root_node = results[""]
         assert not root_node.is_project, "Root should not be detected as a project"
         assert root_node.score < ProjectHeuristics.PROJECT_THRESHOLD
 
         # All subdirectories should be traversed since root is not a project
-        assert 'documents' in results
-        assert 'images' in results
-        assert 'data' in results
+        assert "documents" in results
+        assert "images" in results
+        assert "data" in results
 
     def test_mixed_structure_zip(self):
         """Test traversal of a ZIP with mixed project and non-project content."""
@@ -121,22 +123,22 @@ class TestZipTraversal:
         results = Folder_traversal_fs(zip_path)
 
         # Root should not be a strong project
-        root_node = results['']
+        root_node = results[""]
 
         # Should have 2 subprojects
         assert root_node.subproject_count == 2
 
         # webapp and api should be detected as projects
-        assert 'webapp' in results, "webapp should be found"
-        assert 'api' in results, "api should be found"
-        assert results['webapp'].is_project, "webapp should be a project"
-        assert results['api'].is_project, "api should be a project"
+        assert "webapp" in results, "webapp should be found"
+        assert "api" in results, "api should be found"
+        assert results["webapp"].is_project, "webapp should be a project"
+        assert results["api"].is_project, "api should be a project"
 
         # docs and misc should be present but not projects
-        assert 'docs' in results
-        assert 'misc' in results
-        assert not results['docs'].is_project
-        assert not results['misc'].is_project
+        assert "docs" in results
+        assert "misc" in results
+        assert not results["docs"].is_project
+        assert not results["misc"].is_project
 
     def test_zip_file_not_found(self):
         """Test that FileNotFoundError is raised for non-existent ZIP."""
@@ -151,7 +153,7 @@ class TestZipTraversal:
             pytest.skip("simple_project.zip not found")
 
         results = Folder_traversal_fs(zip_path)
-        root_node = results['']
+        root_node = results[""]
 
         # Test path_str property
         assert isinstance(root_node.path_str, str)
@@ -197,20 +199,20 @@ class TestFileSystemInterfaces:
         fs = ZipFileSystem(zip_path)
 
         # Get root entries
-        entries = list(fs.iterdir(''))
+        entries = list(fs.iterdir(""))
         assert len(entries) > 0, "Should have entries in root"
 
         # Check that entries have expected attributes
         for entry in entries:
-            assert hasattr(entry, 'name')
-            assert hasattr(entry, 'path_str')
-            assert hasattr(entry, 'is_file')
-            assert hasattr(entry, 'is_dir')
+            assert hasattr(entry, "name")
+            assert hasattr(entry, "path_str")
+            assert hasattr(entry, "is_file")
+            assert hasattr(entry, "is_dir")
 
         # Check specific files exist
         entry_names = [e.name for e in entries]
-        assert 'package.json' in entry_names
-        assert 'README.md' in entry_names
+        assert "package.json" in entry_names
+        assert "README.md" in entry_names
 
         fs.close()
 
@@ -230,8 +232,8 @@ class TestFileSystemInterfaces:
 
         # Check that entries work correctly
         for entry in entries:
-            assert hasattr(entry, 'name')
-            assert hasattr(entry, 'path_str')
+            assert hasattr(entry, "name")
+            assert hasattr(entry, "path_str")
 
 
 if __name__ == "__main__":

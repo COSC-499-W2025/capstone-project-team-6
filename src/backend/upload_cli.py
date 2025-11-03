@@ -7,12 +7,12 @@ Usage:
     python upload_cli.py /path/to/file1.txt /path/to/file2.pdf
 """
 
-import click
-import httpx
+import sys
 from pathlib import Path
 from typing import List
-import sys
 
+import click
+import httpx
 
 DEFAULT_API_URL = "http://localhost:8000"
 
@@ -24,9 +24,9 @@ def cli():
 
 
 @cli.command()
-@click.argument('files', nargs=-1, type=click.Path(exists=True), required=True)
-@click.option('--url', default=DEFAULT_API_URL, help='Backend API URL')
-@click.option('--endpoint', default='/api/upload', help='Upload endpoint')
+@click.argument("files", nargs=-1, type=click.Path(exists=True), required=True)
+@click.option("--url", default=DEFAULT_API_URL, help="Backend API URL")
+@click.option("--endpoint", default="/api/upload", help="Upload endpoint")
 def upload(files: tuple, url: str, endpoint: str):
     """
     Upload one or more files to the backend server.
@@ -63,30 +63,30 @@ def upload_single_file(file_path: Path, url: str, endpoint: str):
 
     try:
         with httpx.Client(timeout=30.0) as client:
-            with open(file_path, 'rb') as f:
-                files = {'file': (file_path.name, f, 'application/octet-stream')}
+            with open(file_path, "rb") as f:
+                files = {"file": (file_path.name, f, "application/octet-stream")}
                 response = client.post(f"{url}{endpoint}", files=files)
 
             if response.status_code == 200:
                 data = response.json()
-                click.echo(click.style("\n✓ Upload successful!", fg='green', bold=True))
+                click.echo(click.style("\n✓ Upload successful!", fg="green", bold=True))
                 click.echo(f"  Original: {data['original_filename']}")
                 click.echo(f"  Saved as: {data['filename']}")
                 click.echo(f"  Size: {data['size_mb']} MB")
                 click.echo(f"  Path: {data['path']}")
             else:
-                error_detail = response.json().get('detail', 'Unknown error')
-                click.echo(click.style(f"\n✗ Upload failed: {error_detail}", fg='red', bold=True))
+                error_detail = response.json().get("detail", "Unknown error")
+                click.echo(click.style(f"\n✗ Upload failed: {error_detail}", fg="red", bold=True))
                 sys.exit(1)
 
     except httpx.ConnectError:
-        click.echo(click.style(f"\n✗ Error: Could not connect to {url}", fg='red', bold=True))
+        click.echo(click.style(f"\n✗ Error: Could not connect to {url}", fg="red", bold=True))
         click.echo("Make sure the backend server is running:")
         click.echo("  cd src/backend")
         click.echo("  uvicorn main:app --reload")
         sys.exit(1)
     except Exception as e:
-        click.echo(click.style(f"\n✗ Error: {str(e)}", fg='red', bold=True))
+        click.echo(click.style(f"\n✗ Error: {str(e)}", fg="red", bold=True))
         sys.exit(1)
 
 
@@ -98,8 +98,8 @@ def upload_multiple_files(file_paths: List[Path], url: str):
         with httpx.Client(timeout=60.0) as client:
             files = []
             for file_path in file_paths:
-                f = open(file_path, 'rb')
-                files.append(('files', (file_path.name, f, 'application/octet-stream')))
+                f = open(file_path, "rb")
+                files.append(("files", (file_path.name, f, "application/octet-stream")))
 
             try:
                 response = client.post(f"{url}/api/upload/multiple", files=files)
@@ -110,59 +110,59 @@ def upload_multiple_files(file_paths: List[Path], url: str):
 
             if response.status_code == 200:
                 data = response.json()
-                click.echo(click.style(f"\n✓ Upload completed!", fg='green', bold=True))
+                click.echo(click.style(f"\n✓ Upload completed!", fg="green", bold=True))
                 click.echo(f"  Total: {data['total']}")
                 click.echo(f"  Successful: {data['successful']}")
                 click.echo(f"  Failed: {data['failed']}")
 
                 click.echo("\nResults:")
-                for result in data['results']:
-                    if result['status'] == 'success':
-                        click.echo(click.style(f"  ✓ {result['original_filename']}", fg='green'))
+                for result in data["results"]:
+                    if result["status"] == "success":
+                        click.echo(click.style(f"  ✓ {result['original_filename']}", fg="green"))
                         click.echo(f"    Saved as: {result['filename']} ({result['size_mb']} MB)")
                     else:
-                        click.echo(click.style(f"  ✗ {result['filename']}: {result['message']}", fg='red'))
+                        click.echo(click.style(f"  ✗ {result['filename']}: {result['message']}", fg="red"))
 
-                if data['failed'] > 0:
+                if data["failed"] > 0:
                     sys.exit(1)
             else:
-                error_detail = response.json().get('detail', 'Unknown error')
-                click.echo(click.style(f"\n✗ Upload failed: {error_detail}", fg='red', bold=True))
+                error_detail = response.json().get("detail", "Unknown error")
+                click.echo(click.style(f"\n✗ Upload failed: {error_detail}", fg="red", bold=True))
                 sys.exit(1)
 
     except httpx.ConnectError:
-        click.echo(click.style(f"\n✗ Error: Could not connect to {url}", fg='red', bold=True))
+        click.echo(click.style(f"\n✗ Error: Could not connect to {url}", fg="red", bold=True))
         click.echo("Make sure the backend server is running:")
         click.echo("  cd src/backend")
         click.echo("  uvicorn main:app --reload")
         sys.exit(1)
     except Exception as e:
-        click.echo(click.style(f"\n✗ Error: {str(e)}", fg='red', bold=True))
+        click.echo(click.style(f"\n✗ Error: {str(e)}", fg="red", bold=True))
         sys.exit(1)
 
 
 @cli.command()
-@click.option('--url', default=DEFAULT_API_URL, help='Backend API URL')
+@click.option("--url", default=DEFAULT_API_URL, help="Backend API URL")
 def health(url: str):
     """Check if the backend server is running"""
     try:
         with httpx.Client(timeout=5.0) as client:
             response = client.get(f"{url}/api/health")
             if response.status_code == 200:
-                click.echo(click.style(f"✓ Backend is healthy at {url}", fg='green', bold=True))
+                click.echo(click.style(f"✓ Backend is healthy at {url}", fg="green", bold=True))
             else:
-                click.echo(click.style(f"✗ Backend returned status {response.status_code}", fg='red'))
+                click.echo(click.style(f"✗ Backend returned status {response.status_code}", fg="red"))
                 sys.exit(1)
     except httpx.ConnectError:
-        click.echo(click.style(f"✗ Could not connect to {url}", fg='red', bold=True))
+        click.echo(click.style(f"✗ Could not connect to {url}", fg="red", bold=True))
         click.echo("Make sure the backend server is running:")
         click.echo("  cd src/backend")
         click.echo("  uvicorn main:app --reload")
         sys.exit(1)
     except Exception as e:
-        click.echo(click.style(f"✗ Error: {str(e)}", fg='red', bold=True))
+        click.echo(click.style(f"✗ Error: {str(e)}", fg="red", bold=True))
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     cli()

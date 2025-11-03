@@ -1,6 +1,8 @@
 # src/tests/backend_test/conftest.py
+import json
 import sys
 from pathlib import Path
+
 import pytest
 
 # .../src/tests/backend_test/conftest.py  -> parents[2] == .../src
@@ -25,7 +27,24 @@ def temp_db(tmp_path):
 def test_user(temp_db):
     """Create a test user for integration tests."""
     import uuid
+
     username = f"testuser_{uuid.uuid4().hex[:8]}"
     password = "testpass123"
     database.create_user(username, password)
     yield {"username": username, "password": password}
+
+
+@pytest.fixture(autouse=True)
+def fake_session(tmp_path, monkeypatch):
+    """Simulate a logged-in user for tests."""
+    import json
+
+    from backend import session
+
+    session_path = tmp_path / ".mda-session.json"
+    session_data = {"logged_in": True, "username": "testuser"}
+    session_path.write_text(json.dumps(session_data))
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(session, "SESSION_FILE", session_path)
+
+    yield

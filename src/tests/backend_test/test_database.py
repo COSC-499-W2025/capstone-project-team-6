@@ -1,13 +1,12 @@
 """Tests for SQLite database helper module."""
 
+import sqlite3
+from datetime import datetime
 from pathlib import Path
 
 import pytest
 
 from src.backend import database
-import sqlite3
-import pytest
-from datetime import datetime
 
 
 @pytest.fixture
@@ -21,9 +20,7 @@ def temp_db_path(tmp_path):
 
 def test_initialize_creates_users_table(temp_db_path):
     with database.get_connection() as conn:
-        cursor = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='users';"
-        )
+        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users';")
         assert cursor.fetchone() is not None
 
 
@@ -54,9 +51,7 @@ def test_authenticate_user(temp_db_path):
 def test_uploaded_files_table_created(temp_db_path):
     """Ensure uploaded_files table exists."""
     with database.get_connection() as conn:
-        cur = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='uploaded_files';"
-        )
+        cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='uploaded_files';")
         assert cur.fetchone() is not None
 
 

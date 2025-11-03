@@ -1,4 +1,4 @@
-'''
+"""
 from pathlib import Path
 import shutil
 import os
@@ -71,4 +71,4 @@ def test_bfs_marks_projects_and_prunes_children():
     for k in results.keys():
         assert not str(k).startswith(str(root / "FolderB" / "FolderE") + os.sep) or k == (root / "FolderB" / "FolderE")
 
-'''
+"""
