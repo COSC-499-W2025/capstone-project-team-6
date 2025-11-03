@@ -16,6 +16,7 @@ iniconfig==2.3.0
 numpy>=2.1.2
 packaging==25.0
 pandas>=2.2.3
+pdf2image==1.17.0
 pillow==11.3.0
 pluggy==1.6.0
 pydantic==2.12.3
