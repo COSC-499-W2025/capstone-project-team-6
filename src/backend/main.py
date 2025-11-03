@@ -5,8 +5,7 @@ from pathlib import Path
 import uuid
 from datetime import datetime
 from typing import List
-import database
-#from . import database
+from . import database
 from . import text_extractor
 
 

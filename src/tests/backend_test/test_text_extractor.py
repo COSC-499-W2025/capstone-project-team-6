@@ -1,60 +1,69 @@
-"""Tests for text_extractor OCR functions."""
-import pytest
-from pathlib import Path
+"""Tests for in-memory OCR and text extraction functions."""
+from io import BytesIO
 from PIL import Image, ImageDraw
-from fpdf import FPDF
 from src.backend import text_extractor
-from backend import database
+from fpdf import FPDF
+from io import BytesIO
 
 
-
-def test_extract_text_from_plain_text(tmp_path):
-    """Should read text directly from a .txt file."""
-    txt_file = tmp_path / "simple.txt"
-    txt_file.write_text("Direct text read test")
-    text = text_extractor.extract_text(str(txt_file))
+def test_extract_text_from_plain_text():
+    """Should extract text directly from in-memory .txt bytes."""
+    sample_bytes = b"Direct text read test"
+    text = text_extractor.extract_text_from_bytes(sample_bytes, "simple.txt")
     assert "Direct text" in text
 
 
-def test_extract_text_from_image(tmp_path):
-    """Should extract text from an image using Tesseract."""
-    img_path = tmp_path / "ocr_image.png"
+def test_extract_text_from_csv():
+    """Should correctly join CSV content into readable text."""
+    csv_bytes = b"name,age\nAlice,30\nBob,25"
+    text = text_extractor.extract_text_from_bytes(csv_bytes, "data.csv")
+    assert "Alice" in text and "Bob" in text
+
+
+def test_extract_text_from_xml():
+    """Should clean extra spaces in XML."""
+    xml_bytes = b"<root>\n   <msg>Hello XML!</msg>\n</root>"
+    text = text_extractor.extract_text_from_bytes(xml_bytes, "sample.xml")
+    assert "<msg>Hello XML!</msg>" in text
+
+
+def test_extract_text_from_json():
+    """Should decode JSON as plain text."""
+    json_bytes = b'{"message": "Hello JSON!"}'
+    text = text_extractor.extract_text_from_bytes(json_bytes, "sample.json")
+    assert "Hello JSON" in text
+
+
+def test_extract_text_from_image():
+    """Should extract text from an image using OCR (in-memory)."""
+    # create a white image with text
     img = Image.new("RGB", (200, 80), color="white")
     draw = ImageDraw.Draw(img)
     draw.text((10, 25), "OCR TEST", fill="black")
-    img.save(img_path)
 
-    text = text_extractor.extract_text(str(img_path))
+    buffer = BytesIO()
+    img.save(buffer, format="PNG")
+    buffer.seek(0)
+
+    text = text_extractor.extract_text_from_bytes(buffer.getvalue(), "ocr_image.png")
     assert isinstance(text, str)
     assert len(text) > 0, "OCR should extract some text"
-    # OCR may not be perfect, so check for parts of the expected text
-    assert "test" in text.lower() or "ocr" in text.lower() or "rtest" in text.lower()
+    assert "test" in text.lower() or "ocr" in text.lower()
 
 
 def test_extract_text_from_pdf(tmp_path):
-    """Should convert PDF to images to OCR text."""
+    """Should convert a real generated PDF to images and extract text."""
+    # Creates a temporary PDF file with text
     pdf_path = tmp_path / "ocr_test.pdf"
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=14)
     pdf.cell(200, 10, txt="PDF OCR Extraction Works!", ln=True)
     pdf.output(str(pdf_path))
+    # Read PDF back into memory as bytes
+    pdf_bytes = pdf_path.read_bytes()
+    # Pass bytes to extractor
+    text = text_extractor.extract_text_from_bytes(pdf_bytes, "ocr_test.pdf")
 
-    text = text_extractor.extract_text(str(pdf_path))
     assert isinstance(text, str)
     assert "pdf" in text.lower() or "works" in text.lower()
-
-
-def test_extract_text_from_json_and_xml(tmp_path):
-    """Should read text from text-based formats."""
-    json_path = tmp_path / "sample.json"
-    xml_path = tmp_path / "sample.xml"
-
-    json_path.write_text('{"message": "Hello JSON!"}')
-    xml_path.write_text("<root><msg>Hello XML!</msg></root>")
-
-    json_text = text_extractor.extract_text(str(json_path))
-    xml_text = text_extractor.extract_text(str(xml_path))
-
-    assert "json" in json_text.lower()
-    assert "xml" in xml_text.lower()
