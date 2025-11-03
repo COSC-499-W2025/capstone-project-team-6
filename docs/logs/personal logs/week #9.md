@@ -4,7 +4,7 @@
 
 October 27 - November 2  
 
-![Mandira Week 9](images/MandiraWeek#9.png)
+![Mandira Week 9](docs/logs/personal logs/images/MandiraWeek#9.png)
 
 ## Tasks Worked On  
 
