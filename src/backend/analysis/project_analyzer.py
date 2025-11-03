@@ -47,7 +47,7 @@ class FileClassifier:
         '.xml', '.env', '.properties', '.lock', '.config'
     }
     
-    # Patterns to identify test files (both filename and directory)
+    # Patterns to identify test files
     TEST_FILENAME_PATTERNS = [
         'test_', '_test.', 'test.', '.test.',
         'spec.', '.spec.', '_spec.',
@@ -60,7 +60,8 @@ class FileClassifier:
         'test\\', 'tests\\', '__tests__\\',  # Windows paths
     ]
     
-    # Directories to ignore
+    # Directories to ignore- misc and not important files
+    #THESE FILE WILL BE NEEDED FOR META DATA AND GIT ANALYSIS LATER BUT IGNORED FOR NOW
     IGNORE_DIRS = {
         'node_modules', '__pycache__', '.pytest_cache',
         'venv', '.venv', 'env', 'virtualenv',
@@ -70,7 +71,9 @@ class FileClassifier:
     }
     
     # File size limit (20MB)
-    MAX_FILE_SIZE = 20 * 1024 * 1024  # 20MB in bytes
+    MAX_FILE_SIZE = 20 * 1024 * 1024
+
+    #the below 4 functions are basic and self explanatory. 
     
     def __init__(self, zip_path: Path):
         """
@@ -282,6 +285,8 @@ class FileClassifier:
             
             file_type = classification['type']
             
+            #add the file to teh appropiate list
+
             if file_type == 'code':
                 language = classification['language']
                 
@@ -308,6 +313,8 @@ class FileClassifier:
         
         return result
     
+    #basic methods when dealing with zip files
+
     def close(self):
         """Close the ZIP file."""
         if hasattr(self, 'zip_file'):
