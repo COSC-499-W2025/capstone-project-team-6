@@ -41,3 +41,9 @@ isort==5.13.2
 bandit==1.7.7
 pip-audit==2.7.3
 aiofiles==24.1.0
+
+pgvector==0.2.5
+psycopg2-binary>=2.9.9
+llama-stack-client>=0.0.53
+sentence-transformers>=2.2.2
+tiktoken>=0.5.1
