@@ -91,25 +91,25 @@
 - Research and prompt work by Mohamed positions the team to prototype one local + one cloud RAG stack next.  
 
 ## Project Burnup Chart  
-![BurnupWeek9](Images/BurnupWeek8.png)  
+![BurnupWeek9](Images/BurnupWeek9.png)  
 
 ## Completed / In Progress Tasks per User  
 
 # Mandira Samarasekara  
-![Mandira Samarasekara](Images/MandiraWeek8.png)  
+![Mandira Samarasekara](Images/MandiraWeek9.png)  
 
 # Mohamed Sakr  
-![Mohamed Sakr](Images/MohamedWeek8.png)  
+![Mohamed Sakr](Images/MohomadWeek9.png)  
 
 # Mithish Ravisankar Geetha  
-![Mithish Ravisankar Geetha](Images/MithishWeek8.png)  
+![Mithish Ravisankar Geetha](Images/MithishWeek9.png)  
 
 # Aakash  
-![Aakash](Images/AakashWeek8.png)  
+![Aakash](Images/AakashWeek9.png)  
 
 # Ansh Rastogi  
-![Ansh](Images/AnshWeek8.png)  
+![Ansh](Images/AnshWeek9.png)  
 
 # Harjot Sahota  
-![Harjot](Images/HarjotWeek8.png)  
+![Harjot](Images/HarjotWeek9.png)  
 
