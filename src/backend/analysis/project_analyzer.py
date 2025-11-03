@@ -224,7 +224,7 @@ class FileClassifier:
         
         Args:
             project_root_path: Root path of the project within the ZIP
-                              (e.g., 'my-project/' or 'folder/my-project/')
+                            (e.g., 'my-project/' or 'folder/my-project/')
         
         Returns:
             Dictionary with classified files organized by type
@@ -236,46 +236,41 @@ class FileClassifier:
         result = {
             'project_path': project_root,
             'files': {
-                'code': defaultdict(list),  # Organized by language
+                'code': defaultdict(list),
                 'docs': [],
                 'tests': [],
                 'configs': [],
                 'other': [],
-                'skipped': []  # Files that were too large
+                'skipped': []
             },
             'stats': {
                 'total_files': 0,
                 'total_size': 0,
-                # FUTURE: Add project metadata extraction here
-                # - primary_language: most common language
-                # - file_counts: count per category
-                # - has_readme: bool
-                # - has_license: bool
-                # - has_tests: bool
-                # - etc.
             }
         }
         
         # Get all files in the ZIP
         all_files = self.zip_file.namelist()
         
-        # Filter files that belong to this project
-        project_files = []
+        # Classify each file that belongs to this project
         for file_path in all_files:
-            # Normalize path for comparison
             normalized_path = file_path.replace('\\', '/')
             
             # Check if file is under project root
-            if normalized_path.startswith(project_root + '/') or normalized_path.startswith(project_root):
-                # Skip directories (they end with /)
-                if not normalized_path.endswith('/'):
-                    # Check if we should ignore this path
-                    if not self.should_ignore_path(normalized_path):
-                        project_files.append(normalized_path)
-        
-        # Classify each file
-        for file_path in project_files:
-            classification = self.classify_file(file_path)
+            if not (normalized_path.startswith(project_root + '/') or 
+                    (normalized_path == project_root)):
+                continue
+            
+            # Skip directories (they end with /)
+            if normalized_path.endswith('/'):
+                continue
+            
+            # Skip ignored paths
+            if self.should_ignore_path(normalized_path):
+                continue
+            
+            #classify the file
+            classification = self.classify_file(normalized_path)
             
             if classification is None:
                 continue
@@ -285,30 +280,27 @@ class FileClassifier:
             
             file_type = classification['type']
             
-            #add the file to teh appropiate list
-
             if file_type == 'code':
                 language = classification['language']
                 
-                # Separate tests from regular code
                 if classification['is_test']:
                     result['files']['tests'].append(classification)
+
                 else:
                     result['files']['code'][language].append(classification)
-            
+
             elif file_type == 'doc':
                 result['files']['docs'].append(classification)
-            
+
             elif file_type == 'config':
                 result['files']['configs'].append(classification)
-            
+
             elif file_type == 'skipped':
                 result['files']['skipped'].append(classification)
-            
-            else:  # 'other'
+            else:
                 result['files']['other'].append(classification)
         
-        # Convert defaultdict to regular dict for cleaner output
+        # Convert defaultdict to regular dict
         result['files']['code'] = dict(result['files']['code'])
         
         return result
