@@ -75,13 +75,51 @@ October 27 - November 2
 - phase 5 was planned to be completed next week
 
 
-# Ansh Rastogi  
+# Ansh Rastogi
 
-## Date Range  
+## Date Range
 
-## Tasks Worked On  
+October 27 - November 2
 
-## Weekly Goals Recap  
+![Ansh Peer Eval SS](images/AnshRastogi_PeerEval_SS_W9.png)
+
+## Tasks Worked On
+
+- Created comprehensive **integration test infrastructure** for the Authentication & Session Management system.
+- Implemented **8 integration tests** (Tests 1-8) covering complete signup and login workflows across multiple components.
+- Developed **reusable test fixtures** in `conftest.py` for test isolation:
+  - `temp_db`: Isolated temporary SQLite database per test
+  - `temp_session_file`: Temporary session file location with monkeypatching
+  - `isolated_test_env`: Combined fixture for complete test isolation
+  - `mock_users`: Pre-created test users for reusable test data
+  - `test_directory`: Test directory with project indicators for future tests
+- Created **TestSignupIntegration** test class (Tests 1-4):
+  - Successful signup with database user creation and session management
+  - Duplicate signup prevention with proper error handling
+  - Empty username/password validation
+  - Special characters in username handling
+- Created **TestLoginIntegration** test class (Tests 5-8):
+  - Successful login with session file creation
+  - Wrong password authentication failure
+  - Non-existent user authentication failure
+  - Session overwrite behavior when logging in multiple times
+- Added **TestHelpers** infrastructure validation tests to verify fixture correctness.
+- Verified all tests pass successfully: **10 passed** (8 main integration tests + 2 helper tests).
+- Documented test workflows with comprehensive docstrings explaining each test's purpose, workflow steps, and expected behavior.
+- Set up proper test isolation ensuring no cross-contamination between tests using temporary databases and session files.
+- Created new branch `ansh/intgrationTest` from Development, committed changes, and pushed to remote.
+- Prepared pull request documentation with detailed description of all changes and test coverage.
+
+## Weekly Goals Recap
+
+- **Features I was responsible for (this milestone):** Integration test infrastructure for Authentication & Session Management; comprehensive test coverage for signup/login workflows; reusable test fixtures for future integration tests.
+- **Progress in the last 2 weeks:** Implemented ZIP file traversal with file system abstraction layer; created integration test infrastructure for authentication workflows.
+
+The goal for this week was to establish a robust integration testing framework for the authentication system. Integration tests are critical because they verify that multiple components (database, session files, authentication logic) work correctly together, unlike unit tests which test components in isolation. I created a complete test suite that covers all authentication scenarios including user signup, login, duplicate prevention, password validation, and session management.
+
+The test infrastructure uses pytest fixtures to ensure complete test isolation—each test runs with a clean temporary database and session file, preventing any cross-contamination. This foundation will make it easy to add more integration tests in the future (Tests 10-20 are already planned for session persistence, authorization checks, and end-to-end workflows).
+
+I also ensured backward compatibility by verifying that all existing tests still pass, and documented the test workflows thoroughly so teammates can understand and extend the test suite. The integration tests run successfully on the CI pipeline and provide confidence that our authentication system works correctly across all component boundaries.
 
 
 # Harjot Sahota  
