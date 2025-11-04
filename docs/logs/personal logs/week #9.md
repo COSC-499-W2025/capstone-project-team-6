@@ -157,8 +157,40 @@ October 27 - November 2
   
 # Mohamed Sakr  
 
+![Mohamed Peer Eval SS](images/MohamedW9.png)
 ## Date Range  
-
+October 27 - November 2
 ## Tasks Worked On  
-
+- PRs: #89 and #90
+- Designed and documented a Retrieval-Augmented Generation (RAG) workflow for the Mining Digital Work Artifacts system, establishing a foundation for LLM-assisted analysis of user project archives with privacy-first principles.
+- Identified and defined 10 required core tasks for Milestone 1, including contribution analysis, file parsing, skill extraction, timeline inference, project ranking, and résumé/portfolio generation.
+- Engineered detailed LLM prompt templates for each required task, designed for both cloud and local LLM environments, with consistent structured JSON outputs to support deterministic programmatic parsing.
+- Authored a complete academic-style Markdown document titled **"Mining Digital Work Artifacts: RAG-Driven LLM Prompts for Project Analysis"**, including task descriptions, prompt examples, and structured schema guidance.
+- Conducted in-depth model research to support architectural decision-making, evaluating 10 LLM models in total:
+  - **5 local-first models** (e.g., Llama 3.1, Qwen 2.5, Mistral 7B, DeepSeek Coder V2, StarCoder2-15B) suitable for full offline analysis and user-controlled execution.
+  - **5 high-performance cloud models** (e.g., GPT-5, Claude Sonnet 4.5, Gemini 2.5 Pro, Cohere Command A, Amazon Nova Premier) identified for their advanced reasoning, code understanding, and LLM-RAG alignment.
+- Documented model pros/cons including performance expectations, privacy considerations, licensing, runtime environments, and expected integration impact for project scalability.
+- Created a clear integration strategy for both offline and cloud-enabled execution paths based on user consent, offering fallback logic for static analysis where external LLM usage is declined.
+- Prepared a GitHub Pull Request using the capstone repository’s official template, including:
+  - A detailed summary of features (prompt templates and model research)
+  - Classification as Documentation
+  - Context for reviewers to understand the deliverable scope
+  - Validation and test suggestions (e.g., stubbed prompt validation and JSON schema checks)
+- Added next-step instructions for prompt validation and integration testing, including instructions on how to sandbox test ASSISTANT RESPONSE TEMPLATE behaviors using stubbed input data.
+- Demonstrated applied skill in prompt engineering, technical writing, privacy-aware design, academic research, version control workflows, and backend pipeline preparation.
+- Successfully completed all planned deliverables for the week, aligning with project expectations and supporting subsequent implementation of parsing and RAG integration logic.
 ## Weekly Goals Recap  
+**Features I was responsible for (this milestone):**
+- Defined the **LLM-powered analysis layer** of the system by architecting how Retrieval-Augmented Generation (RAG) will interact with parsed project artifacts to generate structured output for downstream use.
+- Authored the **full suite of reusable prompt templates** that serve as core interfaces between raw data inputs (e.g., file metadata, git logs, code snippets) and the language model's structured responses.
+- Delivered a **unified prompt library** that supports modular back-end integration and is formatted to work with both local inference models (e.g., Llama 3.1) and cloud APIs (e.g., GPT-5, Claude Sonnet).
+- Established the **prompt–output contract** for each task by enforcing consistent JSON schemas that make results predictable, machine-parseable, and ready for storage or retrieval in future milestones.
+- Drafted a **scalable model selection strategy** tied to real-world user scenarios (local-only, hybrid, cloud-enabled), enabling the system to adapt based on privacy constraints and compute resources.
+
+**Progress in the last 2 weeks:** 
+- Design and planning for LLM-based project analysis.
+- Creation of the user database and all its features
+- Design and stack picking for the vector database.
+- Architecture refinement for new requirements. 
+- Reviewed and tested code for file uploading, consent forms, CI/CD, and integration tests.
+
