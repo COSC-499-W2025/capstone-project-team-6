@@ -1,11 +1,13 @@
 import os
 
 from sqlalchemy.orm import Session
+from backend.database_vector import Document, DocumentChunk, SessionLocal
+from sentence_transformers import SentenceTransformer
 
-from src.backend.database_vector import Document, DocumentChunk, SessionLocal
+_model = None               # loaded model (loaded once, reused each time)
 
 
-def chunk_text(text, chunk_size=500):
+def chunk_text(text, chunk_size=400):
     """Splits text into small chunks."""
     words = text.split()
     chunks = []
@@ -15,13 +17,35 @@ def chunk_text(text, chunk_size=500):
     return chunks
 
 
-# Placeholder for embeddings (we will replace it with a real embedding model later)
-def generate_embedding(text):
+def get_embedding_model():
     """
-    Placeholder embedding generator.
-    Replace later with Cohere / OpenAI / LlamaStack embedding API.
+    Loads the embedding model on first call.
+    Reuses it for all future embeddings to save time and memory.
     """
-    return [0.0] * 1024  # Dummy vector with 1024 dimensions
+    global _model
+    if _model is None:
+        print("Loading embedding model for the first time...")
+        _model = SentenceTransformer( "jinaai/jina-embeddings-v3", trust_remote_code=True)
+        print("Model loaded successfully.")
+    return _model
+
+
+def generate_embedding(text: str):
+    """
+    Generates a 1024-dimensional embedding using Jina v3 (local Hugging Face model).
+    """
+    # Handle empty input
+    #if not text or not text.strip():
+     #   return [0.0] * 1024
+
+    model = get_embedding_model()
+    embedding = model.encode(text, convert_to_tensor=False)
+
+    #  Ensure correct vector size
+    if len(embedding) != 1024:
+        print(f"Warning: Expected 1024 dims, got {len(embedding)}")
+    
+    return embedding.tolist()
 
 
 # Insert document + chunks
@@ -42,5 +66,18 @@ def store_document(file_name, file_type, category, extracted_text):
 
         db.commit()
         print(f" Stored {len(chunks)} chunks for {file_name}")
+    except Exception as e:
+        print(f"Error storing document {file_name}: {e}")
+        db.rollback()
     finally:
         db.close()
+
+if __name__ == "__main__":
+    sample_text = "This is a sample text that will be split into multiple chunks for testing."
+    store_document("test.txt", "txt", "sample", sample_text)
+
+    sample_path = "/Users/harjotsahota/Desktop/sample.txt"
+    if os.path.exists(sample_path):
+        with open(sample_path, "r") as f:
+            content = f.read()
+        store_document("sample.txt", "txt", "manual-test", content)
