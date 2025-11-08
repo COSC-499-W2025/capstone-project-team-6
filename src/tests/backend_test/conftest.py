@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import os
 
 # .../src/tests/backend_test/conftest.py  -> parents[2] == .../src
 SRC = Path(__file__).resolve().parents[2]
@@ -47,4 +48,16 @@ def fake_session(tmp_path, monkeypatch):
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     monkeypatch.setattr(session, "SESSION_FILE", session_path)
 
+    yield
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_vector_db():
+    """Create vector database tables before any tests run."""
+    if not os.getenv("VECTOR_DB_URL"):                          # skip if not testing vector DB
+        yield
+        return                  
+
+    from backend.database_vector import Base, engine
+    Base.metadata.create_all(engine)
+    print("\n Vector database tables created")
     yield
