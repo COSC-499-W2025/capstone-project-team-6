@@ -1,46 +1,61 @@
 version: "2"
 
-# Image configuration
+# Image configuration - using local models
 image:
-  type: remote
-  
-# Provider configurations
-providers:
-  # Inference provider (for chat/completions - Phase 4)
-  inference:
-    - provider_id: together
-      provider_type: remote::together
-      config:
-        url: https://api.together.xyz/v1
-        api_key: ${TOGETHER_API_KEY}
+  type: local
 
-  # Embedding provider (Hugging Face)
-  embeddings:
-    - provider_id: huggingface
-      provider_type: remote::huggingface
+# Provider configurations - ALL LOCAL
+providers:
+  # Inference provider - LOCAL chat model
+  inference:
+    - provider_id: ollama-local
+      provider_type: inline::ollama
       config:
-        url: https://api-inference.huggingface.co/models
-        api_key: ${HUGGINGFACE_API_KEY}
+        host: localhost
+        port: 11434
+        # CHANGE MODEL: "mistral:7b-instruct-v0.3", "llama3.1:8b", "codellama:7b"
+        default_model: mistral:7b-instruct-v0.3
+
+  # Embedding provider - LOCAL embedding model
+  embeddings:
+    - provider_id: sentence-transformers-local
+      provider_type: inline::sentence-transformers
+      config:
+        # CHANGE EMBEDDING MODEL: "jinaai/jina-embeddings-v3", "BAAI/bge-large-en-v1.5", "sentence-transformers/all-MiniLM-L6-v2"
+        model: jinaai/jina-embeddings-v3
+        # CHANGE DIMENSION: Update if using different embedding model
+        embedding_dimension: 1024
+        device: cpu  # Change to "cuda" if you have NVIDIA GPU
 
 # Model configurations
 models:
-  # Chat model (Phase 4)
-  - model_id: llama3-1-8b-chat
-    provider_id: together
+  # Chat model 
+  - model_id: mistral-7b-chat
+    provider_id: ollama-local
     model_type: llm
     metadata:
-      model: meta-llama/Llama-3.1-8B-Instruct
+      # CHANGE MODEL: Update model identifier if switching models
+      # Format: "model-name:version" for Ollama
+      model: mistral:7b-instruct-v0.3
+      context_length: 8192  # CHANGE if different model has different context window
       
   # Embedding model (Phase 2/3)
-  - model_id: all-minilm-l6-v2
-    provider_id: huggingface
+  - model_id: jina-embeddings-v3
+    provider_id: sentence-transformers-local
     model_type: embedding
     metadata:
-      model: sentence-transformers/all-MiniLM-L6-v2
-      embedding_dimension: 384
+      # CHANGE EMBEDDING MODEL: Update model path if switching
+      model: jinaai/jina-embeddings-v3
+      # CHANGE DIMENSION: Must match embedding_dimension above
+      embedding_dimension: 1024
+      max_seq_length: 8192  # CHANGE based on model's max input length
 
+# Memory configuration (optional)
+memory:
+  - provider_id: meta-reference
+    provider_type: inline::meta-reference
 
-# Safety configuration 
+# Safety configuration (optional)
 safety:
   - provider_id: meta-reference
     provider_type: inline::llama-guard
