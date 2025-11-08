@@ -52,7 +52,28 @@ class PythonOOPAnalyzer(ast.NodeVisitor):
             if method_name not in ('__init__', '__new__', '__del__'):
                 self.analysis.operator_overloads += 1
     
-    
+    def visit_ClassDef(self, node: ast.ClassDef):
+            self.classes[node.name] = node
+            self.analysis.total_classes += 1
+            
+            for base in node.bases:
+                if isinstance(base, ast.Name) and base.id in ('ABC', 'Protocol'):
+                    self.analysis.abstract_classes.append(node.name)
+                    break
+            # Check inheritance
+            if len(node.bases) > 0:
+                self.analysis.classes_with_inheritance += 1
+            
+            # Analyze methods
+            old_class = self.current_class
+            self.current_class = node.name
+            
+            for item in node.body:
+                if isinstance(item, ast.FunctionDef):
+                    self._analyze_method(item)
+            
+            self.current_class = old_class
+            self.generic_visit(node)
 
 
 
