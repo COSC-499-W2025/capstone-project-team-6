@@ -17,8 +17,11 @@ services:
     #Mithish please check this makes sense- removed the uvcorn command since we are not using a app style anymore
     environment:
       - LLAMA_STACK_URL=http://llama-stack:8000  # Can talk to llama-stack internally
+      - OLLAMA_HOST=http://ollama:11434
     depends_on:
       llama-stack:
+        condition: service_healthy
+      ollama:
         condition: service_healthy
     networks:
       - capstone-network
@@ -28,15 +31,18 @@ services:
 
   # now llama stack container
   llama-stack:
-    image: llamastack/distribution-remote:latest
+    image: llamastack/distribution-ollama:latest
     container_name: llama-stack-server
     ports:
-      - "8000:8000"  # Llama Stack on port 8000
+      - "8000:8000"  
     environment:
-      - TOGETHER_API_KEY=${TOGETHER_API_KEY}
-      - HUGGINGFACE_API_KEY=${HUGGINGFACE_API_KEY}
+      - OLLAMA_HOST=http://ollama:11434
+      # CHANGE: Set to "cuda" if using GPU
+      - DEVICE=cpu
     volumes:
       - ./llama-stack-config.yaml:/app/llama-stack-config.yaml
+      # CHANGE: Add volume for embedding model cache
+      - embedding-cache:/root/.cache/huggingface
     command: >
       llama-stack-run
       --config /app/llama-stack-config.yaml
@@ -52,8 +58,37 @@ services:
     networks:
       - capstone-network
 
+ollama:
+    image: ollama/ollama:latest
+    container_name: ollama-server
+    ports:
+      - "11434:11434"
+    volumes:
+      # CHANGE: Update path ito model
+      - ollama-models:/root/.ollama
+    #  Uncomment below if you have NVIDIA GPU
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    restart: unless-stopped
+    networks:
+      - capstone-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 5  
+
 #since 2 containers networks portion is needed
 networks:
   capstone-network:
     driver: bridge
+
+volumes:
+  ollama-models:
+  embedding-cache:
 
