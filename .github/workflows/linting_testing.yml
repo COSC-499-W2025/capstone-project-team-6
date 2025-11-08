@@ -28,9 +28,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install Postgres headers (for psycopg2 build)
-        run: sudo apt-get install -y libpq-dev python3-dev
-        
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -89,4 +86,4 @@ jobs:
           export PATH=$PATH:/usr/bin
           pytest src/tests/backend_test -v --disable-warnings --maxfail=1
         env:
-          VECTOR_DB_URL: postgresql://postgres:postgres@localhost:5432/vector_db
+          VECTOR_DB_URL: postgresql+psycopg://postgres:postgres@pgvector:5432/vector_db
