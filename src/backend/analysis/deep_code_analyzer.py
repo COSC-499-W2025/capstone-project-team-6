@@ -1,8 +1,36 @@
+"""
+Phase 3: Deep Code Analysis Module (OOP Principles Detection)
+
+This module performs deep analysis of Python code to detect object-oriented programming
+principles and design patterns. It builds on top of MetadataExtractor (Phase 2) and 
+FileClassifier (Phase 1).
+
+Key features:
+- Detects OOP principles: abstraction, encapsulation, polymorphism, inheritance
+- Analyzes code structure using Python AST
+- Measures inheritance depth and class complexity
+- Identifies design patterns and coding practices
+- Integrates with existing analysis pipeline
+
+Analysis Phases:
+1. FileClassifier - Categorizes files by type
+2. MetadataExtractor - Extracts project metadata
+3. DeepCodeAnalyzer - Analyzes OOP principles (THIS MODULE)
+"""
+
 import ast
 import zipfile
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Dict, List, Set, Optional
+
+try:
+    from .metadata_extractor import MetadataExtractor
+    from .project_analyzer import FileClassifier
+except ImportError:
+    # For standalone execution
+    MetadataExtractor = None
+    FileClassifier = None
 
 
 @dataclass
@@ -110,10 +138,10 @@ def analyze_python_file(content: str) -> OOPAnalysis:
     Analyze a single Python file for OOP principles.
     
     Args:
-        content: Python source code
+        content: Python source code as string
     
     Returns:
-        OOPAnalysis object
+        OOPAnalysis object with detected OOP metrics
     """
     try:
         tree = ast.parse(content)
@@ -137,7 +165,13 @@ def analyze_project_deep(zip_path: Path, project_path: str = "") -> Dict:
     
     Returns:
         Dictionary with combined metadata and OOP analysis
+    
+    Raises:
+        ImportError: If MetadataExtractor or FileClassifier not available
     """
+    if MetadataExtractor is None or FileClassifier is None:
+        raise ImportError("MetadataExtractor and FileClassifier are required for project analysis")
+    
     # First, get basic metadata using existing MetadataExtractor
     with MetadataExtractor(zip_path) as extractor:
         metadata = extractor.extract_project_metadata(project_path)
@@ -189,6 +223,57 @@ def analyze_project_deep(zip_path: Path, project_path: str = "") -> Dict:
     }
     
     return result
+
+
+def generate_comprehensive_report(zip_path: Path, output_path: Optional[Path] = None) -> Dict:
+    """
+    Generate a comprehensive analysis report combining all analysis phases.
+    
+    This function orchestrates:
+    - Phase 1: File classification (FileClassifier)
+    - Phase 2: Metadata extraction (MetadataExtractor)
+    - Phase 3: Deep code analysis (DeepCodeAnalyzer)
+    
+    Args:
+        zip_path: Path to ZIP file
+        output_path: Optional path to save JSON report
+    
+    Returns:
+        Complete analysis report as dictionary
+    
+    Raises:
+        ImportError: If MetadataExtractor is not available
+    """
+    if MetadataExtractor is None:
+        raise ImportError("MetadataExtractor is required for comprehensive report")
+    
+    with MetadataExtractor(zip_path) as extractor:
+        # Generate base report (Phases 1 & 2)
+        report = extractor.generate_report()
+        
+        # Add Phase 3: Deep OOP analysis for each Python project
+        for i, project in enumerate(report['projects']):
+            project_path = project.get('project_path', '')
+            
+            # Only analyze if project has Python files
+            if 'python' in project.get('languages', {}):
+                try:
+                    deep_analysis = analyze_project_deep(zip_path, project_path)
+                    report['projects'][i]['oop_analysis'] = deep_analysis['oop_analysis']
+                except Exception as e:
+                    # If deep analysis fails, add error info
+                    report['projects'][i]['oop_analysis'] = {
+                        'error': str(e),
+                        'total_classes': 0
+                    }
+    
+    # Save to file if requested
+    if output_path:
+        import json
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(report, f, indent=2, ensure_ascii=False)
+    
+    return report
 
 
 if __name__ == "__main__":
