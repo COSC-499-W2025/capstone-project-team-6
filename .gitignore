@@ -9,3 +9,4 @@ dist/
 *.log
 *.egg-info/
 build/
+test_output.json
