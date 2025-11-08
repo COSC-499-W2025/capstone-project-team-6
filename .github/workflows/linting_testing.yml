@@ -86,4 +86,5 @@ jobs:
           export PATH=$PATH:/usr/bin
           pytest src/tests/backend_test -v --disable-warnings --maxfail=1
         env:
-          VECTOR_DB_URL: postgresql+psycopg://postgres:postgres@pgvector:5432/vector_db
+          VECTOR_DB_URL: postgresql+psycopg://postgres:postgres@localhost:5432/vector_db
+
