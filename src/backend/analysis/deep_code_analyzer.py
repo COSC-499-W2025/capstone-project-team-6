@@ -184,7 +184,6 @@ def analyze_project_deep(zip_path: Path, project_path: str = "") -> Dict:
         python_files = []
         
         # Build file list from classification
-        from .project_analyzer import FileClassifier
         classifier = FileClassifier(zip_path)
         classification = classifier.classify_project(project_path)
         
