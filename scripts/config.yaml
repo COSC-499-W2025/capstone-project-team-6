@@ -5,12 +5,10 @@ llama_stack:
 
 # Embedding Configuration
 embedding:
-  provider: "sentence-transformers-local"
-  model: "jinaai/jina-embeddings-v3"
-  api_key: ${HUGGINGFACE_API_KEY}  # Optional for free tier
-  dimension: 1024
+  provider: "ollama"
+  model: "jina/jina-embeddings-v3"
+  dimension: 1024  
   batch_size: 16
-  device: "cpu" #change to cuda if nvidia
 
 # Chat/Completion Configuration 
 chat:
@@ -18,7 +16,7 @@ chat:
   model: "mistral:7b-instruct-v0.3"
   max_tokens: 2048
   temperature: 0.7
-  context_length: 8192
+  
 
 # Database Configuration (for later when you connect)
 database:

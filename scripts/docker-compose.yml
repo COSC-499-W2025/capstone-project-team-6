@@ -1,4 +1,4 @@
-version: '3.9'
+#version: '3.9'
 
 services:
   #backend:
@@ -43,11 +43,11 @@ services:
       - ./llama-stack-config.yaml:/app/llama-stack-config.yaml
       # CHANGE: Add volume for embedding model cache
       - embedding-cache:/root/.cache/huggingface
-    command: >
-      llama-stack-run
-      --config /app/llama-stack-config.yaml
-      --port 8000
-      --host 0.0.0.0
+    command: 
+      - --yaml-config
+      - /app/llama-stack-config.yaml
+      - --port
+      - "8000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s
@@ -58,30 +58,30 @@ services:
     networks:
       - capstone-network
 
-ollama:
-    image: ollama/ollama:latest
-    container_name: ollama-server
-    ports:
-      - "11434:11434"
-    volumes:
-      # CHANGE: Update path ito model
-      - ollama-models:/root/.ollama
-    #  Uncomment below if you have NVIDIA GPU
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
-    restart: unless-stopped
-    networks:
-      - capstone-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
-      interval: 10s
-      timeout: 5s
-      retries: 5  
+  ollama:
+      image: ollama/ollama:latest
+      container_name: ollama-server
+      ports:
+        - "11434:11434"
+      volumes:
+        # CHANGE: Update path ito model
+        - ollama-models:/root/.ollama
+      #  Uncomment below if you have NVIDIA GPU
+      # deploy:
+      #   resources:
+      #     reservations:
+      #       devices:
+      #         - driver: nvidia
+      #           count: 1
+      #           capabilities: [gpu]
+      restart: unless-stopped
+      networks:
+        - capstone-network
+      healthcheck:
+        test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+        interval: 10s
+        timeout: 5s
+        retries: 5  
 
 #since 2 containers networks portion is needed
 networks:
