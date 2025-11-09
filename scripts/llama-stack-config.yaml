@@ -1,63 +1,49 @@
 version: "2"
 
-
-#image_name: llamastack/distribution-ollama
+# Image configuration
 image:
   type: ollama
-# Provider configurations - ALL LOCAL
+
+# Provider configurations
 providers:
-  # Inference provider - LOCAL chat model
+  # Inference provider - uses Ollama for chat/completion
   inference:
     - provider_id: ollama-inference
       provider_type: remote::ollama
       config:
         url: http://ollama:11434
-        # CHANGE MODEL: "mistral:7b-instruct-v0.3", "llama3.1:8b", "codellama:7b"
-        default_model: mistral:7b-instruct-v0.3
 
-  # Embedding provider - LOCAL embedding model
+  # Embedding provider - uses Ollama for embeddings
   embeddings:
     - provider_id: ollama-embeddings
       provider_type: remote::ollama
       config:
         url: http://ollama:11434
-        # MODEL CHANGE: To use a different embedding model:
-        # 1. Update model name here
-        # 2. Update dimension in config.yaml (embedding.dimension)
-        # 3. Update dimension in config.yaml (database.vector_dimension)
-        
-        model: jina/jina-embeddings-v3
 
-# Model configurations
+# Model definitions
+# MODEL CHANGE: Update model names and dimensions here
 models:
   # Chat/Completion model
   - model_id: mistral-7b-instruct
     provider_id: ollama-inference
     provider_model_id: mistral:7b-instruct-v0.3
     metadata:
-      # MODEL CHANGE: Update these fields when changing chat model
       model_type: llm
-      context_window: 8192
 
   # Embedding model  
   - model_id: jina-embeddings
     provider_id: ollama-embeddings
     provider_model_id: jina/jina-embeddings-v3
     metadata:
-      # MODEL CHANGE: Update dimension when changing embedding model
-      # MUST match config.yaml embedding.dimension and database.vector_dimension
       model_type: embedding
       embedding_dimension: 1024
 
-# Shields (safety layers) - optional, can disable for testing
-shields:
-  - shield_id: default-shield
-    provider_id: ollama-inference
-    provider_shield_id: llama-guard
+# Shields configuration (optional safety layer)
+shields: []
 
-# Memory banks - for future use in RAG
+# Memory banks (for future RAG use)
 memory_banks: []
 
-# Telemetry (optional)
+# Telemetry
 telemetry:
   enabled: false

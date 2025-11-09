@@ -6,14 +6,14 @@ llama_stack:
 # Embedding Configuration
 embedding:
   provider: "ollama"
-  model: "jina/jina-embeddings-v3"
-  dimension: 1024  
+  model: "nomic-embed-text:latest"
+  dimension:  768
   batch_size: 16
 
 # Chat/Completion Configuration 
 chat:
   provider: "ollama"  
-  model: "mistral:7b-instruct-v0.3"
+  model: "mistral:latest"
   max_tokens: 2048
   temperature: 0.7
   
@@ -21,4 +21,4 @@ chat:
 # Database Configuration (for later when you connect)
 database:
   url: ${VECTOR_DB_URL}
-  vector_dimension: 1024
+  vector_dimension: 768
