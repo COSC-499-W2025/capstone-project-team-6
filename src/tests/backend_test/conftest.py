@@ -1,5 +1,6 @@
 # src/tests/backend_test/conftest.py
 import json
+from sqlalchemy import text
 import sys
 from pathlib import Path
 
@@ -58,6 +59,11 @@ def setup_vector_db():
         return                  
 
     from backend.database_vector import Base, engine
+
+    with engine.connect() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        conn.commit()
+
     Base.metadata.create_all(engine)
     print("\n Vector database tables created")
     yield

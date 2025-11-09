@@ -43,5 +43,6 @@ pip-audit==2.7.3
 aiofiles==24.1.0
 
 # Vector Database 
-psycopg[binary]==3.2.12
+#psycopg[binary]==3.2.12
+psycopg2-binary==2.9.10
 pgvector==0.3.2
