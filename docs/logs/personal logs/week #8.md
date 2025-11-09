@@ -84,6 +84,14 @@ October 21-26
 - Complete File sorting and project identification- the heuristic evaluation and testing of code.
 (Note I completed my code but got help from Ansh to write the tests for my code).
 
+
+## PR's initiated
+- file-sorting-2
+
+## PR's reviewed
+- ansh/zipFileUpload
+
+
 # Ansh Rastogi
 
 ## Date Range

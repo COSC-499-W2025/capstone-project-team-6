@@ -88,6 +88,18 @@ October 27 - November 2
 - phase 5 was planned to be completed next week
 
 
+## PR's initiated/gave input to
+- integration (very small amount of code)
+- File-parsing-cleanup
+- project_traversal
+
+## PR's reviewed
+- vector-db-setup
+- ModelResearch
+- CI-UT-Pipeline
+- filecleanup
+
+
 # Ansh Rastogi
 
 ## Date Range
