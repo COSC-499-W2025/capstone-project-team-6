@@ -1,0 +1,59 @@
+services:
+ 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"  # Ollama API port
+    volumes:
+      - ollama_data:/root/.ollama  # Persist downloaded models
+    
+    # GPU Support (Uncomment for NVIDIA GPU)
+    # Requires: nvidia-docker2 installed on host
+    # Installation: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1  # Use 1 GPU, change to 'all' for multiple GPUs
+    #           capabilities: [gpu]
+    
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - llama-network
+
+  # Llama Stack - Orchestration layer
+  llama-stack:
+    image: llamastack/distribution-ollama:latest
+    container_name: llama-stack
+    ports:
+      - "8000:8000"  # Llama Stack API port
+    environment:
+      - OLLAMA_URL=http://ollama:11434
+    volumes:
+      - ./llama-stack-config.yaml:/app/config.yaml
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - llama-network
+
+networks:
+  llama-network:
+    driver: bridge
+
+volumes:
+  ollama_data:
+    driver: local

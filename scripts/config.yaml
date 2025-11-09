@@ -1,6 +1,6 @@
 # Llama Stack Configuration
 llama_stack:
-  url: "http://llama-stack:8000"  # Internal Docker network URL
+  url: "http://localhost:8000"  # Internal Docker network URL
   timeout: 120  # Request timeout in seconds
 
 # Embedding Configuration
@@ -20,5 +20,5 @@ chat:
 
 # Database Configuration (for later when you connect)
 database:
-  url: ${POSTGRES_URL}
+  url: ${VECTOR_DB_URL}
   vector_dimension: 1024

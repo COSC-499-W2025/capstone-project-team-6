@@ -1,13 +1,14 @@
 version: "2"
 
 
-image_name: llamastack/distribution-ollama
-
+#image_name: llamastack/distribution-ollama
+image:
+  type: ollama
 # Provider configurations - ALL LOCAL
 providers:
   # Inference provider - LOCAL chat model
   inference:
-    - provider_id: ollama-local
+    - provider_id: ollama-inference
       provider_type: remote::ollama
       config:
         url: http://ollama:11434
@@ -15,45 +16,48 @@ providers:
         default_model: mistral:7b-instruct-v0.3
 
   # Embedding provider - LOCAL embedding model
-  #embedding:
-  #  - provider_id: sentence-transformers-local
-  #    provider_type: inline::sentence-transformers
-  #    config:
-  #      # CHANGE EMBEDDING MODEL: "jinaai/jina-embeddings-v3", "BAAI/bge-large-en-v1.5", "sentence-transformers/all-MiniLM-L6-v2"
-  #      model: jinaai/jina-embeddings-v3
-  #      # CHANGE DIMENSION: Update if using different embedding model
-  #      embedding_dimension: 1024
-  #      device: cpu  # Change to "cuda" if you have NVIDIA GPU
+  embeddings:
+    - provider_id: ollama-embeddings
+      provider_type: remote::ollama
+      config:
+        url: http://ollama:11434
+        # MODEL CHANGE: To use a different embedding model:
+        # 1. Update model name here
+        # 2. Update dimension in config.yaml (embedding.dimension)
+        # 3. Update dimension in config.yaml (database.vector_dimension)
+        
+        model: jina/jina-embeddings-v3
 
 # Model configurations
 models:
-  # Chat model 
-  - model_id: mistral-7b-chat
-    provider_id: ollama-local
-    model_type: llm
+  # Chat/Completion model
+  - model_id: mistral-7b-instruct
+    provider_id: ollama-inference
+    provider_model_id: mistral:7b-instruct-v0.3
     metadata:
-      # CHANGE MODEL: Update model identifier if switching models
-      # Format: "model-name:version" for Ollama
-      model: mistral:7b-instruct-v0.3
-      context_length: 8192  # CHANGE if different model has different context window
-      
-  # Embedding model (Phase 2/3)
-  #- model_id: jina-embeddings-v3
-  #  provider_id: sentence-transformers-local
-  #  model_type: embedding
-  #  metadata:
-  #    # CHANGE EMBEDDING MODEL: Update model path if switching
-  #    model: jinaai/jina-embeddings-v3
-  #    # CHANGE DIMENSION: Must match embedding_dimension above
-  #    embedding_dimension: 1024
-  #    max_seq_length: 8192  # CHANGE based on model's max input length
+      # MODEL CHANGE: Update these fields when changing chat model
+      model_type: llm
+      context_window: 8192
 
-# Memory configuration (optional)
-memory:
-  - provider_id: meta-reference
-    provider_type: inline::meta-reference
+  # Embedding model  
+  - model_id: jina-embeddings
+    provider_id: ollama-embeddings
+    provider_model_id: jina/jina-embeddings-v3
+    metadata:
+      # MODEL CHANGE: Update dimension when changing embedding model
+      # MUST match config.yaml embedding.dimension and database.vector_dimension
+      model_type: embedding
+      embedding_dimension: 1024
 
-# Safety configuration (optional)
-safety:
-  - provider_id: meta-reference
-    provider_type: inline::llama-guard
+# Shields (safety layers) - optional, can disable for testing
+shields:
+  - shield_id: default-shield
+    provider_id: ollama-inference
+    provider_shield_id: llama-guard
+
+# Memory banks - for future use in RAG
+memory_banks: []
+
+# Telemetry (optional)
+telemetry:
+  enabled: false
