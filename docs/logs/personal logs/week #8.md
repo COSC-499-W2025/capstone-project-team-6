@@ -56,6 +56,15 @@ October 21-26
 - Assigned teammate's to tasks and conducted meetings.
 - Tested other teammates code.
 
+## PR's initiated
+- Created CLI for the project
+- CLI Documentation
+
+## PR's reviewed
+- Consent form 
+- Created user database
+- File sorting 2
+
 ## Weekly Goals Recap
 
 - **Features I was responsible for (this milestone):** Create command line interface and shell interface for the project and link everything merged so far.
