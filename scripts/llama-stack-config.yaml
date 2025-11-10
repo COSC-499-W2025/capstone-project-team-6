@@ -24,19 +24,22 @@ providers:
 # MODEL CHANGE: Update model names and dimensions here
 models:
   # Chat/Completion model
-  - model_id: mistral-7b-instruct
+  - model_id: mistral-chat
     provider_id: ollama-inference
-    provider_model_id: mistral:7b-instruct-v0.3
+    provider_model_id: mistral:latest
     metadata:
       model_type: llm
+      # MODEL CHANGE:
+      context_window: 8192
 
   # Embedding model  
-  - model_id: jina-embeddings
+  - model_id: nomic-embeddings
     provider_id: ollama-embeddings
-    provider_model_id: jina/jina-embeddings-v3
+    provider_model_id: nomic-embed-text:latest
     metadata:
       model_type: embedding
-      embedding_dimension: 1024
+      # MODEL CHANGE:
+      embedding_dimension: 768
 
 # Shields configuration (optional safety layer)
 shields: []
