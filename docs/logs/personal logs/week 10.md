@@ -88,6 +88,10 @@ All of my goals this week have been met successfully. I have created detailed an
 ![Mohamed Week 10](images/MohamedW10.png)
 ## Date Range  
 November 3 - November 9
+
+## PRs
+115 & 120
+
 ## Tasks Worked On 
 - Implemented the new SQLite-backed `analysis.db`, covering schema design for analyses, projects, languages, frameworks, dependencies, contributors, and largest-file metadata. Added helper APIs (`record_analysis`, `get_analysis`, `get_projects_for_analysis`) plus fixtures so tests spin up isolated databases.
 - Built a standalone `documents.db` helper that persists uploaded artefacts with per-category counts (code/docs/tests/config/other) and added alias handling so downstream code can pass either friendly keys or column names. Wrote a focused pytest module verifying schema creation, inserts, and alias mapping.
