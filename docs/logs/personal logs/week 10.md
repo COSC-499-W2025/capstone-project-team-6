@@ -91,9 +91,12 @@ November 3 - November 9
 - Reviewed teammate PRs, provided testing feedback, and helped resolve merge issues.
 - Attended weekly meetings and coordinated backend integration tasks across the team.
 
-
 ## Weekly Goals Recap  
 Transitioned to a fully local embedding setup and ensure backend database integration works end-to-end in Docker. The backend now supports offline embeddings using the Ollama model, ensuring faster performance and complete local control.
+What didn’t go as planned:
+- my initial PR https://github.com/COSC-499-W2025/capstone-project-team-6/issues/106 did not pass the GitHub CI pipeline due to dependency issues and incompatibility with the workflow environment. I resolved this by updating PostgreSQL drivers and Python versions in the CI setup.
+- After completing the first embedding integration using the JinaAI model, we decided to switch to the local Ollama nomic-embed-text model, requiring additional refactoring and testing to ensure compatibility with the pgvector backend.
+  
 
 ## PR's initiated
 - local-embedding-model https://github.com/COSC-499-W2025/capstone-project-team-6/issues/112
