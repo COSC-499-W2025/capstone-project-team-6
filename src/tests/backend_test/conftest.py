@@ -1,11 +1,11 @@
 # src/tests/backend_test/conftest.py
 import json
-from sqlalchemy import text
+import os
 import sys
 from pathlib import Path
 
 import pytest
-import os
+from sqlalchemy import text
 
 # .../src/tests/backend_test/conftest.py  -> parents[2] == .../src
 SRC = Path(__file__).resolve().parents[2]
@@ -51,12 +51,13 @@ def fake_session(tmp_path, monkeypatch):
 
     yield
 
+
 @pytest.fixture(scope="session", autouse=True)
 def setup_vector_db():
     """Create vector database tables before any tests run."""
-    if not os.getenv("VECTOR_DB_URL"):                          # skip if not testing vector DB
+    if not os.getenv("VECTOR_DB_URL"):  # skip if not testing vector DB
         yield
-        return                  
+        return
 
     from backend.database_vector import Base, engine
 
