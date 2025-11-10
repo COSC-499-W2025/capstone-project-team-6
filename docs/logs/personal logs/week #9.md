@@ -54,6 +54,21 @@ I have also successfully created the CI pipeline. This ensures that there will b
 Through the creation of the pipeline and integration, the project will be much smoother to develop and run. It was a busy week so I was not able to work more on the analysis. 
 
 
+## PR's initiated
+- File cleanup and fixing syntax errors 
+- Integrated consent form into CLI, added session management for consent in the backend
+- Created CI pipeline for auto-merging into Development after 2 approvals
+- CI Pipeline for linting and unit tests
+
+## PR's reviewed
+- Project traversal
+- Prompt Engineered Templates for LLM Based Analysis
+- File parsing cleanup
+- Added integration tests for Authentication
+
+
+
+
 # Aakash  
 
 

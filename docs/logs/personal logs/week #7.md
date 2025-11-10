@@ -1,6 +1,7 @@
 # Mandira Samarasekara
 
 ## Date Range
+
 October 13–20
 
 ![Mandira Peer Eval SS](images/MandiraWeek7.jpg)
@@ -8,19 +9,19 @@ October 13–20
 ## Tasks Worked On
 
 - Attended team meetings to discuss weekly goals, assign tasks, and resolve small issues related to our current sprint.
-- Created and finalized the *consent page* content for our application. The page explains how data is handled and gives users a clear choice between using local or cloud-based LLM processing.
-- Conducted *research on LLMs (Large Language Models)*, including OpenAI, Llama Stack, and others, focusing on their privacy policies, data retention practices, and suitability for our project.
-- Helped the team decide on the *best LLM* to integrate into our app based on performance, privacy, and implementation feasibility.
-- Reviewed the *DFD, **requirements, and **architecture diagram* to prepare for the upcoming quiz and ensure a clear understanding of how each component connects.
-- Reviewed and serviced *pull requests (PRs)* from teammates, ensuring their code was consistent and properly integrated.
-- Researched *Electron*, exploring its use in creating desktop applications and familiarising myself with its tech stack and how it connects to React and Node.js.
-- Completed both *team* and *personal logs* for documentation and milestone tracking.
+- Created and finalized the _consent page_ content for our application. The page explains how data is handled and gives users a clear choice between using local or cloud-based LLM processing.
+- Conducted _research on LLMs (Large Language Models)_, including OpenAI, Llama Stack, and others, focusing on their privacy policies, data retention practices, and suitability for our project.
+- Helped the team decide on the _best LLM_ to integrate into our app based on performance, privacy, and implementation feasibility.
+- Reviewed the _DFD, **requirements, and **architecture diagram_ to prepare for the upcoming quiz and ensure a clear understanding of how each component connects.
+- Reviewed and serviced _pull requests (PRs)_ from teammates, ensuring their code was consistent and properly integrated.
+- Researched _Electron_, exploring its use in creating desktop applications and familiarising myself with its tech stack and how it connects to React and Node.js.
+- Completed both _team_ and _personal logs_ for documentation and milestone tracking.
 
 ## Weekly Goals Recap
 
-- This week was quite busy due to midterms, but I managed to complete all assigned tasks.  
-- The *consent page* content was written correctly and ready for integration, though I initially created it in Markdown format instead of implementing it as an Electron interface. I’ll be updating it soon so that it displays automatically after login and before users upload files.  
-- I also spent extra time doing *in-depth research on LLMs*, which helped the team make informed decisions about model privacy and architecture design.
+- This week was quite busy due to midterms, but I managed to complete all assigned tasks.
+- The _consent page_ content was written correctly and ready for integration, though I initially created it in Markdown format instead of implementing it as an Electron interface. I’ll be updating it soon so that it displays automatically after login and before users upload files.
+- I also spent extra time doing _in-depth research on LLMs_, which helped the team make informed decisions about model privacy and architecture design.
 - Overall, despite time constraints, I balanced academics and project work effectively and made steady progress on both documentation and development tasks.
 
 # Mithish Ravisankar Geetha
@@ -41,6 +42,14 @@ October 13-20
 - Assigned teammate's to tasks.
 - Studied for the quiz held on Wednesday Oct 15.
 
+## PR's initiated
+- Login page draft funcitionality (#34)
+- Added complete cross-platform docker containerization. (#30)
+
+## PR's reviewed
+- Set up SQLite environment with a test database
+- Harjot week7logs
+
 ## Weekly Goals Recap
 
 - **Features I was responsible for (this milestone):** Create user login/signup page, Complete docker containerization for MacOS and windows
@@ -51,9 +60,11 @@ The goal for this week was to learn about react and electron and how it's linked
 # Aakash
 
 ## Date Range
+
 October 13-20
 ![  aakash Peer Eval SS](images/aakashW7logs.png)
 ## Tasks Worked On
+
 - Researched about Electron and React, and understanding how the packages and code structure works in electron in order to build efficiently.
 - Worked on Folder sorting and folder parsing
 - Wrote tests for the folder parsing
@@ -65,16 +76,11 @@ October 13-20
 ## PR's reviewed (branches)
 - mithish-week7-code
 - database-setup
-- -ansh/file_upload
-
+- ansh/file_upload
 
 ## Weekly Goals Recap
 
 - Start the Folder sorting process and create a traversal plan for the zipped folder.
-
-
-
-
 
 # Ansh Rastogi
 
@@ -96,6 +102,18 @@ October 13-20
 
 - **Features I was responsible for (this milestone):** Backend file upload: FastAPI upload endpoint + CLI tool; exploration of direct `.zip` extraction for efficient processing.
 - **Progress in the last 2 weeks:** Delivered a working upload pipeline with CLI support and integrated it with the backend; organized and assigned work items on the Kanban; investigated zip auto-extraction for performance. Set up backend environment.
+
+## PR's initiated (branches)
+
+- ansh/file_upload
+
+## PR's reviewed (branches)
+
+- database-setup
+- mithish-loginpage
+- mithish-week7logs
+- harjot-week7logs
+- Mohamed-logs-w7
 
 # Harjot Sahota
 
