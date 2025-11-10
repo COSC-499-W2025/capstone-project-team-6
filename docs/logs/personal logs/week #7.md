@@ -116,7 +116,7 @@ October 13-20
 - **Progress in the last 2 weeks:** I setup our frontend environment using electron + react (vite), I setup our database using SQLite
 
 ## PR's initiated (branches)
-- database-setup
+- database-setup https://github.com/COSC-499-W2025/capstone-project-team-6/issues/32
 - harjot-week7logs
 
 ## PR's reviewed (branches)
