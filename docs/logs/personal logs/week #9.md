@@ -166,7 +166,20 @@ October 27 - November 2
 
 - **Features I was responsible for (this milestone):** I was responsible for researching and selecting the most suitable vector database for our project. After evaluating multiple options, I implemented Supabase pgvector and integrated it with our backend to store document embeddings and text chunks.
 - **Progress in the last 2 weeks:** Successfully set up and connected the Supabase pgvector database to our backend. Implemented the schema, created services for document chunking and embedding storage, and verified through manual testing that data is correctly stored in the cloud database. 
-  
+
+## PR's initiated
+- file-upload-flow-update
+- vector-db-setup
+- harjot-w9-logs
+
+## PR's reviewed
+- integration
+- CI-UT-Pipeline
+- ModelResearch
+- MaddyLogs
+
+
+
 # Mohamed Sakr  
 
 ![Mohamed Peer Eval SS](images/MohamedW9.png)
