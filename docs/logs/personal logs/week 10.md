@@ -1,15 +1,48 @@
-# Mandira Samarasekara  
+# Mandira Samarasekara
+
+![Mandira Week 10](images/MandiraW10.png)
 
 ## Date Range  
+November 3 - November 9
 
+## Tasks Worked On 
+- Attended team meetings.  
+- Completed the non-LLM project analysis implementation, which required considerable effort due to its technical complexity.  
+- Designed and implemented comprehensive automated tests (29 total) to ensure reliability and maintainability of the metadata extraction system.  
+- Created documentation and example scripts (`example_usage.py`) to make the system easier for teammates to understand, integrate, and test.  
+- Reviewed, tested, and provided constructive feedback on teammates’ PRs to improve code quality and maintain consistency across the project.  
 
+## Weekly Goals Recap 
+- **Features I was responsible for (this milestone):**  
+Phase 2 of the project analysis system — a comprehensive metadata extraction module that analyzes software projects without relying on LLMs. It builds upon the Phase 1 FileClassifier (by Aakash) to extract detailed project-level metadata including technology stacks, framework detection, dependency parsing, and project health metrics.  
 
-## Tasks Worked On  
+Files and documentation included:  
+- `METADATA_EXTRACTOR_README.md` – full documentation of the module  
+- `example_usage.py` – showcases integration and usage for report generation  
+- 29 automated unit tests covering all modules  
 
+### What Went Well
+- Successfully completed the Analysis Without LLMs module by Friday, enabling my teammate Mithish to proceed with his OOP analysis component, which depends on my implementation.  
+- Achieved full test coverage with clean and maintainable code, ensuring the feature is stable and extensible.  
 
-## Weekly Goals Recap  
+### What Didn’t Go as Planned
+- Encountered challenges when implementing git contribution history retrieval. Despite significant effort, the process was more complex than expected since contributor history cannot be extracted without an active Git connection.  
+- Temporarily filled this section with placeholder values until a suitable solution is implemented.  
 
+### Looking Ahead
+- Focus on implementing the git contributions feature with repository connection capabilities.  
+- Add additional analysis metrics to improve report precision and contextual accuracy.  
+- Optimize metadata extraction for performance and scalability to handle larger project datasets.  
 
+## PRs initiated  
+- [#105 – Analysis without LLMs](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/105)  
+- Completed issue #104  
+
+## PRs reviewed  
+- Constructed the Output Database – #115  
+- Python OOP Code Analysis – #108  
+- Mohamed W10 Logs – #121  
+- Harjot’s Updated Logs (added reviewed & initiated PRs) – #117  
 
 
 # Mithish Ravisankar Geetha  
