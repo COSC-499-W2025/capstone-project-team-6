@@ -16,6 +16,11 @@ def clean_db():
     db.commit()
     db.close()
     yield
+import os
+
+from src.backend.database_vector import Document, DocumentChunk, SessionLocal
+from src.backend.vector_service import store_document
+
 
 def test_store_document_creates_entries(tmp_path):
     # Create a temporary text file
@@ -42,8 +47,8 @@ def test_store_document_creates_chunks(tmp_path):
     # Make a long text that triggers chunking
     sample_file.write_text("word " * 1200)
 
+    from src.backend.database_vector import DocumentChunk, SessionLocal
     from src.backend.vector_service import store_document
-    from src.backend.database_vector import SessionLocal, DocumentChunk
 
     with open(sample_file, "r") as f:
         content = f.read()
@@ -53,9 +58,10 @@ def test_store_document_creates_chunks(tmp_path):
     chunks = db.query(DocumentChunk).all()
     assert len(chunks) > 1, "Should create multiple chunks for long text"
 
+
 def test_store_empty_text():
+    from src.backend.database_vector import Document, SessionLocal
     from src.backend.vector_service import store_document
-    from src.backend.database_vector import SessionLocal, Document
 
     store_document("empty.txt", "txt", "pytest", "")
     db = SessionLocal()
