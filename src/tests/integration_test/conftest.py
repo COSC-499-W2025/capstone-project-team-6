@@ -30,7 +30,6 @@ def temp_db(tmp_path: Path) -> Generator[Path, None, None]:
 
     # Initialize the database schema
     database.init_db()
-    database.init_uploaded_files_table()
 
     yield db_file
 
