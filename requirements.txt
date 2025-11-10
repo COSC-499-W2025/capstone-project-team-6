@@ -11,7 +11,7 @@ flake8==7.1.0
 fpdf==1.7.2
 h11==0.16.0
 httpcore==1.0.9
-httpx==0.28.1
+httpx==0.27.2
 idna==3.11
 iniconfig==2.3.0
 numpy>=2.1.2
@@ -46,3 +46,6 @@ aiofiles==24.1.0
 psycopg[binary]==3.2.12
 psycopg2-binary==2.9.10
 pgvector==0.3.2
+
+# Embeddings
+ollama==0.3.2

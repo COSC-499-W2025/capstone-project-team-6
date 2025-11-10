@@ -1,11 +1,13 @@
 import os
 
 from sqlalchemy.orm import Session
+from backend.database_vector import Document, DocumentChunk, SessionLocal
+import ollama
 
-from src.backend.database_vector import Document, DocumentChunk, SessionLocal
+_model = None               # loaded model (loaded once, reused each time)
 
 
-def chunk_text(text, chunk_size=500):
+def chunk_text(text, chunk_size=400):
     """Splits text into small chunks."""
     words = text.split()
     chunks = []
@@ -15,13 +17,26 @@ def chunk_text(text, chunk_size=500):
     return chunks
 
 
-# Placeholder for embeddings (we will replace it with a real embedding model later)
-def generate_embedding(text):
-    """
-    Placeholder embedding generator.
-    Replace later with Cohere / OpenAI / LlamaStack embedding API.
-    """
-    return [0.0] * 1024  # Dummy vector with 1024 dimensions
+def generate_embedding(text: str):
+    """Generates a 768-dimensional embedding using Ollama (nomic-embed-text:latest)."""
+    if not text or not text.strip():
+        return [0.0] * 768
+    try:
+        response = ollama.embeddings(
+            model="nomic-embed-text:latest",
+            prompt=text
+        )
+        embedding = response["embedding"]
+
+        if len(embedding) != 768:
+            print(f"Warning: Expected 768 dims, got {len(embedding)}")
+
+        return embedding
+
+    except Exception as e:
+        print(f"Embedding generation failed: {e}")
+        return [0.0] * 768
+
 
 
 # Insert document + chunks
@@ -42,5 +57,14 @@ def store_document(file_name, file_type, category, extracted_text):
 
         db.commit()
         print(f" Stored {len(chunks)} chunks for {file_name}")
+    except Exception as e:
+        print(f"Error storing document {file_name}: {e}")
+        db.rollback()
     finally:
         db.close()
+
+if __name__ == "__main__":
+    from backend.vector_service import store_document
+    text = "This is a test document for verifying pgvector integration."
+    store_document("test_doc.txt", "txt", "manual-test", text)
+    print("Inserted test_doc.txt into database.")
