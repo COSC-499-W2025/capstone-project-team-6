@@ -80,20 +80,41 @@ All of my goals this week have been met successfully. I have created detailed an
 
 
 ## Date Range  
-
+November 3 - November 9
+![aakash Week 9=10](images/aakashlogs10.png)
 
 ## Tasks Worked On  
+- llama stack initialization
+
 
 ## Weekly Goals Recap  
-
+- finish the llama stack initialization with ollama and llama stack working in docker successfully 
+- combining the docker contanarization of vector database, CLI, and llama stack together so that analysis with LLM's could work
 
 ### what was accomplished
+- worked on llama stack initialization in the llama-stack-initialization branch
+- got a working version of it on docker but a model we did not want to use was substituted as a default
+- currently do not have a working version of docker with successful llama stack setup
+
+### What Didn’t Go as Planned
+- the docker steup for llama stack had so many small issues i could not get it out this week
+- caused Mohammed to not be able to complete the task he was given as it required a working version of llama stack in docker. This made him need to pick up a last minute feature that needed implementing
+- Due to llama stack and ollama complications new models where research we had not done on had to be selected
+- ALthough the vector database works in a seperate docker it does not work with llama stack as of yet.
+
+### What needs to be done
+- I might need to resart the code on the docker as it has gotten extremely messy and solving thi sissues might not work out
+- take a different approch to the dockerization of llama stack which moght work better
+- better plan my timing as was busy during the week with tests and didnt give myself enough time to get the code working causing a backlog in progress for the team
 
 
 ## PR's initiated/gave input to
+- llama-stack-initialization (not merged)
 
 ## PR's reviewed
-
+- Analysis-without-LLM
+- local embedding model
+- refactor-vector-db-local
 
 # Ansh Rastogi
 
