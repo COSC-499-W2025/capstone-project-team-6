@@ -115,6 +115,13 @@ October 13-20
 - **Features I was responsible for (this milestone):** I was responisble for setting up our database using SQLite
 - **Progress in the last 2 weeks:** I setup our frontend environment using electron + react (vite), I setup our database using SQLite
 
+## PR's initiated (branches)
+- database-setup
+- harjot-week7logs
+
+## PR's reviewed (branches)
+- mithish-week7-code
+
 # Mohamed Sakr
 
 ## Date Range
