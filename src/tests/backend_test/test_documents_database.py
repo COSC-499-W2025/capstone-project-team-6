@@ -54,4 +54,3 @@ def test_save_document_stores_counts_and_text(temp_documents_db: Path):
         assert row["test_files"] == 1
         assert row["config_files"] == 3
         assert row["other_files"] == 4
-

@@ -8,7 +8,6 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict, Optional
 
-
 CATEGORY_COLUMNS = ("code_files", "doc_files", "test_files", "config_files", "other_files")
 CATEGORY_ALIASES = {
     "code": "code_files",
@@ -160,5 +159,3 @@ def save_document(
             )
         conn.commit()
         return cursor.lastrowid
-
-
