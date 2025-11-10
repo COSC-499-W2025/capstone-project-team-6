@@ -231,7 +231,7 @@ def generate_comprehensive_report(zip_path: Path, output_path: Optional[Path] = 
     This function orchestrates:
     - Phase 1: File classification (FileClassifier)
     - Phase 2: Metadata extraction (MetadataExtractor)
-    - Phase 3: Deep code analysis (DeepCodeAnalyzer)
+    - Phase 3: Deep code analysis (DeepCodeAnalyzer) - Python & Java
 
     Args:
         zip_path: Path to ZIP file
@@ -250,11 +250,11 @@ def generate_comprehensive_report(zip_path: Path, output_path: Optional[Path] = 
         # Generate base report (Phases 1 & 2)
         report = extractor.generate_report()
 
-        # Add Phase 3: Deep OOP analysis for each Python project
+        # Add Phase 3: Deep OOP analysis for each project
         for i, project in enumerate(report["projects"]):
             project_path = project.get("project_path", "")
 
-            # Only analyze if project has Python files
+            # Analyze Python projects
             if "python" in project.get("languages", {}):
                 try:
                     deep_analysis = analyze_project_deep(zip_path, project_path)
@@ -262,6 +262,23 @@ def generate_comprehensive_report(zip_path: Path, output_path: Optional[Path] = 
                 except Exception as e:
                     # If deep analysis fails, add error info
                     report["projects"][i]["oop_analysis"] = {"error": str(e), "total_classes": 0}
+            
+            # Analyze Java projects
+            if "java" in project.get("languages", {}):
+                try:
+                    # Import Java analyzer
+                    from .java_oop_analyzer import analyze_java_project
+                    java_analysis = analyze_java_project(zip_path, project_path)
+                    report["projects"][i]["java_oop_analysis"] = java_analysis["java_oop_analysis"]
+                except ImportError:
+                    # Java analyzer not available
+                    report["projects"][i]["java_oop_analysis"] = {
+                        "error": "Java analyzer not available (javalang not installed)",
+                        "total_classes": 0
+                    }
+                except Exception as e:
+                    # If deep analysis fails, add error info
+                    report["projects"][i]["java_oop_analysis"] = {"error": str(e), "total_classes": 0}
 
     # Save to file if requested
     if output_path:
