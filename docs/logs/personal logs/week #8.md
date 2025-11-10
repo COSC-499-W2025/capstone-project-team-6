@@ -1,42 +1,43 @@
-# Mandira Samarasekara  
+# Mandira Samarasekara
 
-## Date Range  
-October 21–26  
+## Date Range
 
-![Mandira Peer Eval SS](images/MandiraWeek8.png)  
+October 21–26
 
-## Tasks Worked On  
+![Mandira Peer Eval SS](images/MandiraWeek8.png)
 
-- Created **consent-form.md**, which contains the updated consent form text reflecting the use of **Llama Stack (local AI)** only, and removed references to external AIs (OpenAI).  
-- Developed **consent.py**, a Python script that displays the consent form in the terminal, prompts the user for “yes” or “no,” and stores the response as a boolean variable.  
-  - The variable is passed to the file upload program (to be linked) to determine whether to proceed with file parsing.  
-- Conducted research on **Large Language Models (LLMs)** and compared their strengths and weaknesses.  
-  - Compiled all findings and viable alternatives in **LLM-comparisons.md** for future consideration.  
-- Created and ran **unit tests (test_consent.py)** to validate the consent workflow.  
-  - Tests include checking printed text, input variants, error handling, EOF handling, and message output.  
-- Tested other teammates' code.  
-- Serviced many PRs.  
+## Tasks Worked On
 
-### Tests  
-- `test_prints_consent_form_once`  
-- `test_yes_variants_return_true`  
-- `test_no_variants_return_false`  
-- `test_invalid_then_yes`  
-- `test_invalid_then_no`  
-- `test_eof_returns_false`  
+- Created **consent-form.md**, which contains the updated consent form text reflecting the use of **Llama Stack (local AI)** only, and removed references to external AIs (OpenAI).
+- Developed **consent.py**, a Python script that displays the consent form in the terminal, prompts the user for “yes” or “no,” and stores the response as a boolean variable.
+  - The variable is passed to the file upload program (to be linked) to determine whether to proceed with file parsing.
+- Conducted research on **Large Language Models (LLMs)** and compared their strengths and weaknesses.
+  - Compiled all findings and viable alternatives in **LLM-comparisons.md** for future consideration.
+- Created and ran **unit tests (test_consent.py)** to validate the consent workflow.
+  - Tests include checking printed text, input variants, error handling, EOF handling, and message output.
+- Tested other teammates' code.
+- Serviced many PRs.
 
-**Path:** `capstone-project-team-6\src\tests\backend_test\test_consent.py`  
+### Tests
 
-## Weekly Goals Recap  
+- `test_prints_consent_form_once`
+- `test_yes_variants_return_true`
+- `test_no_variants_return_false`
+- `test_invalid_then_yes`
+- `test_invalid_then_no`
+- `test_eof_returns_false`
 
-- The focus this week was on implementing the **consent system** and ensuring proper **user input validation and testing**.  
-- Also researched and documented **alternative LLMs** for flexibility in future development.  
-- Tested and reviewed teammates’ PRs to maintain overall project stability.  
+**Path:** `capstone-project-team-6\src\tests\backend_test\test_consent.py`
+
+## Weekly Goals Recap
+
+- The focus this week was on implementing the **consent system** and ensuring proper **user input validation and testing**.
+- Also researched and documented **alternative LLMs** for flexibility in future development.
+- Tested and reviewed teammates’ PRs to maintain overall project stability.
 - Currently working on **integrating all the individual components together**:  
-  `login/signup -> file upload -> consent -> analysis`  
+  `login/signup -> file upload -> consent -> analysis`
 
-**Closes:** Issue #26  
-
+**Closes:** Issue #26
 
 # Mithish Ravisankar Geetha
 
@@ -65,32 +66,34 @@ The goal for this week was to initially create a project dashboard, however I re
 # Aakash
 
 ## Date Range
+
 October 21-26
 
 ![aakash w8 peer eval](images/aakashlogs-w8.png)
+
 ## Tasks Worked On
+
 - Completed the Folder Sorting and project identification
-    - Created 2 new classes DirectoryNode and Project Heuristics
-    - updated the DFS function to calculate the heuristic score
-    - for more details of this look at doc/Folder-parsing-explained,md
+  - Created 2 new classes DirectoryNode and Project Heuristics
+  - updated the DFS function to calculate the heuristic score
+  - for more details of this look at doc/Folder-parsing-explained,md
 - Implemented the Heuristic evaluation for a project root
 - Attended team meetings and helped prioritize and distribute tasks for the week
-- Helped review Ansh code on zipped folder implementation in folder sorting and Tests for the folder sorting. 
+- Helped review Ansh code on zipped folder implementation in folder sorting and Tests for the folder sorting.
 - Documented my working a markdown file in documents explaining about the new traversal features
 
-
 ## Weekly Goals Recap
+
 - **Features I was responsible for (this milestone):**
 - Complete File sorting and project identification- the heuristic evaluation and testing of code.
-(Note I completed my code but got help from Ansh to write the tests for my code).
-
+  (Note I completed my code but got help from Ansh to write the tests for my code).
 
 ## PR's initiated
+
 - file-sorting-2
 
 ## PR's reviewed
 - ansh/zipFileUpload
-
 
 # Ansh Rastogi
 
@@ -116,6 +119,16 @@ October 21-26
 
 - **Features I was responsible for (this milestone):** ZIP file traversal without extraction; file system abstraction layer; comprehensive testing and documentation.
 
+## PR's initiated (branches)
+
+- ansh/zipFileUpload
+
+## PR's reviewed (branches)
+
+- file-sorting-2
+- cli-documentation
+- database-file-upload
+
 # Harjot Sahota
 
 <img width="1074" height="624" alt="Screenshot 2025-10-26 at 9 19 41 PM" src="https://github.com/user-attachments/assets/993650e0-ffb8-44b1-85ba-d46b4ff71b8d" />
@@ -136,20 +149,26 @@ October 21-26
 
 - **Features I was responsible for (this milestone):** Implemented backend support for OCR text extraction and database integration. Added a new uploaded_files table, connected it to the file upload system, and ensured extracted text from images and PDFs is stored automatically in SQLite.
 - **Progress in the last 2 weeks:** created our sqlite database and Completed the OCR integration using Tesseract
-  
+
 # Mohamed Sakr
+
 ![Mohamed Peer Eval SS](images/Mohamedw8.png)
+
 ## Date Range
+
 October 21-26
+
 ## Tasks Worked On
 - PR #48
-- Implemented a local SQLite-backed auth store for the login workflow. 
-- Added a persistent users table with bcrypt-hashed passwords, connection helpers, and default seeding via FastAPI startup. 
-- Replaced the in-memory credential dictionary, updated the auth endpoints to query the database, and expanded tests to cover DB operations. 
+- Implemented a local SQLite-backed auth store for the login workflow.
+- Added a persistent users table with bcrypt-hashed passwords, connection helpers, and default seeding via FastAPI startup.
+- Replaced the in-memory credential dictionary, updated the auth endpoints to query the database, and expanded tests to cover DB operations.
 - Introduced the bcrypt dependency.
 - Wrote tests for the user database
 - Helped design, pick stack, and implement upload_files database
 - Ran tests for user database and file upload functionality
+
 ## Weekly Goals Recap
+
 - **Features I was responsible for (this milestone):** Migrated the login flow to a SQLite-backed authentication store. Added a persistent users table with bcrypt-hashed passwords, connection utilities, and default seeding on FastAPI startup. Replaced the in-memory credentials, updated auth endpoints to query the database, expanded tests to cover DB operations, and introduced the bcrypt dependency.
 - **Progress in the last 2 weeks:** created user database and helped design file_upload database.
