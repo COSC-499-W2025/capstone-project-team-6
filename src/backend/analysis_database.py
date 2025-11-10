@@ -10,7 +10,6 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
-
 VALID_ANALYSIS_TYPES = {"llm", "non_llm"}
 
 
@@ -391,5 +390,3 @@ def get_projects_for_analysis(analysis_id: int) -> List[sqlite3.Row]:
             "SELECT * FROM projects WHERE analysis_id = ? ORDER BY id",
             (analysis_id,),
         ).fetchall()
-
-

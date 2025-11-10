@@ -8,7 +8,6 @@ import pytest
 
 from src.backend import analysis_database as adb
 
-
 SAMPLE_PAYLOAD = {
     "analysis_metadata": {
         "zip_file": "path/to/project.zip",
@@ -150,4 +149,3 @@ def test_record_analysis_validates_input(temp_analysis_db):
     analysis_id = adb.record_analysis("non_llm", minimal_payload)
     analysis_row = adb.get_analysis(analysis_id)
     assert analysis_row["total_projects"] == 0
-
