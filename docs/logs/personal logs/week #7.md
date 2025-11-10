@@ -54,8 +54,7 @@ The goal for this week was to learn about react and electron and how it's linked
 ## Date Range
 
 October 13-20
-![aakash Peer Eval SS](images/aakashW7logs.png)
-
+![  aakash Peer Eval SS](images/aakashW7logs.png)
 ## Tasks Worked On
 
 - Researched about Electron and React, and understanding how the packages and code structure works in electron in order to build efficiently.
@@ -64,11 +63,9 @@ October 13-20
 - Combined a depth first search and breadth first search.
 
 ## PR's initiated (branches)
-
 - folder parsing
 
 ## PR's reviewed (branches)
-
 - mithish-week7-code
 - database-setup
 - ansh/file_upload

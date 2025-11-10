@@ -93,7 +93,6 @@ October 21-26
 - file-sorting-2
 
 ## PR's reviewed
-
 - ansh/zipFileUpload
 
 # Ansh Rastogi
@@ -160,11 +159,6 @@ October 21-26
 October 21-26
 
 ## Tasks Worked On
-
-- Implemented a local SQLite-backed auth store for the login workflow.
-- Added a persistent users table with bcrypt-hashed passwords, connection helpers, and default seeding via FastAPI startup.
-- Replaced the in-memory credential dictionary, updated the auth endpoints to query the database, and expanded tests to cover DB operations.
-
 - PR #48
 - Implemented a local SQLite-backed auth store for the login workflow.
 - Added a persistent users table with bcrypt-hashed passwords, connection helpers, and default seeding via FastAPI startup.
