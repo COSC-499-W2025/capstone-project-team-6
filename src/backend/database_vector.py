@@ -1,25 +1,36 @@
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
-from pgvector.sqlalchemy import Vector
-from sqlalchemy import Column, ForeignKey, Integer, String, create_engine
+from sqlalchemy import Column, ForeignKey, Integer, String, create_engine, JSON
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
+
+try:
+    from pgvector.sqlalchemy import Vector as PgVector
+except ImportError:  # pragma: no cover
+    PgVector = None
 
 load_dotenv()
 
-# Get connection string from .env
+DEFAULT_SQLITE_PATH = Path(__file__).resolve().parent.parent / "vector.db"
+
 DATABASE_URL = os.getenv("VECTOR_DB_URL")
-
 if not DATABASE_URL:
-    raise ValueError("VECTOR_DB_URL not found in .env file")
+    DATABASE_URL = f"sqlite:///{DEFAULT_SQLITE_PATH}"
 
-# Create engine and session
+USE_SQLITE = DATABASE_URL.startswith("sqlite")
+
+if not USE_SQLITE and PgVector is None:
+    raise ImportError("pgvector is required when using a non-SQLite vector database")
+
+VECTOR_DIMENSION = 1024
+VECTOR_COLUMN_TYPE = JSON if USE_SQLITE else PgVector(VECTOR_DIMENSION)
+
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
 
 
-# Define the tables
 class Document(Base):
     __tablename__ = "documents"
     id = Column(Integer, primary_key=True)
@@ -35,14 +46,16 @@ class DocumentChunk(Base):
     id = Column(Integer, primary_key=True)
     document_id = Column(Integer, ForeignKey("documents.id"))
     chunk_text = Column(String)
-    embedding = Column(Vector(1024))  # Cohere embed-v3 = 1024 dims
+    embedding = Column(VECTOR_COLUMN_TYPE)
     document = relationship("Document", back_populates="chunks")
 
 
-# Create tables if they don't exist
-def init_db():
+def init_db() -> None:
     Base.metadata.create_all(engine)
     print("Connected successfully and verified tables exist.")
+
+
+init_db()
 
 
 if __name__ == "__main__":
