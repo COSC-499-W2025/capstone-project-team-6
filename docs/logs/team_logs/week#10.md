@@ -40,7 +40,7 @@
 - Shipped comprehensive metadata extractor (tech stack/framework/deps/health metrics) building on FileClassifier.  
 - Wrote **29 automated tests**, `METADATA_EXTRACTOR_README.md`, and `example_usage.py`.  
 - Reviewed teammates’ PRs and supported integration.  
-- **PR/Issue:** [#105 – Analysis without LLMs](#105)
+- **PR/Issue:** #105
 
 ---
 
@@ -48,7 +48,7 @@
 - Implemented OOP analysis (design & application of principles) and unit tests.  
 - Created a unified script to run Mandira’s + OOP analyzers together.  
 - Reviewed PRs and coordinated task assignments.  
-- **PR/Issue:** (link pending in personal log)
+- **PR/Issue:** ([Python OOP Analyzer](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/108))
 
 ---
 
@@ -65,14 +65,15 @@
 ### Persistence Layer (SQLite) for Analyses & Documents — Mohamed
 - Implemented `analysis.db` (analyses, projects, languages, frameworks, deps, contributors, largest-file) with helpers/fixtures.  
 - Added `documents.db` for uploaded artefacts + per-category counts and alias handling; focused pytest coverage.  
-- **PRs:** [#115](#) , [#120](#)
+- **PRs:** [Output DB](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/115) , [Documents Database with Project Files Categorization 
+](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/120)
 
 ---
 
+### LLM Stack Enablement (In Progress) — Aakash
 - Worked on **Llama Stack initialization (Docker)** and service alignment with vector DB/CLI.  
 - Achieved a Dockerized stack with a fallback model; not yet the target configuration.  
 - Reviewed *Analysis-without-LLM*, local embedding model, and vector DB refactor.  
-- **PR/Issue:** (branch `llama-stack-initialization`; PR link pending)
 
 ---
 
@@ -128,14 +129,3 @@
 ## Project Burnup Chart
 ![BurnupWeek10](Images/BurnupWeek10.png)
 
----
-
-## Per-Person PR/Issue Links (Quick List)
-
-| Member | PR/Issue |
-|---------|-----------|
-| **Mandira** | [PR #105 – Analysis without LLMs](#) |
-| **Mithish** | Python OOP code analysis — link pending |
-| **Harjot** | [local-embedding-model](https://github.com/COSC-499-W2025/capstone-project-team-6/issues/112) , [refactor-vector-db-local](https://github.com/COSC-499-W2025/capstone-project-team-6/issues/106) |
-| **Mohamed** | [PR #115](#) , [PR #120](#) |
-| **Aakash** | llama-stack-initialization — PR link pending |
