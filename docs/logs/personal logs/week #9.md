@@ -168,8 +168,8 @@ October 27 - November 2
 - **Progress in the last 2 weeks:** Successfully set up and connected the Supabase pgvector database to our backend. Implemented the schema, created services for document chunking and embedding storage, and verified through manual testing that data is correctly stored in the cloud database. 
 
 ## PR's initiated
-- file-upload-flow-update
-- vector-db-setup
+- file-upload-flow-update https://github.com/COSC-499-W2025/capstone-project-team-6/issues/84
+- vector-db-setup https://github.com/COSC-499-W2025/capstone-project-team-6/issues/94
 - harjot-w9-logs
 
 ## PR's reviewed
