@@ -2,7 +2,7 @@ import os
 
 from sqlalchemy.orm import Session
 
-from backend.database_vector import Document, DocumentChunk, SessionLocal
+from src.backend.database_vector import Document, DocumentChunk, SessionLocal
 
 
 def chunk_text(text, chunk_size=500):
@@ -44,14 +44,3 @@ def store_document(file_name, file_type, category, extracted_text):
         print(f" Stored {len(chunks)} chunks for {file_name}")
     finally:
         db.close()
-
-
-# Manual tests
-if __name__ == "__main__":
-    sample_text = "This is a sample text that will be split into multiple chunks for testing."
-    store_document("test.txt", "txt", "sample", sample_text)
-
-if __name__ == "__main__":
-    with open("/Users/harjotsahota/Desktop/sample.txt", "r") as f:
-        content = f.read()
-    store_document("sample.txt", "txt", "manual-test", content)

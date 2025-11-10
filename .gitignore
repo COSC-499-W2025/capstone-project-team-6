@@ -9,3 +9,7 @@ dist/
 *.log
 *.egg-info/
 build/
+.vscode/
+src/myapp.db
+__pycache__/
+pgvector/
