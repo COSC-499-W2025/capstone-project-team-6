@@ -35,7 +35,7 @@ class DocumentChunk(Base):
     id = Column(Integer, primary_key=True)
     document_id = Column(Integer, ForeignKey("documents.id"))
     chunk_text = Column(String)
-    embedding = Column(Vector(768))  # nomic-embed-text:latest 
+    embedding = Column(Vector(768))  # nomic-embed-text:latest
     document = relationship("Document", back_populates="chunks")
 
 

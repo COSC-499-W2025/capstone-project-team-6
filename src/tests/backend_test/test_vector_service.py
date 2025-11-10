@@ -1,9 +1,13 @@
-import sys, os
+import os
+import sys
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 
 import pytest
-from src.backend.database_vector import SessionLocal, Document, DocumentChunk
+
+from src.backend.database_vector import Document, DocumentChunk, SessionLocal
 from src.backend.vector_service import store_document
+
 
 @pytest.fixture(scope="function", autouse=True)
 def clean_db():
@@ -16,6 +20,8 @@ def clean_db():
     db.commit()
     db.close()
     yield
+
+
 import os
 
 from src.backend.database_vector import Document, DocumentChunk, SessionLocal
@@ -69,6 +75,7 @@ def test_store_empty_text():
     assert doc is not None
     assert len(doc.chunks) == 0
 
+
 def test_embedding_vector_dimension(tmp_path):
     """Checks that embeddings are 768-dimensional."""
     sample_file = tmp_path / "embed_test.txt"
@@ -84,6 +91,7 @@ def test_embedding_vector_dimension(tmp_path):
 
     assert chunk is not None, "No chunk found for embed_test.txt"
     assert len(chunk.embedding) == 768, f"Expected 768-dim vector, got {len(chunk.embedding)}"
+
 
 def test_embedding_consistency(tmp_path):
     """Ensures same input text produces identical embeddings."""

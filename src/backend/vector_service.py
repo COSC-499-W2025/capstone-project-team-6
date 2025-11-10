@@ -1,10 +1,11 @@
 import os
 
-from sqlalchemy.orm import Session
-from backend.database_vector import Document, DocumentChunk, SessionLocal
 import ollama
+from sqlalchemy.orm import Session
 
-_model = None               # loaded model (loaded once, reused each time)
+from backend.database_vector import Document, DocumentChunk, SessionLocal
+
+_model = None  # loaded model (loaded once, reused each time)
 
 
 def chunk_text(text, chunk_size=400):
@@ -22,10 +23,7 @@ def generate_embedding(text: str):
     if not text or not text.strip():
         return [0.0] * 768
     try:
-        response = ollama.embeddings(
-            model="nomic-embed-text:latest",
-            prompt=text
-        )
+        response = ollama.embeddings(model="nomic-embed-text:latest", prompt=text)
         embedding = response["embedding"]
 
         if len(embedding) != 768:
@@ -36,7 +34,6 @@ def generate_embedding(text: str):
     except Exception as e:
         print(f"Embedding generation failed: {e}")
         return [0.0] * 768
-
 
 
 # Insert document + chunks
@@ -63,8 +60,10 @@ def store_document(file_name, file_type, category, extracted_text):
     finally:
         db.close()
 
+
 if __name__ == "__main__":
     from backend.vector_service import store_document
+
     text = "This is a test document for verifying pgvector integration."
     store_document("test_doc.txt", "txt", "manual-test", text)
     print("Inserted test_doc.txt into database.")
