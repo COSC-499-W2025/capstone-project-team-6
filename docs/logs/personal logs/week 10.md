@@ -110,13 +110,36 @@ All of my goals this week have been met successfully. I have created detailed an
 
 
 ## Date Range  
+November 3 - November 9
+<img width="764" height="555" alt="Screenshot 2025-11-09 at 8 45 35 PM" src="https://github.com/user-attachments/assets/3d058f6b-9c32-47af-8fd0-edc60f7dba05" />
+
 
 ## Tasks Worked On  
-
+- Researched the differences between local and cloud-based databases, comparing options like Supabase, PostgreSQL with pgvector, and other vector database alternatives.
+- Refactored the vector database setup from Supabase (cloud) to a local pgvector instance using Docker Compose, finalizing the backend’s local embedding infrastructure.
+- Updated `docker-compose.yml` to include a new `local_pgvector` service and ensured container-level database initialization worked through python -m backend.database_vector.
+- Added fixtures and automated tests for vector database setup and document chunk embeddings.
+- Integrated the local Ollama nomic-embed-text (768-dim) model to replace the JinaAI embedding model (which i also created).
+- Verified end-to-end embedding generation, storage, and retrieval from the pgvector database.
+- Reviewed teammate PRs, provided testing feedback, and helped resolve merge issues.
+- Attended weekly meetings and coordinated backend integration tasks across the team.
 
 ## Weekly Goals Recap  
-
+Transitioned to a fully local embedding setup and ensure backend database integration works end-to-end in Docker. The backend now supports offline embeddings using the Ollama model, ensuring faster performance and complete local control.
+What didn’t go as planned:
+- my initial PR https://github.com/COSC-499-W2025/capstone-project-team-6/issues/106 did not pass the GitHub CI pipeline due to dependency issues and incompatibility with the workflow environment. I resolved this by updating PostgreSQL drivers and Python versions in the CI setup.
+- After completing the first embedding integration using the JinaAI model, we decided to switch to the local Ollama nomic-embed-text model, requiring additional refactoring and testing to ensure compatibility with the pgvector backend.
   
+
+## PR's initiated
+- local-embedding-model https://github.com/COSC-499-W2025/capstone-project-team-6/issues/112
+- refactor-vector-db-local https://github.com/COSC-499-W2025/capstone-project-team-6/issues/106
+
+## PR's reviewed
+- OutputDatabase
+- ansh/logs
+- mithish-logs-w10
+
 # Mohamed Sakr  
 ![Mohamed Week 10](images/MohamedW10.png)
 ## Date Range  
