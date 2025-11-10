@@ -85,11 +85,27 @@ All of my goals this week have been met successfully. I have created detailed an
 
   
 # Mohamed Sakr  
-
+![Mohamed Week 10](images/MohamedW10.png)
 ## Date Range  
+November 3 - November 9
+
+## PRs
+115: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/115
+120: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/120
+
 ## Tasks Worked On 
+- Implemented the new SQLite-backed `analysis.db`, covering schema design for analyses, projects, languages, frameworks, dependencies, contributors, and largest-file metadata. Added helper APIs (`record_analysis`, `get_analysis`, `get_projects_for_analysis`) plus fixtures so tests spin up isolated databases.
+- Built a standalone `documents.db` helper that persists uploaded artefacts with per-category counts (code/docs/tests/config/other) and added alias handling so downstream code can pass either friendly keys or column names. Wrote a focused pytest module verifying schema creation, inserts, and alias mapping.
+
 ## Weekly Goals Recap  
 **Features I was responsible for (this milestone):**
-
+- Delivered the persistence layer for both analysis outputs and document uploads, complete with initialization helpers, migration-safe defaults, and repeatable tests. This sets the foundation for exposing the data to the UI/dashboard next cycle.
+- **What went well:** The schema work landed smoothly, and the modular DB helpers made it easy to plug tests into temporary paths. The SQLite fallback for vector embeddings significantly improved local reliability.
+- **What didn’t go as planned:** Initial test runs failed because of environment gaps . I patched these during the week via fixtures and fallbacks, but they ate time intended for wiring the DBs into the analysis pipeline.
+- **Looking ahead:** Priority for the next cycle is to integrate these databases directly into the app flow (triggering `record_analysis`/`save_document` from the analyzer).
 
 **Progress in the last 2 weeks:** 
+- Built a database for uploaded file with catgories
+- Constructed a database to capture the outputs post-analysis
+- Defined the tasks that will be done by the LLM and prompt engineered templates based on them.
+- Researched models for the LLM-based Analysis both local & cloud based.
