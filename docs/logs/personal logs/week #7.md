@@ -41,6 +41,14 @@ October 13-20
 - Assigned teammate's to tasks.
 - Studied for the quiz held on Wednesday Oct 15.
 
+## PR's initiated
+- Login page draft funcitionality (#34)
+- Added complete cross-platform docker containerization. (#30)
+
+## PR's reviewed
+- Set up SQLite environment with a test database
+- Harjot week7logs
+
 ## Weekly Goals Recap
 
 - **Features I was responsible for (this milestone):** Create user login/signup page, Complete docker containerization for MacOS and windows
