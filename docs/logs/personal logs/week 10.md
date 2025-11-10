@@ -90,7 +90,8 @@ All of my goals this week have been met successfully. I have created detailed an
 November 3 - November 9
 
 ## PRs
-115 & 120
+115: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/115
+120: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/120
 
 ## Tasks Worked On 
 - Implemented the new SQLite-backed `analysis.db`, covering schema design for analyses, projects, languages, frameworks, dependencies, contributors, and largest-file metadata. Added helper APIs (`record_analysis`, `get_analysis`, `get_projects_for_analysis`) plus fixtures so tests spin up isolated databases.
