@@ -138,7 +138,7 @@ October 21-26
 - **Progress in the last 2 weeks:** created our sqlite database and Completed the OCR integration using Tesseract
   
 ## PR's initiated
-- database-file-upload
+- database-file-upload https://github.com/COSC-499-W2025/capstone-project-team-6/issues/64
 - harjot-week8_logs
 
 ## PR's reviewed
