@@ -40,7 +40,7 @@
 - Shipped comprehensive metadata extractor (tech stack/framework/deps/health metrics) building on FileClassifier.  
 - Wrote **29 automated tests**, `METADATA_EXTRACTOR_README.md`, and `example_usage.py`.  
 - Reviewed teammates’ PRs and supported integration.  
-- **PR/Issue:** #105
+- **PR/Issue:** [Analysis without LLM](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/105)
 
 ---
 
