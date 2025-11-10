@@ -158,7 +158,17 @@ October 21-26
 
 - **Features I was responsible for (this milestone):** Implemented backend support for OCR text extraction and database integration. Added a new uploaded_files table, connected it to the file upload system, and ensured extracted text from images and PDFs is stored automatically in SQLite.
 - **Progress in the last 2 weeks:** created our sqlite database and Completed the OCR integration using Tesseract
+  
+## PR's initiated
+- database-file-upload https://github.com/COSC-499-W2025/capstone-project-team-6/issues/64
+- harjot-week8_logs
 
+## PR's reviewed
+- mithish-cli
+- ansh/logs
+- aakashlogs_W8
+
+  
 # Mohamed Sakr
 
 ![Mohamed Peer Eval SS](images/Mohamedw8.png)
