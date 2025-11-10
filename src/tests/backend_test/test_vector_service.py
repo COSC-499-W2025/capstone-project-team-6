@@ -70,7 +70,7 @@ def test_store_empty_text():
     assert len(doc.chunks) == 0
 
 def test_embedding_vector_dimension(tmp_path):
-    """Checks that embeddings are 1024-dimensional."""
+    """Checks that embeddings are 768-dimensional."""
     sample_file = tmp_path / "embed_test.txt"
     sample_file.write_text("The quick brown fox jumps over the lazy dog.")
     content = sample_file.read_text()
@@ -83,7 +83,7 @@ def test_embedding_vector_dimension(tmp_path):
     db.close()
 
     assert chunk is not None, "No chunk found for embed_test.txt"
-    assert len(chunk.embedding) == 1024, f"Expected 1024-dim vector, got {len(chunk.embedding)}"
+    assert len(chunk.embedding) == 768, f"Expected 768-dim vector, got {len(chunk.embedding)}"
 
 def test_embedding_consistency(tmp_path):
     """Ensures same input text produces identical embeddings."""
