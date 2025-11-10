@@ -12,5 +12,24 @@ services:
       - ..:/app
       - /app/venv
     env_file:
-      - .env
-    command: uvicorn src.backend.main:app --host 0.0.0.0 --port 8000
+      - ../src/backend/.env
+    command: tail -f /dev/null             # keeps the docker running and idle since we aren't running a web backend
+    depends_on:                            # wait on the database to start before launching backend
+      - pgvector
+
+  # Local Postgres + pgvector database
+  pgvector:
+    image: ankane/pgvector
+    container_name: local_pgvector        
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: vector_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgvector_data:/var/lib/postgresql/data
+
+volumes:
+  pgvector_data:
