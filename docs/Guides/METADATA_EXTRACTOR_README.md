@@ -342,8 +342,8 @@ QUICK ASSESSMENT:
 | `total_classes` | Total number of classes in the project | `15` |
 | `abstract_classes` | List of abstract class names | `["Animal", "Vehicle"]` |
 | `classes_with_inheritance` | Number of classes that inherit from others | `12` |
-| `inheritance_depth` | Maximum inheritance chain depth | `3` (GrandChild → Child → Parent) |
-| `private_methods` | Methods starting with `__` (not dunder) | `__internal_method` |
+| `inheritance_depth` | Maximum inheritance chain depth | `3` 
+| `private_methods` | Methods starting with `__` (not dunder) | `_internal_method` |
 | `protected_methods` | Methods starting with single `_` | `_helper_method` |
 | `public_methods` | Methods with no underscore prefix | `calculate()` |
 | `properties_count` | Number of `@property` decorators used | `8` |
@@ -352,17 +352,15 @@ QUICK ASSESSMENT:
 ### OOP Score Calculation
 
 The OOP score (0-6) is calculated based on presence of:
-1. ✓ Uses Classes (total_classes > 0)
-2. ✓ Abstraction - Abstract classes detected
-3. ✓ Inheritance - Inheritance depth > 0
-4. ✓ Encapsulation - Private/protected methods > 0
-5. ✓ Properties - Uses @property decorator
-6. ✓ Polymorphism - Operator overloads present
+1. Uses Classes (total_classes > 0)
+2.  Abstraction - Abstract classes detected
+3. Inheritance - Inheritance depth > 0
+4. Encapsulation - Private/protected methods > 0
+5. Properties - Uses @property decorator
+6. Polymorphism - Operator overloads present
 
-### JSON Output Format (Phase 3 Addition)
-
-When Phase 3 is included, each project in the report gets an `oop_analysis` field:
-
+### JSON Output Format 
+#### Python Projects
 ```json
 {
   "projects": [
@@ -386,13 +384,317 @@ When Phase 3 is included, each project in the report gets an `oop_analysis` fiel
 }
 ```
 
+## Phase 3: Deep Code Analysis - Java OOP Detection
+
+### Overview
+
+Extending Phase 3 to Java projects, the system now performs comprehensive Object-Oriented Programming analysis on Java source code using the `javalang` parser to detect OOP principles, design patterns, and SOLID principles.
+
+### Installation for Java Analysis
+
+```bash
+pip install javalang
+```
+
+**Note:** Java analysis is optional. If `javalang` is not installed, the system will gracefully skip Java OOP analysis and continue with other analysis phases.
+
+### Java OOP Features
+
+#### 1. Core OOP Principles Detection
+
+**Abstraction**
+- Detects interfaces
+- Identifies abstract classes
+- Lists all abstract class names
+- Tracks interface implementations
+
+**Encapsulation**
+- Counts private, protected, public, and package-private methods
+- Tracks field access modifiers (private, protected, public)
+- Detects getter/setter pairs
+- Analyzes encapsulation patterns
+
+**Inheritance**
+- Calculates maximum inheritance depth
+- Tracks `extends` relationships
+- Monitors `implements` relationships
+- Counts classes with inheritance
+
+**Polymorphism**
+- Detects `@Override` annotations
+- Identifies method overloading
+- Tracks polymorphic behavior
+
+#### 2. Java-Specific Features
+
+**Generics**
+- Detects generic classes (e.g., `List<T>`, `Map<K,V>`)
+- Tracks type parameter usage
+- Analyzes generic methods
+
+**Modern Java Features**
+- Lambda expression counting
+- Nested/inner class detection
+- Anonymous class identification
+- Enum detection and counting
+
+**Annotations**
+- Tracks all annotations used (Spring, JPA, Lombok, etc.)
+- Counts annotation occurrences
+- Common annotations: `@Override`, `@Autowired`, `@Service`, `@Repository`, `@Entity`, etc.
+
+#### 3. Design Pattern Detection
+
+The analyzer automatically detects common design patterns:
+
+| Pattern | Detection Method |
+|---------|------------------|
+| **Singleton** | Private constructor + `getInstance()` method, or `@Singleton` annotation |
+| **Factory** | Class name contains "Factory" |
+| **Builder** | Nested `Builder` class or class name contains "Builder" |
+| **Repository** | Class/interface name ends with "Repository" |
+| **Service Layer** | Class name ends with "Service" |
+| **MVC Controller** | Class name ends with "Controller" |
+| **Observer** | Implements Observable/Observer interfaces |
+| **Strategy** | Interface with "Strategy" in name |
+
+#### 4. SOLID Principles Scoring
+
+Calculates SOLID score (0-5.0) based on:
+- **Single Responsibility**: Average methods per class (3-15 is ideal)
+- **Open/Closed**: Use of interfaces and abstract classes
+- **Liskov Substitution**: Inheritance with proper overrides
+- **Interface Segregation**: Multiple interfaces (≥3 indicates good separation)
+- **Dependency Inversion**: Interface usage with dependency injection patterns
+
+### Usage
+
+#### Analyze Individual Java Files
+
+```bash
+python src/backend/analysis/java_oop_analyzer.py <path_to_file.java>
+
+# Examples
+python src/backend/analysis/java_oop_analyzer.py src/main/java/User.java
+python src/backend/analysis/java_oop_analyzer.py ~/MyClass.java
+```
+
+**Output:**
+```
+======================================================================
+ANALYZING: User.java
+======================================================================
+
+JAVA OOP ANALYSIS RESULTS:
+
+  Classes & Interfaces:
+    Total classes: 1
+    Interfaces: 0
+    Enums: 0
+    With inheritance: 0
+    Max inheritance depth: 0
+
+  Encapsulation:
+    Methods:
+      Private: 2
+      Protected: 0
+      Public: 5
+      Package-private: 0
+    Fields:
+      Private: 3
+      Protected: 0
+      Public: 0
+    Getter/Setter pairs: 3
+
+  Polymorphism:
+    Method overrides (@Override): 2
+    Method overloads: 1
+
+  Java-Specific Features:
+    Generic classes: 0
+    Nested classes: 0
+    Lambda expressions: 0
+
+  Annotations:
+    @Override: 2
+
+OOP Score: 4/6
+SOLID Score: 3.5/5.0
+Coding Style: Moderate OOP
+```
+
+#### Unified Analysis (Python + Java)
+
+The comprehensive analysis script automatically analyzes both Python and Java projects:
+
+```bash
+python src/backend/analysis/analyze.py project.zip
+```
+
+**Output includes both Python and Java analysis:**
+```
+======================================================================
+  PHASE 3: CODE ANALYSIS FOR OOP PRINCIPLES
+======================================================================
+
+**************************************************************
+  PYTHON OOP ANALYSIS
+**************************************************************
+
+Project 1: backend
+----------------------------------------------------------------------
+OOP Metrics:
+  Total Classes: 12
+  Abstract Classes: BaseHandler, AbstractRepository
+  ...
+
+Coding Style: Advanced OOP
+
+**************************************************************
+  JAVA OOP ANALYSIS
+**************************************************************
+
+Project 1: microservice
+----------------------------------------------------------------------
+OOP Metrics:
+  Total Classes: 25
+  Interfaces: 8
+  Abstract Classes: AbstractService, BaseController
+  Enums: 3
+
+Encapsulation:
+  Total Methods: 140
+    - Private: 45
+    - Protected: 12
+    - Public: 78
+    - Package-private: 5
+  Private Fields: 60
+  Getter/Setter pairs: 30
+
+Polymorphism:
+  Method Overrides (@Override): 32
+  Method Overloads: 15
+
+Java-Specific Features:
+  Generic Classes: 6
+  Nested Classes: 4
+  Lambda Expressions: 8
+
+Annotations (top 5):
+  @Override: 32
+  @Autowired: 12
+  @Service: 5
+  @Entity: 4
+  @Repository: 3
+
+Design Patterns Detected:
+  ✓ Singleton
+  ✓ Factory
+  ✓ Builder
+  ✓ Repository
+  ✓ Service Layer
+  ✓ MVC Controller
+
+OOP Score: 6/6
+SOLID Score: 4.5/5.0
+Principles Used:
+  ✓ Uses Classes/Interfaces
+  ✓ Abstraction
+  ✓ Inheritance
+  ✓ Encapsulation
+  ✓ Polymorphism
+  ✓ Advanced Features
+
+Coding Style: Advanced OOP
+```
+
+### Java OOP Metrics Explained
+
+| Metric | Description | Example |
+|--------|-------------|---------|
+| `total_classes` | Number of classes (excludes interfaces/enums) | `25` |
+| `interface_count` | Number of interfaces defined | `8` |
+| `abstract_classes` | List of abstract class names | `["BaseService", "AbstractController"]` |
+| `enum_count` | Number of enum types | `3` |
+| `private_methods` | Methods with `private` modifier | `45` |
+| `protected_methods` | Methods with `protected` modifier | `12` |
+| `public_methods` | Methods with `public` modifier | `78` |
+| `package_methods` | Package-private methods (no modifier) | `5` |
+| `private_fields` | Fields with `private` modifier | `60` |
+| `classes_with_inheritance` | Classes that extend or implement | `18` |
+| `inheritance_depth` | Maximum inheritance chain depth | `4` |
+| `override_count` | Number of `@Override` annotations | `32` |
+| `method_overloads` | Methods with same name, different params | `15` |
+| `generic_classes` | Classes using generics | `6` |
+| `nested_classes` | Inner/nested classes | `4` |
+| `lambda_count` | Lambda expressions used | `8` |
+| `getter_setter_pairs` | Estimated getter/setter pairs | `30` |
+| `annotations` | Map of annotation names to counts | `{"Override": 32, "Autowired": 12}` |
+| `design_patterns` | Detected design patterns | `["Singleton", "Factory", "Builder"]` |
+
+### Java OOP Score Calculation
+
+The OOP score (0-6) is calculated based on:
+1. ✓ **Uses Classes/Interfaces** - Has classes or interfaces
+2. ✓ **Abstraction** - Has interfaces or abstract classes
+3. ✓ **Inheritance** - Inheritance depth > 0
+4. ✓ **Encapsulation** - Uses private fields/methods
+5. ✓ **Polymorphism** - Has @Override or method overloads
+6. ✓ **Advanced Features** - Uses generics, annotations, or lambdas
+
+### Java SOLID Score Calculation
+
+The SOLID score (0-5.0) evaluates:
+- **Single Responsibility** - Classes have focused responsibilities (3-15 methods ideal)
+- **Open/Closed** - Uses interfaces and abstract classes for extension
+- **Liskov Substitution** - Inheritance with proper method overrides
+- **Interface Segregation** - Multiple interfaces indicate good separation
+- **Dependency Inversion** - Interface usage with dependency injection
+
+### Coding Style Classification
+
+| OOP Score | Style | Description |
+|-----------|-------|-------------|
+| 0 | Procedural/Functional | No OOP constructs detected |
+| 1-2 | Basic OOP | Simple class usage, limited principles |
+| 3-4 | Moderate OOP | Multiple principles, some patterns |
+| 5-6 | Advanced OOP | Comprehensive OOP with patterns |
+
 ### Supported Languages (Phase 3)
 
 Currently, deep OOP analysis is supported for:
+
 - **Python** - Full OOP analysis using AST
-- **Java** - WIP
+- **Java** - Full OOP analysis using javalang parser (requires `pip install javalang`)
 
 ### Technical Implementation
+
+**Python Analysis:**
+
+- Uses Python's built-in `ast` module
+- No external dependencies required
+- Parses code into Abstract Syntax Tree
+- Visitor pattern for traversing nodes
+- Handles complex inheritance chains
+
+**Java Analysis:**
+
+- Uses `javalang` library for Java AST parsing
+- Optional dependency with graceful fallback
+- Parses Java source into syntax tree
+- Visitor pattern for node traversal
+- Handles complex generic types and annotations
+
+**Key Classes:**
+
+- `OOPAnalysis` - Data class storing all OOP metrics
+- `PythonOOPAnalyzer` - AST visitor for Python analysis
+- `JavaOOPAnalysis` - Data class for Java OOP metrics
+- `JavaOOPAnalyzer` - Java AST analyzer
+- `analyze_python_file()` - Analyze single file
+- `analyze_java_file()` - Analyze single Java file
+- `analyze_project_deep()` - Analyze entire project
+- `generate_comprehensive_report()` - Orchestrate all phases
 
 **AST-Based Analysis:**
 - Uses Python's built-in `ast` module
@@ -436,30 +738,6 @@ patterns = detect_patterns(report)
 
 7. **Design Patterns**: Automated design pattern detection is planned but not yet implemented.
 
-## Future Enhancements
-
-### Phase 1 & 2 Enhancements
-- [ ] Full git commit history parsing with `gitpython`
-- [ ] Security vulnerability scanning for dependencies
-- [ ] License detection and compliance checking
-- [ ] Code duplication detection
-- [ ] API endpoint extraction
-- [ ] Database schema detection
-- [ ] Test execution and actual coverage measurement
-
-### Phase 3 (OOP Analysis) Enhancements
-- [ ] **Multi-Language Support**: Extend OOP analysis to Java, C++, TypeScript, C#
-- [ ] **Design Pattern Detection**: Identify common patterns (Singleton, Factory, Observer, Strategy, etc.)
-- [ ] **Code Complexity Metrics**: Cyclomatic complexity, cognitive complexity
-- [ ] **Method Override Detection**: Track method overrides in inheritance hierarchies
-- [ ] **SOLID Principles Analysis**: Evaluate adherence to SOLID principles
-- [ ] **Code Smell Detection**: Identify anti-patterns and code smells
-- [ ] **Dependency Injection Analysis**: Detect DI patterns and frameworks
-- [ ] **Composition vs Inheritance Ratio**: Analyze design approach preferences
-- [ ] **Interface Segregation Metrics**: Evaluate interface design quality
-- [ ] **Maintainability Index**: Calculate overall code maintainability score
-
-## Troubleshooting
 
 ### Issue: No projects detected
 **Solution**: Ensure ZIP contains project indicator files (README, requirements.txt, package.json, etc.)
@@ -472,6 +750,15 @@ patterns = detect_patterns(report)
 
 ### Issue: JSON serialization error
 **Solution**: Ensure all custom data types are properly converted in `to_dict()` methods
+
+### Issue: Java analysis not running
+**Solution**: Install javalang library: `pip install javalang`. The system will gracefully skip Java analysis if not installed.
+
+### Issue: Java parsing errors
+**Solution**: Ensure Java files are valid Java source code. Complex generic types or newer Java syntax may require updated javalang version.
+
+### Issue: Missing design patterns in Java
+**Solution**: Pattern detection uses heuristics based on naming conventions and annotations. Ensure classes follow common naming patterns (e.g., `UserFactory`, `PersonBuilder`, `ProductRepository`).
 
 ## Contributing
 
