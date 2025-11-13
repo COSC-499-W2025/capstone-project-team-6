@@ -49,6 +49,3 @@ pgvector==0.3.2
 
 # Embeddings
 ollama==0.3.2
-
-# Code Analysis
-javalang==0.13.0  # Java parser for OOP analysis
