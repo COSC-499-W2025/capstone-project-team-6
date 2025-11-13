@@ -103,13 +103,16 @@ def main():
             print(f"  Has Docker: {'true' if project['has_docker'] else 'false'}")
             print(f"  Test Coverage: {project['test_coverage_estimate']}")
 
-        print_separator("PHASE 3: CODE ANALYSIS FOR OOP PRINCIPLES (PYTHON PROJECTS FOR NOW)")
-        # Other languages will be added later
+        print_separator("PHASE 3: CODE ANALYSIS FOR OOP PRINCIPLES")
+        
+        # Analyze Python projects
         python_projects = [p for p in report["projects"] if "python" in p.get("languages", {})]
 
-        if not python_projects:
-            print("No Python projects found for OOP analysis.\n")
-        else:
+        if python_projects:
+            print(f"\n{'*' * 70}")
+            print(f"  PYTHON OOP ANALYSIS")
+            print(f"{'*' * 70}\n")
+            
             for i, project in enumerate(python_projects, 1):
                 if "oop_analysis" not in project:
                     continue
@@ -181,6 +184,122 @@ def main():
                     style = "Basic OOP"
 
                 print(f"\nCoding Style: {style}")
+        else:
+            print("\nNo Python projects found for OOP analysis.")
+        
+        # Analyze Java projects
+        java_projects = [p for p in report["projects"] if "java" in p.get("languages", {})]
+        
+        if java_projects:
+            print(f"\n{'*' * 70}")
+            print(f"  JAVA OOP ANALYSIS")
+            print(f"{'*' * 70}\n")
+            
+            for i, project in enumerate(java_projects, 1):
+                if "java_oop_analysis" not in project:
+                    continue
+                
+                print(f"\n{'-' * 70}")
+                print(f"Project {i}: {project['project_name']}")
+                print(f"{'-' * 70}")
+                
+                java_oop = project["java_oop_analysis"]
+                
+                if "error" in java_oop:
+                    print(f"\nError during analysis: {java_oop['error']}\n")
+                    continue
+                
+                print(f"\nOOP Metrics:")
+                print(f"  Total Classes: {java_oop['total_classes']}")
+                print(f"  Interfaces: {java_oop['interface_count']}")
+                
+                if java_oop["abstract_classes"]:
+                    print(f"  Abstract Classes: {', '.join(java_oop['abstract_classes'][:5])}")
+                    if len(java_oop["abstract_classes"]) > 5:
+                        print(f"    ... and {len(java_oop['abstract_classes']) - 5} more")
+                
+                print(f"  Enums: {java_oop['enum_count']}")
+                print(f"  Classes with Inheritance: {java_oop['classes_with_inheritance']}")
+                print(f"  Max Inheritance Depth: {java_oop['inheritance_depth']}")
+                
+                print(f"\nEncapsulation:")
+                total_methods = (java_oop["private_methods"] + java_oop["protected_methods"] + 
+                               java_oop["public_methods"] + java_oop["package_methods"])
+                print(f"  Total Methods: {total_methods}")
+                print(f"    - Private: {java_oop['private_methods']}")
+                print(f"    - Protected: {java_oop['protected_methods']}")
+                print(f"    - Public: {java_oop['public_methods']}")
+                print(f"    - Package-private: {java_oop['package_methods']}")
+                print(f"  Private Fields: {java_oop['private_fields']}")
+                print(f"  Getter/Setter Pairs: {java_oop['getter_setter_pairs']}")
+                
+                print(f"\nPolymorphism:")
+                print(f"  Method Overrides (@Override): {java_oop['override_count']}")
+                print(f"  Method Overloads: {java_oop['method_overloads']}")
+                
+                print(f"\nJava-Specific Features:")
+                print(f"  Generic Classes: {java_oop['generic_classes']}")
+                print(f"  Nested Classes: {java_oop['nested_classes']}")
+                print(f"  Lambda Expressions: {java_oop['lambda_count']}")
+                
+                if java_oop.get("annotations"):
+                    print(f"\nAnnotations (top 5):")
+                    for anno, count in sorted(java_oop["annotations"].items(), key=lambda x: x[1], reverse=True)[:5]:
+                        print(f"  @{anno}: {count}")
+                
+                if java_oop.get("design_patterns"):
+                    print(f"\nDesign Patterns Detected:")
+                    for pattern in java_oop["design_patterns"]:
+                        print(f"  ✓ {pattern}")
+                
+                # Calculate OOP score
+                from analysis.java_oop_analyzer import calculate_oop_score, calculate_solid_score, get_coding_style
+                from dataclasses import dataclass, field
+                from typing import Dict, List
+                
+                @dataclass
+                class JavaOOPAnalysis:
+                    total_classes: int = 0
+                    interface_count: int = 0
+                    abstract_classes: List[str] = field(default_factory=list)
+                    enum_count: int = 0
+                    private_methods: int = 0
+                    protected_methods: int = 0
+                    public_methods: int = 0
+                    package_methods: int = 0
+                    private_fields: int = 0
+                    protected_fields: int = 0
+                    public_fields: int = 0
+                    classes_with_inheritance: int = 0
+                    inheritance_depth: int = 0
+                    override_count: int = 0
+                    method_overloads: int = 0
+                    generic_classes: int = 0
+                    nested_classes: int = 0
+                    anonymous_classes: int = 0
+                    lambda_count: int = 0
+                    annotations: Dict[str, int] = field(default_factory=dict)
+                    design_patterns: List[str] = field(default_factory=list)
+                    getter_setter_pairs: int = 0
+                
+                analysis_obj = JavaOOPAnalysis(**java_oop)
+                oop_score = calculate_oop_score(analysis_obj)
+                solid_score = calculate_solid_score(analysis_obj)
+                coding_style = get_coding_style(oop_score)
+                
+                print(f"\nOOP Score: {oop_score}/6")
+                print(f"SOLID Score: {solid_score:.1f}/5.0")
+                print(f"Principles Used:")
+                print(f"  {'✓' if java_oop['total_classes'] > 0 or java_oop['interface_count'] > 0 else '✗'} Uses Classes/Interfaces")
+                print(f"  {'✓' if java_oop['interface_count'] > 0 or java_oop['abstract_classes'] else '✗'} Abstraction")
+                print(f"  {'✓' if java_oop['inheritance_depth'] > 0 else '✗'} Inheritance")
+                print(f"  {'✓' if java_oop['private_fields'] > 0 or java_oop['private_methods'] > 0 else '✗'} Encapsulation")
+                print(f"  {'✓' if java_oop['override_count'] > 0 or java_oop['method_overloads'] > 0 else '✗'} Polymorphism")
+                print(f"  {'✓' if java_oop['generic_classes'] > 0 or java_oop['annotations'] or java_oop['lambda_count'] > 0 else '✗'} Advanced Features")
+                
+                print(f"\nCoding Style: {coding_style}")
+        else:
+            print("\nNo Java projects found for OOP analysis.")
 
         # Offer to save JSON
         print_separator()
@@ -205,3 +324,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
