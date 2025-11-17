@@ -91,6 +91,7 @@ class ClassInfo:
     has_private_constructor: bool = False
     static_methods: List[str] = field(default_factory=list)
     static_fields: List[str] = field(default_factory=list)
+    method_signatures: Dict[str, int] = field(default_factory=lambda: defaultdict(int))  # method_name -> count
 
 
 class JavaOOPAnalyzer:
@@ -113,6 +114,7 @@ class JavaOOPAnalyzer:
             self._visit_tree(tree)
             self._calculate_inheritance_depth()
             self._detect_design_patterns()
+            self._detect_method_overloads()
             self._detect_getter_setter_pairs()
             return self.analysis
         except Exception as e:
@@ -146,6 +148,11 @@ class JavaOOPAnalyzer:
         # Count lambdas
         for path, node in tree.filter(javalang.tree.LambdaExpression):
             self.analysis.lambda_count += 1
+        
+        # Count anonymous classes
+        for path, node in tree.filter(javalang.tree.ClassCreator):
+            if node.body:  
+                self.analysis.anonymous_classes += 1
     
     def _analyze_class(self, node: javalang.tree.ClassDeclaration, path):
         """Analyze a class declaration."""
@@ -239,14 +246,18 @@ class JavaOOPAnalyzer:
         """Analyze a method declaration."""
         modifiers = node.modifiers or []
         
-        # Track static methods for singleton detection
-        if 'static' in modifiers:
-            for parent in reversed(path):
-                if isinstance(parent, javalang.tree.ClassDeclaration):
-                    class_name = parent.name
-                    if class_name in self.classes:
+        # Track method names for overload detection
+        for parent in reversed(path):
+            if isinstance(parent, javalang.tree.ClassDeclaration):
+                class_name = parent.name
+                if class_name in self.classes:
+                    # Track static methods for singleton detection
+                    if 'static' in modifiers:
                         self.classes[class_name].static_methods.append(node.name)
-                    break
+                    
+                    # Track method signatures for overload detection
+                    self.classes[class_name].method_signatures[node.name] += 1
+                break
         
         # Count by access modifier
         if 'private' in modifiers:
@@ -390,6 +401,13 @@ class JavaOOPAnalyzer:
             if "Builder" in name and self.classes[name].is_nested:
                 return True
         return False
+    
+    def _detect_method_overloads(self):
+        """Detect method overloads across all classes."""
+        for class_name, class_info in self.classes.items():
+            for method_name, count in class_info.method_signatures.items():
+                if count > 1:
+                    self.analysis.method_overloads += 1
     
     def _detect_getter_setter_pairs(self):
         """Detect getter/setter pairs for encapsulation analysis."""
