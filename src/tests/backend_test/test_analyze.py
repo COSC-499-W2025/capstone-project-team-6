@@ -17,7 +17,7 @@ backend_dir = src_dir / "backend"
 sys.path.insert(0, str(src_dir))
 sys.path.insert(0, str(backend_dir))
 
-from analysis.deep_code_analyzer import generate_comprehensive_report
+from backend.analysis.deep_code_analyzer import generate_comprehensive_report
 
 
 class TestGenerateComprehensiveReport:
@@ -317,8 +317,9 @@ class TestPythonOOPScoring:
     
     def test_advanced_oop_style(self):
         """Test advanced OOP code gets high score."""
-        with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as tmp:
-            with zipfile.ZipFile(tmp.name, 'w') as zf:
+        with tempfile.TemporaryDirectory() as tmpdir:  # CHANGED
+            zip_path = Path(tmpdir) / "shapes.zip"
+            with zipfile.ZipFile(zip_path, 'w') as zf:
                 code = """
 from abc import ABC, abstractmethod
 
@@ -344,18 +345,18 @@ class Circle(Shape):
 """
                 zf.writestr('shapes.py', code)
             
-            try:
-                report = generate_comprehensive_report(Path(tmp.name))
-                project = report['projects'][0]
-                
-                if 'oop_analysis' in project and 'error' not in project['oop_analysis']:
-                    oop = project['oop_analysis']
-                    assert oop['total_classes'] >= 2
-                    assert len(oop['abstract_classes']) > 0
-                    assert oop['inheritance_depth'] > 0
+            #try:
+            report = generate_comprehensive_report(Path(zip_path))
+            project = report['projects'][0]
+            
+            if 'oop_analysis' in project and 'error' not in project['oop_analysis']:
+                oop = project['oop_analysis']
+                assert oop['total_classes'] >= 2
+                assert len(oop['abstract_classes']) > 0
+                assert oop['inheritance_depth'] > 0
                     
-            finally:
-                os.unlink(tmp.name)
+            #finally:
+            #    os.unlink(tmp.name)
 
 
 if __name__ == "__main__":
