@@ -148,9 +148,12 @@ class JavaOOPAnalyzer:
             is_abstract='abstract' in (node.modifiers or []),
             is_generic=node.type_parameters is not None and len(node.type_parameters) > 0
         )        
-        if len(path) > 1:
-            class_info.is_nested = True
-            self.analysis.nested_classes += 1
+        # Check if nested: parent in path should be another ClassDeclaration
+        for parent_node in path:
+            if isinstance(parent_node, javalang.tree.ClassDeclaration):
+                class_info.is_nested = True
+                self.analysis.nested_classes += 1
+                break
         
         # Track abstract classes
         if class_info.is_abstract:
