@@ -26,8 +26,9 @@ class TestGenerateComprehensiveReport:
     @pytest.fixture
     def sample_python_zip(self):
         """Create a temporary ZIP file with Python code."""
-        with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as tmp:
-            with zipfile.ZipFile(tmp.name, 'w') as zf:
+        with tempfile.TemporaryDirectory() as tmpdir: 
+            zip_path = Path(tmpdir) / "shapes.zip"
+            with zipfile.ZipFile(zip_path, 'w') as zf:
                 # Add a simple Python file
                 python_code = """
 class MyClass:
@@ -40,16 +41,17 @@ class MyClass:
                 zf.writestr('test.py', python_code)
                 zf.writestr('README.md', '# Test Project')
             
-            yield Path(tmp.name)
+            yield zip_path
             
             # Cleanup
-            os.unlink(tmp.name)
+            #os.unlink(tmp.name)
     
     @pytest.fixture
     def sample_java_zip(self):
         """Create a temporary ZIP file with Java code."""
-        with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as tmp:
-            with zipfile.ZipFile(tmp.name, 'w') as zf:
+        with tempfile.TemporaryDirectory() as tmpdir: 
+            zip_path = Path(tmpdir) / "shapes.zip"
+            with zipfile.ZipFile(zip_path, 'w') as zf:
                 # Add a simple Java file
                 java_code = """
 public class Plane {
@@ -67,16 +69,17 @@ public class Plane {
                 zf.writestr('Plane.java', java_code)
                 zf.writestr('pom.xml', '<project></project>')
             
-            yield Path(tmp.name)
+            yield zip_path
             
             # Cleanup
-            os.unlink(tmp.name)
+            #os.unlink(tmp.name)
     
     @pytest.fixture
     def sample_mixed_zip(self):
         """Create a temporary ZIP file with both Python and Java aircraft-related code."""
-        with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as tmp:
-            with zipfile.ZipFile(tmp.name, 'w') as zf:
+        with tempfile.TemporaryDirectory() as tmpdir: 
+            zip_path = Path(tmpdir) / "shapes.zip"
+            with zipfile.ZipFile(zip_path, 'w') as zf:
                 # Add Python file
                 python_code = """
     from abc import ABC, abstractmethod
@@ -115,10 +118,10 @@ public class Plane {
 
                 zf.writestr('README.md', '# Mixed Aircraft Project')
 
-            yield Path(tmp.name)
+            yield zip_path
 
             # Cleanup
-            os.unlink(tmp.name)
+            #os.unlink(tmp.name)
 
     
 
@@ -155,19 +158,20 @@ public class Plane {
     
     def test_empty_zip(self):
         """Test analyzing an empty ZIP file."""
-        with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as tmp:
-            with zipfile.ZipFile(tmp.name, 'w') as zf:
+        with tempfile.TemporaryDirectory() as tmpdir: 
+            zip_path = Path(tmpdir) / "shapes.zip"
+            with zipfile.ZipFile(zip_path, 'w') as zf:
                 pass  # Empty zip
             
-            try:
-                report = generate_comprehensive_report(Path(tmp.name))
+            #try:
+            report = generate_comprehensive_report(Path(zip_path))
+            
+            assert 'projects' in report
+            assert 'summary' in report
+            # Should handle empty project gracefully
                 
-                assert 'projects' in report
-                assert 'summary' in report
-                # Should handle empty project gracefully
-                
-            finally:
-                os.unlink(tmp.name)
+            #finally:
+            #    os.unlink(tmp.name)
     
     def test_report_structure(self, sample_python_zip):
         """Test that the report has the expected structure."""
@@ -217,8 +221,9 @@ class TestAnalyzeScriptIntegration:
     
     @pytest.fixture
     def sample_project_zip(self):
-        with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as tmp:
-            with zipfile.ZipFile(tmp.name, 'w') as zf:
+        with tempfile.TemporaryDirectory() as tmpdir: 
+            zip_path = Path(tmpdir) / "shapes.zip"
+            with zipfile.ZipFile(zip_path, 'w') as zf:
                 
                 # Very simple Python OOP
                 python_code = """
@@ -247,8 +252,8 @@ class TestAnalyzeScriptIntegration:
                 zf.writestr('README.md', '# Simple Airport Project')
                 zf.writestr('requirements.txt', 'pytest==7.0.0')
 
-            yield Path(tmp.name)
-            os.unlink(tmp.name)
+            yield zip_path
+            #os.unlink(tmp.name)
 
     
     def test_comprehensive_analysis_with_both_languages(self, sample_project_zip):
@@ -275,8 +280,9 @@ class TestJavaAnalysisWithoutJavalang:
     @pytest.fixture
     def sample_java_zip(self):
         """Create a temporary ZIP file with Java code."""
-        with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as tmp:
-            with zipfile.ZipFile(tmp.name, 'w') as zf:
+        with tempfile.TemporaryDirectory() as tmpdir: 
+            zip_path = Path(tmpdir) / "shapes.zip"
+            with zipfile.ZipFile(zip_path, 'w') as zf:
                 java_code = """
                 public class Test {
                     private int x;
@@ -284,8 +290,8 @@ class TestJavaAnalysisWithoutJavalang:
                 """
                 zf.writestr('Test.java', java_code)
             
-            yield Path(tmp.name)
-            os.unlink(tmp.name)
+            yield zip_path
+            #os.unlink(tmp.name)
     
 
 class TestPythonOOPScoring:
@@ -293,8 +299,9 @@ class TestPythonOOPScoring:
     
     def test_procedural_style(self):
         """Test procedural/functional code gets low OOP score."""
-        with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as tmp:
-            with zipfile.ZipFile(tmp.name, 'w') as zf:
+        with tempfile.TemporaryDirectory() as tmpdir: 
+            zip_path = Path(tmpdir) / "shapes.zip"
+            with zipfile.ZipFile(zip_path, 'w') as zf:
                 code = """
             def add(x, y):
                 return x + y
@@ -304,20 +311,20 @@ class TestPythonOOPScoring:
             """
                 zf.writestr('math.py', code)
             
-            try:
-                report = generate_comprehensive_report(Path(tmp.name))
-                project = report['projects'][0]
-                
-                if 'oop_analysis' in project and 'error' not in project['oop_analysis']:
-                    oop = project['oop_analysis']
-                    assert oop['total_classes'] == 0
+            #try:
+            report = generate_comprehensive_report(Path(zip_path))
+            project = report['projects'][0]
+            
+            if 'oop_analysis' in project and 'error' not in project['oop_analysis']:
+                oop = project['oop_analysis']
+                assert oop['total_classes'] == 0
                     
-            finally:
-                os.unlink(tmp.name)
+            #finally:
+            #    os.unlink(tmp.name)
     
     def test_advanced_oop_style(self):
         """Test advanced OOP code gets high score."""
-        with tempfile.TemporaryDirectory() as tmpdir:  # CHANGED
+        with tempfile.TemporaryDirectory() as tmpdir:
             zip_path = Path(tmpdir) / "shapes.zip"
             with zipfile.ZipFile(zip_path, 'w') as zf:
                 code = """
