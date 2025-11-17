@@ -88,6 +88,9 @@ class ClassInfo:
     annotations: List[str] = field(default_factory=list)
     is_generic: bool = False
     is_nested: bool = False
+    has_private_constructor: bool = False
+    static_methods: List[str] = field(default_factory=list)
+    static_fields: List[str] = field(default_factory=list)
 
 
 class JavaOOPAnalyzer:
@@ -128,6 +131,11 @@ class JavaOOPAnalyzer:
         
         for path, node in tree.filter(javalang.tree.EnumDeclaration):
             self._analyze_enum(node, path)
+        
+        # Analyze constructors
+        for path, node in tree.filter(javalang.tree.ConstructorDeclaration):
+            self._analyze_constructor(node, path)
+        
         for path, node in tree.filter(javalang.tree.MethodDeclaration):
             self._analyze_method(node, path)
         
@@ -202,6 +210,20 @@ class JavaOOPAnalyzer:
         
         self.classes[node.name] = class_info
     
+    def _analyze_constructor(self, node: javalang.tree.ConstructorDeclaration, path):
+        """Analyze a constructor declaration."""
+        modifiers = node.modifiers or []
+        
+        # Find the class this constructor belongs to
+        for parent in reversed(path):
+            if isinstance(parent, javalang.tree.ClassDeclaration):
+                class_name = parent.name
+                if class_name in self.classes:
+                    # Check if constructor is private
+                    if 'private' in modifiers:
+                        self.classes[class_name].has_private_constructor = True
+                break
+    
     def _analyze_enum(self, node: javalang.tree.EnumDeclaration, path):
         """Analyze an enum declaration."""
         self.analysis.enum_count += 1
@@ -216,6 +238,15 @@ class JavaOOPAnalyzer:
     def _analyze_method(self, node: javalang.tree.MethodDeclaration, path):
         """Analyze a method declaration."""
         modifiers = node.modifiers or []
+        
+        # Track static methods for singleton detection
+        if 'static' in modifiers:
+            for parent in reversed(path):
+                if isinstance(parent, javalang.tree.ClassDeclaration):
+                    class_name = parent.name
+                    if class_name in self.classes:
+                        self.classes[class_name].static_methods.append(node.name)
+                    break
         
         # Count by access modifier
         if 'private' in modifiers:
@@ -240,6 +271,16 @@ class JavaOOPAnalyzer:
     def _analyze_field(self, node: javalang.tree.FieldDeclaration, path):
         """Analyze a field declaration."""
         modifiers = node.modifiers or []
+        
+        # Track static fields for singleton detection
+        if 'static' in modifiers:
+            for parent in reversed(path):
+                if isinstance(parent, javalang.tree.ClassDeclaration):
+                    class_name = parent.name
+                    if class_name in self.classes:
+                        for declarator in node.declarators:
+                            self.classes[class_name].static_fields.append(declarator.name)
+                    break
         
         # Count by access modifier
         if 'private' in modifiers:
@@ -319,8 +360,28 @@ class JavaOOPAnalyzer:
     
     def _is_singleton_pattern(self, class_name: str, class_info: ClassInfo) -> bool:
         """Check if a class follows the Singleton pattern."""
-        # Simple heuristic: check for common Singleton annotations or naming
-        return any(anno in ["Singleton", "Component"] for anno in class_info.annotations)
+        if any(anno in ["Singleton", "Component"] for anno in class_info.annotations):
+            return True
+        
+        # Check for structural singleton pattern:
+        # 1. Private constructor
+        # 2. Static getInstance/instance method OR static field of same type
+        if class_info.has_private_constructor:
+            has_instance_method = any(
+                method.lower() in ['getinstance', 'instance', 'get']
+                for method in class_info.static_methods
+            )
+            
+            # Look for static instance field
+            has_instance_field = any(
+                field.lower() in ['instance', 'singleton']
+                for field in class_info.static_fields
+            )
+            
+            if has_instance_method or has_instance_field:
+                return True
+        
+        return False
     
     def _has_builder_nested_class(self, class_name: str) -> bool:
         """Check if a class has a nested Builder class."""
