@@ -282,9 +282,6 @@ class COOPAnalyzer:
             if 'error' in enum_name or 'status' in enum_name:
                 self.analysis.error_enum_count += 1
         
-        #FIELD DECLARATIONS
-        elif cursor.kind == CursorKind.FIELD_DECL and parent_struct:
-            self._analyze_field(cursor, parent_struct)
         
         # RECURSE TO CHILDREN
         for child in cursor.get_children():
@@ -477,20 +474,134 @@ class COOPAnalyzer:
             'filename': filename
         }
     
-    def _matches_oop_naming(self):
-        return 
-
-    def _analyze_field(self):
-        return
+    def _matches_oop_naming(self, func_name: str) -> bool:
+        '''basic name check'''
+        pattern = r'^[A-Z][a-zA-Z0-9]*_[a-z][a-zA-Z0-9]*$'
+        return bool(re.match(pattern, func_name))
 
     def _detect_opaque_pointers(self):
-        return
+        """
+        Detect opaque pointer pattern
+        
+        Pattern:
+            In header (.h):
+                struct MyType;  // Forward declaration only
+                struct MyType* MyType_create();  // Return pointer
+            
+            In implementation (.c):
+                struct MyType {  // Full definition hidden
+                    int private_data;
+                };
+        
+        Users can only access via pointer, can't see internals.
+        This forces use of provided API functions (encapsulation).
+        """
+        # Opaque pointers are structs that are declared but never defined
+        opaque = self.declared_structs - self.defined_structs 
+        self.analysis.opaque_pointer_structs = len(opaque)
+        
+        # Mark structs as opaque
+        for struct_name in opaque:
+            if struct_name not in self.structs:
+                self.structs[struct_name] = CStructInfo(name=struct_name)
+            self.structs[struct_name].is_opaque = True
+    
 
     def _match_constructor_destructor_pairs(self):
-        return
+        """
+        Match constructor/destructor function pairs.
+        High pair count = disciplined resource management
+        """
+        
+        create_bases = set()
+        for func in self.create_functions:
+            if func.endswith('_create'):
+                base = func[:-7]
+            elif func.endswith('_new'):
+                base = func[:-4]
+            else:
+                continue
+            create_bases.add(base)
+        
+
+        destroy_bases = set()
+        for func in self.destroy_functions:
+            if func.endswith('_destroy'):
+                base = func[:-8]
+            elif func.endswith('_free'):
+                base = func[:-5]
+            elif func.endswith('_delete'):
+                base = func[:-7]
+            else:
+                continue
+            destroy_bases.add(base)
+        
+        # Count matches
+        matched = create_bases & destroy_bases
+        self.analysis.constructor_destructor_pairs = len(matched)
     
+    
+    # done by AI completely do not know the patterns well enough to edit 
     def _detect_design_patterns(self):
-        return
+        """
+        Detect common design patterns adapted for C.
+        
+        1. FACTORY PATTERN
+           - Functions named Type_create() or Type_new()
+           - Encapsulates object creation
+           - Example: Vector* Vector_create(int capacity);
+        
+        2. SINGLETON PATTERN
+           - Static variable + getInstance() function
+           - Ensures single instance
+           - Example: static Connection* instance = NULL;
+                      Connection* Connection_getInstance();
+        
+        3. STRATEGY PATTERN
+           - Struct with function pointers (swappable algorithms)
+           - Example: struct Sorter { int (*compare)(void*, void*); };
+        
+        4. OBSERVER PATTERN
+           - Callback function pointers
+           - Fields named 'callback', 'handler', 'notify'
+           - Example: struct Button { void (*on_click)(void*); };
+        
+        All detection is heuristic-based (name matching, structure analysis).
+        """
+        patterns = set()
+        
+        # === FACTORY PATTERN ===
+        # Detected by presence of _create() or _new() functions
+        if self.create_functions:
+            patterns.add("Factory")
+        
+        # === SINGLETON PATTERN ===
+        # Heuristic: function named "getInstance" or "instance"
+        for func_name in self.functions:
+            if 'getInstance' in func_name or func_name.endswith('_instance'):
+                patterns.add("Singleton")
+                break
+        
+        # === STRATEGY PATTERN ===
+        # Detected by VTable structs
+        # These allow swapping implementations at runtime
+        if self.analysis.vtable_structs > 0:
+            patterns.add("Strategy")
+        
+        # === OBSERVER PATTERN ===
+        # Detected by callback/handler/notify patterns in struct fields
+        for struct_name, struct_info in self.structs.items():
+            if struct_info.function_pointer_count > 0:
+                # Check if any function pointer fields suggest callbacks
+                # This is a simplified check - in practice, you'd examine field names
+                # For now, we'll use the presence of function pointers + certain struct names
+                if any(keyword in struct_name.lower() 
+                       for keyword in ['event', 'listener', 'observer', 'callback']):
+                    patterns.add("Observer")
+                    break
+        
+        self.analysis.design_patterns = sorted(list(patterns))
+
 
 
 #analysis = COOPAnalysis(total_structs=5, design_patterns=["Factory", "Singleton"])
