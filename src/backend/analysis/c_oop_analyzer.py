@@ -131,7 +131,34 @@ class CStructInfo:
     """
 
 
+class COOPAnalyzer:
+    """
+    Analysis Process:
+    1. Parse C file into AST (Abstract Syntax Tree) using libclang
+    2. Traverse AST to find structs, functions, typedefs, enums
+    3. Detect OOP-style patterns (function pointers, naming conventions)
+    4. Analyze memory management and error handling
+    5. Identify design patterns
+    6. Return comprehensive analysis
+    
+    """
 
+    def __init__(self):
+        """        
+        State maintained during analysis:
+        - analysis: Accumulates all metrics
+        - structs: Dictionary of struct name -> CStructInfo
+        - functions: Dictionary of function name -> metadata
+        - declared_structs: Forward declarations
+        - defined_structs: Full struct definitions
+        """
+        self.analysis = COOPAnalysis()
+        self.structs: Dict[str, CStructInfo] = {}
+        self.functions: Dict[str, Dict] = {}
+        self.declared_structs: Set[str] = set()
+        self.defined_structs: Set[str] = set()
+        self.create_functions: Set[str] = set() 
+        self.destroy_functions: Set[str] = set()
 
 
 
