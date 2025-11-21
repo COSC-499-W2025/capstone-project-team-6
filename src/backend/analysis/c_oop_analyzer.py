@@ -230,7 +230,79 @@ class COOPAnalyzer:
     
 
 
-    def _traverse_ast(self):
+    def _traverse_ast(self, cursor, filename: str, parent_struct: Optional[str] = None):
+        """
+        Recursively traverse the Abstract Syntax Tree.
+        
+        Args:
+            cursor: Current AST node (from libclang)
+            filename: Source filename (for header vs implementation tracking)
+            parent_struct: If we're inside a struct, this is its name
+        
+        This is the core traversal function that visits every node in the AST.
+        For each node type, we call specialized analysis functions to add to stats.
+        
+        Key AST node types we care about:
+        - STRUCT_DECL: Struct declarations
+        - FUNCTION_DECL: Function declarations
+        - TYPEDEF_DECL: Typedef statements
+        - ENUM_DECL: Enum definitions
+        - FIELD_DECL: Struct fields (when inside a struct)
+
+        Note the base of this was taken from C++ with changes made for C compatability
+        """
+        
+        #look for user code
+        if cursor.location.file and cursor.location.file.name.startswith('/usr'):
+            return
+        
+        #STRUCT DECLARATIONS 
+        if cursor.kind == CursorKind.STRUCT_DECL:
+            self._analyze_struct(cursor, filename)
+        
+        #FUNCTION DECLARATIONS
+        elif cursor.kind == CursorKind.FUNCTION_DECL:
+            self._analyze_function(cursor, filename)
+        
+        #TYPEDEF DECLARATIONS
+        elif cursor.kind == CursorKind.TYPEDEF_DECL:
+            self.analysis.typedef_count += 1
+            # Check if it's a struct typedef
+            underlying = cursor.underlying_typedef_type
+            if underlying.kind == TypeKind.RECORD:  # RECORD = struct/union
+                struct_name = underlying.spelling.replace('struct ', '')
+                if struct_name in self.structs:
+                    self.structs[struct_name].has_typedef = True
+        
+        #ENUM DECLARATIONS
+        elif cursor.kind == CursorKind.ENUM_DECL:
+            self.analysis.enum_count += 1
+            # Check if it's an error enum
+            enum_name = cursor.spelling.lower() if cursor.spelling else ""
+            if 'error' in enum_name or 'status' in enum_name:
+                self.analysis.error_enum_count += 1
+        
+        #FIELD DECLARATIONS
+        elif cursor.kind == CursorKind.FIELD_DECL and parent_struct:
+            self._analyze_field(cursor, parent_struct)
+        
+        # RECURSE TO CHILDREN
+        for child in cursor.get_children():
+            # If we're entering a struct, pass its name down
+            new_parent = parent_struct
+            if cursor.kind == CursorKind.STRUCT_DECL and cursor.spelling:
+                new_parent = cursor.spelling
+            
+            #recursive function
+            self._traverse_ast(child, filename, new_parent)
+    
+    def _analyze_struct(self):
+        return
+    
+    def _analyze_function(self):
+        return
+    
+    def _analyze_field(self):
         return
 
     def _detect_opaque_pointers(self):
