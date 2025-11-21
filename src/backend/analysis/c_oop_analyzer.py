@@ -362,12 +362,124 @@ class COOPAnalyzer:
             self.declared_structs.add(struct_name)
     
     
-    def _is_function_pointer_type(self):
-        return
+    def _is_function_pointer_type(self, type_obj) -> bool:
+        """
+        Check if a type is a function pointer.
+        
+        Args:
+            type_obj: clang Type object
+        
+        Returns:
+            True if the type is a function pointer
+        
+        
+        Type hierarchy:
+            POINTER -> FUNCTIONPROTO = function pointer
+            POINTER -> INT = regular pointer
+        """
+        if type_obj.kind == TypeKind.POINTER:
+            pointee = type_obj.get_pointee()
+            return pointee.kind in (TypeKind.FUNCTIONPROTO, TypeKind.FUNCTIONNOPROTO)
+        return False
 
-    def _analyze_function(self):
-        return
+    def _analyze_function(self, cursor, filename: str):
+        """
+        Analyze a function declaration.
+        
+        Args:
+            cursor: AST node for the function
+            filename: Source file name
+        
+        Detects:
+        1. Static vs non-static (encapsulation indicator)
+        2. OOP-style naming (ClassName_method pattern)
+        3. Memory management functions (malloc/free usage)
+        4. Constructor/destructor patterns (_create/_destroy)
+        5. Error handling (functions returning status codes)
+        6. Header vs implementation (public vs internal API)
+        """
+        
+        func_name = cursor.spelling
+        if not func_name:
+            return
+        
+        #avoid dupli
+        if func_name in self.functions:
+            return
+        
+        self.analysis.total_functions += 1
+        
+        #STATIC FUNCTION DETECTION
+        #Static functions are only visible in their file
+        storage_class = cursor.storage_class
+        is_static = (storage_class == StorageClass.STATIC)
+        
+        if is_static:
+            self.analysis.static_functions += 1
+        
+        #OOP-STYLE NAMING CONVENTION
+        if self._matches_oop_naming(func_name):
+            self.analysis.oop_style_naming_count += 1
+            
+            # link to struct
+            struct_name = func_name.split('_')[0]
+            if struct_name in self.structs:
+                self.structs[struct_name].associated_functions.append(func_name)
+        
+        #CONSTRUCTOR/DESTRUCTOR PATTERN
+        #constructor
+        if func_name.endswith('_create') or func_name.endswith('_new'):
+            self.create_functions.add(func_name)
+        
+        #destructors
+        if (func_name.endswith('_destroy') or 
+            func_name.endswith('_free') or 
+            func_name.endswith('_delete')):
+            self.destroy_functions.add(func_name)
+        
+        #MEMORY MANAGEMENT DETECTION
+        # Check if function uses malloc/free (dynamic memory)
+        if cursor.is_definition():
+            # Get function body tokens
+            for token in cursor.get_tokens():
+                token_text = token.spelling
+                
+                #Memory allocation
+                if token_text in ['malloc', 'calloc', 'realloc']:
+                    self.analysis.malloc_usage += 1
+                    break
+            
+            for token in cursor.get_tokens():
+                token_text = token.spelling
+                
+                # Memory deallocation
+                if token_text == 'free':
+                    self.analysis.free_usage += 1
+                    break
+        
+        #ERROR HANDLING DETECTION
+        #Functions returning int/long might be returning error codes
+        return_type = cursor.result_type.spelling
+        if return_type in ['int', 'long', 'ssize_t', 'ptrdiff_t']:
+            self.analysis.functions_returning_status += 1
+        
+        #API DESIGN: Header vs Implementation
+        if filename.endswith('.h'):
+            self.analysis.header_functions += 1
+        else:
+            self.analysis.implementation_functions += 1
+        
+        # Store function metadata
+        self.functions[func_name] = {
+            'name': func_name,
+            'is_static': is_static,
+            'return_type': return_type,
+            'filename': filename
+        }
     
+    def _matches_oop_naming(self):
+        return 
+
     def _analyze_field(self):
         return
 
