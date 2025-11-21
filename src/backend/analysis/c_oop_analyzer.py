@@ -160,6 +160,87 @@ class COOPAnalyzer:
         self.create_functions: Set[str] = set() 
         self.destroy_functions: Set[str] = set()
 
+    def analyze_file(self, content: str, filename: str = "temp.c") -> COOPAnalysis:
+        """
+        analyze a single C file.
+        
+        Args:
+            content: The C source code as a string
+            filename: Name of the file (used for .h vs .c detection)
+        
+        Returns:
+            COOPAnalysis object with all metrics
+        
+        Process:
+        1. Check if libclang is available
+        2. Write content to temporary file (libclang needs actual files)
+        3. Parse file into AST
+        4. Traverse AST to extract information
+        5. Run post-processing (pattern detection, pair matching)
+        6. Clean up temporary file
+        7. Return analysis
+        """
+        
+        if not CLANG_AVAILABLE:
+            print("Error: libclang not available")
+            return self.analysis
+        
+        try:
+            import tempfile
+            import os
+            
+            # file extension based on filename
+            suffix = '.h' if filename.endswith('.h') else '.c'
+            
+            # Write to temp file and get path
+            with tempfile.NamedTemporaryFile(mode='w', suffix=suffix, delete=False) as f:
+                f.write(content)
+                temp_path = f.name        
+                
+            # Parse with libclang
+            index = clang.cindex.Index.create()
+            translation_unit = index.parse(
+                temp_path,
+                args=['-std=c11', '-x', 'c']  # Use C11 standard
+            )
+            
+            # Check for parse errors
+            if translation_unit.diagnostics:
+                for diag in translation_unit.diagnostics:
+                    if diag.severity >= clang.cindex.Diagnostic.Error:
+                        print(f"Parse error: {diag.spelling}")
+            
+            # Traverse the Abstract Syntax Tree
+            self._traverse_ast(translation_unit.cursor, filename)
+            
+            # Post-processing
+            self._detect_opaque_pointers()
+            self._match_constructor_destructor_pairs()
+            self._detect_design_patterns()
+            
+            # Clean up temporary file
+            os.unlink(temp_path)
+            
+        except Exception as e:
+            print(f"Warning: Failed to parse C file: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        return self.analysis
+    
+
+
+    def _traverse_ast(self):
+        return
+
+    def _detect_opaque_pointers(self):
+        return
+
+    def _match_constructor_destructor_pairs(self):
+        return
+    
+    def _detect_design_patterns(self):
+        return
 
 
 #analysis = COOPAnalysis(total_structs=5, design_patterns=["Factory", "Singleton"])
