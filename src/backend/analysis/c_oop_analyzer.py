@@ -296,9 +296,75 @@ class COOPAnalyzer:
             #recursive function
             self._traverse_ast(child, filename, new_parent)
     
-    def _analyze_struct(self):
-        return
+    def _analyze_struct(self, cursor, filename: str):
+        """
+        Analyze a struct declaration.
+        
+        Args:
+            cursor: AST node for the struct
+            filename: Source file name
+        
+        Detects:
+        1. Whether it's just a forward declaration or full definition
+        2. Number of fields
+        3. Function pointer fields
+        4. Creates CStructInfo for tracking
+        
+        Forward declaration example:
+            struct Vector;  // Just declaration (opaque pointer candidate)
+        
+        Full definition example:
+            struct Vector {
+                int size;
+                void (*push)(struct Vector*, int);  // Function pointer field!
+            };
+        """
+        
+        struct_name = cursor.spelling
+        
+        if not struct_name:
+            return
+        
+        is_definition = cursor.is_definition()
+        
+        if is_definition:
+            # Full struct definition
+            self.defined_structs.add(struct_name)
+            self.analysis.total_structs += 1
+            
+            # Create or update struct info
+            if struct_name not in self.structs:
+                self.structs[struct_name] = CStructInfo(name=struct_name)
+            
+            struct_info = self.structs[struct_name]
+            
+            # Analyze fields
+            field_count = 0
+            function_pointer_count = 0
+            
+            for child in cursor.get_children():
+                if child.kind == CursorKind.FIELD_DECL:
+                    field_count += 1
+                    
+                    # Check if this field is a function pointer
+                    if self._is_function_pointer_type(child.type):
+                        function_pointer_count += 1
+                        self.analysis.function_pointer_fields += 1
+            
+            struct_info.field_count = field_count
+            struct_info.function_pointer_count = function_pointer_count
+            
+            #check for VTable pattern: struct with 2+ function pointers (polymorphism)
+            if function_pointer_count >= 2:
+                self.analysis.vtable_structs += 1
+        
+        else:
+            self.declared_structs.add(struct_name)
     
+    
+    def _is_function_pointer_type(self):
+        return
+
     def _analyze_function(self):
         return
     
