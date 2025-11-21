@@ -114,8 +114,29 @@ class COOPAnalysis:
         return asdict(self)
 
 
-analysis = COOPAnalysis(total_structs=5, design_patterns=["Factory", "Singleton"])
-print(analysis.to_dict())
+@dataclass
+class CStructInfo:
+    """
+    Information about a single C struct.
+    """
+    
+    name: str    
+    field_count: int = 0    
+    function_pointer_count: int = 0    
+    is_opaque: bool = False    
+    has_typedef: bool = False    
+    associated_functions: List[str] = field(default_factory=list)
+    """
+    Functions that follow StructName_function naming pattern.
+    """
+
+
+
+
+
+
+#analysis = COOPAnalysis(total_structs=5, design_patterns=["Factory", "Singleton"])
+#print(analysis.to_dict())
 
 
 
