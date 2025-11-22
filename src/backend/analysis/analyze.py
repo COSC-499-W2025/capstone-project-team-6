@@ -105,6 +105,7 @@ def main():
 
         print_separator("PHASE 3: CODE ANALYSIS FOR OOP PRINCIPLES")
         
+
         # Analyze Python projects
         python_projects = [p for p in report["projects"] if "python" in p.get("languages", {})]
 
@@ -113,6 +114,7 @@ def main():
             print(f"  PYTHON OOP ANALYSIS")
             print(f"{'*' * 70}\n")
             
+
             for i, project in enumerate(python_projects, 1):
                 if "oop_analysis" not in project:
                     continue
@@ -190,6 +192,10 @@ def main():
         # Analyze Java projects
         java_projects = [p for p in report["projects"] if "java" in p.get("languages", {})]
         
+
+        # Analyze Java projects
+        java_projects = [p for p in report["projects"] if "java" in p.get("languages", {})]
+
         if java_projects:
             print(f"\n{'*' * 70}")
             print(f"  JAVA OOP ANALYSIS")
@@ -242,11 +248,13 @@ def main():
                 print(f"  Nested Classes: {java_oop['nested_classes']}")
                 print(f"  Lambda Expressions: {java_oop['lambda_count']}")
                 
+
                 if java_oop.get("annotations"):
                     print(f"\nAnnotations (top 5):")
                     for anno, count in sorted(java_oop["annotations"].items(), key=lambda x: x[1], reverse=True)[:5]:
                         print(f"  @{anno}: {count}")
                 
+
                 if java_oop.get("design_patterns"):
                     print(f"\nDesign Patterns Detected:")
                     for pattern in java_oop["design_patterns"]:
@@ -282,6 +290,7 @@ def main():
                     design_patterns: List[str] = field(default_factory=list)
                     getter_setter_pairs: int = 0
                 
+
                 analysis_obj = JavaOOPAnalysis(**java_oop)
                 oop_score = calculate_oop_score(analysis_obj)
                 solid_score = calculate_solid_score(analysis_obj)
@@ -291,12 +300,23 @@ def main():
                 print(f"SOLID Score: {solid_score:.1f}/5.0")
                 print(f"Principles Used:")
                 print(f"  {'✓' if java_oop['total_classes'] > 0 or java_oop['interface_count'] > 0 else '✗'} Uses Classes/Interfaces")
+
+                print(f"\nOOP Score: {oop_score}/6")
+                print(f"SOLID Score: {solid_score:.1f}/5.0")
+                print(f"Principles Used:")
+                print(
+                    f"  {'✓' if java_oop['total_classes'] > 0 or java_oop['interface_count'] > 0 else '✗'} Uses Classes/Interfaces"
+                )
                 print(f"  {'✓' if java_oop['interface_count'] > 0 or java_oop['abstract_classes'] else '✗'} Abstraction")
                 print(f"  {'✓' if java_oop['inheritance_depth'] > 0 else '✗'} Inheritance")
                 print(f"  {'✓' if java_oop['private_fields'] > 0 or java_oop['private_methods'] > 0 else '✗'} Encapsulation")
                 print(f"  {'✓' if java_oop['override_count'] > 0 or java_oop['method_overloads'] > 0 else '✗'} Polymorphism")
                 print(f"  {'✓' if java_oop['generic_classes'] > 0 or java_oop['annotations'] or java_oop['lambda_count'] > 0 else '✗'} Advanced Features")
                 
+                print(
+                    f"  {'✓' if java_oop['generic_classes'] > 0 or java_oop['annotations'] or java_oop['lambda_count'] > 0 else '✗'} Advanced Features"
+                )
+
                 print(f"\nCoding Style: {coding_style}")
         else:
             print("\nNo Java projects found for OOP analysis.")

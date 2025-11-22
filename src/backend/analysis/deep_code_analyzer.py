@@ -263,12 +263,14 @@ def generate_comprehensive_report(zip_path: Path, output_path: Optional[Path] = 
             if "java" in project.get("languages", {}):
                 try:
                     from .java_oop_analyzer import analyze_java_project
+
                     java_analysis = analyze_java_project(zip_path, project_path)
                     report["projects"][i]["java_oop_analysis"] = java_analysis["java_oop_analysis"]
                 except ImportError:
                     report["projects"][i]["java_oop_analysis"] = {
                         "error": "Java analyzer not available (javalang not installed)",
                         "total_classes": 0
+                        "total_classes": 0,
                     }
                 except Exception as e:
                     # If deep analysis fails, add error info
