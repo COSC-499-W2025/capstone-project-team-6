@@ -220,8 +220,11 @@ class TestScoringFunctions:
             abstract_classes=["Base"],
             inheritance_depth=3,
             private_methods=20,
+            private_fields=30,  # Add fields for better encapsulation score
             override_count=5,
             generic_classes=3,
+            annotations={"Override": 5, "Autowired": 3},  # Add annotations for advanced features
+            lambda_count=2  # Add lambdas for advanced features
         )
         score = calculate_oop_score(analysis)
         assert score == 6
