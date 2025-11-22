@@ -4,7 +4,6 @@ import tempfile
 import zipfile
 from pathlib import Path
 from unittest.mock import patch, MagicMock
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -18,7 +17,6 @@ backend_dir = src_dir / "backend"
 sys.path.insert(0, str(src_dir))
 sys.path.insert(0, str(backend_dir))
 
-from analysis.deep_code_analyzer import generate_comprehensive_report
 from backend.analysis.deep_code_analyzer import generate_comprehensive_report
 
 
@@ -28,14 +26,8 @@ class TestGenerateComprehensiveReport:
     @pytest.fixture
     def sample_python_zip(self):
         """Create a temporary ZIP file with Python code."""
-        with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as tmp:
-            with zipfile.ZipFile(tmp.name, 'w') as zf:
-
-    @pytest.fixture
-    def sample_python_zip(self):
-        """Create a temporary ZIP file with Python code."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            zip_path = Path(tmpdir) / "shapes.zip"
+            zip_path = Path(tmpdir) / "test.zip"
             with zipfile.ZipFile(zip_path, "w") as zf:
                 # Add a simple Python file
                 python_code = """
@@ -49,10 +41,7 @@ class MyClass:
                 zf.writestr('test.py', python_code)
                 zf.writestr('README.md', '# Test Project')
             
-            yield Path(tmp.name)
-            
-            # Cleanup
-            os.unlink(tmp.name)
+            yield zip_path
     
     @pytest.fixture
     def sample_java_zip(self):

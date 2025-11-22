@@ -269,7 +269,6 @@ def generate_comprehensive_report(zip_path: Path, output_path: Optional[Path] = 
                 except ImportError:
                     report["projects"][i]["java_oop_analysis"] = {
                         "error": "Java analyzer not available (javalang not installed)",
-                        "total_classes": 0
                         "total_classes": 0,
                     }
                 except Exception as e:
