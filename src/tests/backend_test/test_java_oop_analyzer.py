@@ -220,6 +220,7 @@ class TestScoringFunctions:
             abstract_classes=["Base"],
             inheritance_depth=3,
             private_methods=20,
+            private_fields=30,  # Add fields for better encapsulation score
             override_count=5,
             generic_classes=3,
         )
