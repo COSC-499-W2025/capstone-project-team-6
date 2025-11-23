@@ -706,6 +706,179 @@ def analyze_c_project(zip_path: Path, project_path: str = "") -> Dict:
 
 
 
+#scoring 
+def calculate_oop_score(analysis: COOPAnalysis) -> int:
+    """
+    Calculate OOP-style score (0-6) based on C pattern usage.
+    
+    This score measures how much the C code follows OOP-style patterns
+    even without language-level OOP support.
+    
+    Scoring criteria:
+    +1: Uses structs (basic data organization)
+    +1: Uses opaque pointers (information hiding / encapsulation)
+    +1: Uses static functions (file-scope encapsulation)
+    +1: Uses function pointers (polymorphism simulation)
+    +1: Has VTable structs (advanced polymorphism)
+    +1: Uses design patterns or consistent OOP naming
+    
+    Score interpretation:
+    0: Pure procedural C (just functions, no structure)
+    1-2: Basic structured C (structs, but no OOP patterns)
+    3-4: OOP-influenced C (some encapsulation, patterns)
+    5-6: Advanced OOP-style C (full pattern usage, disciplined)
+    
+    Args:
+        analysis: COOPAnalysis object
+    
+    Returns:
+        Integer score from 0 to 6
+    """
+    score = 0
+    
+    # +1: Has structs (basic organization)
+    if analysis.total_structs > 0:
+        score += 1
+    
+    # +1: Uses opaque pointers (encapsulation / information hiding)
+    if analysis.opaque_pointer_structs > 0:
+        score += 1
+    
+    # +1: Uses static functions (file-scope encapsulation)
+    if analysis.static_functions > 0:
+        score += 1
+    
+    # +1: Uses function pointers (polymorphism-like behavior)
+    if analysis.function_pointer_fields > 0:
+        score += 1
+    
+    # +1: Has VTable structs (advanced polymorphism)
+    if analysis.vtable_structs > 0:
+        score += 1
+    
+    # +1: Uses design patterns or OOP naming conventions
+    if analysis.design_patterns or analysis.oop_style_naming_count > 5:
+        score += 1
+    
+    return score
+
+
+def calculate_solid_score(analysis: COOPAnalysis) -> float:
+    """
+    Calculate SOLID-style score (0-3) for C code architecture.
+    
+    
+    metrics used:
+    S - Single Responsibility: Reasonable function count per struct
+    O - Open/Closed: Use of function pointers for extensibility
+    L - Liskov Substitution- dont care
+    I - Interface Segregation: Clean API with header/implementation separation
+    D - Dependency Inversion: dont care
+    
+    Since only 3 principles apply well to C, we use 0-3 scale.
+    
+    Scoring:
+    +1.0: Good function-to-struct ratio 
+    +1.0: Uses function pointers for extensibility
+    +1.0: Clean API separation
+    
+    Args:
+        analysis: COOPAnalysis object
+    
+    Returns:
+        Float score from 0.0 to 3.0
+    """
+
+    score = 0.0
+    
+    #S
+    if analysis.total_structs > 0:
+        avg_funcs = analysis.total_functions / max(analysis.total_structs, 1)
+        if 3 <= avg_funcs <= 15:
+            score += 1.0
+        elif avg_funcs > 0:
+            score += 0.5
+    
+    #Open/Closed
+    if analysis.vtable_structs > 0:
+        score += 1.0
+    elif analysis.function_pointer_fields > 0:
+        score += 0.5
+    
+    # Interface Segregation
+    if analysis.implementation_functions > analysis.header_functions > 0:
+        score += 1.0
+    elif analysis.header_functions > 0:
+        score += 0.5
+    
+    return min(score, 3.0)
+
+
+def get_coding_style(oop_score: int) -> str:
+    """
+    Determine coding style based on OOP score.
+    
+    Args:
+        oop_score: Score from calculate_oop_score (0-6)
+    
+    Returns:
+        String description of coding style
+    """
+
+    if oop_score == 0:
+        return "Pure Procedural"
+    elif oop_score <= 2:
+        return "Structured C"
+    elif oop_score <= 4:
+        return "OOP-Influenced C"
+    else:
+        return "Advanced OOP-Style C"
+
+
+def calculate_encapsulation_ratio(analysis: COOPAnalysis) -> float:
+    """
+    Calculate what percentage of functions use encapsulation.
+    
+    In C, encapsulation is achieved through:
+    - Static functions
+    - Opaque pointers 
+    
+    Returns:
+        Percentage (0-100) of functions that are encapsulated
+    """
+    if analysis.total_functions == 0:
+        return 0.0
+    
+    encapsulated = analysis.static_functions
+    total = analysis.total_functions
+    
+    return (encapsulated / total) * 100
+
+
+def calculate_memory_safety_score(analysis: COOPAnalysis) -> float:
+    """
+    Evaluates:
+    - Constructor/destructor pair discipline
+    - malloc/free balance
+    
+    Returns:
+        Score from 0 to 10
+    """
+    score = 0.0
+    
+    # +5: constructor/destructor pairs (RAII-style)
+    if analysis.constructor_destructor_pairs > 0:
+        score += 5.0
+    
+    # +5: balanced malloc/free usage
+    if analysis.malloc_usage > 0:
+        if analysis.free_usage > 0:
+            ratio = min(analysis.free_usage, analysis.malloc_usage) / analysis.malloc_usage
+            score += 5.0 * ratio
+    
+    return score
+
+
 
 
 #analysis = COOPAnalysis(total_structs=5, design_patterns=["Factory", "Singleton"])
