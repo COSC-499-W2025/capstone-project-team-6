@@ -14,3 +14,4 @@ src/myapp.db
 __pycache__/
 pgvector/
 myapp.db
+src/myapp.db
