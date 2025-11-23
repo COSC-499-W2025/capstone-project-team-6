@@ -322,6 +322,7 @@ def main():
                 print(f"\nCoding Style: {coding_style}")
         else:
             print("\nNo Java projects found for OOP analysis.")
+        print_separator("STORING ANALYSIS IN DATABASE")
         try:
             analysis_id = record_analysis(
                 analysis_type="non_llm",
@@ -333,6 +334,7 @@ def main():
             print(f"  Error storing analysis in database: {e}")
             import traceback
             traceback.print_exc()
+        print_resume_items(report)
 
         # Offer to save JSON
         print_separator()
