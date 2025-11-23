@@ -602,6 +602,110 @@ class COOPAnalyzer:
         
         self.analysis.design_patterns = sorted(list(patterns))
 
+#helper function to make objects for classes
+def analyze_c_file(content: str, filename: str = "temp.c") -> COOPAnalysis:
+    analyzer = COOPAnalyzer()
+    return analyzer.analyze_file(content, filename)
+
+
+def analyze_c_project(zip_path: Path, project_path: str = "") -> Dict:
+    """
+    Perform deep OOP-style analysis on a C project inside a ZIP file.
+    
+    This function integrates with the existing project analysis pipeline:
+    1. Uses MetadataExtractor to get project info
+    2. Uses FileClassifier to find all C files
+    3. Analyzes each C file individually
+    4. Aggregates results into combined analysis
+    
+    Args:
+        zip_path: path to ZIP file containing the project
+        project_path: relative path within ZIP to the project root (should be )
+    
+    Returns:
+        Dictionary containing:
+        - project_name: Name of the project
+        - project_path: Path analyzed
+        - metadata: Project metadata (languages, files, etc.)
+        - c_oop_analysis: Combined COOPAnalysis for all C files
+    
+    """
+    if MetadataExtractor is None or FileClassifier is None:
+        raise ImportError("MetadataExtractor and FileClassifier are required")
+    
+    # Extract project metadata
+    with MetadataExtractor(zip_path) as extractor:
+        metadata = extractor.extract_project_metadata(project_path)
+    
+    combined = COOPAnalysis()
+    
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        # list of C files using FileClassifier
+        classifier = FileClassifier(zip_path)
+        classification = classifier.classify_project(project_path)
+        
+        c_files = []
+        if "c" in classification["files"]["code"]:
+            c_files = classification["files"]["code"]["c"]
+        
+        #loop through c files
+        for file_info in c_files:
+            try:
+                # Read file content
+                content = zf.read(file_info["path"]).decode("utf-8", errors="ignore")
+                filename = Path(file_info["path"]).name
+                
+                file_analysis = analyze_c_file(content, filename)
+                
+               
+                
+                #basic structure
+                combined.total_structs += file_analysis.total_structs
+                combined.total_functions += file_analysis.total_functions
+                combined.static_functions += file_analysis.static_functions
+                combined.typedef_count += file_analysis.typedef_count
+                combined.enum_count += file_analysis.enum_count
+                
+                #OOP-style patterns
+                combined.opaque_pointer_structs += file_analysis.opaque_pointer_structs
+                combined.function_pointer_fields += file_analysis.function_pointer_fields
+                combined.vtable_structs += file_analysis.vtable_structs
+                combined.oop_style_naming_count += file_analysis.oop_style_naming_count
+                
+                #memory management
+                combined.malloc_usage += file_analysis.malloc_usage
+                combined.free_usage += file_analysis.free_usage
+                combined.constructor_destructor_pairs += file_analysis.constructor_destructor_pairs
+                
+                #error handling
+                combined.functions_returning_status += file_analysis.functions_returning_status
+                combined.error_enum_count += file_analysis.error_enum_count
+                
+                #API 
+                combined.header_functions += file_analysis.header_functions
+                combined.implementation_functions += file_analysis.implementation_functions
+                
+                #design patterns
+                for pattern in file_analysis.design_patterns:
+                    if pattern not in combined.design_patterns:
+                        combined.design_patterns.append(pattern)
+                
+            except Exception as e:
+                print(f"Warning: Failed to analyze {file_info['path']}: {e}")
+                continue
+        
+        classifier.close()
+    
+    
+    return {
+        "project_name": metadata.project_name,
+        "project_path": metadata.project_path,
+        "metadata": metadata.to_dict(),
+        "c_oop_analysis": combined.to_dict(),
+    }
+
+
+
 
 
 #analysis = COOPAnalysis(total_structs=5, design_patterns=["Factory", "Singleton"])
