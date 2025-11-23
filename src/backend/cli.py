@@ -136,7 +136,7 @@ def analyze_folder(path: Path) -> dict:
     try:
         # Determine if we need to create a ZIP
         if path.is_dir():
-            print(f"📦 Creating temporary archive...")
+            print(f"Creating temporary archive...")
             temp_zip = create_temp_zip(path)
             zip_path = temp_zip
         elif path.is_file() and path.suffix.lower() == '.zip':
@@ -145,7 +145,7 @@ def analyze_folder(path: Path) -> dict:
             raise ValueError(f"Path must be a directory or ZIP file: {path}")
 
         # Run comprehensive analysis
-        print(f"🔍 Running analysis pipeline...")
+        print(f"Running analysis pipeline...")
         report = generate_comprehensive_report(zip_path)
 
         return report
@@ -169,18 +169,18 @@ def display_analysis(results: dict) -> None:
 
     # Header
     print("\n" + "=" * 70)
-    print("📊 ANALYSIS RESULTS")
+    print("ANALYSIS RESULTS")
     print("=" * 70)
 
     # Metadata
     if metadata:
-        print(f"\n📦 Archive: {metadata.get('zip_file', 'N/A')}")
-        print(f"📅 Analyzed: {metadata.get('analysis_timestamp', 'N/A')}")
-        print(f"📁 Projects Found: {metadata.get('total_projects', len(projects))}")
+        print(f"\nArchive: {metadata.get('zip_file', 'N/A')}")
+        print(f"Analyzed: {metadata.get('analysis_timestamp', 'N/A')}")
+        print(f"Projects Found: {metadata.get('total_projects', len(projects))}")
 
     # Summary
     if summary:
-        print(f"\n📊 Summary:")
+        print(f"\nSummary:")
         print(f"   Total Files: {summary.get('total_files', 0)}")
         size_mb = summary.get('total_size_mb', 0)
         print(f"   Total Size: {size_mb:.2f} MB")
@@ -198,35 +198,35 @@ def display_analysis(results: dict) -> None:
 
         # Basic info
         if project.get('project_path'):
-            print(f"\n📂 Path: {project['project_path']}")
+            print(f"\nPath: {project['project_path']}")
 
         if project.get('primary_language'):
-            print(f"🎯 Primary Language: {project['primary_language']}")
+            print(f"Primary Language: {project['primary_language']}")
 
-        print(f"📊 Total Files: {project.get('total_files', 0)}")
+        print(f"Total Files: {project.get('total_files', 0)}")
 
         size = project.get('total_size', 0)
         size_mb = size / (1024 * 1024) if size > 0 else 0
-        print(f"💾 Size: {size_mb:.2f} MB")
+        print(f"Size: {size_mb:.2f} MB")
 
         # Languages breakdown
         languages = project.get('languages', {})
         if languages:
-            print(f"\n🔤 Languages:")
+            print(f"\nLanguages:")
             for lang, count in sorted(languages.items(), key=lambda x: x[1], reverse=True):
                 print(f"   • {lang}: {count} files")
 
         # Frameworks
         frameworks = project.get('frameworks', [])
         if frameworks:
-            print(f"\n🚀 Frameworks:")
+            print(f"\nFrameworks:")
             for fw in frameworks:
                 print(f"   • {fw}")
 
         # Dependencies
         dependencies = project.get('dependencies', {})
         if dependencies:
-            print(f"\n📦 Dependencies:")
+            print(f"\nDependencies:")
             for ecosystem, deps in dependencies.items():
                 if deps:
                     deps_str = ', '.join(deps[:5])  # Show first 5
@@ -240,21 +240,21 @@ def display_analysis(results: dict) -> None:
         has_ci_cd = project.get('has_ci_cd', False)
         has_docker = project.get('has_docker', False)
 
-        print(f"\n🏥 Project Health:")
-        print(f"   {'✓' if has_tests else '✗'} Tests: {project.get('test_files', 0)} test files")
-        print(f"   {'✓' if has_readme else '✗'} README")
-        print(f"   {'✓' if has_ci_cd else '✗'} CI/CD")
-        print(f"   {'✓' if has_docker else '✗'} Docker")
+        print(f"\nProject Health:")
+        print(f"   {'[x]' if has_tests else '[ ]'} Tests: {project.get('test_files', 0)} test files")
+        print(f"   {'[x]' if has_readme else '[ ]'} README")
+        print(f"   {'[x]' if has_ci_cd else '[ ]'} CI/CD")
+        print(f"   {'[x]' if has_docker else '[ ]'} Docker")
 
         # Git info
         if project.get('is_git_repo'):
             total_commits = project.get('total_commits', 0)
-            print(f"   ✓ Git repository ({total_commits} commits)")
+            print(f"   [x] Git repository ({total_commits} commits)")
 
         # OOP Analysis (for Python projects)
         oop = project.get('oop_analysis', {})
         if oop and oop.get('total_classes', 0) > 0:
-            print(f"\n🐍 OOP Analysis (Python):")
+            print(f"\nOOP Analysis (Python):")
             print(f"   Classes: {oop.get('total_classes', 0)}")
 
             abstract = oop.get('abstract_classes', [])
@@ -324,7 +324,7 @@ def main() -> int:
             init_db()
         except Exception as e:
             # Non-fatal: analysis can still run without database
-            print(f"⚠️  Warning: Could not initialize analysis database: {e}")
+            print(f"Warning: Could not initialize analysis database: {e}")
 
         # Interactive mode
         if args.interactive or not args.command:
@@ -339,7 +339,7 @@ def main() -> int:
         if args.command == "login":
             # First verify credentials
             if not authenticate_user(args.username, args.password):
-                print("\n❌ Invalid username or password")
+                print("\nInvalid username or password")
                 return 1
 
             # Handle consent for first-time users
@@ -354,10 +354,10 @@ def main() -> int:
 
         elif args.command == "signup":
             if signup(args.username, args.password):
-                print("\n✅ Account created successfully!")
+                print("\nAccount created successfully!")
                 return 0
             else:
-                print("\n❌ Username already exists")
+                print("\nUsername already exists")
                 return 1
 
         elif args.command == "consent":
@@ -371,7 +371,7 @@ def main() -> int:
 
             if args.status:
                 print(f"\nConsent Status for {username}:")
-                print("Consented" if has_consented else "✗ Not consented")
+                print("Consented" if has_consented else "Not consented")
                 return 0
 
             if args.update:
@@ -380,7 +380,7 @@ def main() -> int:
                     print("To revoke consent, contact support.")
                     return 0
 
-                print("\n📋 Consent Required")
+                print("\nConsent Required")
                 print("------------------")
                 if ask_for_consent():
                     save_user_consent(username, True)
@@ -405,38 +405,38 @@ def main() -> int:
 
             path = Path(args.path)
             if not path.exists():
-                print(f"\n❌ Path does not exist: {path}")
+                print(f"\nPath does not exist: {path}")
                 return 1
 
             # Validate path type
             if not path.is_dir() and not (path.is_file() and path.suffix.lower() == '.zip'):
-                print(f"\n❌ Path must be a directory or ZIP file: {path}")
+                print(f"\nPath must be a directory or ZIP file: {path}")
                 return 1
 
             # Run analysis with error handling
             try:
-                print(f"\n📂 Analyzing: {path}")
+                print(f"\nAnalyzing: {path}")
                 results = analyze_folder(path)
                 display_analysis(results)
-                print("\n✅ Analysis complete!")
+                print("\nAnalysis complete!")
                 return 0
             except zipfile.BadZipFile:
-                print(f"\n❌ Invalid or corrupted ZIP file: {path}")
+                print(f"\nInvalid or corrupted ZIP file: {path}")
                 return 1
             except ValueError as e:
-                print(f"\n❌ {e}")
+                print(f"\n{e}")
                 return 1
             except Exception as e:
-                print(f"\n❌ Analysis failed: {e}")
+                print(f"\nAnalysis failed: {e}")
                 import traceback
                 traceback.print_exc()
                 return 1
 
     except KeyboardInterrupt:
-        print("\n\n⚠️  Interrupted by user. Exiting.")
+        print("\n\nInterrupted by user. Exiting.")
         return 130
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\nError: {e}")
         return 1
 
     return 0
