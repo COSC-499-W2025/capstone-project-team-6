@@ -101,16 +101,17 @@ def create_temp_zip(directory: Path) -> Path:
         Path: Path to the temporary ZIP file
     """
     # Create a temporary file with .zip extension
-    temp_fd, temp_path = tempfile.mkstemp(suffix='.zip')
+    temp_fd, temp_path = tempfile.mkstemp(suffix=".zip")
     import os
+
     os.close(temp_fd)  # Close the file descriptor
 
     temp_zip = Path(temp_path)
 
     # Create ZIP file
-    with zipfile.ZipFile(temp_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
+    with zipfile.ZipFile(temp_zip, "w", zipfile.ZIP_DEFLATED) as zipf:
         # Walk through directory and add all files
-        for file_path in directory.rglob('*'):
+        for file_path in directory.rglob("*"):
             if file_path.is_file():
                 # Calculate the archive name (relative path from directory)
                 arcname = file_path.relative_to(directory.parent)
@@ -139,7 +140,7 @@ def analyze_folder(path: Path) -> dict:
             print(f"Creating temporary archive...")
             temp_zip = create_temp_zip(path)
             zip_path = temp_zip
-        elif path.is_file() and path.suffix.lower() == '.zip':
+        elif path.is_file() and path.suffix.lower() == ".zip":
             zip_path = path
         else:
             raise ValueError(f"Path must be a directory or ZIP file: {path}")
@@ -182,12 +183,12 @@ def display_analysis(results: dict) -> None:
     if summary:
         print(f"\nSummary:")
         print(f"   Total Files: {summary.get('total_files', 0)}")
-        size_mb = summary.get('total_size_mb', 0)
+        size_mb = summary.get("total_size_mb", 0)
         print(f"   Total Size: {size_mb:.2f} MB")
 
-        if summary.get('languages'):
+        if summary.get("languages"):
             print(f"   Languages: {', '.join(summary['languages'])}")
-        if summary.get('frameworks'):
+        if summary.get("frameworks"):
             print(f"   Frameworks: {', '.join(summary['frameworks'])}")
 
     # Display each project
@@ -197,48 +198,48 @@ def display_analysis(results: dict) -> None:
         print("━" * 70)
 
         # Basic info
-        if project.get('project_path'):
+        if project.get("project_path"):
             print(f"\nPath: {project['project_path']}")
 
-        if project.get('primary_language'):
+        if project.get("primary_language"):
             print(f"Primary Language: {project['primary_language']}")
 
         print(f"Total Files: {project.get('total_files', 0)}")
 
-        size = project.get('total_size', 0)
+        size = project.get("total_size", 0)
         size_mb = size / (1024 * 1024) if size > 0 else 0
         print(f"Size: {size_mb:.2f} MB")
 
         # Languages breakdown
-        languages = project.get('languages', {})
+        languages = project.get("languages", {})
         if languages:
             print(f"\nLanguages:")
             for lang, count in sorted(languages.items(), key=lambda x: x[1], reverse=True):
                 print(f"   • {lang}: {count} files")
 
         # Frameworks
-        frameworks = project.get('frameworks', [])
+        frameworks = project.get("frameworks", [])
         if frameworks:
             print(f"\nFrameworks:")
             for fw in frameworks:
                 print(f"   • {fw}")
 
         # Dependencies
-        dependencies = project.get('dependencies', {})
+        dependencies = project.get("dependencies", {})
         if dependencies:
             print(f"\nDependencies:")
             for ecosystem, deps in dependencies.items():
                 if deps:
-                    deps_str = ', '.join(deps[:5])  # Show first 5
+                    deps_str = ", ".join(deps[:5])  # Show first 5
                     if len(deps) > 5:
                         deps_str += f", ... ({len(deps) - 5} more)"
                     print(f"   {ecosystem}: {deps_str}")
 
         # Project health indicators
-        has_tests = project.get('has_tests', False)
-        has_readme = project.get('has_readme', False)
-        has_ci_cd = project.get('has_ci_cd', False)
-        has_docker = project.get('has_docker', False)
+        has_tests = project.get("has_tests", False)
+        has_readme = project.get("has_readme", False)
+        has_ci_cd = project.get("has_ci_cd", False)
+        has_docker = project.get("has_docker", False)
 
         print(f"\nProject Health:")
         print(f"   {'[x]' if has_tests else '[ ]'} Tests: {project.get('test_files', 0)} test files")
@@ -247,34 +248,34 @@ def display_analysis(results: dict) -> None:
         print(f"   {'[x]' if has_docker else '[ ]'} Docker")
 
         # Git info
-        if project.get('is_git_repo'):
-            total_commits = project.get('total_commits', 0)
+        if project.get("is_git_repo"):
+            total_commits = project.get("total_commits", 0)
             print(f"   [x] Git repository ({total_commits} commits)")
 
         # OOP Analysis (for Python projects)
-        oop = project.get('oop_analysis', {})
-        if oop and oop.get('total_classes', 0) > 0:
+        oop = project.get("oop_analysis", {})
+        if oop and oop.get("total_classes", 0) > 0:
             print(f"\nOOP Analysis (Python):")
             print(f"   Classes: {oop.get('total_classes', 0)}")
 
-            abstract = oop.get('abstract_classes', [])
+            abstract = oop.get("abstract_classes", [])
             if abstract:
                 print(f"   Abstraction: {len(abstract)} abstract classes")
 
-            private = oop.get('private_methods', 0)
-            protected = oop.get('protected_methods', 0)
+            private = oop.get("private_methods", 0)
+            protected = oop.get("protected_methods", 0)
             if private > 0 or protected > 0:
                 print(f"   Encapsulation: {private} private, {protected} protected methods")
 
-            properties = oop.get('properties_count', 0)
+            properties = oop.get("properties_count", 0)
             if properties > 0:
                 print(f"   Properties: {properties} @property decorators")
 
-            inheritance = oop.get('classes_with_inheritance', 0)
+            inheritance = oop.get("classes_with_inheritance", 0)
             if inheritance > 0:
                 print(f"   Inheritance: {inheritance} classes")
 
-            overloads = oop.get('operator_overloads', 0)
+            overloads = oop.get("operator_overloads", 0)
             if overloads > 0:
                 print(f"   Polymorphism: {overloads} operator overloads")
 
@@ -409,7 +410,7 @@ def main() -> int:
                 return 1
 
             # Validate path type
-            if not path.is_dir() and not (path.is_file() and path.suffix.lower() == '.zip'):
+            if not path.is_dir() and not (path.is_file() and path.suffix.lower() == ".zip"):
                 print(f"\nPath must be a directory or ZIP file: {path}")
                 return 1
 
@@ -429,6 +430,7 @@ def main() -> int:
             except Exception as e:
                 print(f"\nAnalysis failed: {e}")
                 import traceback
+
                 traceback.print_exc()
                 return 1
 
