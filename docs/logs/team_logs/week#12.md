@@ -92,7 +92,7 @@
   - [#147 – Unit testing for generation of résumé items](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/147)  
   - [#149 – Mithish logs W11+W12](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/149)
 
-![Maddy Issues](images/MaddyWeek12.png)
+![Maddy Issues](Images/MaddyWeek12.png)
 ---
 
 ### Aakash Tirathdas (**aakash-tir**)
@@ -114,7 +114,7 @@
   - [#145 – Store project information in the database](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/145)  
   - [#152 – Python complexity analysis](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/152)
 
-![Aakshs Issues](images/AakashWeek12.png)
+![Aakshs Issues](Images/AakashWeek12.png)
 
 ---
 
@@ -141,7 +141,7 @@
   - [#146 – Non LLM Analysis generate résumé items](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/146)  
   - [#152 – Python complexity analysis](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/152)
 
-![Mithish Issues](images/MithishWeek12.png)
+![Mithish Issues](Images/MithishWeek12.png)
 
 ---
 
@@ -167,7 +167,7 @@
   **Links:**  
   - [#146](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/146), [#140](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/140), [#157](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/157), [#154](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/154), [#130](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/130), [#107](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/107)
 
-![Ansh Issues](images/AnshWeek12.png)
+![Ansh Issues](Images/AnshWeek12.png)
 
 ---
 
@@ -191,7 +191,7 @@
   - [#139](https://github.com/COSC-499-W2025/capstone-project-team-6/issues/139)  
   - [#148](https://github.com/COSC-499-W2025/capstone-project-team-6/issues/148)
 
-![Harjot Issues](images/HarjotWeek12.png)
+![Harjot Issues](Images/HarjotWeek12.png)
 
 ---
 
@@ -216,7 +216,7 @@
   - [#144](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/144)  
   - [#154](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/154)
 
-![Mo Issues](images/MohomadWeek12.png)
+![Mo Issues](Images/MohomadWeek12.png)
 ---
 
 ## What Went Well
