@@ -475,22 +475,7 @@ class COOPAnalyzer:
         # Check if function uses malloc/free (dynamic memory)
         # Always process definitions to catch malloc/free
         if is_definition:
-            # Get function body tokens
-            for token in cursor.get_tokens():
-                token_text = token.spelling
-                
-                #Memory allocation
-                if token_text in ['malloc', 'calloc', 'realloc']:
-                    self.analysis.malloc_usage += 1
-                    break
-            
-            for token in cursor.get_tokens():
-                token_text = token.spelling
-                
-                # Memory deallocation
-                if token_text == 'free':
-                    self.analysis.free_usage += 1
-                    break
+            self._check_memory_calls(cursor) #recursive AST
         
         if not already_counted:
             #ERROR HANDLING DETECTION
@@ -513,6 +498,17 @@ class COOPAnalyzer:
                 'return_type': return_type,
                 'filename': filename
             }
+
+    def _check_memory_calls(self, cursor):
+        if cursor.kind == CursorKind.CALL_EXPR:
+            if cursor.spelling in ['malloc', 'calloc', 'realloc']:
+                self.analysis.malloc_usage += 1
+            elif cursor.spelling == 'free':
+                self.analysis.free_usage += 1
+
+        for child in cursor.get_children():
+            self._check_memory_calls(child)
+    
     
     def _matches_oop_naming(self, func_name: str) -> bool:
         '''basic name check'''
