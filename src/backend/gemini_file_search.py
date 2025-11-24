@@ -12,32 +12,20 @@ from typing import Dict, Iterable, List, Optional
 
 import google.auth
 import google.auth.transport.requests
-from google.ai.generativelanguage_v1beta import (
-    CreateChunkRequest,
-    CreateDocumentRequest,
-    FileServiceClient,
-    GenerativeServiceClient,
-    RetrieverServiceClient,
-)
-from google.ai.generativelanguage_v1beta.types import (
-    Chunk,
-    Content,
-    Corpus,
-    Document,
-    FileSearch,
-    FileSearchDatastore,
-    GenerateContentRequest,
-    Part,
-    Tool,
-)
+from google.ai.generativelanguage_v1beta import (CreateChunkRequest,
+                                                 CreateDocumentRequest,
+                                                 FileServiceClient,
+                                                 GenerativeServiceClient,
+                                                 RetrieverServiceClient)
+from google.ai.generativelanguage_v1beta.types import (Chunk, Content, Corpus,
+                                                       Document, FileSearch,
+                                                       FileSearchDatastore,
+                                                       GenerateContentRequest,
+                                                       Part, Tool)
 from google.api_core import exceptions
 from google.oauth2 import service_account
-from tenacity import (
-    retry,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential,
-)
+from tenacity import (retry, retry_if_exception_type, stop_after_attempt,
+                      wait_exponential)
 
 logger = logging.getLogger(__name__)
 
@@ -58,9 +46,7 @@ class GeminiFileSearchClient:
             self.project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
 
         if not self.project_id:
-            raise RuntimeError(
-                "GOOGLE_CLOUD_PROJECT is not set and credentials do not include a project_id."
-            )
+            raise RuntimeError("GOOGLE_CLOUD_PROJECT is not set and credentials do not include a project_id.")
 
         # Initialize clients
         self.retriever_client = RetrieverServiceClient(credentials=self.credentials)
@@ -75,14 +61,11 @@ class GeminiFileSearchClient:
         creds_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
         if creds_path and os.path.exists(creds_path):
             self.credentials = service_account.Credentials.from_service_account_file(
-                creds_path,
-                scopes=["https://www.googleapis.com/auth/cloud-platform"]
+                creds_path, scopes=["https://www.googleapis.com/auth/cloud-platform"]
             )
         else:
             # Fallback to default credentials (ADC)
-            self.credentials, self.project_id = google.auth.default(
-                scopes=["https://www.googleapis.com/auth/cloud-platform"]
-            )
+            self.credentials, self.project_id = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
 
     def create_corpus(self, display_name: str = "Project Analysis Corpus") -> str:
         """Create a new Corpus for storing documents."""
@@ -114,38 +97,30 @@ class GeminiFileSearchClient:
     def ingest_document(self, corpus_name: str, file_path: str, text: str, metadata: Dict[str, str] = None) -> str:
         """
         Ingest a single document into the corpus.
-        
+
         Args:
             corpus_name: Resource name of the corpus (corpora/...)
             file_path: Local path of the file (used as display name/ID base)
             text: Extracted text content
             metadata: Optional key-value metadata
-            
+
         Returns:
             Document resource name
         """
         # Create Document
         display_name = os.path.basename(file_path)
-        
-        document = Document(
-            display_name=display_name,
-            custom_metadata=[] 
-        )
-        
-        create_doc_req = CreateDocumentRequest(
-            parent=corpus_name,
-            document=document
-        )
+
+        document = Document(display_name=display_name, custom_metadata=[])
+
+        create_doc_req = CreateDocumentRequest(parent=corpus_name, document=document)
         doc = self.retriever_client.create_document(request=create_doc_req)
-        
+
         # Create Chunks
         chunks = []
         for chunk_text in self._chunk_text(text):
-            chunk = Chunk(
-                data={"string_value": chunk_text}
-            )
+            chunk = Chunk(data={"string_value": chunk_text})
             chunks.append(chunk)
-            
+
         # Batch ingest chunks (up to 100 per request usually)
         batch_size = 100
         for i in range(0, len(chunks), batch_size):
@@ -158,26 +133,25 @@ class GeminiFileSearchClient:
     def ingest_batch(self, corpus_name: str, documents: List[Dict[str, str]]) -> int:
         """
         Ingest multiple documents in parallel.
-        
+
         Args:
             corpus_name: The target corpus resource name.
             documents: List of dicts with 'path' and 'content'.
-        
+
         Returns:
             Number of successfully ingested documents.
         """
         # Use ThreadPoolExecutor for parallel IO-bound operations
         # Limit max_workers to avoid hitting rate limits too instantly
-        max_workers = 5  
+        max_workers = 5
         successful_ingestions = 0
-        
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Map each ingestion task
             future_to_doc = {
-                executor.submit(self.ingest_document, corpus_name, doc["path"], doc["content"]): doc["path"]
-                for doc in documents
+                executor.submit(self.ingest_document, corpus_name, doc["path"], doc["content"]): doc["path"] for doc in documents
             }
-            
+
             for future in concurrent.futures.as_completed(future_to_doc):
                 path = future_to_doc[future]
                 try:
@@ -185,7 +159,7 @@ class GeminiFileSearchClient:
                     successful_ingestions += 1
                 except Exception as e:
                     logger.warning(f"Failed to ingest {path}: {e}")
-                    
+
         return successful_ingestions
 
     def generate_content(self, corpus_name: str, prompt: str, model: str = "models/gemini-1.5-pro-001") -> str:
@@ -195,25 +169,18 @@ class GeminiFileSearchClient:
         datastore = FileSearchDatastore(resource_name=corpus_name)
         file_search = FileSearch(datastores=[datastore])
         tool = Tool(file_search=file_search)
-        
-        content = Content(
-            role="user",
-            parts=[Part(text=prompt)]
-        )
-        
-        req = GenerateContentRequest(
-            model=model,
-            contents=[content],
-            tools=[tool]
-        )
-        
+
+        content = Content(role="user", parts=[Part(text=prompt)])
+
+        req = GenerateContentRequest(model=model, contents=[content], tools=[tool])
+
         response = self.gen_client.generate_content(request=req)
-        
+
         if response.candidates:
             candidate = response.candidates[0]
             if candidate.content and candidate.content.parts:
                 return candidate.content.parts[0].text
-        
+
         return "No response generated."
 
     def cleanup_corpus(self, corpus_name: str):

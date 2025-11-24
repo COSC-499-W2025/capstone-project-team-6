@@ -1,8 +1,9 @@
 """
 Tests for the Gemini File Search Client.
 """
-import sys
+
 import os
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -42,14 +43,15 @@ except ImportError:
 
 
 class TestGeminiFileSearchClient:
-    
+
     @pytest.fixture
     def client(self):
         with patch.dict(os.environ, {"GOOGLE_CLOUD_PROJECT": "test-project"}):
             with patch("backend.gemini_file_search.service_account.Credentials"):
-                with patch("backend.gemini_file_search.RetrieverServiceClient") as mock_retriever, \
-                     patch("backend.gemini_file_search.GenerativeServiceClient") as mock_gen:
-                    
+                with patch("backend.gemini_file_search.RetrieverServiceClient") as mock_retriever, patch(
+                    "backend.gemini_file_search.GenerativeServiceClient"
+                ) as mock_gen:
+
                     client = GeminiFileSearchClient()
                     client.retriever_client = mock_retriever.return_value
                     client.gen_client = mock_gen.return_value
@@ -57,22 +59,24 @@ class TestGeminiFileSearchClient:
 
     def test_ingest_document_retry(self, client):
 
-        class ResourceExhausted(Exception): pass
-        class ServiceUnavailable(Exception): pass
-        
+        class ResourceExhausted(Exception):
+            pass
+
+        class ServiceUnavailable(Exception):
+            pass
+
         mock_google_api_core.exceptions.ResourceExhausted = ResourceExhausted
         mock_google_api_core.exceptions.ServiceUnavailable = ServiceUnavailable
-        
+
         from backend.gemini_file_search import exceptions as module_exceptions
-        
+
         mock_success = MagicMock(name="corpora/123/documents/456")
         mock_success.name = "corpora/123/documents/456"
 
-        
         mock_create = client.retriever_client.create_document
 
         mock_create.return_value = mock_success
-        
+
         client.ingest_document("corpora/123", "test.txt", "content")
         assert mock_create.call_count == 1
 
@@ -81,7 +85,7 @@ class TestGeminiFileSearchClient:
         with patch.object(client, "ingest_document") as mock_ingest:
             docs = [{"path": "1.txt", "content": "a"}, {"path": "2.txt", "content": "b"}]
             count = client.ingest_batch("corpora/123", docs)
-            
+
             assert count == 2
             assert mock_ingest.call_count == 2
 

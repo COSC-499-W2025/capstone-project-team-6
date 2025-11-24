@@ -41,11 +41,11 @@ _SESSION_CORPORA: Dict[str, str] = {}
 def run_gemini_analysis(zip_path: Path, prompt_override: Optional[str] = None) -> Dict[str, Any]:
     """
     Run the full analysis pipeline using Gemini.
-    
+
     Args:
         zip_path: Path to the uploaded ZIP file.
         prompt_override: Optional custom prompt.
-        
+
     Returns:
         The complete analysis payload including LLM results.
     """
@@ -53,7 +53,7 @@ def run_gemini_analysis(zip_path: Path, prompt_override: Optional[str] = None) -
     logger.info(f"Starting metadata extraction for {zip_path}")
     with MetadataExtractor(zip_path) as extractor:
         report = extractor.generate_report()
-        
+
     # 2. Initialize Gemini Client
     try:
         client = GeminiFileSearchClient()
@@ -65,7 +65,7 @@ def run_gemini_analysis(zip_path: Path, prompt_override: Optional[str] = None) -
     # 3. Session-based Corpus Management
     session = get_session()
     username = session.get("username")
-    
+
     # If user is logged in, try to reuse their corpus
     corpus_name = None
     if username and username in _SESSION_CORPORA:
@@ -106,28 +106,28 @@ def run_gemini_analysis(zip_path: Path, prompt_override: Optional[str] = None) -
             all_file_infos.extend(files_section.get("docs", []))
             all_file_infos.extend(files_section.get("tests", []))
             all_file_infos.extend(files_section.get("other", []))
-            
+
             with classifier.zip_file as zf:
                 for file_info in all_file_infos:
                     path = file_info["path"]
-                    
+
                     if _should_ignore_path(path):
                         continue
 
                     try:
                         # Read content
                         content_bytes = zf.read(path)
-                        
+
                         # Truncate if too large instead of skipping
                         if len(content_bytes) > DEFAULT_MAX_FILE_SIZE_BYTES:
                             logger.warning(f"Truncating large file {path} ({len(content_bytes)} bytes)")
                             content_bytes = content_bytes[:DEFAULT_MAX_FILE_SIZE_BYTES]
-                            
+
                         content = content_bytes.decode("utf-8", errors="ignore")
-                        
+
                         if not content.strip():
                             continue
-                            
+
                         files_to_ingest.append({"path": path, "content": content})
                     except Exception as e:
                         logger.warning(f"Failed to read {path}: {e}")
@@ -146,10 +146,10 @@ def run_gemini_analysis(zip_path: Path, prompt_override: Optional[str] = None) -
             "Provide a summary of the implementation."
         )
         prompt = prompt_override or default_prompt
-        
+
         logger.info("Generating analysis...")
         response_text = client.generate_content(corpus_name, prompt)
-        
+
         # 7. Attach to report
         report["llm_summary"] = response_text
         report["analysis_metadata"]["gemini_corpus"] = corpus_name
@@ -158,9 +158,9 @@ def run_gemini_analysis(zip_path: Path, prompt_override: Optional[str] = None) -
     except Exception as e:
         logger.error(f"Error during Gemini analysis: {e}")
         report["llm_error"] = str(e)
-        
+
     finally:
-        # Cleanup logic changes: 
+        # Cleanup logic changes:
         # If persistent session, DO NOT delete corpus.
         # If ephemeral (no username), delete it.
         if not username:
@@ -180,22 +180,22 @@ def _should_ignore_path(path: str) -> bool:
     # Normalize path to forward slashes
     normalized = path.replace("\\", "/")
     parts = normalized.split("/")
-    
+
     # Check filename (last part)
     filename = parts[-1].lower()
     if filename in IGNORED_FILE_NAMES_LOWER:
         return True
-        
+
     # Check directory parts
     # We look for exact directory name matches against keywords
     # Remove trailing slashes from keywords for comparison
     ignored_dirs = {k.rstrip("/") for k in IGNORED_PATH_KEYWORDS}
-    
+
     # Check if any part of the path matches an ignored directory name
     for part in parts[:-1]:  # Don't check filename against dir list
         if part in ignored_dirs:
             return True
-            
+
     return False
 
 

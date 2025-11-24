@@ -1,6 +1,7 @@
 """
 Tests for the LLM Pipeline.
 """
+
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -21,12 +22,15 @@ sys.modules["google.api_core"] = module_mock
 
 # Adjust path
 import os
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 
-from backend.analysis.llm_pipeline import _should_ignore_path, run_gemini_analysis
+from backend.analysis.llm_pipeline import (_should_ignore_path,
+                                           run_gemini_analysis)
+
 
 class TestLLMPipeline:
-    
+
     @pytest.fixture
     def mock_gemini_client(self):
         with patch("backend.analysis.llm_pipeline.GeminiFileSearchClient") as MockClient:
@@ -41,14 +45,14 @@ class TestLLMPipeline:
         with patch("backend.analysis.llm_pipeline.MetadataExtractor") as MockExtractor:
             extractor_instance = MockExtractor.return_value
             extractor_instance.__enter__.return_value = extractor_instance
-            
+
             extractor_instance.generate_report.return_value = {
                 "analysis_metadata": {"zip_file": "test.zip", "analysis_timestamp": "2023-01-01"},
                 "projects": [{"project_name": "test-project"}],
-                "summary": {}
+                "summary": {},
             }
             yield extractor_instance
-            
+
     @pytest.fixture
     def mock_session(self):
         with patch("backend.analysis.llm_pipeline.get_session") as mock_get_session:
@@ -60,41 +64,42 @@ class TestLLMPipeline:
         with patch("backend.analysis.project_analyzer.FileClassifier") as MockClassifier:
             classifier_instance = MockClassifier.return_value
             classifier_instance.__enter__.return_value = classifier_instance
-            
+
             classifier_instance.classify_project.return_value = {
                 "files": {
                     "code": {"python": [{"path": "main.py", "size": 100}]},
                     "configs": [{"path": "config.json", "size": 50}],
                     "docs": [],
                     "tests": [],
-                    "other": []
+                    "other": [],
                 }
             }
-            
+
             mock_zip = MagicMock()
             # Configure read to return content when path is accessed
             mock_zip.read.return_value = b"file content"
             classifier_instance.zip_file = mock_zip
-            
+
             yield classifier_instance
 
     def test_run_gemini_analysis_success(self, mock_gemini_client, mock_metadata_extractor, mock_file_classifier, mock_session):
         # Patch FileClassifier constructor where it is used in pipeline
         with patch("backend.analysis.llm_pipeline.FileClassifier", return_value=mock_file_classifier):
             zip_path = Path("test.zip")
-            
+
             # Reset global cache for tests
             from backend.analysis import llm_pipeline
+
             llm_pipeline._SESSION_CORPORA = {}
-            
+
             report = run_gemini_analysis(zip_path)
-            
+
             assert report["llm_summary"] == "Mock LLM Summary"
             assert report["analysis_metadata"]["gemini_corpus"] == "corpora/test-uuid"
-            
+
             # Verify session reuse
             assert llm_pipeline._SESSION_CORPORA["testuser"] == "corpora/test-uuid"
-            
+
             # Verify NO cleanup because user is logged in
             mock_gemini_client.cleanup_corpus.assert_not_called()
 
@@ -114,7 +119,7 @@ class TestLLMPipeline:
         assert _should_ignore_path(".env") is True
         assert _should_ignore_path("config/.env") is True
         assert _should_ignore_path("dist/bundle.js") is True
-        
+
         # Should NOT ignore
         assert _should_ignore_path("src/main.py") is False
         assert _should_ignore_path("README.md") is False
