@@ -475,6 +475,8 @@ def main() -> int:
 
         # Command line mode
         if args.command == "login":
+            from .session import save_session
+
             # First verify credentials
             if not authenticate_user(args.username, args.password):
                 print("\nInvalid username or password")
@@ -487,6 +489,8 @@ def main() -> int:
                 print("You can update your consent later using 'mda consent --update'")
                 return 1
 
+            # Save session for future commands
+            save_session(args.username)
             print(f"\nLogin successful! Welcome {args.username}!")
             return 0
 
