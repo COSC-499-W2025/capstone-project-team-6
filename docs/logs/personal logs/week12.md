@@ -8,13 +8,23 @@
 ## Date Ranges
 November 10 - Novemeber 23
 ![Mithish Week 11 and 12](images/MithishWeek12.png)
+## Weekly recap goals
+- Complete java analysis 
+- Store project info in the database
+- Generate resume items
+- Complete unit tests for the above
+- Review other teammates codes
+## What went well
 Over the past two weeks, I made solid progress strengthening the non-LLM analysis pipeline. Building the Java OOP analysis helped me translate high-level design principles into practical code checks, and integrating it into the main pipeline showed me how each component contributes to the overall workflow.
 
 Fixing bugs and adding project-size adaptations improved the accuracy and reliability of the analysis. Implementing database storage and résumé item generation also gave me a better sense of how our results will be used and how to present them meaningfully to users.
 
 Overall, these weeks helped me improve both the technical quality of the analysis pipeline and my ability to think about how the system works end-to-end.## PR's initiated
 
-## PR's initiated
+## What didn't go well
+Some of the testing hasn't been added properly due to a busy week, hence it will be added in the next sprint. This includes more detailed testing for modifying java analysis based on project size. Furthermore, due to time constraints I couldn't finish the python SOLID design principles addition.
+
+## PR's initiated 
 -  Complete Java OOP Analysis #128:  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/128
 - Integrated Java nalysis to the main analysis pipeline #130: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/130
 - Add fixes to Java analysis pipeline #140: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/140
