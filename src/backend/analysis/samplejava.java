@@ -98,6 +98,22 @@ class PassengerService {
 
 // Enum
 enum FlightStatus { BOARDING, ON_TIME, DELAYED, CANCELLED }
+class FlightCalculator {
+    // Overloaded methods with different parameters
+    public int calculate(int distance) {
+        return distance*5;
+    }
+    
+    public int calculate(int distance, int passengers) {
+        return distance * passengers;
+    }
+    
+    public double calculate(double distance, double fuelPrice) {
+        return distance * fuelPrice;
+    }
+    
+
+}
 
 // Functional Interface
 @FunctionalInterface interface FuelCalculator { int estimate(int pax, int distKm); }
@@ -143,5 +159,13 @@ public class samplejava {
         // Enum usage
         FlightStatus status = FlightStatus.ON_TIME;
         System.out.println("Flight status: " + status);
+        FlightCalculator calculator = new FlightCalculator();
+        Runnable flightCheck = new Runnable() {
+            @Override
+            public void run() {
+                System.out.println("Performing pre-flight checks...");
+            }
+        };
+        flightCheck.run();
     }
 }
