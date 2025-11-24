@@ -50,3 +50,6 @@ pgvector==0.3.2
 
 # Embeddings
 ollama==0.3.2
+
+clang==20.1.5
+libclang==18.1.1
