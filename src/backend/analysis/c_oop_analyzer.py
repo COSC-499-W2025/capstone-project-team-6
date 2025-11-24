@@ -270,9 +270,39 @@ class COOPAnalyzer:
         """
         
         #look for user code
-        if cursor.location.file and cursor.location.file.name.startswith('/usr'):
-            return
-        
+        # Skip system headers (cross-platform: Linux, Mac, Windows)
+        if cursor.location.file:
+            file_path = str(cursor.location.file.name)
+            
+            # Normalize path separators (Windows uses \, Unix uses /)
+            file_path_normalized = file_path.replace('\\', '/')
+            
+            # System header patterns for all platforms
+            system_patterns = [
+                # Unix/Linux standard locations
+                '/usr/include',
+                '/usr/local/include',
+                
+                # Mac system locations
+                '/System/Library',
+                '/Library/Frameworks',
+                '/Applications/Xcode',
+                
+                # Windows locations (both formats work after normalization)
+                'Program Files',
+                'C:/Windows',
+                'C:/Program Files',
+                
+                # Unix-like environments on Windows
+                '/mingw',
+                '/msys',
+                '/cygwin',
+            ]
+            
+            # Check if file path contains any system pattern
+            if any(pattern in file_path_normalized for pattern in system_patterns):
+                return
+                
         #STRUCT DECLARATIONS 
         if cursor.kind == CursorKind.STRUCT_DECL:
             self._analyze_struct(cursor, filename)
