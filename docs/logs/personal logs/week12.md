@@ -1,6 +1,39 @@
 # Mandira Samarasekara
 
 # Aakash Tirithdas
+## Date Ranges
+November 10 - Novemeber 23
+![Aakash Week 11 and 12](images/aakashW12.png)
+
+## Weekly goals recap
+- Write code for manual C analysis
+- Write tests for manual C analysis
+- Complete llama stack initialization
+  
+## What was completed
+- Write code for manual C analysis
+- Write tests for manual C analysis
+
+## What didnt go as planned
+During reading week while trying to complete the llama stack initialization, I ran into a bug in the llama stack source code which had an issue with docker. The docker image for llama stack didnt allow for embedding models to be tagged with the embedding parameter. Llama stack defaulted the parameter to llm eventhough it was clearly passed as an embedding model. This cause the llama stack route to completely be closed of. There for no working code could be provided and the branch was left locally due to the several errors that were displayed.
+
+## Plan for next week
+Get everything that we already have integrated into the CLI and work on having an output and demo that can be shown after next week. I have informed my teammates that i will not be available next week form Friday to Sunday and that i will do the work prior to then.
+
+Study for test on Wednesday
+
+## PR initiated
+C-OOP
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/154
+
+
+## PR's reviewed
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/143
+
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/145
+
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/152
+
 
 
 # Mithish Ravisankar Geetha  
