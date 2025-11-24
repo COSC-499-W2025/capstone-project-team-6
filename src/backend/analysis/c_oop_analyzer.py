@@ -153,69 +153,78 @@ class COOPAnalyzer:
         self.functions: Dict[str, Dict] = {}
         self.declared_structs: Set[str] = set()
         self.defined_structs: Set[str] = set()
-        self.create_functions: Set[str] = set() 
+        self.header_only_structs: Set[str] = set()  # Structs declared in .h but not defined in .c
+        self.create_functions: Set[str] = set()
         self.destroy_functions: Set[str] = set()
         self.function_pointer_typedefs: Set[str] = set()
 
 
-    def analyze_file(self, content: str, filename: str = "temp.c") -> COOPAnalysis:
+    def analyze_file(self, content: str, filename: str = "temp.c", include_dirs: Optional[List[str]] = None) -> COOPAnalysis:
         """
         analyze a single C file.
-        
+
         Args:
             content: The C source code as a string
             filename: Name of the file (used for .h vs .c detection)
-        
+            include_dirs: Optional list of directories to search for includes
+
         Returns:
             COOPAnalysis object with all metrics
-        
+
         Process:
         1. Check if libclang is available
         2. Write content to temporary file (libclang needs actual files)
-        3. Parse file into AST
+        3. Parse file into AST with include directories
         4. Traverse AST to extract information
         5. Run post-processing (pattern detection, pair matching)
         6. Clean up temporary file
         7. Return analysis
         """
-        
+
         if not CLANG_AVAILABLE:
             print("Error: libclang not available")
             return self.analysis
-        
+
         try:
             import tempfile
             import os
-            
+
             # file extension based on filename
             suffix = '.h' if filename.endswith('.h') else '.c'
-            
+
             # Write to temp file and get path
             with tempfile.NamedTemporaryFile(mode='w', suffix=suffix, delete=False) as f:
                 f.write(content)
-                temp_path = f.name        
-                
+                temp_path = f.name
+
             # Parse with libclang
             index = clang.cindex.Index.create()
+
+            # Build compile args with include directories
+            compile_args = ['-std=c11', '-x', 'c']
+            if include_dirs:
+                for inc_dir in include_dirs:
+                    compile_args.extend(['-I', inc_dir])
+
             translation_unit = index.parse(
                 temp_path,
-                args=['-std=c11', '-x', 'c']  # Use C11 standard
+                args=compile_args
             )
             
-            # Check for parse errors
+            # Check for parse errors (ignore system header errors)
             if translation_unit.diagnostics:
                 for diag in translation_unit.diagnostics:
                     if diag.severity >= clang.cindex.Diagnostic.Error:
+                        # Ignore errors about system headers not being found
+                        if "file not found" in diag.spelling.lower():
+                            # Check if it's a system header (angle brackets)
+                            if any(h in diag.spelling for h in ["<", "stdlib", "stdio", "string", "stddef", "stdint"]):
+                                continue
                         print(f"Parse error: {diag.spelling}")
             
             # Traverse the Abstract Syntax Tree
             self._traverse_ast(translation_unit.cursor, filename)
-            
-            # Post-processing
-            self._detect_opaque_pointers()
-            self._match_constructor_destructor_pairs()
-            self._detect_design_patterns()
-            
+
             # Clean up temporary file
             os.unlink(temp_path)
             
@@ -225,7 +234,15 @@ class COOPAnalyzer:
             traceback.print_exc()
         
         return self.analysis
-    
+
+    def finalize_analysis(self):
+        """
+        Run post-processing after all files have been analyzed.
+        This should be called once after analyzing all files in a project.
+        """
+        self._detect_opaque_pointers()
+        self._match_constructor_destructor_pairs()
+        self._detect_design_patterns()
 
 
     def _traverse_ast(self, cursor, filename: str, parent_struct: Optional[str] = None):
@@ -391,7 +408,11 @@ class COOPAnalyzer:
                 self.analysis.vtable_structs += 1
         
         else:
+            # Forward declaration only
             self.declared_structs.add(struct_name)
+            # If this is in a header file, track it specially
+            if filename.endswith('.h'):
+                self.header_only_structs.add(struct_name)
     
     
         def _is_function_pointer_type(self, type_obj) -> bool:
@@ -452,44 +473,47 @@ class COOPAnalyzer:
         func_name = cursor.spelling
         if not func_name:
             return
-        
-        #avoid dupli
-        if func_name in self.functions:
-            return
-        
-        self.analysis.total_functions += 1
+
+        # Track function only once for counting, but still process definitions
+        is_definition = cursor.is_definition()
+        already_counted = func_name in self.functions
+
+        if not already_counted:
+            self.analysis.total_functions += 1
         
         #STATIC FUNCTION DETECTION
         #Static functions are only visible in their file
         storage_class = cursor.storage_class
         is_static = (storage_class == StorageClass.STATIC)
-        
-        if is_static:
-            self.analysis.static_functions += 1
-        
-        #OOP-STYLE NAMING CONVENTION
-        if self._matches_oop_naming(func_name):
-            self.analysis.oop_style_naming_count += 1
-            
-            # link to struct
-            struct_name = func_name.split('_')[0]
-            if struct_name in self.structs:
-                self.structs[struct_name].associated_functions.append(func_name)
-        
-        #CONSTRUCTOR/DESTRUCTOR PATTERN
-        #constructor
-        if func_name.endswith('_create') or func_name.endswith('_new'):
-            self.create_functions.add(func_name)
-        
-        #destructors
-        if (func_name.endswith('_destroy') or 
-            func_name.endswith('_free') or 
-            func_name.endswith('_delete')):
-            self.destroy_functions.add(func_name)
-        
+
+        if not already_counted:
+            if is_static:
+                self.analysis.static_functions += 1
+
+            #OOP-STYLE NAMING CONVENTION
+            if self._matches_oop_naming(func_name):
+                self.analysis.oop_style_naming_count += 1
+
+                # link to struct
+                struct_name = func_name.split('_')[0]
+                if struct_name in self.structs:
+                    self.structs[struct_name].associated_functions.append(func_name)
+
+            #CONSTRUCTOR/DESTRUCTOR PATTERN
+            #constructor
+            if func_name.endswith('_create') or func_name.endswith('_new'):
+                self.create_functions.add(func_name)
+
+            #destructors
+            if (func_name.endswith('_destroy') or
+                func_name.endswith('_free') or
+                func_name.endswith('_delete')):
+                self.destroy_functions.add(func_name)
+
         #MEMORY MANAGEMENT DETECTION
         # Check if function uses malloc/free (dynamic memory)
-        if cursor.is_definition():
+        # Always process definitions to catch malloc/free
+        if is_definition:
             # Get function body tokens
             for token in cursor.get_tokens():
                 token_text = token.spelling
@@ -507,25 +531,27 @@ class COOPAnalyzer:
                     self.analysis.free_usage += 1
                     break
         
-        #ERROR HANDLING DETECTION
-        #Functions returning int/long might be returning error codes
-        return_type = cursor.result_type.spelling
-        if return_type in ['int', 'long', 'ssize_t', 'ptrdiff_t']:
-            self.analysis.functions_returning_status += 1
-        
-        #API DESIGN: Header vs Implementation
-        if filename.endswith('.h'):
-            self.analysis.header_functions += 1
-        else:
-            self.analysis.implementation_functions += 1
-        
-        # Store function metadata
-        self.functions[func_name] = {
-            'name': func_name,
-            'is_static': is_static,
-            'return_type': return_type,
-            'filename': filename
-        }
+        if not already_counted:
+            #ERROR HANDLING DETECTION
+            #Functions returning int/long might be returning error codes
+            return_type = cursor.result_type.spelling
+            if return_type in ['int', 'long', 'ssize_t', 'ptrdiff_t']:
+                self.analysis.functions_returning_status += 1
+
+            #API DESIGN: Header vs Implementation
+            if filename.endswith('.h'):
+                self.analysis.header_functions += 1
+            else:
+                self.analysis.implementation_functions += 1
+
+            # Store function metadata
+            return_type = cursor.result_type.spelling
+            self.functions[func_name] = {
+                'name': func_name,
+                'is_static': is_static,
+                'return_type': return_type,
+                'filename': filename
+            }
     
     def _matches_oop_naming(self, func_name: str) -> bool:
         '''basic name check'''
@@ -535,24 +561,26 @@ class COOPAnalyzer:
     def _detect_opaque_pointers(self):
         """
         Detect opaque pointer pattern
-        
+
         Pattern:
             In header (.h):
                 struct MyType;  // Forward declaration only
                 struct MyType* MyType_create();  // Return pointer
-            
+
             In implementation (.c):
                 struct MyType {  // Full definition hidden
                     int private_data;
                 };
-        
+
         Users can only access via pointer, can't see internals.
         This forces use of provided API functions (encapsulation).
         """
-        # Opaque pointers are structs that are declared but never defined
-        opaque = self.declared_structs - self.defined_structs 
+        # Opaque pointers are structs that were declared in headers
+        # but their full definition is hidden in .c files
+        # Use header_only_structs which tracks structs forward-declared in .h files
+        opaque = self.header_only_structs
         self.analysis.opaque_pointer_structs = len(opaque)
-        
+
         # Mark structs as opaque
         for struct_name in opaque:
             if struct_name not in self.structs:
@@ -690,7 +718,9 @@ class COOPAnalyzer:
 #helper function to make objects for classes
 def analyze_c_file(content: str, filename: str = "temp.c") -> COOPAnalysis:
     analyzer = COOPAnalyzer()
-    return analyzer.analyze_file(content, filename)
+    analyzer.analyze_file(content, filename)
+    analyzer.finalize_analysis()
+    return analyzer.analysis
 
 
 def analyze_c_project(zip_path: Path, project_path: str = "") -> Dict:
@@ -735,63 +765,98 @@ def analyze_c_project(zip_path: Path, project_path: str = "") -> Dict:
 
     analyzer = COOPAnalyzer()
 
-    #list c files
-    with zipfile.ZipFile(zip_path, "r") as zf:
-        code_paths: List[str] = []
+    # Create temp directory for extracting all C files
+    import tempfile
+    import shutil
+    temp_dir = tempfile.mkdtemp(prefix="c_analyzer_")
 
-        classifier = None
-        if FileClassifier is not None:
-            try:
-                classifier = FileClassifier(zip_path)
-                classification = classifier.classify_project(project_path)
+    try:
+        #list c files
+        with zipfile.ZipFile(zip_path, "r") as zf:
+            code_paths: List[str] = []
 
-                files_section = classification.get("files", {})
-                code_section = files_section.get("code", {})
+            classifier = None
+            if FileClassifier is not None:
+                try:
+                    classifier = FileClassifier(zip_path)
+                    classification = classifier.classify_project(project_path)
 
-                if isinstance(code_section, dict):
-                    for value in code_section.values():
-                        if isinstance(value, list):
-                            for item in value:
-                                if isinstance(item, str):
-                                    if item.endswith((".c", ".h")):
-                                        code_paths.append(item)
-                                elif isinstance(item, dict):
-                                    path = (
-                                        item.get("path")
-                                        or item.get("relative_path")
-                                        or item.get("file_path")
-                                    )
-                                    if isinstance(path, str) and path.endswith((".c", ".h")):
-                                        code_paths.append(path)
-            except Exception as e:
-                print(f"Warning: FileClassifier failed: {e}")
-            finally:
-                if classifier is not None and hasattr(classifier, "close"):
-                    try:
-                        classifier.close()
-                    except Exception:
-                        pass
+                    files_section = classification.get("files", {})
+                    code_section = files_section.get("code", {})
 
-        if not code_paths:
-            for name in zf.namelist():
-                if name.endswith(".c") or name.endswith(".h"):
-                    code_paths.append(name)
+                    if isinstance(code_section, dict):
+                        for value in code_section.values():
+                            if isinstance(value, list):
+                                for item in value:
+                                    if isinstance(item, str):
+                                        if item.endswith((".c", ".h")):
+                                            code_paths.append(item)
+                                    elif isinstance(item, dict):
+                                        path = (
+                                            item.get("path")
+                                            or item.get("relative_path")
+                                            or item.get("file_path")
+                                        )
+                                        if isinstance(path, str) and path.endswith((".c", ".h")):
+                                            code_paths.append(path)
+                except Exception as e:
+                    print(f"Warning: FileClassifier failed: {e}")
+                finally:
+                    if classifier is not None and hasattr(classifier, "close"):
+                        try:
+                            classifier.close()
+                        except Exception:
+                            pass
 
-        #deduplicate & sort
-        code_paths = sorted(set(code_paths))
+            if not code_paths:
+                for name in zf.namelist():
+                    if name.endswith(".c") or name.endswith(".h"):
+                        code_paths.append(name)
 
+            #deduplicate & sort
+            code_paths = sorted(set(code_paths))
+
+            # Extract all C/H files to temp directory first
+            for rel_path in code_paths:
+                try:
+                    # Extract file preserving structure
+                    target_path = Path(temp_dir) / rel_path
+                    target_path.parent.mkdir(parents=True, exist_ok=True)
+
+                    content = zf.read(rel_path).decode("utf-8", errors="ignore")
+                    target_path.write_text(content)
+                except Exception as e:
+                    print(f"Warning: Failed to extract {rel_path}: {e}")
+                    continue
+
+        # Now analyze each file with include paths
         for rel_path in code_paths:
             try:
-                content = zf.read(rel_path).decode("utf-8", errors="ignore")
+                target_path = Path(temp_dir) / rel_path
+                if not target_path.exists():
+                    continue
+
+                content = target_path.read_text()
                 filename = Path(rel_path).name
 
-                analyzer.analyze_file(content, filename)
+                # Get all directories that might contain headers
+                include_dirs = [
+                    temp_dir,  # Root directory
+                    str(target_path.parent),  # File's own directory
+                ]
+
+                analyzer.analyze_file(content, filename, include_dirs)
 
             except Exception as e:
                 print(f"Warning: Failed to analyze {rel_path}: {e}")
                 continue
 
-    combined = analyzer.analysis
+        # Run post-processing after all files are analyzed
+        analyzer.finalize_analysis()
+        combined = analyzer.analysis
+    finally:
+        # Clean up temp directory
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
     return {
         "project_name": project_name,
