@@ -185,6 +185,123 @@ with MetadataExtractor(zip_path) as extractor:
     metadata = extractor.extract_project_metadata("")
     # Returns: comprehensive metadata about the project
 ```
+### Phase 3: Deep Code Analysis - C++ OOP Detection
+
+#### Overview
+The C++ OOP Analyzer extends Phase 3 by providing deep object-oriented analysis for C++ code using **Clang’s Abstract Syntax Tree (AST)**.
+
+It extracts detailed metrics related to:
+- Class structure  
+- Inheritance  
+- Encapsulation  
+- Polymorphism  
+- Core C++ language features  
+
+### Features
+
+#### 1. OOP Principles Detection
+
+**Abstraction**
+- Detects abstract classes by identifying pure virtual methods  
+- Lists the names of abstract classes  
+
+**Encapsulation**
+- Counts private, protected, and public methods  
+- Counts private, protected, and public fields  
+
+**Inheritance**
+- Detects classes that inherit from others  
+- Extracts base class names  
+- Computes the maximum inheritance depth  
+
+**Polymorphism**
+- Detects virtual and pure virtual methods  
+- Detects overridden methods (heuristic-based)  
+- Identifies operator overloads  
+
+#### 2. C++-Specific Features
+- Template class detection  
+- Namespace usage  
+- Free functions inside namespaces  
+- Operator overloading  
+- Static members (if present)  
+
+#### 3. Design Pattern Heuristics
+The analyzer includes basic heuristic detection for common patterns such as:
+- Singleton  
+- Factory  
+- Strategy  
+- Observer  
+
+### Installation
+
+#### System Requirement: Clang / LLVM
+
+The analyzer requires LLVM’s `libclang` library to be installed on the system.
+
+**macOS**
+    brew install llvm
+    export LIBCLANG_PATH="$(brew --prefix llvm)/lib"
+
+**Windows**
+1. Install LLVM from:  
+   https://github.com/llvm/llvm-project/releases  
+2. Add the LLVM `bin` directory to the system `PATH`  
+3. Set:
+
+    set LIBCLANG_PATH=C:\Program Files\LLVM\bin
+
+### Usage
+
+#### Analyze a Single C++ File
+
+From the repository root:
+
+    python src/backend/analysis/cpp_oop_analyzer.py <path_to_cpp_file>
+
+**Example:**
+
+    python src/backend/analysis/cpp_oop_analyzer.py src/backend/analysis/samplecpp.cpp
+
+Output includes
+
+C++ OOP ANALYSIS RESULTS:
+
+  Total classes: 3
+  Structs: 1
+  Abstract classes: Shape
+  Classes with inheritance: 1
+  Inheritance depth: 1
+
+  Encapsulation:
+    Private methods: 0
+    Protected methods: 0
+    Public methods: 12
+    Private fields: 2
+    Public fields: 4
+
+  Polymorphism:
+    Virtual methods: 8
+    Override methods: 2
+    Operator overloads: 0
+
+  C++ Features:
+    Template classes: 0
+    Namespaces used: 1
+
+  Design Patterns:
+    ✓ Singleton
+
+SCORES:
+  OOP Score: 6/6
+  SOLID Score: 3.0/5.0
+  Coding Style: Advanced OOP
+
+## Known Limitations
+
+1. Override detection relies on heuristics
+2. Template detection is limited to templated type declarations
+4. Requires system installation of Clang/LLVM
 
 ## Phase 3: Deep Code Analysis - Python OOP Detection
 

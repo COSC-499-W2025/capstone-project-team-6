@@ -514,7 +514,6 @@ def analyze_cpp_project(zip_path: Path, project_path: str = "") -> Dict:
         "cpp_oop_analysis": combined.to_dict(),
     }
 
-
 # COMMAND LINE INTERFACE
 if __name__ == "__main__":
     import sys
