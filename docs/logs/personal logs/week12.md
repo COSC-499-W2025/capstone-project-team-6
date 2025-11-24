@@ -25,17 +25,17 @@ November 10 - November 23
 
 ## PR's initiated
 
-Python complexity analysis #152
+- Python complexity analysis # 152
 
 Implemented a Python time-complexity analysis feature that inspects Python files within projects to detect algorithmic complexity patterns and optimization awareness. The analyzer identifies inefficient patterns such as nested loops and suboptimal membership tests, while recognizing positive optimizations including memoization, set/dictionary usage, binary search implementations, and list comprehensions. Outputs include a per-project Optimization Awareness Score (0–100) with optional detailed findings. Includes comprehensive test suite and complete documentation.
 
 ## PR's reviewed
 
-Add Fixes to Java analysis pipeline #140.
-Added CLI workflow integration tests #132.
-Non LLM analysis: Generate Resume items #146.
-Unit testing for generation of resume items #147.
-Mithish logs W11+W12 #149.
+- Add Fixes to Java analysis pipeline # 140.
+- Added CLI workflow integration tests # 132.
+- Non LLM analysis: Generate Resume items # 146.
+- Unit testing for generation of resume items # 147.
+- Mithish logs W11+W12 # 149.
 
 Conducted thorough testing and code review for all PRs listed above, providing constructive feedback with actionable suggestions for improvement while highlighting strengths and effective implementations. 
 
