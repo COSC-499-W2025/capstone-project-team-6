@@ -35,6 +35,9 @@ fpdf==1.7.2
 # Vector Database
 pgvector==0.2.5
 
+# C++ Analysis
+libclang
+
 # Gemini / Google Cloud
 google-generativeai>=0.8.3
 google-auth>=2.36.0
