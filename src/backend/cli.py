@@ -302,7 +302,9 @@ def display_document_analysis(analysis: DocumentAnalysis) -> None:
     # Word count and pages
     wm = analysis.writing_metrics
     if wm.word_count > 0:
-        print(f"Pages: {wm.page_estimate:.1f} | Words: {wm.word_count:,} | Paragraphs: {analysis.structure_analysis.paragraph_count}")
+        print(
+            f"Pages: {wm.page_estimate:.1f} | Words: {wm.word_count:,} | Paragraphs: {analysis.structure_analysis.paragraph_count}"
+        )
 
     # Citation Analysis
     print("\n" + "-" * 70)
@@ -413,6 +415,8 @@ def analyze_essay(file_path: Path) -> DocumentAnalysis:
     analysis = analyze_document(str(file_path), text)
 
     return analysis
+
+
 def analyze_complexity(zip_path: Path, verbose: bool = False) -> int:
     """Analyze Python code complexity in a ZIP file.
 
