@@ -379,9 +379,10 @@ class COOPAnalyzer:
         is_definition = cursor.is_definition()
         
         if is_definition:
-            # Full struct definition
-            self.defined_structs.add(struct_name)
-            self.analysis.total_structs += 1
+            if struct_name not in self.defined_structs:
+                # Full struct definition
+                self.defined_structs.add(struct_name)
+                self.analysis.total_structs += 1
             
             # Create or update struct info
             if struct_name not in self.structs:
