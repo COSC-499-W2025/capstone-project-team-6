@@ -13,8 +13,10 @@ from typing import Optional
 from . import (Folder_traversal_fs, MDAShell, UserAlreadyExistsError,
                authenticate_user, create_user, initialize)
 from .analysis.deep_code_analyzer import generate_comprehensive_report
+from .analysis.document_analyzer import DocumentAnalysis, analyze_document
 from .analysis_database import init_db
 from .consent import ask_for_consent
+from .text_extractor import extract_text
 
 
 def handle_first_time_consent(username: str) -> bool:
@@ -282,6 +284,137 @@ def display_analysis(results: dict) -> None:
     print("\n" + "=" * 70)
 
 
+def display_document_analysis(analysis: DocumentAnalysis) -> None:
+    """Display document analysis results in a formatted way.
+
+    Args:
+        analysis: DocumentAnalysis object with all analysis results
+    """
+    print("\n" + "=" * 70)
+    print("  DOCUMENT ANALYSIS RESULTS")
+    print("=" * 70)
+
+    # Document basic info
+    file_name = Path(analysis.file_path).name
+    print(f"\nDocument: {file_name}")
+    print(f"Type: {analysis.file_type.upper()} File")
+
+    # Word count and pages
+    wm = analysis.writing_metrics
+    if wm.word_count > 0:
+        print(f"Pages: {wm.page_estimate:.1f} | Words: {wm.word_count:,} | Paragraphs: {analysis.structure_analysis.paragraph_count}")
+
+    # Citation Analysis
+    print("\n" + "-" * 70)
+    print("CITATION ANALYSIS")
+    print("-" * 70)
+
+    cit = analysis.citation_analysis
+    if cit.style:
+        print(f"Citation Style Detected: {cit.style}")
+        print(f"Total Citations:")
+        print(f"   In-text citations: {cit.in_text_count}")
+        print(f"   Bibliography entries: {cit.bibliography_count}")
+        print(f"\nCitation Quality: {cit.confidence.capitalize()} confidence")
+
+        if cit.has_consistent_style:
+            print("   [x] Consistent formatting")
+        else:
+            print("   [ ] Mixed citation styles detected")
+    else:
+        print("No citations detected in this document")
+
+    # Writing Quality Metrics
+    print("\n" + "-" * 70)
+    print("WRITING QUALITY METRICS")
+    print("-" * 70)
+
+    if wm.flesch_kincaid_grade is not None:
+        print(f"Reading Level: {wm.reading_level_description}")
+        print(f"   Flesch-Kincaid Grade: {wm.flesch_kincaid_grade}")
+        print(f"   Flesch Reading Ease: {wm.flesch_reading_ease}")
+    else:
+        print("Reading Level: Analysis requires textstat library")
+
+    if wm.sentence_count > 0:
+        print(f"\nSentence Complexity:")
+        print(f"   Total sentences: {wm.sentence_count}")
+        print(f"   Average sentence length: {wm.avg_sentence_length:.1f} words")
+
+        if wm.avg_sentence_length > 25:
+            complexity = "High"
+        elif wm.avg_sentence_length > 15:
+            complexity = "Medium"
+        else:
+            complexity = "Low"
+        print(f"   Complexity: {complexity}")
+
+    print(f"\nAcademic Indicators:")
+    print(f"   {'[x]' if wm.has_formal_tone else '[ ]'} Formal tone maintained")
+    print(f"   {'[x]' if wm.has_technical_vocabulary else '[ ]'} Technical vocabulary used appropriately")
+
+    # Document Structure
+    print("\n" + "-" * 70)
+    print("DOCUMENT STRUCTURE")
+    print("-" * 70)
+
+    struct = analysis.structure_analysis
+    print(f"Structure Quality: {struct.structure_quality.replace('_', ' ').title()}")
+    print(f"   {'[x]' if struct.has_introduction else '[ ]'} Clear introduction section")
+    print(f"   {'[x]' if struct.has_conclusion else '[ ]'} Strong conclusion section")
+
+    if struct.paragraph_count > 0:
+        print(f"\nParagraph Analysis:")
+        print(f"   Total paragraphs: {struct.paragraph_count}")
+        print(f"   Average paragraph length: {struct.avg_paragraph_length:.0f} words")
+
+    # Resume Highlights
+    if analysis.resume_highlights:
+        print("\n" + "-" * 70)
+        print("RESUME HIGHLIGHTS")
+        print("-" * 70)
+        print("\nSkills & Achievements:")
+        for highlight in analysis.resume_highlights:
+            print(f"   • {highlight}")
+
+        print("\nSuggested Resume Bullets:")
+        # Generate formatted resume bullets
+        if cit.in_text_count >= 10 and wm.page_estimate >= 3:
+            print(f'   • "Conducted academic research and authored {wm.page_estimate:.0f}-page paper with')
+            print(f'      {cit.in_text_count} peer-reviewed citations using {cit.style} format"')
+
+        if wm.flesch_kincaid_grade and wm.flesch_kincaid_grade >= 16:
+            print(f'   • "Demonstrated advanced writing proficiency (Grade {int(wm.flesch_kincaid_grade)}+ reading')
+            print(f'      level) in formal academic contexts"')
+
+        if wm.has_formal_tone and wm.has_technical_vocabulary:
+            print(f'   • "Developed strong analytical and research skills through')
+            print(f'      evidence-based academic writing"')
+
+    print("\n" + "=" * 70)
+
+
+def analyze_essay(file_path: Path) -> DocumentAnalysis:
+    """Analyze an essay/document file.
+
+    Args:
+        file_path: Path to the document file
+
+    Returns:
+        DocumentAnalysis object with results
+    """
+    # Extract text from the document
+    text = extract_text(str(file_path))
+
+    if not text or len(text.strip()) < 100:
+        raise ValueError("Could not extract sufficient text from document. File may be empty or unsupported format.")
+
+    # Analyze the document
+    analysis = analyze_document(str(file_path), text)
+
+    return analysis
+
+
 def main() -> int:
     """Main CLI entry point.
 
@@ -309,6 +442,10 @@ def main() -> int:
     # Analyze command
     analyze_parser = subparsers.add_parser("analyze", help="Analyze a folder")
     analyze_parser.add_argument("path", help="Path to the folder to analyze")
+
+    # Analyze-essay command
+    essay_parser = subparsers.add_parser("analyze-essay", help="Analyze an essay or document")
+    essay_parser.add_argument("path", help="Path to the document file (.txt, .pdf, .docx, .md)")
 
     # Consent command
     consent_parser = subparsers.add_parser("consent", help="View or update consent status")
@@ -429,6 +566,46 @@ def main() -> int:
                 return 1
             except Exception as e:
                 print(f"\nAnalysis failed: {e}")
+                import traceback
+
+                traceback.print_exc()
+                return 1
+
+        elif args.command == "analyze-essay":
+            session = get_session()
+            if not session["logged_in"]:
+                print("\nPlease login first")
+                return 1
+
+            username = session["username"]
+            if not check_user_consent(username):
+                print("\nPlease provide consent before analyzing files")
+                print("Run 'mda consent --update' to view and accept the consent form")
+                return 1
+
+            path = Path(args.path)
+            if not path.exists():
+                print(f"\nPath does not exist: {path}")
+                return 1
+
+            # Validate file type
+            supported_extensions = {".txt", ".pdf", ".docx", ".md"}
+            if not path.is_file() or path.suffix.lower() not in supported_extensions:
+                print(f"\nFile must be one of: {', '.join(supported_extensions)}")
+                return 1
+
+            # Run essay analysis
+            try:
+                print(f"\nAnalyzing document: {path}")
+                analysis = analyze_essay(path)
+                display_document_analysis(analysis)
+                print("\nDocument analysis complete!")
+                return 0
+            except ValueError as e:
+                print(f"\n{e}")
+                return 1
+            except Exception as e:
+                print(f"\nDocument analysis failed: {e}")
                 import traceback
 
                 traceback.print_exc()
