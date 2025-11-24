@@ -56,6 +56,13 @@ jobs:
           PGPASSWORD=postgres psql -h localhost -U postgres -d vector_db -c "CREATE EXTENSION IF NOT EXISTS vector;"
           echo "pgvector extension enabled!"
       
+      - name: Install LLVM / libclang
+        run: |
+          sudo apt-get update
+          # clang + libclang-dev give you libclang.so on ubuntu-latest
+          sudo apt-get install -y clang libclang-dev
+          echo "Available libclang libraries:"
+          ldconfig -p | grep libclang || true
 
       - name: Install dependencies
         run: |
