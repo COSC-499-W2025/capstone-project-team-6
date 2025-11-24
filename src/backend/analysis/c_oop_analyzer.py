@@ -273,36 +273,36 @@ class COOPAnalyzer:
         # Skip system headers (cross-platform: Linux, Mac, Windows)
         if cursor.location.file:
             file_path = str(cursor.location.file.name)
-            
+
             # Normalize path separators (Windows uses \, Unix uses /)
             file_path_normalized = file_path.replace('\\', '/')
-            
+
             # System header patterns for all platforms
             system_patterns = [
                 # Unix/Linux standard locations
                 '/usr/include',
                 '/usr/local/include',
-                
+
                 # Mac system locations
                 '/System/Library',
                 '/Library/Frameworks',
                 '/Applications/Xcode',
-                
+
                 # Windows locations (both formats work after normalization)
                 'Program Files',
                 'C:/Windows',
                 'C:/Program Files',
-                
+
                 # Unix-like environments on Windows
                 '/mingw',
                 '/msys',
                 '/cygwin',
             ]
-            
+
             # Check if file path contains any system pattern
             if any(pattern in file_path_normalized for pattern in system_patterns):
                 return
-                
+
         #STRUCT DECLARATIONS 
         if cursor.kind == CursorKind.STRUCT_DECL:
             self._analyze_struct(cursor, filename)
@@ -371,73 +371,74 @@ class COOPAnalyzer:
     def _analyze_struct(self, cursor, filename: str):
         """
         Analyze a struct declaration.
-        
+
         Args:
             cursor: AST node for the struct
             filename: Source file name
-        
+
         Detects:
         1. Whether it's just a forward declaration or full definition
         2. Number of fields
         3. Function pointer fields
         4. Creates CStructInfo for tracking
-        
+
         Forward declaration example:
             struct Vector;  // Just declaration (opaque pointer candidate)
-        
+
         Full definition example:
             struct Vector {
                 int size;
                 void (*push)(struct Vector*, int);  // Function pointer field!
             };
         """
-        
+
         struct_name = cursor.spelling
-        
+
         if not struct_name:
             return
-        
+
         is_definition = cursor.is_definition()
-        
+
         if is_definition:
-            if struct_name not in self.defined_structs:
-                # Full struct definition
+            # only do this once
+            is_first_time = struct_name not in self.defined_structs
+
+            if is_first_time:
+                # Full struct definition - only count once
                 self.defined_structs.add(struct_name)
                 self.analysis.total_structs += 1
-            
-            # Create or update struct info
+
             if struct_name not in self.structs:
                 self.structs[struct_name] = CStructInfo(name=struct_name)
-            
+
             struct_info = self.structs[struct_name]
-            
-            # Analyze fields
-            field_count = 0
-            function_pointer_count = 0
-            
-            for child in cursor.get_children():
-                if child.kind == CursorKind.FIELD_DECL:
-                    field_count += 1
-                    
-                    # Check if this field is a function pointer
-                    if self._is_function_pointer_type(child.type):
-                        function_pointer_count += 1
-                        self.analysis.function_pointer_fields += 1
-            
-            struct_info.field_count = field_count
-            struct_info.function_pointer_count = function_pointer_count
-            
-            #check for VTable pattern: struct with 2+ function pointers (polymorphism)
-            if function_pointer_count >= 2:
-                self.analysis.vtable_structs += 1
-        
+
+            # analyze 1 time
+            if is_first_time:
+                field_count = 0
+                function_pointer_count = 0
+
+                for child in cursor.get_children():
+                    if child.kind == CursorKind.FIELD_DECL:
+                        field_count += 1
+
+                        # Check if field is function pointer
+                        if self._is_function_pointer_type(child.type):
+                            function_pointer_count += 1
+                            self.analysis.function_pointer_fields += 1
+
+                struct_info.field_count = field_count
+                struct_info.function_pointer_count = function_pointer_count
+
+                if function_pointer_count >= 2:
+                    self.analysis.vtable_structs += 1
+
         else:
-            # Forward declaration only
             self.declared_structs.add(struct_name)
-            # If this is in a header file, track it specially
             if filename.endswith('.h'):
                 self.header_only_structs.add(struct_name)
-    
+
+
     def _analyze_function(self, cursor, filename: str):
         """
         Analyze a function declaration.
