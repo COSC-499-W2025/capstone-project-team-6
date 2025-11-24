@@ -17,10 +17,10 @@ from pathlib import Path
 import pytest
 
 from backend.analysis.complexity_analyzer import (ComplexityInsight,
-                                                   ComplexityReport,
-                                                   analyze_python_file,
-                                                   analyze_python_project,
-                                                   format_report)
+                                                  ComplexityReport,
+                                                  analyze_python_file,
+                                                  analyze_python_project,
+                                                  format_report)
 from backend.analysis.project_analyzer import FileClassifier
 
 
