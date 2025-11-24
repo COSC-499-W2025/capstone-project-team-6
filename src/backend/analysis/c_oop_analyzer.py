@@ -1,8 +1,4 @@
-
-
-
 #copied imports from c++ code
-
 import re
 import zipfile
 from dataclasses import dataclass, field, asdict
@@ -159,6 +155,8 @@ class COOPAnalyzer:
         self.defined_structs: Set[str] = set()
         self.create_functions: Set[str] = set() 
         self.destroy_functions: Set[str] = set()
+        self.function_pointer_typedefs: Set[str] = set()
+
 
     def analyze_file(self, content: str, filename: str = "temp.c") -> COOPAnalysis:
         """
@@ -265,15 +263,52 @@ class COOPAnalyzer:
             self._analyze_function(cursor, filename)
         
         #TYPEDEF DECLARATIONS
+        #elif cursor.kind == CursorKind.TYPEDEF_DECL:
+        #    self.analysis.typedef_count += 1
+        #    # Check if it's a struct typedef
+        #    underlying = cursor.underlying_typedef_type
+        #    if underlying.kind == TypeKind.RECORD:  # RECORD = struct/union
+        #        struct_name = underlying.spelling.replace('struct ', '')
+        #        if struct_name in self.structs:
+        #            self.structs[struct_name].has_typedef = True
+        
         elif cursor.kind == CursorKind.TYPEDEF_DECL:
             self.analysis.typedef_count += 1
-            # Check if it's a struct typedef
+            typedef_name = cursor.spelling or ""
             underlying = cursor.underlying_typedef_type
-            if underlying.kind == TypeKind.RECORD:  # RECORD = struct/union
+
+            # Check if it's a struct typedef (existing code)
+            if underlying.kind == TypeKind.RECORD:
                 struct_name = underlying.spelling.replace('struct ', '')
                 if struct_name in self.structs:
                     self.structs[struct_name].has_typedef = True
-        
+
+            # NEW: detect function-pointer typedefs
+            is_fp = False
+            try:
+                canonical = underlying.get_canonical()
+            except Exception:
+                canonical = underlying
+
+            # Pointer-to-function via TypeKind (if clang can see it)
+            try:
+                if canonical.kind == TypeKind.POINTER:
+                    pointee = canonical.get_pointee()
+                    if pointee.kind in (TypeKind.FUNCTIONPROTO, TypeKind.FUNCTIONNOPROTO):
+                        is_fp = True
+            except Exception:
+                pass
+
+            # Fallback: spelling like "void (*)(int, void *)"
+            spelling = getattr(canonical, "spelling", "") or getattr(underlying, "spelling", "")
+            if "(*" in spelling:
+                is_fp = True
+
+            if is_fp and typedef_name:
+                self.function_pointer_typedefs.add(typedef_name)
+
+
+
         #ENUM DECLARATIONS
         elif cursor.kind == CursorKind.ENUM_DECL:
             self.analysis.enum_count += 1
@@ -359,25 +394,43 @@ class COOPAnalyzer:
             self.declared_structs.add(struct_name)
     
     
-    def _is_function_pointer_type(self, type_obj) -> bool:
-        """
-        Check if a type is a function pointer.
-        
-        Args:
-            type_obj: clang Type object
-        
-        Returns:
-            True if the type is a function pointer
-        
-        
-        Type hierarchy:
-            POINTER -> FUNCTIONPROTO = function pointer
-            POINTER -> INT = regular pointer
-        """
-        if type_obj.kind == TypeKind.POINTER:
-            pointee = type_obj.get_pointee()
-            return pointee.kind in (TypeKind.FUNCTIONPROTO, TypeKind.FUNCTIONNOPROTO)
-        return False
+        def _is_function_pointer_type(self, type_obj) -> bool:
+            """
+            Check if a type is a function pointer.
+
+            Handles:
+            - Direct function pointers: void (*fn)(int);
+            - Typedef-based function pointers: typedef void (*CB)(int); CB cb;
+            """
+            if not CLANG_AVAILABLE or type_obj is None:
+                return False
+
+            # 1) If the type spelling is a known function-pointer typedef, we're done
+            spelling = getattr(type_obj, "spelling", "") or ""
+            if spelling in self.function_pointer_typedefs:
+                return True
+
+            # 2) Canonical pointer-to-function detection
+            try:
+                canonical = type_obj.get_canonical()
+            except Exception:
+                canonical = type_obj
+
+            try:
+                if canonical.kind == TypeKind.POINTER:
+                    pointee = canonical.get_pointee()
+                    return pointee.kind in (TypeKind.FUNCTIONPROTO, TypeKind.FUNCTIONNOPROTO)
+            except Exception:
+                pass
+
+            # 3) Fallback heuristic: "void (*)(...)" etc.
+            canon_spelling = getattr(canonical, "spelling", "") or spelling
+            if "(*" in canon_spelling:
+                return True
+
+            return False
+
+
 
     def _analyze_function(self, cursor, filename: str):
         """
@@ -505,7 +558,39 @@ class COOPAnalyzer:
             if struct_name not in self.structs:
                 self.structs[struct_name] = CStructInfo(name=struct_name)
             self.structs[struct_name].is_opaque = True
-    
+
+    def _is_function_pointer_type(self, type_obj) -> bool:
+        """
+        Check if a type is a function pointer.
+        Handles:
+        - Direct function pointers: int (*fn)(int, int);
+        - Typedef-based function pointers: typedef void (*CB)(int); CB cb;
+        """
+        if not CLANG_AVAILABLE or type_obj is None:
+            return False
+        # 1) If the type spelling is a known function-pointer typedef, we're done
+        spelling = getattr(type_obj, "spelling", "") or ""
+        if hasattr(self, "function_pointer_typedefs") and spelling in self.function_pointer_typedefs:
+            return True
+        # 2) Canonical pointer-to-function detection via libclang
+        try:
+            canonical = type_obj.get_canonical()
+        except Exception:
+            canonical = type_obj
+        try:
+            if canonical.kind == TypeKind.POINTER:
+                pointee = canonical.get_pointee()
+                if pointee.kind in (TypeKind.FUNCTIONPROTO, TypeKind.FUNCTIONNOPROTO):
+                    return True
+        except Exception:
+            # If anything goes wrong with TypeKind inspection, fall through to heuristics
+            pass
+        # 3) Fallback heuristic: function pointer spellings usually contain "(*"
+        canon_spelling = getattr(canonical, "spelling", "") or spelling
+        if "(*" in canon_spelling:
+            return True
+        return False
+
 
     def _match_constructor_destructor_pairs(self):
         """
@@ -628,91 +713,99 @@ def analyze_c_project(zip_path: Path, project_path: str = "") -> Dict:
         - project_path: Path analyzed
         - metadata: Project metadata (languages, files, etc.)
         - c_oop_analysis: Combined COOPAnalysis for all C files
-    
     """
-    if MetadataExtractor is None or FileClassifier is None:
-        raise ImportError("MetadataExtractor and FileClassifier are required")
-    
-    # Extract project metadata
-    with MetadataExtractor(zip_path) as extractor:
-        metadata = extractor.extract_project_metadata(project_path)
-    
-    combined = COOPAnalysis()
-    
+    project_name = Path(zip_path).stem
+
+    # extract meta data
+    metadata_obj = None
+    metadata_dict: Dict = {
+        "project_name": project_name,
+        "project_path": project_path,
+    }
+
+    if MetadataExtractor is not None:
+        try:
+            with MetadataExtractor(zip_path) as extractor:
+                metadata_obj = extractor.extract_project_metadata(project_path)
+                project_name = getattr(metadata_obj, "project_name", project_name)
+                project_path = getattr(metadata_obj, "project_path", project_path)
+                metadata_dict = metadata_obj.to_dict()
+        except Exception as e:
+            print(f"Warning: MetadataExtractor failed: {e}")
+
+    analyzer = COOPAnalyzer()
+
+    #list c files
     with zipfile.ZipFile(zip_path, "r") as zf:
-        # list of C files using FileClassifier
-        classifier = FileClassifier(zip_path)
-        classification = classifier.classify_project(project_path)
-        
-        c_files = []
-        if "c" in classification["files"]["code"]:
-            c_files = classification["files"]["code"]["c"]
-        
-        #loop through c files
-        for file_info in c_files:
+        code_paths: List[str] = []
+
+        classifier = None
+        if FileClassifier is not None:
             try:
-                # Read file content
-                content = zf.read(file_info["path"]).decode("utf-8", errors="ignore")
-                filename = Path(file_info["path"]).name
-                
-                file_analysis = analyze_c_file(content, filename)
-                
-               
-                
-                #basic structure
-                combined.total_structs += file_analysis.total_structs
-                combined.total_functions += file_analysis.total_functions
-                combined.static_functions += file_analysis.static_functions
-                combined.typedef_count += file_analysis.typedef_count
-                combined.enum_count += file_analysis.enum_count
-                
-                #OOP-style patterns
-                combined.opaque_pointer_structs += file_analysis.opaque_pointer_structs
-                combined.function_pointer_fields += file_analysis.function_pointer_fields
-                combined.vtable_structs += file_analysis.vtable_structs
-                combined.oop_style_naming_count += file_analysis.oop_style_naming_count
-                
-                #memory management
-                combined.malloc_usage += file_analysis.malloc_usage
-                combined.free_usage += file_analysis.free_usage
-                combined.constructor_destructor_pairs += file_analysis.constructor_destructor_pairs
-                
-                #error handling
-                combined.functions_returning_status += file_analysis.functions_returning_status
-                combined.error_enum_count += file_analysis.error_enum_count
-                
-                #API 
-                combined.header_functions += file_analysis.header_functions
-                combined.implementation_functions += file_analysis.implementation_functions
-                
-                #design patterns
-                for pattern in file_analysis.design_patterns:
-                    if pattern not in combined.design_patterns:
-                        combined.design_patterns.append(pattern)
-                
+                classifier = FileClassifier(zip_path)
+                classification = classifier.classify_project(project_path)
+
+                files_section = classification.get("files", {})
+                code_section = files_section.get("code", {})
+
+                if isinstance(code_section, dict):
+                    for value in code_section.values():
+                        if isinstance(value, list):
+                            for item in value:
+                                if isinstance(item, str):
+                                    if item.endswith((".c", ".h")):
+                                        code_paths.append(item)
+                                elif isinstance(item, dict):
+                                    path = (
+                                        item.get("path")
+                                        or item.get("relative_path")
+                                        or item.get("file_path")
+                                    )
+                                    if isinstance(path, str) and path.endswith((".c", ".h")):
+                                        code_paths.append(path)
             except Exception as e:
-                print(f"Warning: Failed to analyze {file_info['path']}: {e}")
+                print(f"Warning: FileClassifier failed: {e}")
+            finally:
+                if classifier is not None and hasattr(classifier, "close"):
+                    try:
+                        classifier.close()
+                    except Exception:
+                        pass
+
+        if not code_paths:
+            for name in zf.namelist():
+                if name.endswith(".c") or name.endswith(".h"):
+                    code_paths.append(name)
+
+        #deduplicate & sort
+        code_paths = sorted(set(code_paths))
+
+        for rel_path in code_paths:
+            try:
+                content = zf.read(rel_path).decode("utf-8", errors="ignore")
+                filename = Path(rel_path).name
+
+                analyzer.analyze_file(content, filename)
+
+            except Exception as e:
+                print(f"Warning: Failed to analyze {rel_path}: {e}")
                 continue
-        
-        classifier.close()
-    
-    
+
+    combined = analyzer.analysis
+
     return {
-        "project_name": metadata.project_name,
-        "project_path": metadata.project_path,
-        "metadata": metadata.to_dict(),
+        "project_name": project_name,
+        "project_path": project_path,
+        "metadata": metadata_dict,
         "c_oop_analysis": combined.to_dict(),
     }
 
 
+#scoring
 
-#scoring 
 def calculate_oop_score(analysis: COOPAnalysis) -> int:
     """
     Calculate OOP-style score (0-6) based on C pattern usage.
-    
-    This score measures how much the C code follows OOP-style patterns
-    even without language-level OOP support.
     
     Scoring criteria:
     +1: Uses structs (basic data organization)
@@ -721,18 +814,8 @@ def calculate_oop_score(analysis: COOPAnalysis) -> int:
     +1: Uses function pointers (polymorphism simulation)
     +1: Has VTable structs (advanced polymorphism)
     +1: Uses design patterns or consistent OOP naming
+
     
-    Score interpretation:
-    0: Pure procedural C (just functions, no structure)
-    1-2: Basic structured C (structs, but no OOP patterns)
-    3-4: OOP-influenced C (some encapsulation, patterns)
-    5-6: Advanced OOP-style C (full pattern usage, disciplined)
-    
-    Args:
-        analysis: COOPAnalysis object
-    
-    Returns:
-        Integer score from 0 to 6
     """
     score = 0
     
@@ -759,8 +842,14 @@ def calculate_oop_score(analysis: COOPAnalysis) -> int:
     # +1: Uses design patterns or OOP naming conventions
     if analysis.design_patterns or analysis.oop_style_naming_count > 5:
         score += 1
-    
-    return score
+
+    if (
+        score >= 3
+        and analysis.constructor_destructor_pairs > 0
+        and analysis.opaque_pointer_structs > 0
+    ):
+        score += 1
+    return min(score, 6)
 
 
 def calculate_solid_score(analysis: COOPAnalysis) -> float:
@@ -877,14 +966,3 @@ def calculate_memory_safety_score(analysis: COOPAnalysis) -> float:
             score += 5.0 * ratio
     
     return score
-
-
-
-
-#analysis = COOPAnalysis(total_structs=5, design_patterns=["Factory", "Singleton"])
-#print(analysis.to_dict())
-
-
-
-
-
