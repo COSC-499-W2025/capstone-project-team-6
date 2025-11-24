@@ -14,7 +14,7 @@ VALID_ANALYSIS_TYPES = {"llm", "non_llm"}
 
 
 def _default_db_path() -> Path:
-    return Path(__file__).resolve().parent.parent / "analysis.db"
+    return Path(__file__).resolve().parent.parent / "myapp.db"
 
 
 def _resolve_db_path() -> Path:
@@ -73,6 +73,7 @@ def init_db() -> None:
                 summary_total_size_mb REAL,
                 summary_languages TEXT,
                 summary_frameworks TEXT,
+                llm_summary TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
             """
@@ -238,8 +239,9 @@ def record_analysis(
                 summary_total_size_bytes,
                 summary_total_size_mb,
                 summary_languages,
-                summary_frameworks
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                summary_frameworks,
+                llm_summary
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 analysis_uuid,
@@ -253,6 +255,7 @@ def record_analysis(
                 summary_fields["summary_total_size_mb"],
                 summary_fields["summary_languages"],
                 summary_fields["summary_frameworks"],
+                payload.get("llm_summary"),
             ),
         )
         analysis_id = cursor.lastrowid
