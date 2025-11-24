@@ -21,7 +21,8 @@ Overall, these weeks helped me improve both the technical quality of the analysi
 - Modify java analysis to account for project size #144: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/144
 - Store project information in the database #145: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/145
 - Non LLM Analysis generate resume items #146: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/146
-![alt text](image.png)
+- Unit testing for generation of resume items #147: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/147
+![alt text](image-2.png)
 ![alt text](image-1.png)
 
 
