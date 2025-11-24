@@ -26,17 +26,17 @@ November 10 - November 23
 
 ## PR's initiated
 
-- Python complexity analysis #152  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/152
+- Python complexity analysis   https://github.com/COSC-499-W2025/capstone-project-team-6/pull/152
 
 Implemented a Python time-complexity analysis feature that inspects Python files within projects to detect algorithmic complexity patterns and optimization awareness. The analyzer identifies inefficient patterns such as nested loops and suboptimal membership tests, while recognizing positive optimizations including memoization, set/dictionary usage, binary search implementations, and list comprehensions. Outputs include a per-project Optimization Awareness Score (0–100) with optional detailed findings. Includes comprehensive test suite and complete documentation.
 
 ## PR's reviewed
 
-- Add Fixes to Java analysis pipeline #140.  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/140
-- Added CLI workflow integration tests #132. https://github.com/COSC-499-W2025/capstone-project-team-6/pull/132
-- Non LLM analysis: Generate Resume items #146.  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/146
-- Unit testing for generation of resume items #147.  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/147
-- Mithish logs W11+W12 #149.   https://github.com/COSC-499-W2025/capstone-project-team-6/pull/149
+- Add Fixes to Java analysis pipeline   https://github.com/COSC-499-W2025/capstone-project-team-6/pull/140
+- Added CLI workflow integration tests  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/132
+- Non LLM analysis: Generate Resume items   https://github.com/COSC-499-W2025/capstone-project-team-6/pull/146
+- Unit testing for generation of resume items   https://github.com/COSC-499-W2025/capstone-project-team-6/pull/147
+- Mithish logs W11+W12    https://github.com/COSC-499-W2025/capstone-project-team-6/pull/149
 
 Conducted thorough testing and code review for all PRs listed above, providing constructive feedback with actionable suggestions for improvement while highlighting strengths and effective implementations. 
 
