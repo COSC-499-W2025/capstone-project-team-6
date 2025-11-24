@@ -307,6 +307,74 @@ class FileClassifier:
 
         return result
 
+    def analyze_python_complexity(self, project_root_path: str) -> Dict[str, any]:
+        """
+        Analyze Python files for time complexity patterns.
+
+        Args:
+            project_root_path: Root path of the project within the ZIP
+                            (e.g., 'my-project/' or 'folder/my-project/')
+
+        Returns:
+            Dictionary with complexity analysis report
+        """
+        from .complexity_analyzer import analyze_python_project
+
+        # Normalize the project root path
+        project_root = project_root_path.rstrip("/")
+
+        # Get all files in the ZIP
+        all_files = self.zip_file.namelist()
+
+        # Collect Python files with their content
+        python_files = []
+
+        for file_path in all_files:
+            normalized_path = file_path.replace("\\", "/")
+
+            # Check if file is under project root
+            if project_root:
+                if not normalized_path.startswith(project_root + "/"):
+                    continue
+
+            # Skip directories
+            if normalized_path.endswith("/"):
+                continue
+
+            # Skip ignored paths
+            if self.should_ignore_path(normalized_path):
+                continue
+
+            # Only process Python files
+            if not normalized_path.endswith(".py"):
+                continue
+
+            # Read file content
+            try:
+                content = self.zip_file.read(file_path).decode("utf-8", errors="ignore")
+                python_files.append((normalized_path, content))
+            except Exception:
+                # Skip files that can't be read
+                continue
+
+        # Analyze collected Python files
+        if not python_files:
+            return {
+                "total_files": 0,
+                "score": 0.0,
+                "message": "No Python files found in project",
+            }
+
+        report = analyze_python_project(python_files)
+
+        return {
+            "total_files": report.total_files_analyzed,
+            "score": report.optimization_score,
+            "summary": report.summary,
+            "insights_count": len(report.insights),
+            "report": report,  # Full report object for detailed display
+        }
+
     # basic methods when dealing with zip files
 
     def close(self):

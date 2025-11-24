@@ -15,3 +15,5 @@ __pycache__/
 pgvector/
 *.db
 sample_*.txt
+myapp.db
+src/myapp.db

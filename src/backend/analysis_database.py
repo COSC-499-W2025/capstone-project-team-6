@@ -14,7 +14,7 @@ VALID_ANALYSIS_TYPES = {"llm", "non_llm"}
 
 
 def _default_db_path() -> Path:
-    return Path(__file__).resolve().parent.parent / "analysis.db"
+    return Path(__file__).resolve().parent.parent / "myapp.db"
 
 
 def _resolve_db_path() -> Path:
