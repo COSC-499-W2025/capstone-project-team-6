@@ -11,6 +11,8 @@ import pytest
 module_mock = MagicMock()
 sys.modules["google"] = module_mock
 sys.modules["google.auth"] = module_mock
+sys.modules["google.auth.transport"] = module_mock
+sys.modules["google.auth.transport.requests"] = module_mock
 sys.modules["google.ai"] = module_mock
 sys.modules["google.ai.generativelanguage_v1beta"] = module_mock
 sys.modules["google.ai.generativelanguage_v1beta.types"] = module_mock

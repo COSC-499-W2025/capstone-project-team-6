@@ -53,3 +53,10 @@ ollama==0.3.2
 
 # Resilience
 tenacity>=8.2.3
+
+# Google Cloud
+google-cloud-ai==0.2.0
+google-cloud-aiplatform==1.102.0
+google-generativeai>=0.3.0
+google-auth>=2.27.0
+google-auth-httplib2>=0.2.0

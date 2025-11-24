@@ -197,3 +197,27 @@ def _should_ignore_path(path: str) -> bool:
             return True
             
     return False
+
+
+if __name__ == "__main__":
+    import argparse
+    import json
+    import sys
+
+    parser = argparse.ArgumentParser(description="Run Gemini Analysis on a ZIP file.")
+    parser.add_argument("zip_path", type=Path, help="Path to the ZIP file to analyze")
+    parser.add_argument("--prompt", type=str, help="Optional custom prompt", default=None)
+
+    args = parser.parse_args()
+
+    if not args.zip_path.exists():
+        print(f"Error: File not found: {args.zip_path}", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        result = run_gemini_analysis(args.zip_path, prompt_override=args.prompt)
+        # Use default=str to handle non-serializable objects like Path or datetime
+        print(json.dumps(result, indent=2, default=str))
+    except Exception as e:
+        print(f"Analysis failed: {e}", file=sys.stderr)
+        sys.exit(1)
