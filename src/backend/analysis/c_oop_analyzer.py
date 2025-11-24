@@ -281,15 +281,6 @@ class COOPAnalyzer:
         elif cursor.kind == CursorKind.FUNCTION_DECL:
             self._analyze_function(cursor, filename)
         
-        #TYPEDEF DECLARATIONS
-        #elif cursor.kind == CursorKind.TYPEDEF_DECL:
-        #    self.analysis.typedef_count += 1
-        #    # Check if it's a struct typedef
-        #    underlying = cursor.underlying_typedef_type
-        #    if underlying.kind == TypeKind.RECORD:  # RECORD = struct/union
-        #        struct_name = underlying.spelling.replace('struct ', '')
-        #        if struct_name in self.structs:
-        #            self.structs[struct_name].has_typedef = True
         
         elif cursor.kind == CursorKind.TYPEDEF_DECL:
             self.analysis.typedef_count += 1
