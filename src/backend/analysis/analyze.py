@@ -8,6 +8,7 @@ Usage:
 
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 
 # Add paths for imports
@@ -19,6 +20,7 @@ sys.path.insert(0, str(src_dir))
 sys.path.insert(0, str(backend_dir))
 
 from analysis.deep_code_analyzer import generate_comprehensive_report
+from backend.analysis_database import init_db, record_analysis
 
 
 def print_separator(title=""):
@@ -44,12 +46,20 @@ def main():
         print(f"Error: File not found: {zip_path}")
         sys.exit(1)
 
+    # Initialize database
+    init_db()
+
     print_separator("COMPLETE PROJECT ANALYSIS")
     print(f"Analyzing: {zip_path}")
     print("Running: File Classification → Metadata Extraction → Deep Code Analysis\n")
 
     try:
         report = generate_comprehensive_report(zip_path)
+        report["analysis_metadata"] = {
+            "zip_file": str(zip_path.absolute()),
+            "analysis_timestamp": datetime.now().isoformat(),
+            "total_projects": len(report["projects"])
+        }
 
         print_separator("PHASE 1 & 2: FILE CLASSIFICATION + METADATA")
 
@@ -325,6 +335,17 @@ def main():
                 print(f"\nCoding Style: {coding_style}")
         else:
             print("\nNo Java projects found for OOP analysis.")
+        try:
+            analysis_id = record_analysis(
+                analysis_type="non_llm",
+                payload=report
+            )
+            print(f"  Analysis successfully stored in database")
+            print(f"  Total Projects: {len(report['projects'])}")
+        except Exception as e:
+            print(f"  Error storing analysis in database: {e}")
+            import traceback
+            traceback.print_exc()
 
         # Offer to save JSON
         print_separator()
