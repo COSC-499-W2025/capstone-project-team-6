@@ -264,7 +264,7 @@ class COOPAnalyzer:
         - ENUM_DECL: Enum definitions
         - FIELD_DECL: Struct fields (when inside a struct)
 
-        Note the base of this was taken from C++ with changes made for C compatability
+        Note the base of this was taken from C++ with changes made for C compatibility
         """
         
         #look for user code
