@@ -43,7 +43,7 @@ class COOPAnalysis:
     static_functions: int = 0
     """
     Functions with 'static' storage class.
-    - identifys encapsulation
+    - identifies encapsulation
     -visible in compilation unit
     - High count = good encapsulation practices.
     """
