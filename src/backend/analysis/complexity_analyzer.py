@@ -118,7 +118,11 @@ class ComplexityAnalyzer(ast.NodeVisitor):
             )
 
         # Check for inefficient membership tests in loops (x in list)
-        for child in ast.walk(node.body[0]) if node.body else []:
+        # Scan the entire loop body, not just the first statement
+        loop_children = []
+        for stmt in node.body:
+            loop_children.extend(list(ast.walk(stmt)))
+        for child in loop_children:
             if isinstance(child, ast.Compare):
                 # Look for patterns like: if x in some_list
                 for op in child.ops:
@@ -424,21 +428,20 @@ def format_report(report: ComplexityReport, verbose: bool = False) -> str:
     good_practices = []
     suggestions = []
 
+    good_types = {
+        "efficient_data_structure",
+        "sorting_with_key",
+        "set_operations",
+        "dict_lookup",
+        "list_comprehension",
+        "generator_expression",
+        "binary_search",
+        "memoization",
+    }
+
     for key, count in sorted(report.summary.items()):
         display_name = key.replace("_", " ").title()
-        if any(
-            x in key
-            for x in [
-                "efficient",
-                "comprehension",
-                "generator",
-                "sorting_with_key",
-                "binary_search",
-                "memoization",
-                "set_operations",
-                "dict_lookup",
-            ]
-        ):
+        if key in good_types:
             good_practices.append(f"  ✓ {display_name}: {count}")
         else:
             suggestions.append(f"  • {display_name}: {count}")
