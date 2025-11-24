@@ -3,6 +3,7 @@ Unit tests for resume_generator.py
 """
 
 import pytest
+
 from src.backend.analysis import resume_generator as rg
 
 PROJECT_TECH = {
@@ -57,16 +58,19 @@ PROJECT_MINIMAL = {
     "project_name": "EmptyProj",
 }
 
+
 def test_generate_tech_stack_item():
     item = rg._generate_tech_stack_item(PROJECT_TECH, "TestProj")
     assert "python, javascript, c++, and 1 more" in item
     assert "Django, React, Flask, and 1 more" in item
     assert "15 source files" in item
 
+
 def test_generate_python_oop_item():
     item = rg._generate_python_oop_item(PROJECT_OOP, "OOPProj")
     assert "4 classes" in item
     assert "abstraction with 2 abstract base classes" in item or "inheritance hierarchies up to 2 levels deep" in item
+
 
 def test_generate_java_oop_item():
     item = rg._generate_java_oop_item(PROJECT_JAVA_OOP, "JavaProj")
@@ -74,11 +78,13 @@ def test_generate_java_oop_item():
     assert "Singleton, Factory design patterns" in item
     assert "2 interfaces" in item or "1 abstract classes" in item
 
+
 def test_generate_quality_item():
     item = rg._generate_quality_item(PROJECT_QUALITY, "QualProj")
     assert "5 test files" in item
     assert "CI/CD pipeline" in item
     assert "high coverage" in item
+
 
 def test_generate_resume_items_full():
     report = {"projects": [PROJECT_TECH, PROJECT_OOP, PROJECT_JAVA_OOP, PROJECT_QUALITY]}
@@ -89,10 +95,12 @@ def test_generate_resume_items_full():
     assert any("JavaProj" in i for i in items)
     assert any("QualProj" in i for i in items)
 
+
 def test_generate_resume_items_empty():
     report = {"projects": [PROJECT_MINIMAL]}
     items = rg.generate_resume_items(report)
     assert items == [] or all(isinstance(i, str) for i in items)
+
 
 def test_format_resume_items():
     items = ["Did X", "Did Y"]
@@ -100,6 +108,7 @@ def test_format_resume_items():
     assert "• Did X" in formatted
     assert "• Did Y" in formatted
     assert formatted.startswith("\n  • ")
+
 
 def test_format_resume_items_empty():
     formatted = rg.format_resume_items([])

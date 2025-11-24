@@ -224,7 +224,7 @@ class TestScoringFunctions:
             override_count=5,
             generic_classes=3,
             annotations={"Override": 5, "Autowired": 3},  # Add annotations for advanced features
-            lambda_count=2  # Add lambdas for advanced features
+            lambda_count=2,  # Add lambdas for advanced features
         )
         score = calculate_oop_score(analysis)
         assert score == 6

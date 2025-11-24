@@ -21,6 +21,7 @@ sys.path.insert(0, str(backend_dir))
 
 from analysis.deep_code_analyzer import generate_comprehensive_report
 from analysis.resume_generator import print_resume_items
+
 from backend.analysis_database import init_db, record_analysis
 
 
@@ -59,7 +60,7 @@ def main():
         report["analysis_metadata"] = {
             "zip_file": str(zip_path.absolute()),
             "analysis_timestamp": datetime.now().isoformat(),
-            "total_projects": len(report["projects"])
+            "total_projects": len(report["projects"]),
         }
 
         print_separator("PHASE 1 & 2: FILE CLASSIFICATION + METADATA")
@@ -338,15 +339,13 @@ def main():
             print("\nNo Java projects found for OOP analysis.")
         print_separator("STORING ANALYSIS IN DATABASE")
         try:
-            analysis_id = record_analysis(
-                analysis_type="non_llm",
-                payload=report
-            )
+            analysis_id = record_analysis(analysis_type="non_llm", payload=report)
             print(f"  Analysis successfully stored in database")
             print(f"  Total Projects: {len(report['projects'])}")
         except Exception as e:
             print(f"  Error storing analysis in database: {e}")
             import traceback
+
             traceback.print_exc()
         print_resume_items(report)
 
