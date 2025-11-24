@@ -6,10 +6,16 @@ import pytesseract
 from pdf2image import convert_from_path
 from PIL import Image
 
+try:
+    from docx import Document
+except ImportError:
+    Document = None
+
 # Supported file types
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".gif"}
 PDF_EXTS = {".pdf"}
-TEXT_EXTS = {".txt", ".csv", ".json", ".xml"}
+TEXT_EXTS = {".txt", ".csv", ".json", ".xml", ".md"}
+DOCX_EXTS = {".docx"}
 
 
 def extract_text(file_path: str) -> str:
@@ -19,6 +25,8 @@ def extract_text(file_path: str) -> str:
         return extract_text_from_image(file_path)
     elif ext in PDF_EXTS:
         return extract_text_from_pdf(file_path)
+    elif ext in DOCX_EXTS:
+        return extract_text_from_docx(file_path)
     elif ext in TEXT_EXTS:
         return read_text_file(file_path)
 
@@ -55,4 +63,32 @@ def read_text_file(file_path: str) -> str:
             return f.read().strip()
     except Exception as e:
         print(f"Text file read failed: {e}")
+        return ""
+
+
+def extract_text_from_docx(file_path: str) -> str:
+    """Extract text from Word .docx files."""
+    if Document is None:
+        print("python-docx not installed. Install with: pip install python-docx")
+        return ""
+
+    try:
+        doc = Document(file_path)
+        full_text = []
+
+        # Extract text from paragraphs
+        for paragraph in doc.paragraphs:
+            if paragraph.text.strip():
+                full_text.append(paragraph.text)
+
+        # Extract text from tables
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    if cell.text.strip():
+                        full_text.append(cell.text)
+
+        return "\n".join(full_text).strip()
+    except Exception as e:
+        print(f"DOCX extraction failed: {e}")
         return ""
