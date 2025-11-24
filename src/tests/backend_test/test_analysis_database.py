@@ -149,3 +149,121 @@ def test_record_analysis_validates_input(temp_analysis_db):
     analysis_id = adb.record_analysis("non_llm", minimal_payload)
     analysis_row = adb.get_analysis(analysis_id)
     assert analysis_row["total_projects"] == 0
+
+
+def test_project_analysis_stored_in_db(temp_analysis_db):
+    """Test that project analysis from analyze.py is correctly stored in the database."""
+    analysis_payload = {
+        "analysis_metadata": {
+            "zip_file": "/path/to/test_project.zip",
+            "analysis_timestamp": "2025-11-21T10:30:00",
+            "total_projects": 2,
+        },
+        "projects": [
+            {
+                "project_name": "backend",
+                "project_path": "backend",
+                "primary_language": "python",
+                "languages": {"python": 25, "yaml": 2},
+                "total_files": 30,
+                "total_size": 1_048_576,
+                "code_files": 25,
+                "test_files": 3,
+                "doc_files": 1,
+                "config_files": 1,
+                "frameworks": ["Flask", "SQLAlchemy"],
+                "dependencies": {
+                    "python": ["flask", "sqlalchemy", "pytest", "black"],
+                },
+                "has_tests": True,
+                "has_readme": True,
+                "has_ci_cd": False,
+                "has_docker": True,
+                "test_coverage_estimate": "high",
+                "is_git_repo": True,
+                "total_commits": 250,
+                "directory_depth": 4,
+            },
+            {
+                "project_name": "frontend",
+                "project_path": "frontend",
+                "primary_language": "javascript",
+                "languages": {"javascript": 40, "css": 10, "html": 5},
+                "total_files": 60,
+                "total_size": 2_097_152,
+                "code_files": 55,
+                "test_files": 4,
+                "doc_files": 1,
+                "config_files": 2,
+                "frameworks": ["React", "Vite"],
+                "dependencies": {
+                    "javascript": ["react", "react-dom", "vite"],
+                },
+                "has_tests": True,
+                "has_readme": True,
+                "has_ci_cd": True,
+                "has_docker": False,
+                "test_coverage_estimate": "medium",
+                "is_git_repo": False,
+                "total_commits": 0,
+                "directory_depth": 3,
+            },
+        ],
+        "summary": {
+            "total_files": 90,
+            "total_size_bytes": 3_145_728,
+            "total_size_mb": 3.0,
+            "languages_used": ["python", "javascript", "yaml", "css", "html"],
+            "frameworks_used": ["Flask", "SQLAlchemy", "React", "Vite"],
+        },
+    }
+
+    analysis_id = adb.record_analysis("non_llm", analysis_payload)
+    analysis_row = adb.get_analysis(analysis_id)
+    assert analysis_row is not None
+    assert analysis_row["analysis_type"] == "non_llm"
+    assert analysis_row["zip_file"] == "/path/to/test_project.zip"
+    assert analysis_row["total_projects"] == 2
+    assert analysis_row["summary_total_files"] == 90
+    assert analysis_row["summary_total_size_mb"] == pytest.approx(3.0)
+    projects = adb.get_projects_for_analysis(analysis_id)
+    assert len(projects) == 2
+    backend = next(p for p in projects if p["project_name"] == "backend")
+    assert backend["primary_language"] == "python"
+    assert backend["total_files"] == 30
+    assert backend["code_files"] == 25
+    assert backend["test_files"] == 3
+    assert backend["has_tests"] == 1
+    assert backend["has_docker"] == 1
+    assert backend["test_coverage_estimate"] == "high"
+    frontend = next(p for p in projects if p["project_name"] == "frontend")
+    assert frontend["primary_language"] == "javascript"
+    assert frontend["total_files"] == 60
+    assert frontend["has_ci_cd"] == 1
+    assert frontend["has_docker"] == 0
+    with adb.get_connection() as conn:
+        backend_langs = conn.execute(
+            "SELECT language, file_count FROM project_languages WHERE project_id = ? ORDER BY language",
+            (backend["id"],),
+        ).fetchall()
+        assert {(row["language"], row["file_count"]) for row in backend_langs} == {
+            ("python", 25),
+            ("yaml", 2),
+        }
+
+        frontend_langs = conn.execute(
+            "SELECT language, file_count FROM project_languages WHERE project_id = ? ORDER BY language",
+            (frontend["id"],),
+        ).fetchall()
+        assert len(frontend_langs) == 3
+        assert {row["language"] for row in frontend_langs} == {"javascript", "css", "html"}
+        backend_frameworks = conn.execute(
+            "SELECT framework FROM project_frameworks WHERE project_id = ?",
+            (backend["id"],),
+        ).fetchall()
+        assert {row["framework"] for row in backend_frameworks} == {"Flask", "SQLAlchemy"}
+        backend_deps = conn.execute(
+            "SELECT dependency FROM project_dependencies WHERE project_id = ? AND ecosystem = 'python'",
+            (backend["id"],),
+        ).fetchall()
+        assert {row["dependency"] for row in backend_deps} == {"flask", "sqlalchemy", "pytest", "black"}

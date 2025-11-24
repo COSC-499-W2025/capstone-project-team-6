@@ -56,27 +56,65 @@ Type 'exit' to quit.
     def do_analyze(self, arg: str) -> None:
         """Analyze a folder. Usage: analyze path/to/folder"""
         if not self.current_user:
-            print("\n❌ Please login first")
+            print("\nPlease login first")
             return
 
         if not arg:
-            print("❌ Usage: analyze path/to/folder")
+            print("Usage: analyze path/to/folder")
             return
 
         try:
             path = Path(arg)
             if not path.exists():
-                print(f"\n❌ Path does not exist: {path}")
+                print(f"\nPath does not exist: {path}")
                 return
             if not path.is_dir():
-                print(f"\n❌ Path is not a directory: {path}")
+                print(f"\nPath is not a directory: {path}")
                 return
 
-            print(f"\n📂 Analyzing folder: {path}")
+            print(f"\nAnalyzing folder: {path}")
             results = Folder_traversal_fs(path)
             self._display_analysis(results)
         except Exception as e:
-            print(f"\n❌ Error: {e}")
+            print(f"\nError: {e}")
+
+    def do_analyze_essay(self, arg: str) -> None:
+        """Analyze an essay or document. Usage: analyze-essay path/to/document.pdf"""
+        if not self.current_user:
+            print("\nPlease login first")
+            return
+
+        if not arg:
+            print("Usage: analyze-essay path/to/document")
+            print("Supported formats: .txt, .pdf, .docx, .md")
+            return
+
+        try:
+            # Lazy import to avoid circular dependency
+            from .cli import analyze_essay, display_document_analysis
+
+            path = Path(arg)
+            if not path.exists():
+                print(f"\nPath does not exist: {path}")
+                return
+
+            # Validate file type
+            supported_extensions = {".txt", ".pdf", ".docx", ".md"}
+            if not path.is_file() or path.suffix.lower() not in supported_extensions:
+                print(f"\nFile must be one of: {', '.join(supported_extensions)}")
+                return
+
+            print(f"\nAnalyzing document: {path}")
+            analysis = analyze_essay(path)
+            display_document_analysis(analysis)
+            print("\nDocument analysis complete!")
+        except ValueError as e:
+            print(f"\n{e}")
+        except Exception as e:
+            print(f"\nDocument analysis failed: {e}")
+            import traceback
+
+            traceback.print_exc()
 
     def do_logout(self, _: str) -> None:
         """Logout from current session."""

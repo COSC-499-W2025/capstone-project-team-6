@@ -494,25 +494,99 @@ def calculate_oop_score(analysis: JavaOOPAnalysis) -> int:
     Calculate OOP score (0-6) based on Java OOP principles usage.
     """
     score = 0
+    total_entities = analysis.total_classes + analysis.interface_count
 
-    if analysis.total_classes > 0 or analysis.interface_count > 0:
+    # For very small projects (< 3 classes), require stronger evidence
+    is_small_project = total_entities < 3
+    is_medium_project = 3 <= total_entities < 10
+
+    # 1. Uses Classes/Interfaces
+    if total_entities > 0:
         score += 1
 
-    if analysis.interface_count > 0 or len(analysis.abstract_classes) > 0:
-        score += 1
+    # 2. Abstraction (interfaces/abstract classes)
+    # Small projects: need at least 1 interface or abstract class
+    # Medium+: need meaningful proportion (>10% abstraction)
+    abstraction_count = analysis.interface_count + len(analysis.abstract_classes)
+    if is_small_project:
+        if abstraction_count > 0:
+            score += 1
+    else:
+        abstraction_ratio = abstraction_count / max(total_entities, 1)
+        if abstraction_ratio >= 0.1:  # At least 10% abstraction
+            score += 1
+        elif abstraction_count > 0:
+            score += 0.5
 
-    if analysis.inheritance_depth > 0:
-        score += 1
+    # 3. Inheritance
+    # Small projects: depth > 0 is good
+    # Medium+: need depth >= 2 for meaningful hierarchy
+    if is_small_project:
+        if analysis.inheritance_depth > 0:
+            score += 1
+    else:
+        if analysis.inheritance_depth >= 2:
+            score += 1
+        elif analysis.inheritance_depth > 0:
+            score += 0.5
 
-    if analysis.private_fields > 0 or analysis.private_methods > 0:
-        score += 1
+    # 4. Encapsulation
+    # Check if majority of fields are private and methods are reasonably encapsulated
+    total_fields = analysis.private_fields + analysis.protected_fields + analysis.public_fields
+    total_methods = analysis.private_methods + analysis.protected_methods + analysis.public_methods + analysis.package_methods
 
-    if analysis.override_count > 0 or analysis.method_overloads > 0:
-        score += 1
-    if analysis.generic_classes > 0 or len(analysis.annotations) > 0 or analysis.lambda_count > 0:
-        score += 1
+    if total_fields > 0:
+        private_field_ratio = analysis.private_fields / total_fields
+        if private_field_ratio >= 0.6:  # At least 60% private fields
+            score += 1
+        elif analysis.private_fields > 0 or analysis.private_methods > 0:
+            score += 0.5
+    elif analysis.private_methods > 0:
+        score += 0.5
 
-    return score
+    # 5. Polymorphism (overrides and overloads)
+    # Small projects: any override/overload is good
+    # Medium+: need meaningful usage (>10% of methods)
+    polymorphism_count = analysis.override_count + analysis.method_overloads
+    if is_small_project:
+        if polymorphism_count > 0:
+            score += 1
+    else:
+        if total_methods > 0:
+            poly_ratio = polymorphism_count / total_methods
+            if poly_ratio >= 0.1:  # At least 10% polymorphic methods
+                score += 1
+            elif polymorphism_count > 0:
+                score += 0.5
+        elif polymorphism_count > 0:
+            score += 0.5
+
+    # 6. Advanced Features (generics, annotations, lambdas)
+    # Small projects: any usage is good
+    # Medium+: need multiple features
+    advanced_features = 0
+    if analysis.generic_classes > 0:
+        advanced_features += 1
+    if len(analysis.annotations) > 0:
+        advanced_features += 1
+    if analysis.lambda_count > 0:
+        advanced_features += 1
+
+    if is_small_project:
+        if advanced_features > 0:
+            score += 1
+    elif is_medium_project:
+        if advanced_features >= 2:
+            score += 1
+        elif advanced_features > 0:
+            score += 0.5
+    else:  # Large project
+        if advanced_features >= 3:
+            score += 1
+        elif advanced_features >= 2:
+            score += 0.5
+
+    return min(int(round(score)), 6)
 
 
 def calculate_solid_score(analysis: JavaOOPAnalysis) -> float:
@@ -520,28 +594,93 @@ def calculate_solid_score(analysis: JavaOOPAnalysis) -> float:
     Calculate SOLID principles score (0-5) based on code structure.
     """
     score = 0.0
+    total_entities = analysis.total_classes + analysis.interface_count
+
+    # Project size categories
+    is_small_project = total_entities < 3
+    is_medium_project = 3 <= total_entities < 10
+    is_large_project = total_entities >= 10
 
     if analysis.total_classes > 0:
-        avg_methods = (analysis.public_methods + analysis.private_methods) / max(analysis.total_classes, 1)
-        if 3 <= avg_methods <= 15:  # Reasonable range
-            score += 1.0
-        elif avg_methods > 0:
-            score += 0.5
-    if analysis.interface_count > 0 or len(analysis.abstract_classes) > 0:
-        score += 1.0
-    if analysis.classes_with_inheritance > 0 and analysis.override_count > 0:
-        score += 1.0
-    elif analysis.classes_with_inheritance > 0:
-        score += 0.5
+        total_methods = analysis.public_methods + analysis.private_methods + analysis.protected_methods + analysis.package_methods
+        avg_methods = total_methods / max(analysis.total_classes, 1)
 
-    if analysis.interface_count >= 3:
-        score += 1.0
-    elif analysis.interface_count > 0:
-        score += 0.5
-    if analysis.interface_count > 0 and "Component" in analysis.annotations:
-        score += 1.0
-    elif analysis.interface_count > 0:
-        score += 0.5
+        if is_small_project:
+            # Small projects: 1-20 methods per class is acceptable
+            if 1 <= avg_methods <= 20:
+                score += 1.0
+            elif avg_methods > 0:
+                score += 0.5
+        else:
+            # Larger projects: expect more focused classes
+            if 3 <= avg_methods <= 15:
+                score += 1.0
+            elif 1 <= avg_methods <= 25:
+                score += 0.7
+            elif avg_methods > 0:
+                score += 0.3
+
+    abstraction_count = analysis.interface_count + len(analysis.abstract_classes)
+    if is_small_project:
+        if abstraction_count > 0:
+            score += 1.0
+    else:
+        abstraction_ratio = abstraction_count / max(total_entities, 1)
+        if abstraction_ratio >= 0.2:  # 20%+ abstraction
+            score += 1.0
+        elif abstraction_ratio >= 0.1:  # 10%+ abstraction
+            score += 0.7
+        elif abstraction_count > 0:
+            score += 0.4
+
+    if analysis.classes_with_inheritance > 0:
+        override_ratio = analysis.override_count / max(analysis.classes_with_inheritance, 1)
+        if override_ratio >= 1.0:  # At least 1 override per inheriting class
+            score += 1.0
+        elif analysis.override_count > 0:
+            score += 0.5
+        else:
+            score += 0.3  # Has inheritance but no overrides
+
+    if is_small_project:
+        if analysis.interface_count > 0:
+            score += 1.0
+    elif is_medium_project:
+        if analysis.interface_count >= 2:
+            score += 1.0
+        elif analysis.interface_count > 0:
+            score += 0.5
+    else:  # Large project
+        interface_ratio = analysis.interface_count / max(total_entities, 1)
+        if interface_ratio >= 0.25:  # 25%+ interfaces
+            score += 1.0
+        elif interface_ratio >= 0.15:  # 15%+ interfaces
+            score += 0.7
+        elif analysis.interface_count >= 3:
+            score += 0.5
+        elif analysis.interface_count > 0:
+            score += 0.3
+    di_indicators = 0
+    di_annotations = ["Autowired", "Inject", "Component", "Service", "Repository", "Bean"]
+    for anno in di_annotations:
+        if anno in analysis.annotations:
+            di_indicators += 1
+
+    if analysis.interface_count > 0:
+        if is_small_project:
+            if di_indicators > 0:
+                score += 1.0
+            else:
+                score += 0.5
+        else:
+            if di_indicators >= 2:
+                score += 1.0
+            elif di_indicators > 0:
+                score += 0.7
+            else:
+                score += 0.3
+    elif di_indicators > 0:
+        score += 0.3
 
     return min(score, 5.0)
 

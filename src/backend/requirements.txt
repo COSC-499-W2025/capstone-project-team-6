@@ -38,5 +38,11 @@ pgvector==0.2.5
 # C++ Analysis
 libclang
 
+# Gemini / Google Cloud
+google-generativeai>=0.8.3
+google-auth>=2.36.0
+
+# Resilience
+tenacity>=8.2.3
 # Java
 javalang==0.13.0
