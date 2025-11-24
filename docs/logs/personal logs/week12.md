@@ -74,8 +74,9 @@ Added known limitations section
 ### What Didn’t Go as Planned
 - [x] libclang caused unexpected issues:
 AST parsing fails silently if libclang is missing or incorrectly installed
+
 - [x] Tests repeatedly failed until adjustments were made
-- [x] Had to adjust imports to match the project structure
+- [x] Had to adjust imports to match the project structure.
 
 ### Looking Ahead
 - [x] I plan to expand the detection system to include more patterns like Adapter, Decorator, and Bridge, while reducing false positives.
