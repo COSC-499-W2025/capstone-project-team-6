@@ -5,7 +5,6 @@ import shlex
 from pathlib import Path
 from typing import Optional
 
-from .cli import analyze_essay, display_document_analysis
 from .database import (UserAlreadyExistsError, authenticate_user, create_user,
                        initialize)
 from .traversal import Folder_traversal_fs
@@ -91,6 +90,9 @@ Type 'exit' to quit.
             return
 
         try:
+            # Lazy import to avoid circular dependency
+            from .cli import analyze_essay, display_document_analysis
+
             path = Path(arg)
             if not path.exists():
                 print(f"\nPath does not exist: {path}")
