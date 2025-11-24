@@ -157,6 +157,8 @@ class COOPAnalyzer:
         self.create_functions: Set[str] = set()
         self.destroy_functions: Set[str] = set()
         self.function_pointer_typedefs: Set[str] = set()
+        self.malloc_checked_functions: Set[str] = set()
+        self.free_checked_functions: Set[str] = set()
 
 
     def analyze_file(self, content: str, filename: str = "temp.c", include_dirs: Optional[List[str]] = None) -> COOPAnalysis:
@@ -474,12 +476,17 @@ class COOPAnalyzer:
         #MEMORY MANAGEMENT DETECTION
         # Check if function uses malloc/free (dynamic memory)
         #count the functions that use this
-        if is_definition and not already_counted:
+        if is_definition:
             has_malloc, has_free = self._check_memory_calls(cursor)
-            if has_malloc:
+
+            # count if new function
+            if has_malloc and func_name not in self.malloc_checked_functions:
                 self.analysis.malloc_usage += 1
-            if has_free:
+                self.malloc_checked_functions.add(func_name)
+
+            if has_free and func_name not in self.free_checked_functions:
                 self.analysis.free_usage += 1
+                self.free_checked_functions.add(func_name)
         
         if not already_counted:
             #ERROR HANDLING DETECTION
