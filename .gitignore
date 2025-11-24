@@ -13,3 +13,5 @@ build/
 src/myapp.db
 __pycache__/
 pgvector/
+*.db
+sample_*.txt
