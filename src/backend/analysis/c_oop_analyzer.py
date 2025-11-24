@@ -473,9 +473,13 @@ class COOPAnalyzer:
 
         #MEMORY MANAGEMENT DETECTION
         # Check if function uses malloc/free (dynamic memory)
-        # Always process definitions to catch malloc/free
-        if is_definition:
-            self._check_memory_calls(cursor) #recursive AST
+        #count the functions that use this
+        if is_definition and not already_counted:
+            has_malloc, has_free = self._check_memory_calls(cursor)
+            if has_malloc:
+                self.analysis.malloc_usage += 1
+            if has_free:
+                self.analysis.free_usage += 1
         
         if not already_counted:
             #ERROR HANDLING DETECTION
@@ -499,17 +503,42 @@ class COOPAnalyzer:
                 'filename': filename
             }
 
-    def _check_memory_calls(self, cursor):
+    #returna  boolean value so that no double counts for the same function
+    def _check_memory_calls(self, cursor) -> Tuple[bool, bool]:
+        """
+        Recursively check if function contains malloc/free calls.
+
+        Returns:
+            Tuple[bool, bool]: (has_malloc, has_free)
+            - has_malloc: True if function calls malloc/calloc/realloc
+            - has_free: True if function calls free
+        """
+        has_malloc = False
+        has_free = False
+
         if cursor.kind == CursorKind.CALL_EXPR:
             if cursor.spelling in ['malloc', 'calloc', 'realloc']:
-                self.analysis.malloc_usage += 1
+                has_malloc = True
             elif cursor.spelling == 'free':
-                self.analysis.free_usage += 1
+                has_free = True
 
+        # exit if both found 
+        if has_malloc and has_free:
+            return True, True
+
+        #recurse through children
         for child in cursor.get_children():
-            self._check_memory_calls(child)
+            child_malloc, child_free = self._check_memory_calls(child)
+            has_malloc = has_malloc or child_malloc
+            has_free = has_free or child_free
+
+            #exit if both found
+            if has_malloc and has_free:
+                break
+            
+        return has_malloc, has_free
     
-    
+
     def _matches_oop_naming(self, func_name: str) -> bool:
         '''basic name check'''
         pattern = r'^[A-Z][a-zA-Z0-9]*_[a-z][a-zA-Z0-9]*$'
