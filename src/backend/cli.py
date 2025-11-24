@@ -126,6 +126,67 @@ def display_analysis(results: dict) -> None:
             print(f"   • {folder}")
 
 
+def analyze_complexity(zip_path: Path, verbose: bool = False) -> int:
+    """Analyze Python code complexity in a ZIP file.
+
+    Args:
+        zip_path: Path to the ZIP file
+        verbose: Show detailed findings
+
+    Returns:
+        Exit code (0 for success, 1 for failure)
+    """
+    from .analysis.complexity_analyzer import format_report
+    from .analysis.project_analyzer import FileClassifier
+
+    try:
+        # First, detect projects in the ZIP
+        print("\n🔍 Step 1: Detecting projects...")
+        project_results = analyze_folder(zip_path)
+
+        # Find Python projects
+        python_projects = []
+        for directory, info in project_results.items():
+            if info.is_project:
+                # Check if it has Python files (heuristic: check for .py indicator)
+                if any("py" in indicator.lower() for indicator in info.indicators_found):
+                    python_projects.append(directory)
+
+        if not python_projects:
+            # If no clear Python projects, analyze the whole ZIP
+            python_projects = [""]  # Empty string = root of ZIP
+
+        print(f"   Found {len(python_projects)} project(s) to analyze")
+
+        # Analyze each project
+        with FileClassifier(zip_path) as classifier:
+            for project_path in python_projects:
+                if project_path:
+                    print(f"\n Analyzing Python code in: {project_path}")
+                else:
+                    print("\n Analyzing Python code in ZIP root")
+
+                result = classifier.analyze_python_complexity(project_path)
+
+                if result["total_files"] == 0:
+                    print(f"   No Python files found")
+                    continue
+
+                # Display the report
+                report = result.get("report")
+                if report:
+                    print(format_report(report, verbose=verbose))
+
+        return 0
+
+    except Exception as e:
+        print(f"\n❌ Error during complexity analysis: {e}")
+        import traceback
+
+        traceback.print_exc()
+        return 1
+
+
 def main() -> int:
     """Main CLI entry point.
 
@@ -153,6 +214,12 @@ def main() -> int:
     # Analyze command
     analyze_parser = subparsers.add_parser("analyze", help="Analyze a folder")
     analyze_parser.add_argument("path", help="Path to the folder to analyze")
+    analyze_parser.add_argument(
+        "--complexity",
+        action="store_true",
+        help="Analyze Python code for time complexity patterns (requires ZIP file)",
+    )
+    analyze_parser.add_argument("--verbose", "-v", action="store_true", help="Show detailed complexity findings")
 
     # Consent command
     consent_parser = subparsers.add_parser("consent", help="View or update consent status")
@@ -245,10 +312,19 @@ def main() -> int:
             if not path.exists():
                 print(f"\n❌ Path does not exist: {path}")
                 return 1
-            # if not path.is_dir():
-            #    print(f"\n❌ Path is not a directory: {path}")
-            #    return 1
 
+            # Run complexity analysis if requested
+            if args.complexity:
+                # Complexity analysis requires a ZIP file
+                if not (path.is_file() and path.suffix.lower() == ".zip"):
+                    print("\n❌ Complexity analysis requires a ZIP file")
+                    print(f"   Provided: {path}")
+                    return 1
+
+                print(f"\n📂 Analyzing Python code complexity in: {path.name}")
+                return analyze_complexity(path, args.verbose)
+
+            # Standard project detection analysis
             print(f"\n📂 Analyzing folder: {path}")
             results = analyze_folder(path)
             display_analysis(results)
