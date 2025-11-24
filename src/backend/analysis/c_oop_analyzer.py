@@ -548,9 +548,42 @@ class COOPAnalyzer:
     
 
     def _matches_oop_naming(self, func_name: str) -> bool:
-        '''basic name check'''
-        pattern = r'^[A-Z][a-zA-Z0-9]*_[a-z][a-zA-Z0-9]*$'
-        return bool(re.match(pattern, func_name))
+        """
+        Check if function follows OOP-style naming
+        """
+        #at least one underscore
+        if '_' not in func_name:
+            return False
+
+        parts = func_name.split('_', 1)
+        if len(parts) != 2:
+            return False
+
+        prefix, method = parts
+
+        if not prefix or not method:
+            return False
+
+        if not prefix[0].isalpha() or not method[0].isalpha():
+            return False
+
+        if not all(c.isalnum() or c == '_' for c in prefix):
+            return False
+
+        if not all(c.isalnum() or c == '_' for c in method):
+            return False
+        
+        generic_prefixes = {
+            'helper', 'utility', 'util', 'common', 'shared',
+            'internal', 'private', 'public', 'static',
+            'do', 'get', 'set', 'make', 'create', 'init',
+            'handle', 'process', 'convert', 'parse', 'check'
+        }
+
+        if prefix.lower() in generic_prefixes:
+            return False
+
+        return True
 
     def _detect_opaque_pointers(self):
         """
