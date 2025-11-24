@@ -53,3 +53,6 @@ pgvector==0.3.2
 
 # Embeddings
 ollama==0.3.2
+
+# Resilience
+tenacity>=8.2.3
