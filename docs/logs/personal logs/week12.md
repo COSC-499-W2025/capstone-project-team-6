@@ -93,20 +93,50 @@ AST parsing fails silently if libclang is missing or incorrectly installed
 - https://github.com/COSC-499-W2025/capstone-project-team-6/issues/148
 <img width="1470" height="956" alt="Screenshot 2025-11-23 at 9 23 09 PM" src="https://github.com/user-attachments/assets/04523fec-2904-4585-86ed-7d92ce91522c" />
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # Mohamed Sakr
+## Date Ranges
+November 10 - Novemeber 23
+![Mohamed Week 12](images/MohamedW12.png)
+
+## Tasks Worked On 
+- Attended team meetings.  
+- Implemented the core infrastructure for LLM-based Code Analysis using Google Gemini's File Search API.
+- Developed `GeminiFileSearchClient` for robust interaction with Google's Vertex AI/Generative Language APIs, handling authentication and corpus management.
+- Created `llm_pipeline.py` to orchestrate the full analysis workflow, including file classification, filtering, ingestion, and summarization.
+- Implemented session caching mechanisms to optimize performance for re-runs.
+- Updated the database schema (`analysis_database.py`) to persist generated LLM summaries.
+
+## Weekly Goals Recap 
+- **Features I was responsible for (this milestone):**  
+  - **Gemini File Search Integration:** Built a client wrapper handling authentication (ADC + env var) and parallel file ingestion with exponential backoff.
+  - **Analysis Pipeline:** Established the end-to-end flow for ingesting codebases, creating ephemeral corpora, and querying the model for architectural insights.
+  - **Session Caching:** Implemented in-memory caching to avoid re-ingesting files for the same user session.
+  - **Database Storage:** Extended the database to store and retrieve AI-generated project summaries.
+
+### What Went Well
+- **Performance:** Parallel file uploads and `tenacity` integration for retries ensured that even medium-sized repositories are indexed quickly.
+- **Infrastructure:** Successfully set up a robust wrapper around Google's APIs that handles rate limits gracefully.
+- **Functionality:** The pipeline effectively filters irrelevant files and generates comprehensive architectural reports.
+
+### What Didn’t Go as Planned
+- **Large File Handling:** Files >1MB are currently truncated rather than being intelligently split, potentially losing some context.
+- **Persistence:** The session cache is currently in-memory only, meaning it clears if the backend restarts.
+- **Integration:** The feature is currently backend-only (`run_gemini_analysis`), lacking a direct UI/CLI entry point for end-users.
+
+### Looking Ahead
+- **UI/CLI Integration:** Connect the backend pipeline to the CLI or Electron UI to make the feature accessible to users.
+- **Advanced Features:** Implement persistent caching and support for user-provided prompts/templates.
+- **Optimization:** Improve the chunking strategy for large files to preserve full context during analysis.
+
+
+## PRs initiated  
+- [#143 – Deep Semantic Analysis](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/143)  
+- Completed issue #122
+  ![PR](images/prW12.png)
+  ![Issue](images/issuew12.png)
+
+## PRs reviewed  
+- Documents analysis – #150  
+- Unit Testing for generation of resume items – #147  
+- Modified java analysis to account for project size – #144  
+- C oop – #154  
