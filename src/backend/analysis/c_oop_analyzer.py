@@ -601,11 +601,17 @@ class COOPAnalyzer:
 
         Users can only access via pointer, can't see internals.
         This forces use of provided API functions (encapsulation).
-        """
+
         # Opaque pointers are structs that were declared in headers
         # but their full definition is hidden in .c files
         # Use header_only_structs which tracks structs forward-declared in .h files
-        opaque = self.header_only_structs
+        """
+        
+        #check if actually defined
+        opaque = set()
+        for struct_name in self.header_only_structs:
+            if struct_name in self.defined_structs:  
+                opaque.add(struct_name)
         self.analysis.opaque_pointer_structs = len(opaque)
 
         # Mark structs as opaque
