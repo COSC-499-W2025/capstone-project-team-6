@@ -1,4 +1,43 @@
 # Mandira Samarasekara
+## Date Ranges
+November 10 - November 23
+![Mandira Week 11 and 12](images/MandiraWeek12.png)
+
+## Tasks Worked On 
+- Developed a Python complexity analyzer that evaluates whether code demonstrates awareness of algorithmic complexity and optimization practices, such as reducing runtime from O(n²) to O(n log n) through efficient algorithms and optimization techniques.
+- Implemented detection for efficient data structures that improve performance, including the use of hash maps over lists for enhanced lookup efficiency.
+- Created comprehensive test coverage for the Python complexity analyzer with 29 passing tests.
+- Authored detailed documentation for the Python complexity analyzer feature.
+
+### What Went Well
+
+- All tests passed successfully, and I completed the implementation while addressing any bugs efficiently.
+- The changes I made did not break any existing tests, ensuring backward compatibility.
+
+### What Didn't Go as Planned
+
+- Encountered a few minor merge conflicts due to working from an outdated branch that had undergone several merges. These conflicts were straightforward and resolved quickly.
+
+### Looking Ahead
+
+- I plan to extend the complexity analyzer to support additional programming languages beyond Python, beginning with Java.
+- Will continue expanding language support based on project requirements.
+
+## PR's initiated
+
+Python complexity analysis #152
+
+Implemented a Python time-complexity analysis feature that inspects Python files within projects to detect algorithmic complexity patterns and optimization awareness. The analyzer identifies inefficient patterns such as nested loops and suboptimal membership tests, while recognizing positive optimizations including memoization, set/dictionary usage, binary search implementations, and list comprehensions. Outputs include a per-project Optimization Awareness Score (0–100) with optional detailed findings. Includes comprehensive test suite and complete documentation.
+
+## PR's reviewed
+
+Add Fixes to Java analysis pipeline #140
+Added CLI workflow integration tests #132
+Non LLM analysis: Generate Resume items #146
+Unit testing for generation of resume items #147
+Mithish logs W11+W12 #149
+
+Conducted thorough testing and code review for all PRs listed above, providing constructive feedback with actionable suggestions for improvement while highlighting strengths and effective implementations. 
 
 # Aakash Tirithdas
 
