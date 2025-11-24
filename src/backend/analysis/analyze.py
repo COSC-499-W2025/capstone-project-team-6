@@ -20,6 +20,7 @@ sys.path.insert(0, str(src_dir))
 sys.path.insert(0, str(backend_dir))
 
 from analysis.deep_code_analyzer import generate_comprehensive_report
+from analysis.resume_generator import print_resume_items
 from backend.analysis_database import init_db, record_analysis
 
 
@@ -335,6 +336,7 @@ def main():
                 print(f"\nCoding Style: {coding_style}")
         else:
             print("\nNo Java projects found for OOP analysis.")
+        print_separator("STORING ANALYSIS IN DATABASE")
         try:
             analysis_id = record_analysis(
                 analysis_type="non_llm",
@@ -346,6 +348,7 @@ def main():
             print(f"  Error storing analysis in database: {e}")
             import traceback
             traceback.print_exc()
+        print_resume_items(report)
 
         # Offer to save JSON
         print_separator()
