@@ -102,7 +102,7 @@ Overall, these weeks helped me improve both the technical quality of the analysi
 
 ## PR's reviewed
 - Integrating analysis pipeline with CLI: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/146
-
+- Python complexity analysis: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/152
 
 ## Plan for next week
 -  Retrieve previously generated portfolio information 
