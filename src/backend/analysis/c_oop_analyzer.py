@@ -667,7 +667,9 @@ class COOPAnalyzer:
                 base = func[:-4]
             else:
                 continue
-            create_bases.add(base)
+
+            if self._is_valid_type_name(base):
+                create_bases.add(base)
         
 
         destroy_bases = set()
@@ -680,13 +682,44 @@ class COOPAnalyzer:
                 base = func[:-7]
             else:
                 continue
-            destroy_bases.add(base)
+
+            if self._is_valid_type_name(base):
+                destroy_bases.add(base)
         
         # Count matches
         matched = create_bases & destroy_bases
         self.analysis.constructor_destructor_pairs = len(matched)
     
-    
+    def _is_valid_type_name(self, name: str) -> bool:
+        
+        if not name:
+            return False
+
+        if len(name) < 2:
+            return False
+
+        if not name[0].isalpha():
+            return False
+
+        if name in self.structs:
+            return True
+
+        if name[0].isupper():
+            return True
+
+        #reject bank
+        generic_words = {
+            'do', 'get', 'set', 'make', 'create', 'init',
+            'handle', 'process', 'convert', 'parse', 'check',
+            'run', 'start', 'stop', 'open', 'close',
+            'read', 'write', 'send', 'receive'
+        }
+
+        if name.lower() in generic_words:
+            return False
+
+        return True
+
     # done by AI completely do not know the patterns well enough to edit 
     def _detect_design_patterns(self):
         """
