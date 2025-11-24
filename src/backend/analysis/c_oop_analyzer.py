@@ -414,45 +414,6 @@ class COOPAnalyzer:
             if filename.endswith('.h'):
                 self.header_only_structs.add(struct_name)
     
-    
-        def _is_function_pointer_type(self, type_obj) -> bool:
-            """
-            Check if a type is a function pointer.
-
-            Handles:
-            - Direct function pointers: void (*fn)(int);
-            - Typedef-based function pointers: typedef void (*CB)(int); CB cb;
-            """
-            if not CLANG_AVAILABLE or type_obj is None:
-                return False
-
-            # 1) If the type spelling is a known function-pointer typedef, we're done
-            spelling = getattr(type_obj, "spelling", "") or ""
-            if spelling in self.function_pointer_typedefs:
-                return True
-
-            # 2) Canonical pointer-to-function detection
-            try:
-                canonical = type_obj.get_canonical()
-            except Exception:
-                canonical = type_obj
-
-            try:
-                if canonical.kind == TypeKind.POINTER:
-                    pointee = canonical.get_pointee()
-                    return pointee.kind in (TypeKind.FUNCTIONPROTO, TypeKind.FUNCTIONNOPROTO)
-            except Exception:
-                pass
-
-            # 3) Fallback heuristic: "void (*)(...)" etc.
-            canon_spelling = getattr(canonical, "spelling", "") or spelling
-            if "(*" in canon_spelling:
-                return True
-
-            return False
-
-
-
     def _analyze_function(self, cursor, filename: str):
         """
         Analyze a function declaration.
