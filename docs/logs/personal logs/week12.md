@@ -31,11 +31,11 @@ Implemented a Python time-complexity analysis feature that inspects Python files
 
 ## PR's reviewed
 
-Add Fixes to Java analysis pipeline #140
-Added CLI workflow integration tests #132
-Non LLM analysis: Generate Resume items #146
-Unit testing for generation of resume items #147
-Mithish logs W11+W12 #149
+Add Fixes to Java analysis pipeline #140.
+Added CLI workflow integration tests #132.
+Non LLM analysis: Generate Resume items #146.
+Unit testing for generation of resume items #147.
+Mithish logs W11+W12 #149.
 
 Conducted thorough testing and code review for all PRs listed above, providing constructive feedback with actionable suggestions for improvement while highlighting strengths and effective implementations. 
 
