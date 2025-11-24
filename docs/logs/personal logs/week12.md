@@ -42,4 +42,70 @@ Overall, these weeks helped me improve both the technical quality of the analysi
 
 # Harjot Sahota
 
+## Date Ranges
+November 16 - Novemeber 23
+<img width="1076" height="636" alt="Screenshot 2025-11-23 at 9 08 23 PM" src="https://github.com/user-attachments/assets/fec58f9d-4c4c-4bbd-85ec-f3b96557d34f" />
+
+## Tasks Worked On
+- [x] Implemented the C++ OOP Analyzer for Phase 3
+- [x] Wrote a full test suite for the analyzer
+- [x] Added documentation for C++ analysis in Phase 3
+- [x] Added libclang dependency and created a samplecpp.cpp test file
+- [x] Debugged import issues, AST issues, and test failures
+- [x] Prepared and opened PR #157 (C++ OOP Analyzer)
+
+## Weekly Goals Recap
+- [x] Finished the working version of the C++ OOP analysis module
+- [x] Create a complete test suite 
+- [x] Add the analyzer to the documentation & requirements
+
+### What Was Accomplished
+- [x] Implemented the entire C++ OOP analyzer using Clang’s AST
+- [x] Created a comprehensive PyTest test suite
+- [x] Added samplecpp.cpp so teammates can run real tests
+- [x] Updated documentation:
+Added “Phase 3: C++ OOP Detection” to MetadataExtractor README
+Added installation & usage instructions
+Added example output
+Added known limitations section
+- [x] Updated requirements.txt with libclang
+- [x] Verified the analyzer works both when libclang is installed or missing (fallback mode)
+
+### What Didn’t Go as Planned
+- [x] libclang caused unexpected issues:
+AST parsing fails silently if libclang is missing or incorrectly installed
+- [x] Tests repeatedly failed until adjustments were made
+- [x] Had to adjust imports to match the project structure
+
+### Looking Ahead
+- [x] I plan to expand the detection system to include more patterns like Adapter, Decorator, and Bridge, while reducing false positives.
+
+## PR's initiated
+- https://github.com/COSC-499-W2025/capstone-project-team-6/issues/156 
+<img width="1470" height="956" alt="Screenshot 2025-11-23 at 9 20 44 PM" src="https://github.com/user-attachments/assets/ea82cacd-9780-4148-980c-cfa4ba9e933a" />
+
+## PR's reviewed
+- https://github.com/COSC-499-W2025/capstone-project-team-6/issues/141
+<img width="1470" height="956" alt="Screenshot 2025-11-23 at 9 21 50 PM" src="https://github.com/user-attachments/assets/b15bba05-0e85-42c3-8ca7-9e0769c78746" />
+- https://github.com/COSC-499-W2025/capstone-project-team-6/issues/139
+<img width="1470" height="956" alt="Screenshot 2025-11-23 at 9 22 43 PM" src="https://github.com/user-attachments/assets/13b61854-b815-482c-bba2-890073878241" />
+- https://github.com/COSC-499-W2025/capstone-project-team-6/issues/148
+<img width="1470" height="956" alt="Screenshot 2025-11-23 at 9 23 09 PM" src="https://github.com/user-attachments/assets/04523fec-2904-4585-86ed-7d92ce91522c" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Mohamed Sakr
