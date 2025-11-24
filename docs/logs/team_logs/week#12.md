@@ -70,8 +70,6 @@
 
 ## Completed Tasks
 
-> *Format: name, task, description, then PR / issue link(s).*
-
 ### Mandira Samarasekara (**maddysam356**)
 
 - **Task:** Python complexity analyzer implementation  
