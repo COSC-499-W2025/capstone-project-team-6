@@ -34,3 +34,6 @@ fpdf==1.7.2
 
 # Vector Database
 pgvector==0.2.5
+
+# C++ Analysis
+libclang
