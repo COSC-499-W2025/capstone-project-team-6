@@ -414,7 +414,7 @@ def format_report(report: ComplexityReport, verbose: bool = False) -> str:
 
     # Interpret score
     if report.optimization_score >= 75:
-        lines.append("Assessment: Strong awareness of algorithmic optimization ✓")
+        lines.append("Assessment: Strong awareness of algorithmic optimization [OK]")
     elif report.optimization_score >= 50:
         lines.append("Assessment: Moderate awareness, some optimization opportunities exist")
     else:
@@ -442,7 +442,7 @@ def format_report(report: ComplexityReport, verbose: bool = False) -> str:
     for key, count in sorted(report.summary.items()):
         display_name = key.replace("_", " ").title()
         if key in good_types:
-            good_practices.append(f"  ✓ {display_name}: {count}")
+            good_practices.append(f"  [+] {display_name}: {count}")
         else:
             suggestions.append(f"  • {display_name}: {count}")
 
@@ -465,9 +465,9 @@ def format_report(report: ComplexityReport, verbose: bool = False) -> str:
             by_file.setdefault(insight.file_path, []).append(insight)
 
         for file_path in sorted(by_file.keys()):
-            lines.append(f"\n📄 {file_path}")
+            lines.append(f"\n[File] {file_path}")
             for insight in by_file[file_path]:
-                icon = "✓" if insight.severity == "good_practice" else "💡"
+                icon = "[+]" if insight.severity == "good_practice" else "[!]"
                 lines.append(f"  {icon} Line {insight.line_number}: {insight.description}")
                 if insight.code_snippet:
                     lines.append(f"     Code: {insight.code_snippet}")

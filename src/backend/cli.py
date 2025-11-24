@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import zipfile
 from pathlib import Path
 from typing import Optional
 
@@ -141,7 +142,7 @@ def analyze_complexity(zip_path: Path, verbose: bool = False) -> int:
 
     try:
         # First, detect projects in the ZIP
-        print("\n🔍 Step 1: Detecting projects...")
+        print("\n[>] Step 1: Detecting projects...")
         project_results = analyze_folder(zip_path)
 
         # Find Python projects
@@ -180,7 +181,7 @@ def analyze_complexity(zip_path: Path, verbose: bool = False) -> int:
         return 0
 
     except Exception as e:
-        print(f"\n❌ Error during complexity analysis: {e}")
+        print(f"\n[!] Error during complexity analysis: {e}")
         import traceback
 
         traceback.print_exc()
@@ -321,14 +322,33 @@ def main() -> int:
                     print(f"   Provided: {path}")
                     return 1
 
-                print(f"\n📂 Analyzing Python code complexity in: {path.name}")
+                print(f"\n[*] Analyzing Python code complexity in: {path.name}")
                 return analyze_complexity(path, args.verbose)
 
-            # Standard project detection analysis
-            print(f"\n📂 Analyzing folder: {path}")
-            results = analyze_folder(path)
-            display_analysis(results)
-            return 0
+            # Standard project detection analysis - validate path type
+            if not path.is_dir() and not (path.is_file() and path.suffix.lower() == ".zip"):
+                print(f"\n❌ Path must be a directory or ZIP file: {path}")
+                return 1
+
+            # Run analysis with error handling
+            try:
+                print(f"\n[*] Analyzing: {path}")
+                results = analyze_folder(path)
+                display_analysis(results)
+                print("\n✅ Analysis complete!")
+                return 0
+            except zipfile.BadZipFile:
+                print(f"\n❌ Invalid or corrupted ZIP file: {path}")
+                return 1
+            except ValueError as e:
+                print(f"\n❌ {e}")
+                return 1
+            except Exception as e:
+                print(f"\n❌ Analysis failed: {e}")
+                import traceback
+
+                traceback.print_exc()
+                return 1
 
     except KeyboardInterrupt:
         print("\n\n⚠️  Interrupted by user. Exiting.")
