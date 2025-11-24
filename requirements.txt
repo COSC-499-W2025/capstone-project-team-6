@@ -11,9 +11,10 @@ flake8==7.1.0
 fpdf==1.7.2
 h11==0.16.0
 httpcore==1.0.9
-httpx==0.28.1
+httpx==0.27.2
 idna==3.11
 iniconfig==2.3.0
+javalang==0.13.0
 numpy>=2.1.2
 packaging==25.0
 pandas>=2.2.3
@@ -41,3 +42,11 @@ isort==5.13.2
 bandit==1.7.7
 pip-audit==2.7.3
 aiofiles==24.1.0
+
+# Vector Database 
+psycopg[binary]==3.2.12
+psycopg2-binary==2.9.10
+pgvector==0.3.2
+
+# Embeddings
+ollama==0.3.2
