@@ -37,3 +37,6 @@ pgvector==0.2.5
 
 # C++ Analysis
 libclang
+
+# Java
+javalang==0.13.0

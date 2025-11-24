@@ -249,11 +249,9 @@ def generate_comprehensive_report(zip_path: Path, output_path: Optional[Path] = 
     with MetadataExtractor(zip_path) as extractor:
         # Generate base report (Phases 1 & 2)
         report = extractor.generate_report()
-
         # Add Phase 3: Deep OOP analysis for each Python project
         for i, project in enumerate(report["projects"]):
             project_path = project.get("project_path", "")
-
             # Only analyze if project has Python files
             if "python" in project.get("languages", {}):
                 try:
@@ -262,7 +260,20 @@ def generate_comprehensive_report(zip_path: Path, output_path: Optional[Path] = 
                 except Exception as e:
                     # If deep analysis fails, add error info
                     report["projects"][i]["oop_analysis"] = {"error": str(e), "total_classes": 0}
+            if "java" in project.get("languages", {}):
+                try:
+                    from .java_oop_analyzer import analyze_java_project
 
+                    java_analysis = analyze_java_project(zip_path, project_path)
+                    report["projects"][i]["java_oop_analysis"] = java_analysis["java_oop_analysis"]
+                except ImportError:
+                    report["projects"][i]["java_oop_analysis"] = {
+                        "error": "Java analyzer not available (javalang not installed)",
+                        "total_classes": 0,
+                    }
+                except Exception as e:
+                    # If deep analysis fails, add error info
+                    report["projects"][i]["java_oop_analysis"] = {"error": str(e), "total_classes": 0}
     # Save to file if requested
     if output_path:
         import json
