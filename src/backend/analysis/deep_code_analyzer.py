@@ -144,6 +144,8 @@ def calculate_python_oop_score(analysis: OOPAnalysis) -> int:
     if is_small:
         if analysis.operator_overloads > 0:
             score += 1
+    if is_small and (analysis.properties_count > 0 or analysis.operator_overloads > 0):
+        score = max(score, 1)
     elif is_medium:
         if total_methods > 0:
             poly_ratio = analysis.operator_overloads / total_methods
@@ -168,7 +170,7 @@ def calculate_python_oop_score(analysis: OOPAnalysis) -> int:
     if analysis.design_patterns:
         advanced += 1
     if is_small:
-        if advanced > 0:
+        if advanced > 0 and not (analysis.properties_count > 0 or analysis.operator_overloads > 0):
             score += 1
     elif is_medium:
         if advanced >= 2:
@@ -370,6 +372,8 @@ def analyze_python_file(content: str) -> OOPAnalysis:
         analyzer.visit(tree)
         analyzer.calculate_inheritance_depth()
         analyzer.analysis.design_patterns = detect_python_design_patterns(analyzer.classes)
+        analyzer.analysis.oop_score = calculate_python_oop_score(analyzer.analysis)
+        analyzer.analysis.solid_score = calculate_python_solid_score(analyzer.analysis)
         return analyzer.analysis
     except SyntaxError:
         return OOPAnalysis()
