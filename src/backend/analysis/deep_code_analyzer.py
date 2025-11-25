@@ -526,39 +526,66 @@ if __name__ == "__main__":
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
-            result = analyze_python_file(content)
 
-            print(f"\nOOP ANALYSIS RESULTS:")
-            print(f"\n  Classes:")
+
+            result = analyze_python_file(content)
+            if not hasattr(result, 'oop_score'):
+                from copy import deepcopy
+                result = deepcopy(result)
+                result.design_patterns = getattr(result, 'design_patterns', [])
+                result.oop_score = calculate_python_oop_score(result)
+                result.solid_score = calculate_python_solid_score(result)
+                if result.total_classes < 3:
+                    result.project_size = "small"
+                elif 3 <= result.total_classes < 10:
+                    result.project_size = "medium"
+                else:
+                    result.project_size = "large"
+
+            def get_coding_style(oop_score):
+                if oop_score == 0:
+                    return "Procedural/Functional"
+                elif oop_score <= 2:
+                    return "Basic OOP"
+                elif oop_score <= 4:
+                    return "Moderate OOP"
+                else:
+                    return "Advanced OOP"
+
+            print(f"\nPYTHON OOP ANALYSIS RESULTS:")
+            print(f"\n  Project size: {result.project_size}")
+            print(f"  OOP Score: {result.oop_score}/6")
+            print(f"  SOLID Score: {result.solid_score:.1f}/5.0")
+            print(f"  Coding Style: {get_coding_style(result.oop_score)}")
+
+            print(f"\n  Classes & Abstractions:")
             print(f"    Total classes: {result.total_classes}")
+            if hasattr(result, 'interface_count'):
+                print(f"    Interfaces: {getattr(result, 'interface_count', 0)}")
             if result.abstract_classes:
                 print(f"    Abstract classes: {', '.join(result.abstract_classes)}")
             print(f"    With inheritance: {result.classes_with_inheritance}")
             print(f"    Max inheritance depth: {result.inheritance_depth}")
 
             print(f"\n  Encapsulation:")
-            print(f"    Private methods (__name): {result.private_methods}")
-            print(f"    Protected methods (_name): {result.protected_methods}")
-            print(f"    Public methods: {result.public_methods}")
+            print(f"    Methods:")
+            print(f"      Private: {result.private_methods}")
+            print(f"      Protected: {result.protected_methods}")
+            print(f"      Public: {result.public_methods}")
             print(f"    Properties (@property): {result.properties_count}")
 
             print(f"\n  Polymorphism:")
             print(f"    Operator overloads: {result.operator_overloads}")
 
-            # Quick assessment
-            print(f"\nQUICK ASSESSMENT:")
-            if result.total_classes == 0:
-                print(f"    - No classes found (procedural/functional style)")
-            else:
-                print(f"    - Uses OOP (found {result.total_classes} classes)")
-                if result.abstract_classes:
-                    print(f"    - Uses abstraction")
-                if result.private_methods > 0 or result.protected_methods > 0:
-                    print(f"    - Practices encapsulation")
-                if result.inheritance_depth > 0:
-                    print(f"    - Uses inheritance")
-                if result.operator_overloads > 0:
-                    print(f"    - Implements polymorphism")
+            
+            if result.design_patterns:
+                print(f"\n  Design Patterns Detected:")
+                for pattern in result.design_patterns:
+                    print(f"- {pattern}")
+
+            print(f"\nOOP Score: {result.oop_score}/6")
+            print(f"SOLID Score: {result.solid_score:.1f}/5.0")
+            print(f"Coding Style: {get_coding_style(result.oop_score)}")
 
             print("\n" + "=" * 70 + "\n")
 
