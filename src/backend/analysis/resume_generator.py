@@ -31,25 +31,43 @@ def _generate_project_items(project: Dict[str, Any]) -> List[str]:
 
     # OOP/Architecture item for Python projects
     if "oop_analysis" in project and "error" not in project.get("oop_analysis", {}):
-        oop_item = _generate_python_oop_item(project, project_name)
-        if oop_item:
-            items.append(oop_item)
+        oop = project["oop_analysis"]
+        if oop.get("total_classes", 0) > 0:
+            if oop.get("inheritance_depth", 0) > 1:
+                items.append(f"Implemented advanced OOP with {oop['total_classes']} classes and inheritance up to {oop['inheritance_depth']} levels.")
+            elif oop.get("abstract_classes"):
+                items.append(f"Used abstraction and encapsulation in {oop['total_classes']} classes, including {len(oop['abstract_classes'])} abstract base classes.")
+            elif oop.get("properties_count", 0) > 0:
+                items.append(f"Leveraged Python properties and encapsulation in {oop['total_classes']} classes.")
+            else:
+                items.append(f"Designed object-oriented modules with {oop['total_classes']} classes.")
 
-    # OOP/Architecture item for Java projects
     if "java_oop_analysis" in project and "error" not in project.get("java_oop_analysis", {}):
-        java_item = _generate_java_oop_item(project, project_name)
-        if java_item:
-            items.append(java_item)
+        java = project["java_oop_analysis"]
+        if java.get("total_classes", 0) > 0 or java.get("interface_count", 0) > 0:
+            if java.get("design_patterns"):
+                items.append(f"Applied design patterns ({', '.join(java['design_patterns'][:2])}) in {java['total_classes'] + java['interface_count']} Java types.")
+            elif java.get("generic_classes", 0) > 0:
+                items.append(f"Developed generic and interface-based Java modules with {java['total_classes']} classes and {java['interface_count']} interfaces.")
+            else:
+                items.append(f"Built Java OOP modules with {java['total_classes']} classes and {java['interface_count']} interfaces.")
 
-    # Testing and quality item
-    quality_item = _generate_quality_item(project, project_name)
-    if quality_item:
-        items.append(quality_item)
+    if project.get('has_tests', False):
+        if project.get('test_files', 0) > 0:
+            items.append(f"Implemented {project['test_files']} automated tests ({project.get('test_coverage_estimate', 'unknown')} coverage) to ensure code reliability.")
+        else:
+            items.append("Established a test suite for code validation.")
+    if project.get('has_ci_cd', False):
+        items.append("Integrated CI/CD pipelines for continuous integration and deployment.")
 
-    # Project scale item
-    scale_item = _generate_scale_item(project, project_name)
-    if scale_item:
-        items.append(scale_item)
+    if project.get('has_docker', False):
+        items.append("Containerized the application for reproducible deployment.")
+    if project.get('directory_depth', 0) >= 4:
+        items.append(f"Organized codebase with a modular {project['directory_depth']}-level directory structure.")
+    if project.get('contributors') and len(project.get('contributors', [])) > 1:
+        items.append(f"Collaborated with {len(project['contributors'])} contributors using version control workflows.")
+    if project.get('total_commits', 0) > 50:
+        items.append(f"Drove project development with {project['total_commits']}+ commits.")
 
     return items
 
