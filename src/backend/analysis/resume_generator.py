@@ -22,6 +22,7 @@ def _generate_project_items(project: Dict[str, Any]) -> List[str]:
     """Generate resume items for a single project."""
     items = []
     project_name = project.get("project_name", "Project")
+    primary_language = project.get("primary_language", "")
 
     # Technical stack item
     tech_item = _generate_tech_stack_item(project, project_name)
@@ -84,9 +85,9 @@ def _generate_tech_stack_item(project: Dict[str, Any], project_name: str) -> str
     code_files = project.get("code_files", 0)
 
     if code_files > 0:
-        return f"Developed {project_name} using {tech_list}, implementing {code_files} source files with {total_files} total project files"
+        return f"Developed {project_name} ({project.get('primary_language','')}) using {tech_list}, implementing {code_files} source files with {total_files} total project files"
     else:
-        return f"Built {project_name} using {tech_list}"
+        return f"Built {project_name} ({project.get('primary_language','')}) using {tech_list}"
 
 
 def _generate_python_oop_item(project: Dict[str, Any], project_name: str) -> str:
@@ -120,10 +121,10 @@ def _generate_python_oop_item(project: Dict[str, Any], project_name: str) -> str
         oop_features.append(f"{properties} property decorators")
 
     if oop_features:
-        features_str = ", ".join(oop_features[:2])  # Top 2 features
-        return f"Architected {project_name} with {total_classes} classes demonstrating {features_str}"
+        features_str = ", ".join(oop_features[:2])
+        return f"Architected {project_name} ({project.get('primary_language','')}) with {total_classes} classes demonstrating {features_str} and unique OOP structure."
     else:
-        return f"Designed {project_name} using object-oriented programming with {total_classes} classes"
+        return f"Designed {project_name} ({project.get('primary_language','')}) using object-oriented programming with {total_classes} classes and custom class relationships."
 
 
 def _generate_java_oop_item(project: Dict[str, Any], project_name: str) -> str:
@@ -161,10 +162,10 @@ def _generate_java_oop_item(project: Dict[str, Any], project_name: str) -> str:
     total_types = total_classes + interfaces
 
     if oop_features:
-        features_str = ", ".join(oop_features[:3])  # Top 3 features
-        return f"Engineered {project_name} with {total_types} classes/interfaces implementing {features_str}"
+        features_str = ", ".join(oop_features[:3])
+        return f"Engineered {project_name} ({project.get('primary_language','')}) with {total_types} classes/interfaces implementing {features_str} and project-specific patterns."
     else:
-        return f"Developed {project_name} with object-oriented design using {total_types} classes and interfaces"
+        return f"Developed {project_name} ({project.get('primary_language','')}) with object-oriented design using {total_types} classes and interfaces tailored to project needs."
 
 
 def _generate_quality_item(project: Dict[str, Any], project_name: str) -> str:
@@ -189,7 +190,7 @@ def _generate_quality_item(project: Dict[str, Any], project_name: str) -> str:
 
     if quality_features:
         features_str = " and ".join(quality_features)
-        return f"Ensured code quality for {project_name} through {features_str}"
+        return f"Ensured code quality for {project_name} ({project.get('primary_language','')}) through {features_str} and project-specific testing strategies."
 
     return ""
 
@@ -220,7 +221,7 @@ def _generate_scale_item(project: Dict[str, Any], project_name: str) -> str:
 
     if scale_features:
         features_str = ", ".join(scale_features[:2])
-        return f"Managed {project_name} development lifecycle with {features_str}"
+        return f"Managed {project_name} ({project.get('primary_language','')}) development lifecycle with {features_str} and unique team/project structure."
 
     return ""
 
@@ -237,6 +238,46 @@ def format_resume_items(items: List[str]) -> str:
         formatted += f"  • {item}\n"
 
     return formatted
+def generate_formatted_resume_entry(project: Dict[str, Any]) -> str:
+    project_name = project.get("project_name", "Project")
+    role = project.get("role", "Software Developer")
+    timeline = project.get("timeline", "")  # optional if you ever add it
+
+    bullets = _generate_project_items(project)
+    languages = list(project.get("languages", {}).keys())
+    frameworks = project.get("frameworks", [])
+    deps = project.get("dependencies", {})
+    databases = deps.get("pip", []) if deps else []
+    docker = ["Docker"] if project.get("has_docker") else []
+    tech_stack = languages + frameworks + databases + docker
+    tech_stack = [t for t in tech_stack if t]
+    tech_line = ""
+    if tech_stack:
+        tech_line = "Technologies: " + ", ".join(sorted(set(tech_stack)))
+
+    # Bullet formatting
+    bullet_str = ""
+    for b in bullets:
+        bullet_str += f"  • {b}\n"
+
+    # Final formatted block
+    block = f"""
+{project_name} – {role}    {timeline}
+{tech_line}
+{bullet_str}
+""".rstrip()
+
+    return block
+
+def generate_full_resume(report: Dict[str, Any]) -> str:
+    entries = []
+    for project in report.get("projects", []):
+        entry = generate_formatted_resume_entry(project)
+        entries.append(entry)
+
+    return "\n\n".join(entries)
+
+
 
 
 def print_resume_items(report: Dict[str, Any]) -> None:
