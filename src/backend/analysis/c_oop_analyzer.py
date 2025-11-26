@@ -1,15 +1,15 @@
-#copied imports from c++ code
+# copied imports from c++ code
 import re
 import zipfile
-from dataclasses import dataclass, field, asdict
-from pathlib import Path
 from collections import defaultdict
-from typing import Dict, List, Optional, Set,Tuple
-
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+from typing import Dict, List, Optional, Set, Tuple
 
 try:
     import clang.cindex
-    from clang.cindex import CursorKind, TypeKind, StorageClass
+    from clang.cindex import CursorKind, StorageClass, TypeKind
+
     CLANG_AVAILABLE = True
 except ImportError:
     CLANG_AVAILABLE = False
@@ -27,7 +27,7 @@ except ImportError:
 class COOPAnalysis:
     """
     Data class to store C OOP-style analysis results.
-    
+
     Metric Categories:
     1. Basic Structure (structs, functions)
     2. OOP-Style Patterns (function pointers, naming conventions)
@@ -36,7 +36,7 @@ class COOPAnalysis:
     5. API Design (header vs implementation separation)
     6. Design Patterns (Factory, Singleton, etc.)
     """
-    
+
     # BASIC STRUCTURE METRICS
     total_structs: int = 0
     total_functions: int = 0
@@ -51,7 +51,7 @@ class COOPAnalysis:
     typedef_count: int = 0
     """for abstraction"""
     enum_count: int = 0
-    
+
     # OOP-STYLE PATTERN METRICS
     opaque_pointer_structs: int = 0
     """
@@ -60,7 +60,7 @@ class COOPAnalysis:
     Example: In header: 'struct MyType;' but definition in .c file
     This is equivalent to 'private' class members in OOP.
     """
-    
+
     function_pointer_fields: int = 0
     vtable_structs: int = 0
     """
@@ -69,32 +69,31 @@ class COOPAnalysis:
     """
     oop_style_naming_count: int = 0
 
-    
     # MEMORY MANAGEMENT METRICS - C is all about memory management
     malloc_usage: int = 0
     """functions that call malloc/calloc/realloc (dynamic memory allocation)"""
-    
+
     free_usage: int = 0
     """functions that call free (memory deallocation)"""
-    
+
     constructor_destructor_pairs: int = 0
     """
     Matched pairs of Type_create/Type_new with Type_destroy/Type_free functions.
     Example: Vector_create() paired with Vector_destroy()
     High count = RAII(Resource Acquisition Is Initialization) -style discipline in C.
     """
-    
-    # ERROR HANDLING METRICS 
+
+    # ERROR HANDLING METRICS
     functions_returning_status: int = 0
     error_enum_count: int = 0
-    
+
     # API DESIGN METRICS
     header_functions: int = 0
     """Functions declared in .h files (public API)"""
-    
+
     implementation_functions: int = 0
     """Functions only in .c files (internal implementation)"""
-    
+
     # DESIGN PATTERNS
     design_patterns: List[str] = field(default_factory=list)
     """
@@ -104,7 +103,7 @@ class COOPAnalysis:
     - Strategy: Structs with function pointers for swappable behavior
     - Observer: Callback function pointers
     """
-    
+
     def to_dict(self) -> Dict:
         """Convert analysis to dictionary for JSON serialization"""
         return asdict(self)
@@ -115,12 +114,12 @@ class CStructInfo:
     """
     Information about a single C struct.
     """
-    
-    name: str    
-    field_count: int = 0    
-    function_pointer_count: int = 0    
-    is_opaque: bool = False    
-    has_typedef: bool = False    
+
+    name: str
+    field_count: int = 0
+    function_pointer_count: int = 0
+    is_opaque: bool = False
+    has_typedef: bool = False
     associated_functions: List[str] = field(default_factory=list)
     """
     Functions that follow StructName_function naming pattern.
@@ -136,11 +135,11 @@ class COOPAnalyzer:
     4. Analyze memory management and error handling
     5. Identify design patterns
     6. Return comprehensive analysis
-    
+
     """
 
     def __init__(self):
-        """        
+        """
         State maintained during analysis:
         - analysis: Accumulates all metrics
         - structs: Dictionary of struct name -> CStructInfo
@@ -159,7 +158,6 @@ class COOPAnalyzer:
         self.function_pointer_typedefs: Set[str] = set()
         self.malloc_checked_functions: Set[str] = set()
         self.free_checked_functions: Set[str] = set()
-
 
     def analyze_file(self, content: str, filename: str = "temp.c", include_dirs: Optional[List[str]] = None) -> COOPAnalysis:
         """
@@ -188,14 +186,14 @@ class COOPAnalyzer:
             return self.analysis
 
         try:
-            import tempfile
             import os
+            import tempfile
 
             # file extension based on filename
-            suffix = '.h' if filename.endswith('.h') else '.c'
+            suffix = ".h" if filename.endswith(".h") else ".c"
 
             # Write to temp file and get path
-            with tempfile.NamedTemporaryFile(mode='w', suffix=suffix, delete=False) as f:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=suffix, delete=False) as f:
                 f.write(content)
                 temp_path = f.name
 
@@ -203,16 +201,13 @@ class COOPAnalyzer:
             index = clang.cindex.Index.create()
 
             # Build compile args with include directories
-            compile_args = ['-std=c11', '-x', 'c']
+            compile_args = ["-std=c11", "-x", "c"]
             if include_dirs:
                 for inc_dir in include_dirs:
-                    compile_args.extend(['-I', inc_dir])
+                    compile_args.extend(["-I", inc_dir])
 
-            translation_unit = index.parse(
-                temp_path,
-                args=compile_args
-            )
-            
+            translation_unit = index.parse(temp_path, args=compile_args)
+
             # Check for parse errors (ignore system header errors)
             if translation_unit.diagnostics:
                 for diag in translation_unit.diagnostics:
@@ -223,18 +218,19 @@ class COOPAnalyzer:
                             if any(h in diag.spelling for h in ["<", "stdlib", "stdio", "string", "stddef", "stdint"]):
                                 continue
                         print(f"Parse error: {diag.spelling}")
-            
+
             # Traverse the Abstract Syntax Tree
             self._traverse_ast(translation_unit.cursor, filename)
 
             # Clean up temporary file
             os.unlink(temp_path)
-            
+
         except Exception as e:
             print(f"Warning: Failed to parse C file: {e}")
             import traceback
+
             traceback.print_exc()
-        
+
         return self.analysis
 
     def finalize_analysis(self):
@@ -246,19 +242,18 @@ class COOPAnalyzer:
         self._match_constructor_destructor_pairs()
         self._detect_design_patterns()
 
-
     def _traverse_ast(self, cursor, filename: str, parent_struct: Optional[str] = None):
         """
         Recursively traverse the Abstract Syntax Tree.
-        
+
         Args:
             cursor: Current AST node (from libclang)
             filename: Source filename (for header vs implementation tracking)
             parent_struct: If we're inside a struct, this is its name
-        
+
         This is the core traversal function that visits every node in the AST.
         For each node type, we call specialized analysis functions to add to stats.
-        
+
         Key AST node types we care about:
         - STRUCT_DECL: Struct declarations
         - FUNCTION_DECL: Function declarations
@@ -268,50 +263,46 @@ class COOPAnalyzer:
 
         Note the base of this was taken from C++ with changes made for C compatibility
         """
-        
-        #look for user code
+
+        # look for user code
         # Skip system headers (cross-platform: Linux, Mac, Windows)
         if cursor.location.file:
             file_path = str(cursor.location.file.name)
 
             # Normalize path separators (Windows uses \, Unix uses /)
-            file_path_normalized = file_path.replace('\\', '/')
+            file_path_normalized = file_path.replace("\\", "/")
 
             # System header patterns for all platforms
             system_patterns = [
                 # Unix/Linux standard locations
-                '/usr/include',
-                '/usr/local/include',
-
+                "/usr/include",
+                "/usr/local/include",
                 # Mac system locations
-                '/System/Library',
-                '/Library/Frameworks',
-                '/Applications/Xcode',
-
+                "/System/Library",
+                "/Library/Frameworks",
+                "/Applications/Xcode",
                 # Windows locations (both formats work after normalization)
-                'Program Files',
-                'C:/Windows',
-                'C:/Program Files',
-
+                "Program Files",
+                "C:/Windows",
+                "C:/Program Files",
                 # Unix-like environments on Windows
-                '/mingw',
-                '/msys',
-                '/cygwin',
+                "/mingw",
+                "/msys",
+                "/cygwin",
             ]
 
             # Check if file path contains any system pattern
             if any(pattern in file_path_normalized for pattern in system_patterns):
                 return
 
-        #STRUCT DECLARATIONS 
+        # STRUCT DECLARATIONS
         if cursor.kind == CursorKind.STRUCT_DECL:
             self._analyze_struct(cursor, filename)
-        
-        #FUNCTION DECLARATIONS
+
+        # FUNCTION DECLARATIONS
         elif cursor.kind == CursorKind.FUNCTION_DECL:
             self._analyze_function(cursor, filename)
-        
-        
+
         elif cursor.kind == CursorKind.TYPEDEF_DECL:
             self.analysis.typedef_count += 1
             typedef_name = cursor.spelling or ""
@@ -319,7 +310,7 @@ class COOPAnalyzer:
 
             # Check if it's a struct typedef (existing code)
             if underlying.kind == TypeKind.RECORD:
-                struct_name = underlying.spelling.replace('struct ', '')
+                struct_name = underlying.spelling.replace("struct ", "")
                 if struct_name in self.structs:
                     self.structs[struct_name].has_typedef = True
 
@@ -347,27 +338,24 @@ class COOPAnalyzer:
             if is_fp and typedef_name:
                 self.function_pointer_typedefs.add(typedef_name)
 
-
-
-        #ENUM DECLARATIONS
+        # ENUM DECLARATIONS
         elif cursor.kind == CursorKind.ENUM_DECL:
             self.analysis.enum_count += 1
             # Check if it's an error enum
             enum_name = cursor.spelling.lower() if cursor.spelling else ""
-            if 'error' in enum_name or 'status' in enum_name:
+            if "error" in enum_name or "status" in enum_name:
                 self.analysis.error_enum_count += 1
-        
-        
+
         # RECURSE TO CHILDREN
         for child in cursor.get_children():
             # If we're entering a struct, pass its name down
             new_parent = parent_struct
             if cursor.kind == CursorKind.STRUCT_DECL and cursor.spelling:
                 new_parent = cursor.spelling
-            
-            #recursive function
+
+            # recursive function
             self._traverse_ast(child, filename, new_parent)
-    
+
     def _analyze_struct(self, cursor, filename: str):
         """
         Analyze a struct declaration.
@@ -435,18 +423,17 @@ class COOPAnalyzer:
 
         else:
             self.declared_structs.add(struct_name)
-            if filename.endswith('.h'):
+            if filename.endswith(".h"):
                 self.header_only_structs.add(struct_name)
-
 
     def _analyze_function(self, cursor, filename: str):
         """
         Analyze a function declaration.
-        
+
         Args:
             cursor: AST node for the function
             filename: Source file name
-        
+
         Detects:
         1. Static vs non-static (encapsulation indicator)
         2. OOP-style naming (ClassName_method pattern)
@@ -455,7 +442,7 @@ class COOPAnalyzer:
         5. Error handling (functions returning status codes)
         6. Header vs implementation (public vs internal API)
         """
-        
+
         func_name = cursor.spelling
         if not func_name:
             return
@@ -466,39 +453,37 @@ class COOPAnalyzer:
 
         if not already_counted:
             self.analysis.total_functions += 1
-        
-        #STATIC FUNCTION DETECTION
-        #Static functions are only visible in their file
+
+        # STATIC FUNCTION DETECTION
+        # Static functions are only visible in their file
         storage_class = cursor.storage_class
-        is_static = (storage_class == StorageClass.STATIC)
+        is_static = storage_class == StorageClass.STATIC
 
         if not already_counted:
             if is_static:
                 self.analysis.static_functions += 1
 
-            #OOP-STYLE NAMING CONVENTION
+            # OOP-STYLE NAMING CONVENTION
             if self._matches_oop_naming(func_name):
                 self.analysis.oop_style_naming_count += 1
 
                 # link to struct
-                struct_name = func_name.split('_')[0]
+                struct_name = func_name.split("_")[0]
                 if struct_name in self.structs:
                     self.structs[struct_name].associated_functions.append(func_name)
 
-            #CONSTRUCTOR/DESTRUCTOR PATTERN
-            #constructor
-            if func_name.endswith('_create') or func_name.endswith('_new'):
+            # CONSTRUCTOR/DESTRUCTOR PATTERN
+            # constructor
+            if func_name.endswith("_create") or func_name.endswith("_new"):
                 self.create_functions.add(func_name)
 
-            #destructors
-            if (func_name.endswith('_destroy') or
-                func_name.endswith('_free') or
-                func_name.endswith('_delete')):
+            # destructors
+            if func_name.endswith("_destroy") or func_name.endswith("_free") or func_name.endswith("_delete"):
                 self.destroy_functions.add(func_name)
 
-        #MEMORY MANAGEMENT DETECTION
+        # MEMORY MANAGEMENT DETECTION
         # Check if function uses malloc/free (dynamic memory)
-        #count the functions that use this
+        # count the functions that use this
         if is_definition:
             has_malloc, has_free = self._check_memory_calls(cursor)
 
@@ -510,16 +495,16 @@ class COOPAnalyzer:
             if has_free and func_name not in self.free_checked_functions:
                 self.analysis.free_usage += 1
                 self.free_checked_functions.add(func_name)
-        
+
         if not already_counted:
-            #ERROR HANDLING DETECTION
-            #Functions returning int/long might be returning error codes
+            # ERROR HANDLING DETECTION
+            # Functions returning int/long might be returning error codes
             return_type = cursor.result_type.spelling
-            if return_type in ['int', 'long', 'ssize_t', 'ptrdiff_t']:
+            if return_type in ["int", "long", "ssize_t", "ptrdiff_t"]:
                 self.analysis.functions_returning_status += 1
 
-            #API DESIGN: Header vs Implementation
-            if filename.endswith('.h'):
+            # API DESIGN: Header vs Implementation
+            if filename.endswith(".h"):
                 self.analysis.header_functions += 1
             else:
                 self.analysis.implementation_functions += 1
@@ -527,13 +512,13 @@ class COOPAnalyzer:
             # Store function metadata
             return_type = cursor.result_type.spelling
             self.functions[func_name] = {
-                'name': func_name,
-                'is_static': is_static,
-                'return_type': return_type,
-                'filename': filename
+                "name": func_name,
+                "is_static": is_static,
+                "return_type": return_type,
+                "filename": filename,
             }
 
-    #returna  boolean value so that no double counts for the same function
+    # returna  boolean value so that no double counts for the same function
     def _check_memory_calls(self, cursor) -> Tuple[bool, bool]:
         """
         Recursively check if function contains malloc/free calls.
@@ -547,37 +532,36 @@ class COOPAnalyzer:
         has_free = False
 
         if cursor.kind == CursorKind.CALL_EXPR:
-            if cursor.spelling in ['malloc', 'calloc', 'realloc']:
+            if cursor.spelling in ["malloc", "calloc", "realloc"]:
                 has_malloc = True
-            elif cursor.spelling == 'free':
+            elif cursor.spelling == "free":
                 has_free = True
 
-        # exit if both found 
+        # exit if both found
         if has_malloc and has_free:
             return True, True
 
-        #recurse through children
+        # recurse through children
         for child in cursor.get_children():
             child_malloc, child_free = self._check_memory_calls(child)
             has_malloc = has_malloc or child_malloc
             has_free = has_free or child_free
 
-            #exit if both found
+            # exit if both found
             if has_malloc and has_free:
                 break
-            
+
         return has_malloc, has_free
-    
 
     def _matches_oop_naming(self, func_name: str) -> bool:
         """
         Check if function follows OOP-style naming
         """
-        #at least one underscore
-        if '_' not in func_name:
+        # at least one underscore
+        if "_" not in func_name:
             return False
 
-        parts = func_name.split('_', 1)
+        parts = func_name.split("_", 1)
         if len(parts) != 2:
             return False
 
@@ -589,17 +573,33 @@ class COOPAnalyzer:
         if not prefix[0].isalpha() or not method[0].isalpha():
             return False
 
-        if not all(c.isalnum() or c == '_' for c in prefix):
+        if not all(c.isalnum() or c == "_" for c in prefix):
             return False
 
-        if not all(c.isalnum() or c == '_' for c in method):
+        if not all(c.isalnum() or c == "_" for c in method):
             return False
-        
+
         generic_prefixes = {
-            'helper', 'utility', 'util', 'common', 'shared',
-            'internal', 'private', 'public', 'static',
-            'do', 'get', 'set', 'make', 'create', 'init',
-            'handle', 'process', 'convert', 'parse', 'check'
+            "helper",
+            "utility",
+            "util",
+            "common",
+            "shared",
+            "internal",
+            "private",
+            "public",
+            "static",
+            "do",
+            "get",
+            "set",
+            "make",
+            "create",
+            "init",
+            "handle",
+            "process",
+            "convert",
+            "parse",
+            "check",
         }
 
         if prefix.lower() in generic_prefixes:
@@ -628,11 +628,11 @@ class COOPAnalyzer:
         # but their full definition is hidden in .c files
         # Use header_only_structs which tracks structs forward-declared in .h files
         """
-        
-        #check if actually defined
+
+        # check if actually defined
         opaque = set()
         for struct_name in self.header_only_structs:
-            if struct_name in self.defined_structs:  
+            if struct_name in self.defined_structs:
                 opaque.add(struct_name)
         self.analysis.opaque_pointer_structs = len(opaque)
 
@@ -674,46 +674,44 @@ class COOPAnalyzer:
             return True
         return False
 
-
     def _match_constructor_destructor_pairs(self):
         """
         Match constructor/destructor function pairs.
         High pair count = disciplined resource management
         """
-        
+
         create_bases = set()
         for func in self.create_functions:
-            if func.endswith('_create'):
+            if func.endswith("_create"):
                 base = func[:-7]
-            elif func.endswith('_new'):
+            elif func.endswith("_new"):
                 base = func[:-4]
             else:
                 continue
 
             if self._is_valid_type_name(base):
                 create_bases.add(base)
-        
 
         destroy_bases = set()
         for func in self.destroy_functions:
-            if func.endswith('_destroy'):
+            if func.endswith("_destroy"):
                 base = func[:-8]
-            elif func.endswith('_free'):
+            elif func.endswith("_free"):
                 base = func[:-5]
-            elif func.endswith('_delete'):
+            elif func.endswith("_delete"):
                 base = func[:-7]
             else:
                 continue
 
             if self._is_valid_type_name(base):
                 destroy_bases.add(base)
-        
+
         # Count matches
         matched = create_bases & destroy_bases
         self.analysis.constructor_destructor_pairs = len(matched)
-    
+
     def _is_valid_type_name(self, name: str) -> bool:
-        
+
         if not name:
             return False
 
@@ -729,12 +727,28 @@ class COOPAnalyzer:
         if name[0].isupper():
             return True
 
-        #reject bank
+        # reject bank
         generic_words = {
-            'do', 'get', 'set', 'make', 'create', 'init',
-            'handle', 'process', 'convert', 'parse', 'check',
-            'run', 'start', 'stop', 'open', 'close',
-            'read', 'write', 'send', 'receive'
+            "do",
+            "get",
+            "set",
+            "make",
+            "create",
+            "init",
+            "handle",
+            "process",
+            "convert",
+            "parse",
+            "check",
+            "run",
+            "start",
+            "stop",
+            "open",
+            "close",
+            "read",
+            "write",
+            "send",
+            "receive",
         }
 
         if name.lower() in generic_words:
@@ -742,53 +756,53 @@ class COOPAnalyzer:
 
         return True
 
-    # done by AI completely do not know the patterns well enough to edit 
+    # done by AI completely do not know the patterns well enough to edit
     def _detect_design_patterns(self):
         """
         Detect common design patterns adapted for C.
-        
+
         1. FACTORY PATTERN
            - Functions named Type_create() or Type_new()
            - Encapsulates object creation
            - Example: Vector* Vector_create(int capacity);
-        
+
         2. SINGLETON PATTERN
            - Static variable + getInstance() function
            - Ensures single instance
            - Example: static Connection* instance = NULL;
                       Connection* Connection_getInstance();
-        
+
         3. STRATEGY PATTERN
            - Struct with function pointers (swappable algorithms)
            - Example: struct Sorter { int (*compare)(void*, void*); };
-        
+
         4. OBSERVER PATTERN
            - Callback function pointers
            - Fields named 'callback', 'handler', 'notify'
            - Example: struct Button { void (*on_click)(void*); };
-        
+
         All detection is heuristic-based (name matching, structure analysis).
         """
         patterns = set()
-        
+
         # === FACTORY PATTERN ===
         # Detected by presence of _create() or _new() functions
         if self.create_functions:
             patterns.add("Factory")
-        
+
         # === SINGLETON PATTERN ===
         # Heuristic: function named "getInstance" or "instance"
         for func_name in self.functions:
-            if 'getInstance' in func_name or func_name.endswith('_instance'):
+            if "getInstance" in func_name or func_name.endswith("_instance"):
                 patterns.add("Singleton")
                 break
-        
+
         # === STRATEGY PATTERN ===
         # Detected by VTable structs
         # These allow swapping implementations at runtime
         if self.analysis.vtable_structs > 0:
             patterns.add("Strategy")
-        
+
         # === OBSERVER PATTERN ===
         # Detected by callback/handler/notify patterns in struct fields
         for struct_name, struct_info in self.structs.items():
@@ -796,14 +810,14 @@ class COOPAnalyzer:
                 # Check if any function pointer fields suggest callbacks
                 # This is a simplified check - in practice, you'd examine field names
                 # For now, we'll use the presence of function pointers + certain struct names
-                if any(keyword in struct_name.lower() 
-                       for keyword in ['event', 'listener', 'observer', 'callback']):
+                if any(keyword in struct_name.lower() for keyword in ["event", "listener", "observer", "callback"]):
                     patterns.add("Observer")
                     break
-        
+
         self.analysis.design_patterns = sorted(list(patterns))
 
-#helper function to make objects for classes
+
+# helper function to make objects for classes
 def analyze_c_file(content: str, filename: str = "temp.c") -> COOPAnalysis:
     analyzer = COOPAnalyzer()
     analyzer.analyze_file(content, filename)
@@ -814,17 +828,17 @@ def analyze_c_file(content: str, filename: str = "temp.c") -> COOPAnalysis:
 def analyze_c_project(zip_path: Path, project_path: str = "") -> Dict:
     """
     Perform deep OOP-style analysis on a C project inside a ZIP file.
-    
+
     This function integrates with the existing project analysis pipeline:
     1. Uses MetadataExtractor to get project info
     2. Uses FileClassifier to find all C files
     3. Analyzes each C file individually
     4. Aggregates results into combined analysis
-    
+
     Args:
         zip_path: path to ZIP file containing the project
         project_path: relative path within ZIP to the project root (should be )
-    
+
     Returns:
         Dictionary containing:
         - project_name: Name of the project
@@ -854,12 +868,13 @@ def analyze_c_project(zip_path: Path, project_path: str = "") -> Dict:
     analyzer = COOPAnalyzer()
 
     # Create temp directory for extracting all C files
-    import tempfile
     import shutil
+    import tempfile
+
     temp_dir = tempfile.mkdtemp(prefix="c_analyzer_")
 
     try:
-        #list c files
+        # list c files
         with zipfile.ZipFile(zip_path, "r") as zf:
             code_paths: List[str] = []
 
@@ -880,11 +895,7 @@ def analyze_c_project(zip_path: Path, project_path: str = "") -> Dict:
                                         if item.endswith((".c", ".h")):
                                             code_paths.append(item)
                                     elif isinstance(item, dict):
-                                        path = (
-                                            item.get("path")
-                                            or item.get("relative_path")
-                                            or item.get("file_path")
-                                        )
+                                        path = item.get("path") or item.get("relative_path") or item.get("file_path")
                                         if isinstance(path, str) and path.endswith((".c", ".h")):
                                             code_paths.append(path)
                 except Exception as e:
@@ -901,7 +912,7 @@ def analyze_c_project(zip_path: Path, project_path: str = "") -> Dict:
                     if name.endswith(".c") or name.endswith(".h"):
                         code_paths.append(name)
 
-            #deduplicate & sort
+            # deduplicate & sort
             code_paths = sorted(set(code_paths))
 
             # Extract all C/H files to temp directory first
@@ -954,12 +965,13 @@ def analyze_c_project(zip_path: Path, project_path: str = "") -> Dict:
     }
 
 
-#scoring
+# scoring
+
 
 def calculate_oop_score(analysis: COOPAnalysis) -> int:
     """
     Calculate OOP-style score (0-6) based on C pattern usage.
-    
+
     Scoring criteria:
     +1: Uses structs (basic data organization)
     +1: Uses opaque pointers (information hiding / encapsulation)
@@ -968,39 +980,35 @@ def calculate_oop_score(analysis: COOPAnalysis) -> int:
     +1: Has VTable structs (advanced polymorphism)
     +1: Uses design patterns or consistent OOP naming
 
-    
+
     """
     score = 0
-    
+
     # +1: Has structs (basic organization)
     if analysis.total_structs > 0:
         score += 1
-    
+
     # +1: Uses opaque pointers (encapsulation / information hiding)
     if analysis.opaque_pointer_structs > 0:
         score += 1
-    
+
     # +1: Uses static functions (file-scope encapsulation)
     if analysis.static_functions > 0:
         score += 1
-    
+
     # +1: Uses function pointers (polymorphism-like behavior)
     if analysis.function_pointer_fields > 0:
         score += 1
-    
+
     # +1: Has VTable structs (advanced polymorphism)
     if analysis.vtable_structs > 0:
         score += 1
-    
+
     # +1: Uses design patterns or OOP naming conventions
     if analysis.design_patterns or analysis.oop_style_naming_count > 5:
         score += 1
 
-    if (
-        score >= 3
-        and analysis.constructor_destructor_pairs > 0
-        and analysis.opaque_pointer_structs > 0
-    ):
+    if score >= 3 and analysis.constructor_destructor_pairs > 0 and analysis.opaque_pointer_structs > 0:
         score += 1
     return min(score, 6)
 
@@ -1008,61 +1016,61 @@ def calculate_oop_score(analysis: COOPAnalysis) -> int:
 def calculate_solid_score(analysis: COOPAnalysis) -> float:
     """
     Calculate SOLID-style score (0-3) for C code architecture.
-    
-    
+
+
     metrics used:
     S - Single Responsibility: Reasonable function count per struct
     O - Open/Closed: Use of function pointers for extensibility
     L - Liskov Substitution- dont care
     I - Interface Segregation: Clean API with header/implementation separation
     D - Dependency Inversion: dont care
-    
+
     Since only 3 principles apply well to C, we use 0-3 scale.
-    
+
     Scoring:
-    +1.0: Good function-to-struct ratio 
+    +1.0: Good function-to-struct ratio
     +1.0: Uses function pointers for extensibility
     +1.0: Clean API separation
-    
+
     Args:
         analysis: COOPAnalysis object
-    
+
     Returns:
         Float score from 0.0 to 3.0
     """
 
     score = 0.0
-    
-    #S
+
+    # S
     if analysis.total_structs > 0:
         avg_funcs = analysis.total_functions / max(analysis.total_structs, 1)
         if 3 <= avg_funcs <= 15:
             score += 1.0
         elif avg_funcs > 0:
             score += 0.5
-    
-    #Open/Closed
+
+    # Open/Closed
     if analysis.vtable_structs > 0:
         score += 1.0
     elif analysis.function_pointer_fields > 0:
         score += 0.5
-    
+
     # Interface Segregation
     if analysis.implementation_functions > analysis.header_functions > 0:
         score += 1.0
     elif analysis.header_functions > 0:
         score += 0.5
-    
+
     return min(score, 3.0)
 
 
 def get_coding_style(oop_score: int) -> str:
     """
     Determine coding style based on OOP score.
-    
+
     Args:
         oop_score: Score from calculate_oop_score (0-6)
-    
+
     Returns:
         String description of coding style
     """
@@ -1080,20 +1088,20 @@ def get_coding_style(oop_score: int) -> str:
 def calculate_encapsulation_ratio(analysis: COOPAnalysis) -> float:
     """
     Calculate what percentage of functions use encapsulation.
-    
+
     In C, encapsulation is achieved through:
     - Static functions
-    - Opaque pointers 
-    
+    - Opaque pointers
+
     Returns:
         Percentage (0-100) of functions that are encapsulated
     """
     if analysis.total_functions == 0:
         return 0.0
-    
+
     encapsulated = analysis.static_functions
     total = analysis.total_functions
-    
+
     return (encapsulated / total) * 100
 
 
@@ -1102,20 +1110,20 @@ def calculate_memory_safety_score(analysis: COOPAnalysis) -> float:
     Evaluates:
     - Constructor/destructor pair discipline
     - malloc/free balance
-    
+
     Returns:
         Score from 0 to 10
     """
     score = 0.0
-    
+
     # +5: constructor/destructor pairs (RAII-style)
     if analysis.constructor_destructor_pairs > 0:
         score += 5.0
-    
+
     # +5: balanced malloc/free usage
     if analysis.malloc_usage > 0:
         if analysis.free_usage > 0:
             ratio = min(analysis.free_usage, analysis.malloc_usage) / analysis.malloc_usage
             score += 5.0 * ratio
-    
+
     return score

@@ -19,20 +19,21 @@ from typing import Dict
 
 class CTestProjectGenerator:
     """Generates test C projects for analyzer testing."""
-    
+
     @staticmethod
     def create_project_1_minimal(base_dir: Path) -> Path:
         """
         Create Project 1: Minimal - Pure Procedural C
-        
+
         Purpose: Test low OOP score, basic detection
         Expected OOP Score: 0-1/6
         """
         project_dir = base_dir / "1_minimal"
         project_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # main.c
-        (project_dir / "main.c").write_text("""/*
+        (project_dir / "main.c").write_text(
+            """/*
  * Minimal Procedural C Code
  * 
  * Purpose: Test pure procedural C with no OOP patterns
@@ -61,23 +62,25 @@ int main() {
     
     return 0;
 }
-""")
-        
+"""
+        )
+
         return project_dir
-    
+
     @staticmethod
     def create_project_2_basic_struct(base_dir: Path) -> Path:
         """
         Create Project 2: Basic Struct - Simple OOP Elements
-        
+
         Purpose: Test basic struct detection and simple OOP elements
         Expected OOP Score: 2-3/6
         """
         project_dir = base_dir / "2_basic_struct"
         project_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # point.h
-        (project_dir / "point.h").write_text("""/*
+        (project_dir / "point.h").write_text(
+            """/*
  * Basic Struct Project - Header
  */
 
@@ -96,10 +99,12 @@ void Point_print(struct Point p);
 int Point_distance_squared(struct Point p1, struct Point p2);
 
 #endif
-""")
-        
+"""
+        )
+
         # point.c
-        (project_dir / "point.c").write_text("""/*
+        (project_dir / "point.c").write_text(
+            """/*
  * Basic Struct Project - Implementation
  */
 
@@ -130,23 +135,25 @@ int Point_distance_squared(struct Point p1, struct Point p2) {
 static int square(int x) {
     return x * x;
 }
-""")
-        
+"""
+        )
+
         return project_dir
-    
+
     @staticmethod
     def create_project_3_vector(base_dir: Path) -> Path:
         """
         Create Project 3: Vector - OOP-Style Library
-        
+
         Purpose: Test comprehensive OOP-style patterns
         Expected OOP Score: 4-5/6
         """
         project_dir = base_dir / "3_vector"
         project_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # vector.h
-        (project_dir / "vector.h").write_text("""/*
+        (project_dir / "vector.h").write_text(
+            """/*
  * Vector Library - Header (Opaque Pointer Pattern)
  */
 
@@ -176,10 +183,12 @@ int Vector_get(struct Vector* vec, int index, int* out_value);
 int Vector_size(struct Vector* vec);
 
 #endif
-""")
-        
+"""
+        )
+
         # vector.c
-        (project_dir / "vector.c").write_text("""/*
+        (project_dir / "vector.c").write_text(
+            """/*
  * Vector Library - Implementation
  */
 
@@ -279,23 +288,25 @@ static int vector_grow(struct Vector* vec) {
     vec->capacity = new_capacity;
     return 1;
 }
-""")
-        
+"""
+        )
+
         return project_dir
-    
+
     @staticmethod
     def create_project_4_polymorphism(base_dir: Path) -> Path:
         """
         Create Project 4: Polymorphism - Function Pointers (VTable)
-        
+
         Purpose: Test VTable detection and Strategy pattern
         Expected OOP Score: 5/6
         """
         project_dir = base_dir / "4_polymorphism"
         project_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # animal.h
-        (project_dir / "animal.h").write_text("""/*
+        (project_dir / "animal.h").write_text(
+            """/*
  * Polymorphism via Function Pointers
  */
 
@@ -334,10 +345,12 @@ struct AnimalVTable* Dog_get_vtable(void);
 struct AnimalVTable* Cat_get_vtable(void);
 
 #endif
-""")
-        
+"""
+        )
+
         # dog.c
-        (project_dir / "dog.c").write_text("""/*
+        (project_dir / "dog.c").write_text(
+            """/*
  * Dog Implementation - Polymorphism Example
  */
 
@@ -404,10 +417,12 @@ void Animal_eat(struct Animal* animal) {
         animal->vtable->eat(animal);
     }
 }
-""")
-        
+"""
+        )
+
         # cat.c
-        (project_dir / "cat.c").write_text("""/*
+        (project_dir / "cat.c").write_text(
+            """/*
  * Cat Implementation - Polymorphism Example
  */
 
@@ -438,23 +453,25 @@ static struct AnimalVTable cat_vtable = {
 struct AnimalVTable* Cat_get_vtable(void) {
     return &cat_vtable;
 }
-""")
-        
+"""
+        )
+
         return project_dir
-    
+
     @staticmethod
     def create_project_5_complete(base_dir: Path) -> Path:
         """
         Create Project 5: Complete - Full-Featured Library
-        
+
         Purpose: Test all OOP-style patterns together
         Expected OOP Score: 6/6
         """
         project_dir = base_dir / "5_complete"
         project_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # list.h
-        (project_dir / "list.h").write_text("""/*
+        (project_dir / "list.h").write_text(
+            """/*
  * Complete Library - Linked List
  */
 
@@ -487,10 +504,12 @@ int List_size(struct List* list);
 void List_on_change(struct List* list, ListCallback callback, void* user_data);
 
 #endif
-""")
-        
+"""
+        )
+
         # list.c
-        (project_dir / "list.c").write_text("""/*
+        (project_dir / "list.c").write_text(
+            """/*
  * Complete Library - Implementation
  */
 
@@ -573,10 +592,12 @@ void List_on_change(struct List* list, ListCallback callback, void* user_data) {
         list->callback_user_data = user_data;
     }
 }
-""")
-        
+"""
+        )
+
         # iterator.h
-        (project_dir / "iterator.h").write_text("""/*
+        (project_dir / "iterator.h").write_text(
+            """/*
  * Iterator Pattern
  */
 
@@ -590,10 +611,12 @@ void Iterator_destroy(struct Iterator* iter);
 int Iterator_has_next(struct Iterator* iter);
 
 #endif
-""")
-        
+"""
+        )
+
         # iterator.c
-        (project_dir / "iterator.c").write_text("""/*
+        (project_dir / "iterator.c").write_text(
+            """/*
  * Iterator Implementation
  */
 
@@ -619,10 +642,12 @@ void Iterator_destroy(struct Iterator* iter) {
 int Iterator_has_next(struct Iterator* iter) {
     return iter && iter->current != NULL;
 }
-""")
-        
+"""
+        )
+
         # util.c
-        (project_dir / "util.c").write_text("""/*
+        (project_dir / "util.c").write_text(
+            """/*
  * Utility Functions
  */
 
@@ -641,31 +666,32 @@ static void util_swap(int* a, int* b) {
     *a = *b;
     *b = temp;
 }
-""")
-        
+"""
+        )
+
         return project_dir
-    
+
     @staticmethod
     def create_zip_file(project_dir: Path, output_dir: Path) -> Path:
         """Create a ZIP file from a project directory."""
         zip_path = output_dir / f"{project_dir.name}.zip"
-        
-        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            for file_path in project_dir.rglob('*'):
+
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+            for file_path in project_dir.rglob("*"):
                 if file_path.is_file():
                     arcname = file_path.relative_to(project_dir.parent)
                     zipf.write(file_path, arcname)
-        
+
         return zip_path
 
 
 def generate_all_test_projects(base_dir: Path = None) -> Dict[str, Path]:
     """
     Generate all test projects and return paths.
-    
+
     Args:
         base_dir: Base directory for test projects. If None, uses temp directory.
-    
+
     Returns:
         Dictionary with keys:
         - 'base_dir': Base directory containing all projects
@@ -677,42 +703,38 @@ def generate_all_test_projects(base_dir: Path = None) -> Dict[str, Path]:
     else:
         base_dir = Path(base_dir)
         base_dir.mkdir(parents=True, exist_ok=True)
-    
+
     generator = CTestProjectGenerator()
-    
+
     # Generate all projects
     projects = {
-        '1_minimal': generator.create_project_1_minimal(base_dir),
-        '2_basic_struct': generator.create_project_2_basic_struct(base_dir),
-        '3_vector': generator.create_project_3_vector(base_dir),
-        '4_polymorphism': generator.create_project_4_polymorphism(base_dir),
-        '5_complete': generator.create_project_5_complete(base_dir),
+        "1_minimal": generator.create_project_1_minimal(base_dir),
+        "2_basic_struct": generator.create_project_2_basic_struct(base_dir),
+        "3_vector": generator.create_project_3_vector(base_dir),
+        "4_polymorphism": generator.create_project_4_polymorphism(base_dir),
+        "5_complete": generator.create_project_5_complete(base_dir),
     }
-    
+
     # Create ZIP files
     zips = {}
     for name, project_dir in projects.items():
         zips[name] = generator.create_zip_file(project_dir, base_dir)
-    
-    return {
-        'base_dir': base_dir,
-        'projects': projects,
-        'zips': zips
-    }
+
+    return {"base_dir": base_dir, "projects": projects, "zips": zips}
 
 
 if __name__ == "__main__":
     """Demo: Generate all test projects"""
     print("Generating test projects...")
     result = generate_all_test_projects()
-    
+
     print(f"\n✓ Generated in: {result['base_dir']}")
     print("\nProjects:")
-    for name, path in result['projects'].items():
+    for name, path in result["projects"].items():
         print(f"  - {name}: {path}")
-    
+
     print("\nZIP files:")
-    for name, path in result['zips'].items():
+    for name, path in result["zips"].items():
         print(f"  - {name}.zip: {path}")
-    
+
     print("\n✓ All test projects generated successfully!")
