@@ -420,7 +420,6 @@ def store_resume_item(project_name: str, resume_text: str) -> None:
         conn.commit()
 
 def get_all_resume_items() -> List[sqlite3.Row]:
-    """Return all stored résumé items, newest first."""
     with get_connection() as conn:
         return conn.execute(
             """
@@ -429,4 +428,27 @@ def get_all_resume_items() -> List[sqlite3.Row]:
             ORDER BY created_at DESC
             """
         ).fetchall()
+def get_resume_items_for_project(project_name: str) -> List[sqlite3.Row]:
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT id, project_name, resume_text, created_at
+            FROM resume_items
+            WHERE project_name = ?
+            ORDER BY created_at DESC
+            """,
+            (project_name,),
+        ).fetchall()
 
+def delete_resume_item(item_id: int) -> None:
+    with get_connection() as conn:
+        conn.execute(
+            "DELETE FROM resume_items WHERE id = ?",
+            (item_id,),
+        )
+        conn.commit()
+
+def clear_resume_items() -> None:
+    with get_connection() as conn:
+        conn.execute("DELETE FROM resume_items")
+        conn.commit()
