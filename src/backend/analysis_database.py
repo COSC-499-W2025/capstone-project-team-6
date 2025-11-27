@@ -160,6 +160,17 @@ def init_db() -> None:
             );
             """
         )
+        
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS resume_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_name TEXT NOT NULL,
+                resume_text TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
 
         conn.commit()
 
@@ -393,3 +404,29 @@ def get_projects_for_analysis(analysis_id: int) -> List[sqlite3.Row]:
             "SELECT * FROM projects WHERE analysis_id = ? ORDER BY id",
             (analysis_id,),
         ).fetchall()
+
+def store_resume_item(project_name: str, resume_text: str) -> None:
+    if not project_name or not resume_text:
+        raise ValueError("project_name and resume_text are required")
+
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO resume_items (project_name, resume_text)
+            VALUES (?, ?)
+            """,
+            (project_name, resume_text),
+        )
+        conn.commit()
+
+def get_all_resume_items() -> List[sqlite3.Row]:
+    """Return all stored résumé items, newest first."""
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT id, project_name, resume_text, created_at
+            FROM resume_items
+            ORDER BY created_at DESC
+            """
+        ).fetchall()
+
