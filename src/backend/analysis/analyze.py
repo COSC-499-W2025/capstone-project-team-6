@@ -22,7 +22,7 @@ sys.path.insert(0, str(backend_dir))
 from analysis.deep_code_analyzer import generate_comprehensive_report
 from analysis.resume_generator import print_resume_items, generate_formatted_resume_entry
 
-from backend.analysis_database import init_db, record_analysis
+from backend.analysis_database import init_db, record_analysis, store_resume_item
 
 
 def print_separator(title=""):
@@ -351,9 +351,23 @@ def main():
             print("\n" + "="*78)
             print("  FULL RESUME")
             print("="*78 + "\n")
-            from analysis.resume_generator import generate_full_resume
-            print(generate_full_resume(report))
+            from analysis.resume_generator import generate_full_resume, generate_formatted_resume_entry
+            full_resume = generate_full_resume(report)
+            print(full_resume)
             print("\n" + "="*78 + "\n")
+            
+            # Store resume items in database
+            try:
+                print("Storing resume items in database...")
+                for project in report.get("projects", []):
+                    project_name = project.get("project_name", "Unknown Project")
+                    resume_entry = generate_formatted_resume_entry(project)
+                    store_resume_item(project_name, resume_entry)
+                print(f"✓ Successfully stored {len(report.get('projects', []))} resume item(s) in database")
+            except Exception as e:
+                print(f"  Warning: Could not store resume items in database: {e}")
+                import traceback
+                traceback.print_exc()
 
         # Offer to save JSON
         print_separator()
