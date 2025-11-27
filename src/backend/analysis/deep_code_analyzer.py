@@ -34,7 +34,6 @@ except ImportError:
 
 
 @dataclass
-
 class OOPAnalysis:
     # Abstraction
     abstract_classes: List[str] = field(default_factory=list)
@@ -63,6 +62,8 @@ class OOPAnalysis:
     def to_dict(self) -> Dict:
         """Convert to dictionary."""
         return asdict(self)
+
+
 def detect_python_design_patterns(classes: Dict[str, ast.ClassDef]) -> List[str]:
     """
     detict design patterns
@@ -81,9 +82,9 @@ def detect_python_design_patterns(classes: Dict[str, ast.ClassDef]) -> List[str]
             patterns.add("Strategy")
     return sorted(list(patterns))
 
+
 def calculate_python_oop_score(analysis: OOPAnalysis) -> int:
 
-    
     score = 0
     total_classes = analysis.total_classes
     is_small = total_classes < 3
@@ -105,7 +106,7 @@ def calculate_python_oop_score(analysis: OOPAnalysis) -> int:
             score += 1
         elif abstraction_ratio > 0:
             score += 0.5
-    else:  
+    else:
         abstraction_ratio = abstraction_count / max(total_classes, 1)
         if abstraction_ratio >= 0.2:
             score += 1
@@ -121,7 +122,7 @@ def calculate_python_oop_score(analysis: OOPAnalysis) -> int:
             score += 1
         elif analysis.inheritance_depth > 0:
             score += 0.5
-    else:  
+    else:
         if analysis.inheritance_depth >= 3:
             score += 1
         elif analysis.inheritance_depth > 1:
@@ -140,7 +141,7 @@ def calculate_python_oop_score(analysis: OOPAnalysis) -> int:
         elif private_ratio > 0:
             score += 0.5
 
-    #polymorphism
+    # polymorphism
     if is_small:
         if analysis.operator_overloads > 0:
             score += 1
@@ -155,7 +156,7 @@ def calculate_python_oop_score(analysis: OOPAnalysis) -> int:
                 score += 0.5
         elif analysis.operator_overloads > 0:
             score += 0.5
-    else:  
+    else:
         if total_methods > 0:
             poly_ratio = analysis.operator_overloads / total_methods
             if poly_ratio >= 0.18:
@@ -184,6 +185,7 @@ def calculate_python_oop_score(analysis: OOPAnalysis) -> int:
             score += 0.5
 
     return min(int(round(score)), 6)
+
 
 def calculate_python_solid_score(analysis: OOPAnalysis) -> float:
     score = 0.0
@@ -216,7 +218,7 @@ def calculate_python_solid_score(analysis: OOPAnalysis) -> float:
             elif avg_methods > 0:
                 score += 0.3
 
-    #open closed
+    # open closed
     abstraction_count = len(analysis.abstract_classes)
     if is_small:
         if abstraction_count > 0:
@@ -240,7 +242,7 @@ def calculate_python_solid_score(analysis: OOPAnalysis) -> float:
         elif abstraction_count > 0:
             score += 0.3
 
-    #liskovs
+    # liskovs
     if analysis.classes_with_inheritance > 0:
         override_ratio = analysis.operator_overloads / max(analysis.classes_with_inheritance, 1)
         if is_small and override_ratio >= 0.5:
@@ -274,7 +276,7 @@ def calculate_python_solid_score(analysis: OOPAnalysis) -> float:
         elif abstraction_count > 0:
             score += 0.3
 
-    #dependence inversions
+    # dependence inversions
     if is_small and analysis.properties_count > 0:
         score += 1.0
     elif is_medium and analysis.properties_count > 1:
@@ -403,7 +405,6 @@ def analyze_project_deep(zip_path: Path, project_path: str = "") -> Dict:
 
     combined_oop = OOPAnalysis()
 
-
     with zipfile.ZipFile(zip_path, "r") as zf:
         python_files = []
         classifier = FileClassifier(zip_path)
@@ -423,7 +424,9 @@ def analyze_project_deep(zip_path: Path, project_path: str = "") -> Dict:
                 combined_oop.operator_overloads += file_analysis.operator_overloads
                 combined_oop.classes_with_inheritance += file_analysis.classes_with_inheritance
                 combined_oop.inheritance_depth = max(combined_oop.inheritance_depth, file_analysis.inheritance_depth)
-                combined_oop.design_patterns.extend([p for p in file_analysis.design_patterns if p not in combined_oop.design_patterns])
+                combined_oop.design_patterns.extend(
+                    [p for p in file_analysis.design_patterns if p not in combined_oop.design_patterns]
+                )
             except Exception:
                 continue
         classifier.close()
@@ -530,13 +533,12 @@ if __name__ == "__main__":
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
-
-
             result = analyze_python_file(content)
-            if not hasattr(result, 'oop_score'):
+            if not hasattr(result, "oop_score"):
                 from copy import deepcopy
+
                 result = deepcopy(result)
-                result.design_patterns = getattr(result, 'design_patterns', [])
+                result.design_patterns = getattr(result, "design_patterns", [])
                 result.oop_score = calculate_python_oop_score(result)
                 result.solid_score = calculate_python_solid_score(result)
                 if result.total_classes < 3:
@@ -564,7 +566,7 @@ if __name__ == "__main__":
 
             print(f"\n  Classes & Abstractions:")
             print(f"    Total classes: {result.total_classes}")
-            if hasattr(result, 'interface_count'):
+            if hasattr(result, "interface_count"):
                 print(f"    Interfaces: {getattr(result, 'interface_count', 0)}")
             if result.abstract_classes:
                 print(f"    Abstract classes: {', '.join(result.abstract_classes)}")
@@ -581,7 +583,6 @@ if __name__ == "__main__":
             print(f"\n  Polymorphism:")
             print(f"    Operator overloads: {result.operator_overloads}")
 
-            
             if result.design_patterns:
                 print(f"\n  Design Patterns Detected:")
                 for pattern in result.design_patterns:
