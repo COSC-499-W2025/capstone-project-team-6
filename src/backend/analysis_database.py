@@ -405,6 +405,32 @@ def get_projects_for_analysis(analysis_id: int) -> List[sqlite3.Row]:
             (analysis_id,),
         ).fetchall()
 
+
+def get_analysis_by_zip_file(zip_file: str) -> Optional[sqlite3.Row]:
+    """Get the most recent analysis for a given zip file path."""
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT * FROM analyses 
+            WHERE zip_file = ? 
+            ORDER BY created_at DESC 
+            LIMIT 1
+            """,
+            (zip_file,),
+        ).fetchone()
+
+
+def get_analysis_report(zip_file: str) -> Optional[Dict[str, Any]]:
+    """Retrieve the full analysis report (JSON) for a given zip file path."""
+    analysis = get_analysis_by_zip_file(zip_file)
+    if not analysis:
+        return None
+    
+    try:
+        return json.loads(analysis["raw_json"])
+    except (json.JSONDecodeError, KeyError):
+        return None
+
 def store_resume_item(project_name: str, resume_text: str) -> None:
     if not project_name or not resume_text:
         raise ValueError("project_name and resume_text are required")
