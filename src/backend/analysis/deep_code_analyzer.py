@@ -34,6 +34,7 @@ except ImportError:
 
 
 @dataclass
+
 class OOPAnalysis:
     # Abstraction
     abstract_classes: List[str] = field(default_factory=list)
@@ -53,9 +54,237 @@ class OOPAnalysis:
     inheritance_depth: int = 0
     classes_with_inheritance: int = 0
 
+    # Design principles
+    design_patterns: List[str] = field(default_factory=list)
+    oop_score: int = 0
+    solid_score: float = 0.0
+    project_size: str = "unknown"
+
     def to_dict(self) -> Dict:
         """Convert to dictionary."""
         return asdict(self)
+def detect_python_design_patterns(classes: Dict[str, ast.ClassDef]) -> List[str]:
+    """
+    detict design patterns
+    """
+    patterns = set()
+    for class_name in classes:
+        if "factory" in class_name.lower():
+            patterns.add("Factory")
+        if "singleton" in class_name.lower():
+            patterns.add("Singleton")
+        if "builder" in class_name.lower():
+            patterns.add("Builder")
+        if "observer" in class_name.lower():
+            patterns.add("Observer")
+        if "strategy" in class_name.lower():
+            patterns.add("Strategy")
+    return sorted(list(patterns))
+
+def calculate_python_oop_score(analysis: OOPAnalysis) -> int:
+
+    
+    score = 0
+    total_classes = analysis.total_classes
+    is_small = total_classes < 3
+    is_medium = 3 <= total_classes < 10
+    is_large = total_classes >= 10
+
+    # 1.no of classes
+    if total_classes > 0:
+        score += 1
+
+    # 2.abstractions
+    abstraction_count = len(analysis.abstract_classes)
+    if is_small:
+        if abstraction_count > 0:
+            score += 1
+    elif is_medium:
+        abstraction_ratio = abstraction_count / max(total_classes, 1)
+        if abstraction_ratio >= 0.15:
+            score += 1
+        elif abstraction_ratio > 0:
+            score += 0.5
+    else:  
+        abstraction_ratio = abstraction_count / max(total_classes, 1)
+        if abstraction_ratio >= 0.2:
+            score += 1
+        elif abstraction_ratio >= 0.1:
+            score += 0.5
+
+    # inheritance
+    if is_small:
+        if analysis.inheritance_depth > 0:
+            score += 1
+    elif is_medium:
+        if analysis.inheritance_depth >= 2:
+            score += 1
+        elif analysis.inheritance_depth > 0:
+            score += 0.5
+    else:  
+        if analysis.inheritance_depth >= 3:
+            score += 1
+        elif analysis.inheritance_depth > 1:
+            score += 0.5
+
+    # encapsulation
+    total_methods = analysis.private_methods + analysis.protected_methods + analysis.public_methods
+    if total_methods > 0:
+        private_ratio = (analysis.private_methods + analysis.protected_methods) / total_methods
+        if is_small and private_ratio >= 0.4:
+            score += 1
+        elif is_medium and private_ratio >= 0.5:
+            score += 1
+        elif is_large and private_ratio >= 0.6:
+            score += 1
+        elif private_ratio > 0:
+            score += 0.5
+
+    #polymorphism
+    if is_small:
+        if analysis.operator_overloads > 0:
+            score += 1
+    if is_small and (analysis.properties_count > 0 or analysis.operator_overloads > 0):
+        score = max(score, 1)
+    elif is_medium:
+        if total_methods > 0:
+            poly_ratio = analysis.operator_overloads / total_methods
+            if poly_ratio >= 0.12:
+                score += 1
+            elif analysis.operator_overloads > 0:
+                score += 0.5
+        elif analysis.operator_overloads > 0:
+            score += 0.5
+    else:  
+        if total_methods > 0:
+            poly_ratio = analysis.operator_overloads / total_methods
+            if poly_ratio >= 0.18:
+                score += 1
+            elif poly_ratio >= 0.08:
+                score += 0.5
+        elif analysis.operator_overloads > 0:
+            score += 0.5
+    advanced = 0
+    if analysis.properties_count > 0:
+        advanced += 1
+    if analysis.design_patterns:
+        advanced += 1
+    if is_small:
+        if advanced > 0 and not (analysis.properties_count > 0 or analysis.operator_overloads > 0):
+            score += 1
+    elif is_medium:
+        if advanced >= 2:
+            score += 1
+        elif advanced > 0:
+            score += 0.5
+    else:  # large
+        if advanced >= 2:
+            score += 1
+        elif advanced > 0:
+            score += 0.5
+
+    return min(int(round(score)), 6)
+
+def calculate_python_solid_score(analysis: OOPAnalysis) -> float:
+    score = 0.0
+    total_classes = analysis.total_classes
+    is_small = total_classes < 3
+    is_medium = 3 <= total_classes < 10
+    is_large = total_classes >= 10
+
+    # srp
+    total_methods = analysis.private_methods + analysis.protected_methods + analysis.public_methods
+    if total_classes > 0:
+        avg_methods = total_methods / max(total_classes, 1)
+        if is_small:
+            if 1 <= avg_methods <= 20:
+                score += 1.0
+            elif avg_methods > 0:
+                score += 0.5
+        elif is_medium:
+            if 3 <= avg_methods <= 15:
+                score += 1.0
+            elif 1 <= avg_methods <= 25:
+                score += 0.7
+            elif avg_methods > 0:
+                score += 0.3
+        else:  # large
+            if 4 <= avg_methods <= 12:
+                score += 1.0
+            elif 2 <= avg_methods <= 18:
+                score += 0.7
+            elif avg_methods > 0:
+                score += 0.3
+
+    #open closed
+    abstraction_count = len(analysis.abstract_classes)
+    if is_small:
+        if abstraction_count > 0:
+            score += 1.0
+    elif is_medium:
+        abstraction_ratio = abstraction_count / max(total_classes, 1)
+        if abstraction_ratio >= 0.18:
+            score += 1.0
+        elif abstraction_ratio >= 0.1:
+            score += 0.7
+        elif abstraction_count > 0:
+            score += 0.4
+    else:  # large
+        abstraction_ratio = abstraction_count / max(total_classes, 1)
+        if abstraction_ratio >= 0.25:
+            score += 1.0
+        elif abstraction_ratio >= 0.15:
+            score += 0.7
+        elif abstraction_count >= 3:
+            score += 0.5
+        elif abstraction_count > 0:
+            score += 0.3
+
+    #liskovs
+    if analysis.classes_with_inheritance > 0:
+        override_ratio = analysis.operator_overloads / max(analysis.classes_with_inheritance, 1)
+        if is_small and override_ratio >= 0.5:
+            score += 1.0
+        elif is_medium and override_ratio >= 0.7:
+            score += 1.0
+        elif is_large and override_ratio >= 1.0:
+            score += 1.0
+        elif analysis.operator_overloads > 0:
+            score += 0.5
+        else:
+            score += 0.3
+
+    # interfaces
+    if is_small:
+        if abstraction_count > 0:
+            score += 1.0
+    elif is_medium:
+        if abstraction_count >= 2:
+            score += 1.0
+        elif abstraction_count > 0:
+            score += 0.5
+    else:  # large
+        abstraction_ratio = abstraction_count / max(total_classes, 1)
+        if abstraction_ratio >= 0.3:
+            score += 1.0
+        elif abstraction_ratio >= 0.18:
+            score += 0.7
+        elif abstraction_count >= 4:
+            score += 0.5
+        elif abstraction_count > 0:
+            score += 0.3
+
+    #dependence inversions
+    if is_small and analysis.properties_count > 0:
+        score += 1.0
+    elif is_medium and analysis.properties_count > 1:
+        score += 1.0
+    elif is_large and analysis.properties_count > 2:
+        score += 1.0
+    elif analysis.properties_count > 0:
+        score += 0.5
+
+    return min(score, 5.0)
 
 
 class PythonOOPAnalyzer(ast.NodeVisitor):
@@ -135,22 +364,18 @@ class PythonOOPAnalyzer(ast.NodeVisitor):
 
 def analyze_python_file(content: str) -> OOPAnalysis:
     """
-    Analyze a single Python file for OOP principles.
-
-    Args:
-        content: Python source code as string
-
-    Returns:
-        OOPAnalysis object with detected OOP metrics
+    Analyze a single Python file for OOP principles and design patterns.
     """
     try:
         tree = ast.parse(content)
         analyzer = PythonOOPAnalyzer()
         analyzer.visit(tree)
         analyzer.calculate_inheritance_depth()
+        analyzer.analysis.design_patterns = detect_python_design_patterns(analyzer.classes)
+        analyzer.analysis.oop_score = calculate_python_oop_score(analyzer.analysis)
+        analyzer.analysis.solid_score = calculate_python_solid_score(analyzer.analysis)
         return analyzer.analysis
     except SyntaxError:
-        # Return empty analysis for invalid Python
         return OOPAnalysis()
 
 
@@ -176,27 +401,19 @@ def analyze_project_deep(zip_path: Path, project_path: str = "") -> Dict:
     with MetadataExtractor(zip_path) as extractor:
         metadata = extractor.extract_project_metadata(project_path)
 
-    # Now perform deep OOP analysis on Python files
     combined_oop = OOPAnalysis()
 
-    with zipfile.ZipFile(zip_path, "r") as zf:
-        # Get list of Python files from metadata
-        python_files = []
 
-        # Build file list from classification
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        python_files = []
         classifier = FileClassifier(zip_path)
         classification = classifier.classify_project(project_path)
-
         if "python" in classification["files"]["code"]:
             python_files = classification["files"]["code"]["python"]
-
-        # Analyze each Python file
         for file_info in python_files:
             try:
                 content = zf.read(file_info["path"]).decode("utf-8", errors="ignore")
                 file_analysis = analyze_python_file(content)
-
-                # Aggregate results
                 combined_oop.total_classes += file_analysis.total_classes
                 combined_oop.abstract_classes.extend(file_analysis.abstract_classes)
                 combined_oop.private_methods += file_analysis.private_methods
@@ -206,12 +423,22 @@ def analyze_project_deep(zip_path: Path, project_path: str = "") -> Dict:
                 combined_oop.operator_overloads += file_analysis.operator_overloads
                 combined_oop.classes_with_inheritance += file_analysis.classes_with_inheritance
                 combined_oop.inheritance_depth = max(combined_oop.inheritance_depth, file_analysis.inheritance_depth)
-
+                combined_oop.design_patterns.extend([p for p in file_analysis.design_patterns if p not in combined_oop.design_patterns])
             except Exception:
-                # Skip files that can't be read
                 continue
-
         classifier.close()
+
+    # Project size label
+    if combined_oop.total_classes < 3:
+        combined_oop.project_size = "small"
+    elif 3 <= combined_oop.total_classes < 10:
+        combined_oop.project_size = "medium"
+    else:
+        combined_oop.project_size = "large"
+
+    # OOP and SOLID scores
+    combined_oop.oop_score = calculate_python_oop_score(combined_oop)
+    combined_oop.solid_score = calculate_python_solid_score(combined_oop)
 
     # Combine results
     result = {
@@ -220,7 +447,6 @@ def analyze_project_deep(zip_path: Path, project_path: str = "") -> Dict:
         "metadata": metadata.to_dict(),
         "oop_analysis": combined_oop.to_dict(),
     }
-
     return result
 
 
@@ -304,39 +530,66 @@ if __name__ == "__main__":
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
-            result = analyze_python_file(content)
 
-            print(f"\nOOP ANALYSIS RESULTS:")
-            print(f"\n  Classes:")
+
+            result = analyze_python_file(content)
+            if not hasattr(result, 'oop_score'):
+                from copy import deepcopy
+                result = deepcopy(result)
+                result.design_patterns = getattr(result, 'design_patterns', [])
+                result.oop_score = calculate_python_oop_score(result)
+                result.solid_score = calculate_python_solid_score(result)
+                if result.total_classes < 3:
+                    result.project_size = "small"
+                elif 3 <= result.total_classes < 10:
+                    result.project_size = "medium"
+                else:
+                    result.project_size = "large"
+
+            def get_coding_style(oop_score):
+                if oop_score == 0:
+                    return "Procedural/Functional"
+                elif oop_score <= 2:
+                    return "Basic OOP"
+                elif oop_score <= 4:
+                    return "Moderate OOP"
+                else:
+                    return "Advanced OOP"
+
+            print(f"\nPYTHON OOP ANALYSIS RESULTS:")
+            print(f"\n  Project size: {result.project_size}")
+            print(f"  OOP Score: {result.oop_score}/6")
+            print(f"  SOLID Score: {result.solid_score:.1f}/5.0")
+            print(f"  Coding Style: {get_coding_style(result.oop_score)}")
+
+            print(f"\n  Classes & Abstractions:")
             print(f"    Total classes: {result.total_classes}")
+            if hasattr(result, 'interface_count'):
+                print(f"    Interfaces: {getattr(result, 'interface_count', 0)}")
             if result.abstract_classes:
                 print(f"    Abstract classes: {', '.join(result.abstract_classes)}")
             print(f"    With inheritance: {result.classes_with_inheritance}")
             print(f"    Max inheritance depth: {result.inheritance_depth}")
 
             print(f"\n  Encapsulation:")
-            print(f"    Private methods (__name): {result.private_methods}")
-            print(f"    Protected methods (_name): {result.protected_methods}")
-            print(f"    Public methods: {result.public_methods}")
+            print(f"    Methods:")
+            print(f"      Private: {result.private_methods}")
+            print(f"      Protected: {result.protected_methods}")
+            print(f"      Public: {result.public_methods}")
             print(f"    Properties (@property): {result.properties_count}")
 
             print(f"\n  Polymorphism:")
             print(f"    Operator overloads: {result.operator_overloads}")
 
-            # Quick assessment
-            print(f"\nQUICK ASSESSMENT:")
-            if result.total_classes == 0:
-                print(f"    - No classes found (procedural/functional style)")
-            else:
-                print(f"    - Uses OOP (found {result.total_classes} classes)")
-                if result.abstract_classes:
-                    print(f"    - Uses abstraction")
-                if result.private_methods > 0 or result.protected_methods > 0:
-                    print(f"    - Practices encapsulation")
-                if result.inheritance_depth > 0:
-                    print(f"    - Uses inheritance")
-                if result.operator_overloads > 0:
-                    print(f"    - Implements polymorphism")
+            
+            if result.design_patterns:
+                print(f"\n  Design Patterns Detected:")
+                for pattern in result.design_patterns:
+                    print(f"- {pattern}")
+
+            print(f"\nOOP Score: {result.oop_score}/6")
+            print(f"SOLID Score: {result.solid_score:.1f}/5.0")
+            print(f"Coding Style: {get_coding_style(result.oop_score)}")
 
             print("\n" + "=" * 70 + "\n")
 
