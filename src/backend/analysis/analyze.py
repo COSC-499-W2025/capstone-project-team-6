@@ -197,9 +197,6 @@ def main():
         # Analyze Java projects
         java_projects = [p for p in report["projects"] if "java" in p.get("languages", {})]
 
-        # Analyze Java projects
-        java_projects = [p for p in report["projects"] if "java" in p.get("languages", {})]
-
         if java_projects:
             print(f"\n{'*' * 70}")
             print(f"  JAVA OOP ANALYSIS")
@@ -270,34 +267,9 @@ def main():
                 from dataclasses import dataclass, field
                 from typing import Dict, List
 
-                from analysis.java_oop_analyzer import (calculate_oop_score,
+                from analysis.java_oop_analyzer import (JavaOOPAnalysis, calculate_oop_score,
                                                         calculate_solid_score,
                                                         get_coding_style)
-
-                @dataclass
-                class JavaOOPAnalysis:
-                    total_classes: int = 0
-                    interface_count: int = 0
-                    abstract_classes: List[str] = field(default_factory=list)
-                    enum_count: int = 0
-                    private_methods: int = 0
-                    protected_methods: int = 0
-                    public_methods: int = 0
-                    package_methods: int = 0
-                    private_fields: int = 0
-                    protected_fields: int = 0
-                    public_fields: int = 0
-                    classes_with_inheritance: int = 0
-                    inheritance_depth: int = 0
-                    override_count: int = 0
-                    method_overloads: int = 0
-                    generic_classes: int = 0
-                    nested_classes: int = 0
-                    anonymous_classes: int = 0
-                    lambda_count: int = 0
-                    annotations: Dict[str, int] = field(default_factory=dict)
-                    design_patterns: List[str] = field(default_factory=list)
-                    getter_setter_pairs: int = 0
 
                 analysis_obj = JavaOOPAnalysis(**java_oop)
                 oop_score = calculate_oop_score(analysis_obj)
@@ -310,21 +282,10 @@ def main():
                 print(
                     f"  {'✓' if java_oop['total_classes'] > 0 or java_oop['interface_count'] > 0 else '✗'} Uses Classes/Interfaces"
                 )
-
-                print(f"\nOOP Score: {oop_score}/6")
-                print(f"SOLID Score: {solid_score:.1f}/5.0")
-                print(f"Principles Used:")
-                print(
-                    f"  {'✓' if java_oop['total_classes'] > 0 or java_oop['interface_count'] > 0 else '✗'} Uses Classes/Interfaces"
-                )
                 print(f"  {'✓' if java_oop['interface_count'] > 0 or java_oop['abstract_classes'] else '✗'} Abstraction")
                 print(f"  {'✓' if java_oop['inheritance_depth'] > 0 else '✗'} Inheritance")
                 print(f"  {'✓' if java_oop['private_fields'] > 0 or java_oop['private_methods'] > 0 else '✗'} Encapsulation")
                 print(f"  {'✓' if java_oop['override_count'] > 0 or java_oop['method_overloads'] > 0 else '✗'} Polymorphism")
-                print(
-                    f"  {'✓' if java_oop['generic_classes'] > 0 or java_oop['annotations'] or java_oop['lambda_count'] > 0 else '✗'} Advanced Features"
-                )
-
                 print(
                     f"  {'✓' if java_oop['generic_classes'] > 0 or java_oop['annotations'] or java_oop['lambda_count'] > 0 else '✗'} Advanced Features"
                 )
@@ -354,18 +315,16 @@ def main():
             from analysis.resume_generator import generate_full_resume, generate_formatted_resume_entry
             full_resume = generate_full_resume(report)
             print(full_resume)
-            print("\n" + "="*78 + "\n")
-            
-            # Store resume items in database
+            print("\n" + "="*78 + "\n")            
             try:
-                print("Storing resume items in database...")
+                print("Storing resume items in the database.")
                 for project in report.get("projects", []):
                     project_name = project.get("project_name", "Unknown Project")
                     resume_entry = generate_formatted_resume_entry(project)
                     store_resume_item(project_name, resume_entry)
-                print(f"✓ Successfully stored {len(report.get('projects', []))} resume item(s) in database")
+                print(f" Successfully stored {len(report.get('projects', []))} resume item(s) in the database")
             except Exception as e:
-                print(f"  Warning: Could not store resume items in database: {e}")
+                print(f" Warning: Could not store resume items in thedatabase: {e}")
                 import traceback
                 traceback.print_exc()
 
