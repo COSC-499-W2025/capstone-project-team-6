@@ -110,7 +110,88 @@ class GitAnalyzer:
         """
         self.project_path = Path(project_path).resolve()
         self.git_dir = self.project_path / '.git'
+
+    def analyze(
+        self, 
+        target_user_email: Optional[str] = None,
+        use_remote_api: bool = False
+    ) -> GitAnalysisResult:
+        """
+        Perform complete Git analysis on the project.
         
+        Args:
+            target_user_email: Optional email of specific user to analyze
+            use_remote_api: Whether to fetch data from remote Git APIs 
+            
+        Returns:
+            GitAnalysisResult object containing all analysis data
+        """
+        # Initialize 
+        result = GitAnalysisResult(
+            project_path=str(self.project_path),
+            analysis_timestamp=datetime.now().isoformat(),
+            target_user_email=target_user_email
+        )
+        
+        #check if .git directory exists
+        result.is_git_repo = self.check_git_repo()
+        if not result.is_git_repo:
+            result.error_message = "No .git directory found"
+            return result
+        
+        #check if Git command is available
+        result.git_available = self.check_git_available()
+        if not result.git_available:
+            result.error_message = "Git command-line tool not available"
+            return result
+        
+        # total commits
+        try:
+            result.total_commits = self.get_total_commits()
+        except Exception as e:
+            result.error_message = f"Error getting total commits: {str(e)}"
+            return result
+        
+        # contributor statistics
+        try:
+            result.contributors = self.get_contributor_stats()
+            result.total_contributors = len(result.contributors)
+        except Exception as e:
+            result.error_message = f"Error getting contributor stats: {str(e)}"
+            return result
+        
+        # solo or collaborative project
+        result.is_solo_project = result.total_contributors == 1
+        result.is_collaborative = result.total_contributors > 1
+        
+        # target user stats if email provided
+        if target_user_email and result.contributors:
+            result.target_user_stats = self.find_target_user_stats(
+                result.contributors, 
+                target_user_email
+            )
+        
+        #branch information
+        try:
+            result.primary_branch = self.get_primary_branch()
+            result.total_branches = self.get_total_branches()
+        except Exception as e:
+            print(f"Warning: Could not get branch info: {e}")
+        
+        #remote URLs
+        try:
+            result.remote_urls = self.get_remote_urls()
+            result.has_remote = len(result.remote_urls) > 0
+        except Exception as e:
+            print(f"Warning: Could not get remote URLs: {e}")
+            # Not critical, continue
+        
+        #API integration 
+        if use_remote_api:
+            result.api_data = self._fetch_api_data()
+        
+        return result 
+
     def check_git_available(self) -> bool:
         """
         Check if Git command-line tool is available on the system.
@@ -338,7 +419,6 @@ class GitAnalyzer:
                 return contributor
         
         return None
-    
     
     def _fetch_api_data(self) -> Optional[Dict]:
         """
