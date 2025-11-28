@@ -8,8 +8,13 @@ This module provides functionality to:
 4. Export results to JSON format
 '''
 
-from dataclasses import dataclass, asdict, field
+import subprocess
+import json
+from pathlib import Path
+from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Optional, Union
+from datetime import datetime
+import re
 
 @dataclass
 class ContributorStats:
@@ -90,6 +95,78 @@ class GitAnalysisResult:
                                           else self.target_user_stats)
         return result
 
+class GitAnalyzer:
+    """
+    This class handles:
+    - Checking for Git availability
+    - Executing Git commands safely
+    - Parsing Git output
+    - Calculating contribution statistics
+    """
+
+    def __init__(self, project_path: Union[str, Path]):
+        """
+            project_path: Path to the project directory to analyze
+        """
+        self.project_path = Path(project_path).resolve()
+        self.git_dir = self.project_path / '.git'
+        
+    def check_git_available(self) -> bool:
+        """
+        Check if Git command-line tool is available on the system.
+        """
+        try:
+            result = subprocess.run(
+                ['git', '--version'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            return result.returncode == 0
+        except (subprocess.SubprocessError, FileNotFoundError):
+            return False
+    
+    def check_git_repo(self) -> bool:
+        """
+        Returns: True if .git directory exists
+        """
+        return self.git_dir.exists() and self.git_dir.is_dir()
+    
+    def run_git_command(self, args: List[str], timeout: int = 30) -> Optional[str]:
+        """
+        Execute a Git command safely and return its output.
+        
+        Args:
+            args: List of command arguments (e.g., ['log', '--oneline'])
+            timeout: Maximum time to wait for command completion (seconds)
+            
+        Returns:
+            Command output as string, or None if command failed
+        """
+        try:
+            result = subprocess.run(
+                ['git'] + args,
+                cwd=self.project_path,
+                capture_output=True,
+                text=True,
+                timeout=timeout
+            )
+            
+            if result.returncode == 0:
+                return result.stdout.strip()
+            else:
+                print(f"Git command failed: {' '.join(args)}")
+                print(f"Error: {result.stderr}")
+                return None
+                
+        except subprocess.TimeoutExpired:
+            print(f"Git command timed out after {timeout}s: {' '.join(args)}")
+            return None
+        except Exception as e:
+            print(f"Error running git command: {e}")
+            return None
+    
+    
 
 
 
