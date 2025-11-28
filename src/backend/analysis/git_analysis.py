@@ -429,6 +429,74 @@ class GitAnalyzer:
             "message": "API integration coming in future version"
         }
 
+class GitAnalysisExporter:
+    """
+    Handles exporting Git analysis results to various formats.
+    Currently supports JSON export
+    """
+    
+    def __init__(self, output_dir: Union[str, Path] = "./analysis_results"):
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+    
+    def export_to_json(
+        self, 
+        result: GitAnalysisResult, 
+        filename: Optional[str] = None
+    ) -> Path:
+        
+        # Generate filename
+        if filename is None:
+            project_name = Path(result.project_path).name
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"{project_name}_git_analysis_{timestamp}"
+        
+        # .json extension
+        if not filename.endswith('.json'):
+            filename += '.json'
+        
+        output_path = self.output_dir / filename
+        data = result.to_dict()
+        
+        # Write to json file
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        
+        print(f"Analysis exported to: {output_path}")
+        return output_path
+    
+
+def analyze_project(
+    project_path: Union[str, Path],
+    target_user_email: Optional[str] = None,
+    use_remote_api: bool = False,
+    export_to_file: bool = True,
+    output_dir: str = "./analysis_results"
+) -> GitAnalysisResult:
+    """
+    Convenience function to analyze a single project.
+    Args:
+        project_path: Path to the project directory
+        target_user_email: Optional email of specific user to analyze
+        use_remote_api: Whether to use remote API
+        export_to_file: Whether to export results to JSON
+        output_dir: Directory for output files
+        
+    Returns:
+        GitAnalysisResult object
+        
+    """
+    analyzer = GitAnalyzer(project_path)
+    result = analyzer.analyze(
+        target_user_email=target_user_email,
+        use_remote_api=use_remote_api
+    )
+    
+    if export_to_file:
+        exporter = GitAnalysisExporter(output_dir)
+        exporter.export_to_json(result)
+    
+    return result
 
 
 
