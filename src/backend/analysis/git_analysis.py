@@ -261,4 +261,35 @@ class GitAnalyzer:
         ])
         return output if output else None
     
+    def get_primary_branch(self) -> Optional[str]:
+        """
+        Returns:
+            Branch name as string, or None if unable to determine
+        """
+        #check if main or master exists
+        output = self.run_git_command(['branch', '--list'])
+        if output:
+            branches = output.split('\n')
+            for branch in branches:
+                branch = branch.strip().lstrip('* ')
+                if branch in ['main', 'master']:
+                    return branch
+
+        #fallback
+        # get the default branch from remote
+        output = self.run_git_command(['symbolic-ref', 'refs/remotes/origin/HEAD'])
+        if output:
+            # extract branch name from "refs/remotes/origin/main"
+            parts = output.split('/')
+            if len(parts) >= 2:
+                return parts[-1]
+        return None
+    
+    def get_total_branches(self) -> int:
+        output = self.run_git_command(['branch', '-a'])
+        if output:
+            branches = [line.strip() for line in output.split('\n') if line.strip()]
+            return len(branches)
+        return 0
+    
     
