@@ -28,6 +28,11 @@ from backend.analysis_database import (
     store_resume_item,
     get_analysis_report,
     get_resume_items_for_project,
+    count_analyses_by_zip_file,
+    delete_analyses_by_zip_file,
+    get_analysis_by_zip_file,
+    get_all_analyses_by_zip_file,
+    get_connection,
 )
 
 
@@ -38,7 +43,7 @@ def print_separator(title=""):
         print(f"  {title}")
         print(f"{'=' * 70}\n")
     else:
-        print("=" * 70)
+        print("=" * 78)
 
 
 def main():
@@ -67,6 +72,44 @@ def main():
         
         if existing_report:
             print(f"\nFound existing analysis in database (from {existing_report.get('analysis_metadata', {}).get('analysis_timestamp', 'unknown time')})")
+            # Check if there are multiple analyses and ask if user wants to delete old ones
+            existing_count = count_analyses_by_zip_file(zip_file_path)
+            if existing_count > 1:
+                print_separator("EXISTING ANALYSES DETECTED")
+                print(f"  Found {existing_count} total analysis/analyses for this project.")
+                print(f"  Currently displaying the most recent one (keeping this one).")
+                print(f"  {existing_count - 1} older analysis/analyses will be deleted if confirmed.")
+                print(f"  Note: Deleting old analyses will remove analysis data but preserve resume items (they are shared across reports and will not be affected).")
+                print()
+                
+                if delete_old == "y":
+                    current_analysis = get_analysis_by_zip_file(zip_file_path)
+                    current_analysis_id = current_analysis["id"] if current_analysis else None
+                    print(f"\n  Analyses to be deleted:")
+                    older_count = 0
+                    for analysis in all_analyses:
+                        if analysis["id"] != current_analysis_id:
+                            older_count += 1
+                            print(f"    - Analysis ID {analysis['id']} ({analysis['analysis_type']}) from {analysis['analysis_timestamp']}")
+                    
+                    if older_count > 0:
+                        confirm = input(f"\n  Confirm deletion of {older_count} older analysis/analyses? (type 'yes' to confirm): ").lower().strip()
+                        if confirm == "yes":
+                            with get_connection() as conn:
+                                conn.execute("PRAGMA foreign_keys = ON;")
+                                conn.execute(
+                                    "DELETE FROM analyses WHERE zip_file = ? AND id != ?",
+                                    (zip_file_path, current_analysis_id),
+                                )
+                                conn.commit()
+                            
+                            print(f"  Deleted {older_count} older analysis/analyses")
+                            print(f"  Resume items preserved (not affected by deletion)")
+                        else:
+                            print(f"  Deletion cancelled.")
+                    else:
+                        print(f"  No older analyses to delete.")
+            
             report = existing_report
         else:
             print("No existing analysis found. Running new analysis...\n")
@@ -308,8 +351,24 @@ def main():
                 print(f"\nCoding Style: {coding_style}")
         else:
             print("\nNo Java projects found for OOP analysis.")
-        # Only store analysis if it's new
         if not existing_report:
+            # Check if there are any existing analyses for this zip file
+            existing_count = count_analyses_by_zip_file(zip_file_path)
+            if existing_count > 0:
+                print_separator("EXISTING ANALYSIS DETECTED")
+                print(f"  Found {existing_count} previous analysis/analyses for this project.")
+                print(f"  Note: Deleting old analyses will remove analysis data but preserve")
+                print(f"  resume items (they are shared across reports and will not be affected).")
+                print()
+                delete_old = input(f"Delete {existing_count} previous analysis/analyses? (y/n): ").lower().strip()
+                
+                if delete_old == "y":
+                    deleted_count = delete_analyses_by_zip_file(zip_file_path)
+                    print(f"  Deleted {deleted_count} previous analysis/analyses")
+                    print(f"  Resume items preserved (not affected by deletion)")
+                else:
+                    print(f"  Keeping existing analyses. New analysis will be stored separately.")
+            
             print_separator("STORING ANALYSIS IN DATABASE")
             try:
                 analysis_id = record_analysis(analysis_type="non_llm", payload=report)
