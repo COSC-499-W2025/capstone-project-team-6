@@ -166,20 +166,99 @@ class GitAnalyzer:
             print(f"Error running git command: {e}")
             return None
     
+    def get_total_commits(self) -> int:
+        """
+        Get the total number of commits in the repository.
+        
+        Returns:
+            Total commit count, or 0 if unable to determine
+        """
+        output = self.run_git_command(['rev-list', '--all', '--count'])
+        if output:
+            try:
+                return int(output)
+            except ValueError:
+                return 0
+        return 0
     
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    def get_contributor_stats(self) -> List[ContributorStats]:
+        """
+        Get statistics for all contributors in the repository.
+        Returns:
+            List of ContributorStats objects, sorted by commit count (descending)
+        """
+        # 123  Author Name <email@example.com>"
+        output = self.run_git_command(['shortlog', '-sne', '--all'])
+        
+        if not output:
+            return []
+        
+        contributors = []
+        total_commits = 0
+        
+        # parse shortlog output
+        for line in output.split('\n'):
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Extract data
+            #123 Name <email>"
+            match = re.match(r'(\d+)\s+(.+?)\s+<(.+?)>', line)
+            if match:
+                commit_count = int(match.group(1))
+                name = match.group(2).strip()
+                email = match.group(3).strip()
+                
+                total_commits += commit_count
+                
+                #commit date extraction
+                first_date = self.get_author_first_commit_date(email)
+                last_date = self.get_author_last_commit_date(email)
+                
+                contributors.append(ContributorStats(
+                    name=name,
+                    email=email,
+                    commit_count=commit_count,
+                    percentage=0.0,
+                    first_commit_date=first_date,
+                    last_commit_date=last_date
+                ))
+        
+        #calc percent
+        if total_commits > 0:
+            for contributor in contributors:
+                contributor.percentage = round(
+                    (contributor.commit_count / total_commits) * 100, 2
+                )
+        
+        contributors.sort(key=lambda x: x.commit_count, reverse=True)
+        
+        return contributors
+    
+    def get_author_first_commit_date(self, email: str) -> Optional[str]:
+        """
+        Get the date of the first commit by a specific author.
+        """
+        output = self.run_git_command([
+            'log',
+            '--author=' + email,
+            '--format=%aI',  # ISO 8601 format
+            '--reverse',  # Oldest first
+            '--max-count=1'
+        ])
+        return output if output else None
+    
+    def get_author_last_commit_date(self, email: str) -> Optional[str]:
+        """
+        Get the date of the most recent commit by a specific author.
+        """
+        output = self.run_git_command([
+            'log',
+            '--author=' + email,
+            '--format=%aI',  # ISO 8601 format
+            '--max-count=1'
+        ])
+        return output if output else None
+    
+    
