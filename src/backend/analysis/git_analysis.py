@@ -292,4 +292,75 @@ class GitAnalyzer:
             return len(branches)
         return 0
     
+    def get_remote_urls(self) -> List[str]:
+        """
+        Returns:
+            List of remote URLs, empty list if none found
+        """
+        output = self.run_git_command(['remote', '-v'])
+        if not output:
+            return []
+        
+        urls = set()
+        for line in output.split('\n'):
+            line = line.strip()
+            if not line:
+                continue
+            
+            parts = line.split()
+            if len(parts) >= 2:
+                urls.add(parts[1])
+        
+        return list(urls)
     
+    def find_target_user_stats(
+        self, 
+        contributors: List[ContributorStats], 
+        target_email: str
+    ) -> Optional[ContributorStats]:
+        """
+        Find statistics for a specific user by email.
+        
+        Args:
+            contributors: List of all contributor statistics
+            target_email: Email address to search for
+            
+        Returns:
+            ContributorStats for the target user, or None if not found
+        """
+        # find if user match 
+        for contributor in contributors:
+            if contributor.email.lower() == target_email.lower():
+                return contributor
+        target_email_lower = target_email.lower()
+        for contributor in contributors:
+            if target_email_lower in contributor.email.lower():
+                return contributor
+        
+        return None
+    
+    
+    def _fetch_api_data(self) -> Optional[Dict]:
+        """
+        TODO
+        """
+        return {
+            "status": "not_implemented",
+            "message": "API integration coming in future version"
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
