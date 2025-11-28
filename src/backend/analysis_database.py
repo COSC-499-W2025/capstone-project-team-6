@@ -420,6 +420,19 @@ def get_analysis_by_zip_file(zip_file: str) -> Optional[sqlite3.Row]:
         ).fetchone()
 
 
+def get_all_analyses_by_zip_file(zip_file: str) -> List[sqlite3.Row]:
+    """Get all analyses (not just the most recent) for a given zip file path."""
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT * FROM analyses 
+            WHERE zip_file = ? 
+            ORDER BY created_at DESC
+            """,
+            (zip_file,),
+        ).fetchall()
+
+
 def get_analysis_report(zip_file: str) -> Optional[Dict[str, Any]]:
     """Retrieve the full analysis report (JSON) for a given zip file path."""
     analysis = get_analysis_by_zip_file(zip_file)
@@ -430,6 +443,36 @@ def get_analysis_report(zip_file: str) -> Optional[Dict[str, Any]]:
         return json.loads(analysis["raw_json"])
     except (json.JSONDecodeError, KeyError):
         return None
+
+
+def count_analyses_by_zip_file(zip_file: str) -> int:
+    """Count the number of analyses for a given zip file path."""
+    with get_connection() as conn:
+        result = conn.execute(
+            "SELECT COUNT(*) as count FROM analyses WHERE zip_file = ?",
+            (zip_file,),
+        ).fetchone()
+        return result["count"] if result else 0
+def delete_analyses_by_zip_file(zip_file: str) -> int:
+    """Delete all analyses for a given zip file path."""
+    with get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+        # Get count before deletion
+        count_result = conn.execute(
+            "SELECT COUNT(*) as count FROM analyses WHERE zip_file = ?",
+            (zip_file,),
+        ).fetchone()
+        count = count_result["count"] if count_result else 0
+        
+        if count > 0:
+            # Delete analyses (CASCADE will handle related data)
+            conn.execute(
+                "DELETE FROM analyses WHERE zip_file = ?",
+                (zip_file,),
+            )
+            conn.commit()
+        
+    return count
 
 def store_resume_item(project_name: str, resume_text: str) -> None:
     if not project_name or not resume_text:
