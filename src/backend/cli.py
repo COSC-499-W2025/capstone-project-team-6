@@ -694,6 +694,11 @@ def main() -> int:
                 print(f"\n[*] Analyzing: {path}")
                 results = analyze_folder(path)
                 display_analysis(results)
+
+                # Generate resume highlights
+                from .analysis.resume_generator import print_resume_items
+                print_resume_items(results)
+
                 print("\n✅ Analysis complete!")
                 return 0
             except zipfile.BadZipFile:
