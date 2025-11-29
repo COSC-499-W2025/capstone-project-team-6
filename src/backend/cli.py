@@ -567,6 +567,11 @@ def main() -> int:
     essay_parser = subparsers.add_parser("analyze-essay", help="Analyze an essay or document")
     essay_parser.add_argument("path", help="Path to the document file (.txt, .pdf, .docx, .md)")
 
+    # Analyze-llm command
+    llm_parser = subparsers.add_parser("analyze-llm", help="Analyze code using AI (Gemini)")
+    llm_parser.add_argument("path", help="Path to the ZIP file to analyze")
+    llm_parser.add_argument("--prompt", help="Custom analysis prompt (optional)")
+
     # Consent command
     consent_parser = subparsers.add_parser("consent", help="View or update consent status")
     consent_parser.add_argument("--status", action="store_true", help="Check current consent status")
@@ -758,6 +763,70 @@ def main() -> int:
                 return 1
             except Exception as e:
                 print(f"\nDocument analysis failed: {e}")
+                import traceback
+
+                traceback.print_exc()
+                return 1
+
+        elif args.command == "analyze-llm":
+            session = get_session()
+            if not session["logged_in"]:
+                print("\nPlease login first")
+                return 1
+
+            username = session["username"]
+            if not check_user_consent(username):
+                print("\nPlease provide consent before analyzing files")
+                print("Run 'mda consent --update' to view and accept the consent form")
+                return 1
+
+            path = Path(args.path)
+            if not path.exists():
+                print(f"\nPath does not exist: {path}")
+                return 1
+
+            # Validate file type - must be ZIP
+            if not path.is_file() or path.suffix.lower() != ".zip":
+                print(f"\nLLM analysis requires a ZIP file")
+                return 1
+
+            # Run LLM analysis
+            try:
+                from .analysis.llm_pipeline import run_gemini_analysis
+
+                print(f"\n[*] Running AI-powered analysis on: {path}")
+                print("This may take a few moments...")
+                results = run_gemini_analysis(path, args.prompt)
+
+                # Display standard analysis
+                display_analysis(results)
+
+                # Display LLM summary
+                llm_summary = results.get("llm_summary")
+                llm_error = results.get("llm_error")
+
+                if llm_error:
+                    print(f"\n⚠️  LLM Analysis Error: {llm_error}")
+                elif llm_summary:
+                    print("\n" + "=" * 70)
+                    print("  AI-POWERED ANALYSIS SUMMARY")
+                    print("=" * 70)
+                    print(f"\n{llm_summary}\n")
+                    print("=" * 70)
+
+                # Store in database
+                try:
+                    from .analysis_database import record_analysis
+                    analysis_id = record_analysis("llm", results)
+                    analysis_uuid = results.get("analysis_metadata", {}).get("analysis_uuid", "unknown")
+                    print(f"\n📊 Analysis saved to database (ID: {analysis_id}, UUID: {analysis_uuid})")
+                except Exception as db_error:
+                    print(f"\n⚠️  Warning: Could not save to database: {db_error}")
+
+                print("\n✅ LLM analysis complete!")
+                return 0
+            except Exception as e:
+                print(f"\n❌ LLM analysis failed: {e}")
                 import traceback
 
                 traceback.print_exc()
