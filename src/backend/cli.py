@@ -309,6 +309,29 @@ def display_analysis(results: dict) -> None:
             if templates > 0:
                 print(f"   Templates: {templates} template classes")
 
+        # OOP-Style Analysis (for C projects)
+        c_oop = project.get("c_oop_analysis", {})
+        if c_oop and c_oop.get("total_structs", 0) > 0:
+            print(f"\nOOP-Style Analysis (C):")
+            print(f"   Structs: {c_oop.get('total_structs', 0)}")
+            print(f"   Functions: {c_oop.get('total_functions', 0)}")
+
+            opaque = c_oop.get("opaque_pointer_structs", 0)
+            if opaque > 0:
+                print(f"   Abstraction: {opaque} opaque pointer structs")
+
+            static = c_oop.get("static_functions", 0)
+            if static > 0:
+                print(f"   Encapsulation: {static} static functions")
+
+            vtables = c_oop.get("vtable_structs", 0)
+            if vtables > 0:
+                print(f"   Polymorphism: {vtables} vtable-style structs")
+
+            constructors = c_oop.get("constructor_destructor_pairs", 0)
+            if constructors > 0:
+                print(f"   Memory Management: {constructors} constructor/destructor pairs")
+
     print("\n" + "=" * 70)
 
 
