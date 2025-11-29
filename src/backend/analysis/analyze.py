@@ -71,7 +71,14 @@ def main():
         existing_report = get_analysis_report(zip_file_path)
         
         if existing_report:
-            print(f"\nFound existing analysis in database (from {existing_report.get('analysis_metadata', {}).get('analysis_timestamp', 'unknown time')})")
+            # Get the current analysis to show the most recent timestamp from database
+            current_analysis = get_analysis_by_zip_file(zip_file_path)
+            # Prefer database timestamp, fallback to JSON metadata timestamp
+            if current_analysis:
+                timestamp = current_analysis.get('analysis_timestamp') or current_analysis.get('created_at', 'unknown time')
+            else:
+                timestamp = existing_report.get('analysis_metadata', {}).get('analysis_timestamp', 'unknown time')
+            print(f"\nFound existing analysis in database (from {timestamp})")
             # Check if there are multiple analyses and ask if user wants to delete old ones
             existing_count = count_analyses_by_zip_file(zip_file_path)
             if existing_count > 1:
@@ -120,6 +127,14 @@ def main():
                             if deleted_rows > 0:
                                 print(f"  ✓ Deleted {deleted_rows} older analysis/analyses")
                                 print(f"  ✓ {remaining_count} analysis/analyses remaining in database")
+                                # Refresh the report and analysis after deletion to get updated timestamp
+                                existing_report = get_analysis_report(zip_file_path)
+                                # Update the displayed timestamp to reflect the current (remaining) analysis
+                                if existing_report:
+                                    current_analysis = get_analysis_by_zip_file(zip_file_path)
+                                    if current_analysis:
+                                        timestamp = current_analysis.get('analysis_timestamp') or current_analysis.get('created_at', 'unknown time')
+                                        print(f"  ✓ Now displaying analysis from {timestamp}")
                             else:
                                 print(f"  ⚠ Warning: Deletion query executed but no rows were deleted (rowcount: {deleted_rows})")
                                 print(f"  ⚠ Current count: {remaining_count} analyses in database")
@@ -130,7 +145,8 @@ def main():
                     else:
                         print(f"  No older analyses to delete.")
             
-            report = existing_report
+            # Use the refreshed report (or original if no deletion happened)
+            report = existing_report if existing_report else get_analysis_report(zip_file_path)
         else:
             print("No existing analysis found. Running new analysis...\n")
             report = generate_comprehensive_report(zip_path)
