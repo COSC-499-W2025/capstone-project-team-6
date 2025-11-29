@@ -8,10 +8,17 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, Optional, Sequence
 
-from backend.analysis.metadata_extractor import MetadataExtractor
-from backend.analysis.project_analyzer import FileClassifier
-from backend.gemini_file_search import GeminiFileSearchClient
-from backend.session import get_session
+try:
+    from .metadata_extractor import MetadataExtractor
+    from .project_analyzer import FileClassifier
+    from ..gemini_file_search import GeminiFileSearchClient
+    from ..session import get_session
+except ImportError:
+    # Fallback for standalone execution
+    from backend.analysis.metadata_extractor import MetadataExtractor
+    from backend.analysis.project_analyzer import FileClassifier
+    from backend.gemini_file_search import GeminiFileSearchClient
+    from backend.session import get_session
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
