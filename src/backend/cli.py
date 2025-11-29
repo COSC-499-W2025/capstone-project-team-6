@@ -281,6 +281,34 @@ def display_analysis(results: dict) -> None:
             if overloads > 0:
                 print(f"   Polymorphism: {overloads} operator overloads")
 
+        # OOP Analysis (for C++ projects)
+        cpp_oop = project.get("cpp_oop_analysis", {})
+        if cpp_oop and (cpp_oop.get("total_classes", 0) > 0 or cpp_oop.get("struct_count", 0) > 0):
+            print(f"\nOOP Analysis (C++):")
+            print(f"   Classes: {cpp_oop.get('total_classes', 0)}")
+            print(f"   Structs: {cpp_oop.get('struct_count', 0)}")
+
+            abstract = cpp_oop.get("abstract_classes", [])
+            if abstract:
+                print(f"   Abstraction: {len(abstract)} abstract classes")
+
+            private = cpp_oop.get("private_methods", 0)
+            protected = cpp_oop.get("protected_methods", 0)
+            if private > 0 or protected > 0:
+                print(f"   Encapsulation: {private} private, {protected} protected methods")
+
+            virtual = cpp_oop.get("virtual_methods", 0)
+            if virtual > 0:
+                print(f"   Polymorphism: {virtual} virtual methods")
+
+            inheritance = cpp_oop.get("classes_with_inheritance", 0)
+            if inheritance > 0:
+                print(f"   Inheritance: {inheritance} classes")
+
+            templates = cpp_oop.get("template_classes", 0)
+            if templates > 0:
+                print(f"   Templates: {templates} template classes")
+
     print("\n" + "=" * 70)
 
 

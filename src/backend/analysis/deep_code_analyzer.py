@@ -503,6 +503,21 @@ def generate_comprehensive_report(zip_path: Path, output_path: Optional[Path] = 
                 except Exception as e:
                     # If deep analysis fails, add error info
                     report["projects"][i]["java_oop_analysis"] = {"error": str(e), "total_classes": 0}
+
+            if "cpp" in project.get("languages", {}):
+                try:
+                    from .cpp_oop_analyzer import analyze_cpp_project
+
+                    cpp_analysis = analyze_cpp_project(zip_path, project_path)
+                    report["projects"][i]["cpp_oop_analysis"] = cpp_analysis["cpp_oop_analysis"]
+                except ImportError:
+                    report["projects"][i]["cpp_oop_analysis"] = {
+                        "error": "C++ analyzer not available (libclang not installed)",
+                        "total_classes": 0,
+                    }
+                except Exception as e:
+                    # If deep analysis fails, add error info
+                    report["projects"][i]["cpp_oop_analysis"] = {"error": str(e), "total_classes": 0}
     # Save to file if requested
     if output_path:
         import json
