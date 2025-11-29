@@ -46,7 +46,7 @@ def _ensure_parent_dir(path: Path) -> None:
 def get_connection() -> sqlite3.Connection:
     db_path = get_db_path()
     _ensure_parent_dir(db_path)
-    conn = sqlite3.connect(db_path, detect_types=sqlite3.PARSE_DECLTYPES, check_same_thread=False)
+    conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     try:
         yield conn
