@@ -81,32 +81,6 @@ def main():
                 print(f"  {existing_count - 1} older analysis/analyses will be deleted if confirmed.")
                 print(f"  Note: Deleting old analyses will remove analysis data but preserve resume items (they are shared across reports and will not be affected).")
                 print()
-<<<<<<< Updated upstream
-                
-                if delete_old == "y":
-                    current_analysis = get_analysis_by_zip_file(zip_file_path)
-                    current_analysis_id = current_analysis["id"] if current_analysis else None
-                    print(f"\n  Analyses to be deleted:")
-                    older_count = 0
-                    for analysis in all_analyses:
-                        if analysis["id"] != current_analysis_id:
-                            older_count += 1
-                            print(f"    - Analysis ID {analysis['id']} ({analysis['analysis_type']}) from {analysis['analysis_timestamp']}")
-                    
-                    if older_count > 0:
-                        confirm = input(f"\n  Confirm deletion of {older_count} older analysis/analyses? (type 'yes' to confirm): ").lower().strip()
-                        if confirm == "yes":
-                            with get_connection() as conn:
-                                conn.execute("PRAGMA foreign_keys = ON;")
-                                conn.execute(
-                                    "DELETE FROM analyses WHERE zip_file = ? AND id != ?",
-                                    (zip_file_path, current_analysis_id),
-                                )
-                                conn.commit()
-                            
-                            print(f"  Deleted {older_count} older analysis/analyses")
-                            print(f"  Resume items preserved (not affected by deletion)")
-=======
                 delete_old = input(f"Delete {existing_count - 1} older analysis/analyses? (y/n): ").lower().strip()
                 
                 if delete_old == "y":
@@ -151,7 +125,6 @@ def main():
                                 print(f"  ⚠ Current count: {remaining_count} analyses in database")
                                 print(f"  ⚠ This might indicate a path mismatch issue")
                             print(f"  ✓ Resume items preserved (not affected by deletion)")
->>>>>>> Stashed changes
                         else:
                             print(f"  Deletion cancelled.")
                     else:
