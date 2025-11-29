@@ -39,9 +39,9 @@ from backend.analysis_database import (
 def print_separator(title=""):
     """Print a separator line."""
     if title:
-        print(f"\n{'=' * 70}")
+        print(f"\n{'=' * 78}")
         print(f"  {title}")
-        print(f"{'=' * 70}\n")
+        print(f"{'=' * 78}\n")
     else:
         print("=" * 78)
 
@@ -81,6 +81,7 @@ def main():
                 print(f"  {existing_count - 1} older analysis/analyses will be deleted if confirmed.")
                 print(f"  Note: Deleting old analyses will remove analysis data but preserve resume items (they are shared across reports and will not be affected).")
                 print()
+<<<<<<< Updated upstream
                 
                 if delete_old == "y":
                     current_analysis = get_analysis_by_zip_file(zip_file_path)
@@ -105,6 +106,52 @@ def main():
                             
                             print(f"  Deleted {older_count} older analysis/analyses")
                             print(f"  Resume items preserved (not affected by deletion)")
+=======
+                delete_old = input(f"Delete {existing_count - 1} older analysis/analyses? (y/n): ").lower().strip()
+                
+                if delete_old == "y":
+                    all_analyses = get_all_analyses_by_zip_file(zip_file_path)
+                    current_analysis = get_analysis_by_zip_file(zip_file_path)
+                    current_analysis_id = current_analysis["id"] if current_analysis else None
+                    
+                    older_count = 0
+                    analyses_to_delete = []
+                    for analysis in all_analyses:
+                        if analysis["id"] != current_analysis_id:
+                            older_count += 1
+                            analyses_to_delete.append(analysis)
+                    
+                    if older_count > 0:
+                        # Show details only if more than 2 analyses
+                        if older_count > 2:
+                            print(f"\n  Analyses to be deleted:")
+                            for analysis in analyses_to_delete:
+                                print(f"    - Analysis ID {analysis['id']} ({analysis['analysis_type']}) from {analysis['analysis_timestamp']}")
+                            confirm = input(f"\n  Confirm deletion of {older_count} older analysis/analyses? (y/n): ").lower().strip()
+                        else:
+                            confirm = input(f"\n  Confirm deletion of {older_count} older analysis/analyses? (y/n): ").lower().strip()
+                        
+                        if confirm == "y" or confirm == "yes":
+                            with get_connection() as conn:
+                                conn.execute("PRAGMA foreign_keys = ON;")
+                                cursor = conn.execute(
+                                    "DELETE FROM analyses WHERE zip_file = ? AND id != ?",
+                                    (zip_file_path, current_analysis_id),
+                                )
+                                deleted_rows = cursor.rowcount
+                                conn.commit()
+                            
+                            # Verify deletion worked
+                            remaining_count = count_analyses_by_zip_file(zip_file_path)
+                            if deleted_rows > 0:
+                                print(f"  ✓ Deleted {deleted_rows} older analysis/analyses")
+                                print(f"  ✓ {remaining_count} analysis/analyses remaining in database")
+                            else:
+                                print(f"  ⚠ Warning: Deletion query executed but no rows were deleted (rowcount: {deleted_rows})")
+                                print(f"  ⚠ Current count: {remaining_count} analyses in database")
+                                print(f"  ⚠ This might indicate a path mismatch issue")
+                            print(f"  ✓ Resume items preserved (not affected by deletion)")
+>>>>>>> Stashed changes
                         else:
                             print(f"  Deletion cancelled.")
                     else:
