@@ -73,24 +73,48 @@ def main():
         if existing_report:
             # Get the current analysis to show the most recent timestamp from database
             current_analysis = get_analysis_by_zip_file(zip_file_path)
-            # Prefer database timestamp, fallback to JSON metadata timestamp
             if current_analysis:
-                timestamp = current_analysis.get('analysis_timestamp') or current_analysis.get('created_at', 'unknown time')
+                try:
+                    timestamp = current_analysis['analysis_timestamp'] or current_analysis['created_at']
+                except KeyError:
+                    try:
+                        timestamp = current_analysis['created_at']
+                    except KeyError:
+                        timestamp = existing_report.get('analysis_metadata', {}).get('analysis_timestamp', 'unknown time')
             else:
                 timestamp = existing_report.get('analysis_metadata', {}).get('analysis_timestamp', 'unknown time')
             print(f"\nFound existing analysis in database (from {timestamp})")
-            # Check if there are multiple analyses and ask if user wants to delete old ones
+            # Check if there are analyses and ask if user wants to delete them
             existing_count = count_analyses_by_zip_file(zip_file_path)
-            if existing_count > 1:
-                print_separator("EXISTING ANALYSES DETECTED")
-                print(f"  Found {existing_count} total analysis/analyses for this project.")
-                print(f"  Currently displaying the most recent one (keeping this one).")
-                print(f"  {existing_count - 1} older analysis/analyses will be deleted if confirmed.")
-                print(f"  Note: Deleting old analyses will remove analysis data but preserve resume items (they are shared across reports and will not be affected).")
+            if existing_count > 0:
+                print_separator("EXISTING ANALYSIS DETECTED" if existing_count == 1 else "EXISTING ANALYSES DETECTED")
+                print(f"  Found {existing_count} analysis{'es' if existing_count > 1 else ''} in database.")
+                if existing_count > 1:
+                    print(f"  Currently displaying the most recent one.")
+                print(f"  Note: Deleting analysis/analyses will remove analysis data but preserve resume items (they are shared across reports and will not be affected).")
                 print()
-                delete_old = input(f"Delete {existing_count - 1} older analysis/analyses? (y/n): ").lower().strip()
+                print(f"  Options:")
+                if existing_count > 1:
+                    print(f"    1. Delete {existing_count - 1} older analysis/analyses (keep most recent)")
+                    print(f"    2. Delete ALL {existing_count} analysis/analyses (including most recent)")
+                    print(f"    3. Cancel (keep all analyses)")
+                    print()
+                    choice = input(f"Enter your choice (1/2/3): ").strip()
+                else:
+                    print(f"    1. Delete this analysis and run a fresh analysis")
+                    print(f"    2. Keep this analysis (skip new analysis)")
+                    print()
+                    user_choice = input(f"Enter your choice (1/2): ").strip()
+                    # Map single analysis choices to unified choice system
+                    if user_choice == "1":
+                        choice = "2"  # delete all
+                    elif user_choice == "2":
+                        choice = "3"  # cancel
+                    else:
+                        choice = "3"  # default
                 
-                if delete_old == "y":
+                if choice == "1":
+                    # Delete older analyses choce 1
                     all_analyses = get_all_analyses_by_zip_file(zip_file_path)
                     current_analysis = get_analysis_by_zip_file(zip_file_path)
                     current_analysis_id = current_analysis["id"] if current_analysis else None
@@ -133,7 +157,10 @@ def main():
                                 if existing_report:
                                     current_analysis = get_analysis_by_zip_file(zip_file_path)
                                     if current_analysis:
-                                        timestamp = current_analysis.get('analysis_timestamp') or current_analysis.get('created_at', 'unknown time')
+                                        try:
+                                            timestamp = current_analysis['analysis_timestamp'] or current_analysis['created_at']
+                                        except KeyError:
+                                            timestamp = existing_report.get('analysis_metadata', {}).get('analysis_timestamp', 'unknown time')
                                         print(f"  ✓ Now displaying analysis from {timestamp}")
                             else:
                                 print(f"  ⚠ Warning: Deletion query executed but no rows were deleted (rowcount: {deleted_rows})")
@@ -144,9 +171,51 @@ def main():
                             print(f"  Deletion cancelled.")
                     else:
                         print(f"  No older analyses to delete.")
+                elif choice == "2":
+                    all_analyses = get_all_analyses_by_zip_file(zip_file_path)
+                    print(f"\n  ALL analyses to be deleted:")
+                    for analysis in all_analyses:
+                        print(f"    - Analysis ID {analysis['id']} ({analysis['analysis_type']}) from {analysis['analysis_timestamp']}")
+                    confirm = input(f"\n  WARNING: This will delete ALL {existing_count} analysis/analyses. Confirm? (type 'yes' to confirm): ").lower().strip()
+                    
+                    if confirm == "yes":
+                        with get_connection() as conn:
+                            conn.execute("PRAGMA foreign_keys = ON;")
+                            cursor = conn.execute(
+                                "DELETE FROM analyses WHERE zip_file = ?",
+                                (zip_file_path,),
+                            )
+                            deleted_rows = cursor.rowcount
+                            conn.commit()
+                        
+                        # Verify deletion worked
+                        remaining_count = count_analyses_by_zip_file(zip_file_path)
+                        if deleted_rows > 0:
+                            print(f"  ✓ Deleted ALL {deleted_rows} analysis/analyses")
+                            print(f"  ✓ {remaining_count} analysis/analyses remaining in database")
+                            # Clear the existing report since all analyses were deleted
+                            existing_report = None
+                        else:
+                            print(f"  ⚠ Warning: Deletion query executed but no rows were deleted (rowcount: {deleted_rows})")
+                            print(f"  ⚠ Current count: {remaining_count} analyses in database")
+                        print(f"  ✓ Resume items preserved (not affected by deletion)")
+                    else:
+                        print(f"  Deletion cancelled.")
+                else:
+                    print(f"  Cancelled. Keeping all analyses.")
             
             # Use the refreshed report (or original if no deletion happened)
             report = existing_report if existing_report else get_analysis_report(zip_file_path)
+            
+            # If report is None (all analyses were deleted), run a new analysis
+            if report is None:
+                print("\nNo existing analysis found. Running new analysis...\n")
+                report = generate_comprehensive_report(zip_path)
+                report["analysis_metadata"] = {
+                    "zip_file": zip_file_path,
+                    "analysis_timestamp": datetime.now().isoformat(),
+                    "total_projects": len(report["projects"]),
+                }
         else:
             print("No existing analysis found. Running new analysis...\n")
             report = generate_comprehensive_report(zip_path)
