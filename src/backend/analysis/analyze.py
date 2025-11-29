@@ -69,6 +69,7 @@ def main():
         # Check if analysis already exists
         zip_file_path = str(zip_path.absolute())
         existing_report = get_analysis_report(zip_file_path)
+        new_analysis_generated = False 
         
         if existing_report:
             # Get the current analysis to show the most recent timestamp from database
@@ -86,32 +87,23 @@ def main():
             print(f"\nFound existing analysis in database (from {timestamp})")
             # Check if there are analyses and ask if user wants to delete them
             existing_count = count_analyses_by_zip_file(zip_file_path)
+            choice = None 
             if existing_count > 0:
                 print_separator("EXISTING ANALYSIS DETECTED" if existing_count == 1 else "EXISTING ANALYSES DETECTED")
                 print(f"  Found {existing_count} analysis{'es' if existing_count > 1 else ''} in database.")
-                if existing_count > 1:
-                    print(f"  Currently displaying the most recent one.")
                 print(f"  Note: Deleting analysis/analyses will remove analysis data but preserve resume items (they are shared across reports and will not be affected).")
                 print()
                 print(f"  Options:")
-                if existing_count > 1:
-                    print(f"    1. Delete {existing_count - 1} older analysis/analyses (keep most recent)")
-                    print(f"    2. Delete ALL {existing_count} analysis/analyses (including most recent)")
-                    print(f"    3. Cancel (keep all analyses)")
-                    print()
+            
+                print(f"    1. Delete {existing_count - 1} older analysis/analyses (keep most recent)")
+                print(f"    2. Delete ALL {existing_count} analysis/analyses (including most recent)")
+                print(f"    3. Keep all analyses and run a new analysis")
+                print()
+                choice = None
+                while choice not in ["1", "2", "3"]:
                     choice = input(f"Enter your choice (1/2/3): ").strip()
-                else:
-                    print(f"    1. Delete this analysis and run a fresh analysis")
-                    print(f"    2. Keep this analysis (skip new analysis)")
-                    print()
-                    user_choice = input(f"Enter your choice (1/2): ").strip()
-                    # Map single analysis choices to unified choice system
-                    if user_choice == "1":
-                        choice = "2"  # delete all
-                    elif user_choice == "2":
-                        choice = "3"  # cancel
-                    else:
-                        choice = "3"  # default
+                    if choice not in ["1", "2", "3"]:
+                        print(f"  Invalid choice. Please enter 1, 2, or 3.")
                 
                 if choice == "1":
                     # Delete older analyses choce 1
@@ -201,21 +193,30 @@ def main():
                         print(f"  ✓ Resume items preserved (not affected by deletion)")
                     else:
                         print(f"  Deletion cancelled.")
+                elif choice == "3":
+                    print(f"  Keeping all existing analyses. Running new analysis...\n")
+                    new_analysis_generated = True
+                elif choice == "4":
+                    print(f"  Keeping existing analysis. Skipping new analysis.")
+                    # Use existing report and don't create new one
+                    report = existing_report if existing_report else get_analysis_report(zip_file_path)
+                    new_analysis_generated = False
+            
+            if choice != "4":  # Only update report if not skipping
+                report = existing_report if existing_report else get_analysis_report(zip_file_path)
+            
+            if report is None or choice == "3":
+                if choice == "3":
+                    print("\nRunning new analysis (existing analyses will be kept)...\n")
                 else:
-                    print(f"  Cancelled. Keeping all analyses.")
-            
-            # Use the refreshed report (or original if no deletion happened)
-            report = existing_report if existing_report else get_analysis_report(zip_file_path)
-            
-            # If report is None (all analyses were deleted), run a new analysis
-            if report is None:
-                print("\nNo existing analysis found. Running new analysis...\n")
+                    print("\nNo existing analysis found. Running new analysis...\n")
                 report = generate_comprehensive_report(zip_path)
                 report["analysis_metadata"] = {
                     "zip_file": zip_file_path,
                     "analysis_timestamp": datetime.now().isoformat(),
                     "total_projects": len(report["projects"]),
                 }
+                new_analysis_generated = True
         else:
             print("No existing analysis found. Running new analysis...\n")
             report = generate_comprehensive_report(zip_path)
@@ -224,6 +225,7 @@ def main():
                 "analysis_timestamp": datetime.now().isoformat(),
                 "total_projects": len(report["projects"]),
             }
+            new_analysis_generated = True
 
         summary = report["summary"]
         print(f"Total Files: {summary['total_files']}")
@@ -456,23 +458,23 @@ def main():
                 print(f"\nCoding Style: {coding_style}")
         else:
             print("\nNo Java projects found for OOP analysis.")
-        if not existing_report:
-            # Check if there are any existing analyses for this zip file
-            existing_count = count_analyses_by_zip_file(zip_file_path)
-            if existing_count > 0:
-                print_separator("EXISTING ANALYSIS DETECTED")
-                print(f"  Found {existing_count} previous analysis/analyses for this project.")
-                print(f"  Note: Deleting old analyses will remove analysis data but preserve")
-                print(f"  resume items (they are shared across reports and will not be affected).")
-                print()
-                delete_old = input(f"Delete {existing_count} previous analysis/analyses? (y/n): ").lower().strip()
-                
-                if delete_old == "y":
-                    deleted_count = delete_analyses_by_zip_file(zip_file_path)
-                    print(f"  Deleted {deleted_count} previous analysis/analyses")
-                    print(f"  Resume items preserved (not affected by deletion)")
-                else:
-                    print(f"  Keeping existing analyses. New analysis will be stored separately.")
+        if not existing_report or new_analysis_generated:
+            if choice is None or choice != "3":
+                existing_count = count_analyses_by_zip_file(zip_file_path)
+                if existing_count > 0:
+                    print_separator("EXISTING ANALYSIS DETECTED")
+                    print(f"  Found {existing_count} previous analysis/analyses for this project.")
+                    print(f"  Note: Deleting old analyses will remove analysis data but preserve")
+                    print(f"  resume items (they are shared across reports and will not be affected).")
+                    print()
+                    delete_old = input(f"Delete {existing_count} previous analysis/analyses? (y/n): ").lower().strip()
+                    
+                    if delete_old == "y":
+                        deleted_count = delete_analyses_by_zip_file(zip_file_path)
+                        print(f"  Deleted {deleted_count} previous analysis/analyses")
+                        print(f"  Resume items preserved (not affected by deletion)")
+                    else:
+                        print(f"  Keeping existing analyses. New analysis will be stored separately.")
             
             print_separator("STORING ANALYSIS IN DATABASE")
             try:
