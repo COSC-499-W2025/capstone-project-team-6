@@ -19,6 +19,7 @@ sys.modules["google.ai.generativelanguage_v1beta"] = module_mock
 sys.modules["google.ai.generativelanguage_v1beta.types"] = module_mock
 sys.modules["google.oauth2"] = module_mock
 sys.modules["google.api_core"] = module_mock
+sys.modules["tenacity"] = module_mock
 
 # Adjust path
 import os
@@ -41,17 +42,32 @@ class TestLLMPipeline:
             yield client_instance
 
     @pytest.fixture
-    def mock_metadata_extractor(self):
-        with patch("backend.analysis.llm_pipeline.MetadataExtractor") as MockExtractor:
-            extractor_instance = MockExtractor.return_value
-            extractor_instance.__enter__.return_value = extractor_instance
-
-            extractor_instance.generate_report.return_value = {
-                "analysis_metadata": {"zip_file": "test.zip", "analysis_timestamp": "2023-01-01"},
-                "projects": [{"project_name": "test-project"}],
-                "summary": {},
+    def mock_generate_report(self):
+        with patch("backend.analysis.llm_pipeline.generate_comprehensive_report") as mock_report:
+            mock_report.return_value = {
+                "analysis_metadata": {
+                    "zip_file": "test.zip",
+                    "analysis_timestamp": "2023-01-01",
+                    "total_projects": 1,
+                },
+                "summary": {
+                    "total_files": 2,
+                    "total_size_mb": 0.1,
+                    "languages_used": ["python"],
+                    "frameworks_used": ["fastapi"],
+                },
+                "projects": [
+                    {
+                        "project_name": "test-project",
+                        "project_path": "",
+                        "primary_language": "python",
+                        "total_files": 2,
+                        "has_tests": True,
+                        "oop_analysis": {"oop_score": 3},
+                    }
+                ],
             }
-            yield extractor_instance
+            yield mock_report
 
     @pytest.fixture
     def mock_session(self):
@@ -82,7 +98,7 @@ class TestLLMPipeline:
 
             yield classifier_instance
 
-    def test_run_gemini_analysis_success(self, mock_gemini_client, mock_metadata_extractor, mock_file_classifier, mock_session):
+    def test_run_gemini_analysis_success(self, mock_gemini_client, mock_generate_report, mock_file_classifier, mock_session):
         # Patch FileClassifier constructor where it is used in pipeline
         with patch("backend.analysis.llm_pipeline.FileClassifier", return_value=mock_file_classifier):
             zip_path = Path("test.zip")
@@ -103,7 +119,16 @@ class TestLLMPipeline:
             # Verify NO cleanup because user is logged in
             mock_gemini_client.cleanup_corpus.assert_not_called()
 
-    def test_run_gemini_analysis_cleanup_anonymous(self, mock_gemini_client, mock_metadata_extractor, mock_file_classifier):
+            ingested_docs = mock_gemini_client.ingest_batch.call_args[0][1]
+            assert any(doc["path"] == "_offline_analysis.json" for doc in ingested_docs)
+
+            # Verify prompt construction contains offline summary
+            call_args = mock_gemini_client.generate_content.call_args
+            prompt_used = call_args[0][1]
+            assert "Offline analysis highlights" in prompt_used
+            assert "test-project: primary=python" in prompt_used
+
+    def test_run_gemini_analysis_cleanup_anonymous(self, mock_gemini_client, mock_generate_report, mock_file_classifier):
         # Patch FileClassifier
         with patch("backend.analysis.llm_pipeline.FileClassifier", return_value=mock_file_classifier):
             # Simulate anonymous user
@@ -111,6 +136,20 @@ class TestLLMPipeline:
                 run_gemini_analysis(Path("test.zip"))
                 # Should cleanup
                 mock_gemini_client.cleanup_corpus.assert_called_once()
+
+    def test_run_gemini_analysis_error_handling(self, mock_gemini_client, mock_generate_report, mock_file_classifier, mock_session):
+        # Patch FileClassifier
+        with patch("backend.analysis.llm_pipeline.FileClassifier", return_value=mock_file_classifier):
+            # Simulate ingest failure
+            mock_gemini_client.ingest_batch.side_effect = Exception("Ingestion failed")
+            
+            zip_path = Path("test.zip")
+            report = run_gemini_analysis(zip_path)
+
+            assert "llm_error" in report
+            assert "Ingestion failed" in report["llm_error"]
+            # Should still return offline analysis
+            assert report["projects"][0]["project_name"] == "test-project"
 
     def test_ignore_logic(self):
         # Should ignore
