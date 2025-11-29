@@ -699,6 +699,15 @@ def main() -> int:
                 from .analysis.resume_generator import print_resume_items
                 print_resume_items(results)
 
+                # Store analysis in database
+                try:
+                    from .analysis_database import record_analysis
+                    analysis_id = record_analysis("non_llm", results)
+                    analysis_uuid = results.get("analysis_metadata", {}).get("analysis_uuid", "unknown")
+                    print(f"\n📊 Analysis saved to database (ID: {analysis_id}, UUID: {analysis_uuid})")
+                except Exception as db_error:
+                    print(f"\n⚠️  Warning: Could not save to database: {db_error}")
+
                 print("\n✅ Analysis complete!")
                 return 0
             except zipfile.BadZipFile:
