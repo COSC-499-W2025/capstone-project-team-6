@@ -8,10 +8,28 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, Optional, Sequence
 
-from backend.analysis.metadata_extractor import MetadataExtractor
-from backend.analysis.project_analyzer import FileClassifier
-from backend.gemini_file_search import GeminiFileSearchClient
-from backend.session import get_session
+try:
+    from .metadata_extractor import MetadataExtractor
+    from .project_analyzer import FileClassifier
+except ImportError:
+    from backend.analysis.metadata_extractor import MetadataExtractor
+    from backend.analysis.project_analyzer import FileClassifier
+
+try:
+    from ..gemini_file_search import GeminiFileSearchClient
+except ImportError:
+    try:
+        from backend.gemini_file_search import GeminiFileSearchClient
+    except ImportError:
+        GeminiFileSearchClient = None
+
+try:
+    from ..session import get_session
+except ImportError:
+    try:
+        from backend.session import get_session
+    except ImportError:
+        from session import get_session
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -53,6 +71,13 @@ def run_gemini_analysis(zip_path: Path, prompt_override: Optional[str] = None) -
     logger.info(f"Starting metadata extraction for {zip_path}")
     with MetadataExtractor(zip_path) as extractor:
         report = extractor.generate_report()
+
+    # Check if Gemini client is available
+    if GeminiFileSearchClient is None:
+        error_msg = "Google Cloud AI Platform libraries not installed. Install with: pip install google-cloud-aiplatform google-auth google-generativeai"
+        logger.error(error_msg)
+        report["llm_error"] = error_msg
+        return report
 
     # 2. Initialize Gemini Client
     try:
