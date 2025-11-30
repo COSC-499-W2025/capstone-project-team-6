@@ -13,7 +13,7 @@ Test Categories:
 6. Edge Cases and Error Handling (5 tests)
 7. Export Functionality (3 tests)
 
-Total: 32 tests
+Total: 34 tests
 
 Requirements:
 - pytest
