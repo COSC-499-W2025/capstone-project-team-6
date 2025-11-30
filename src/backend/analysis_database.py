@@ -521,3 +521,14 @@ def clear_resume_items() -> None:
     with get_connection() as conn:
         conn.execute("DELETE FROM resume_items")
         conn.commit()
+
+
+def get_all_analyses() -> List[sqlite3.Row]:
+    """Get all analyses from the database, ordered by most recent first."""
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT * FROM analyses 
+            ORDER BY created_at DESC
+            """
+        ).fetchall()
