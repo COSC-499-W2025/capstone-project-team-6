@@ -20,7 +20,8 @@ sys.path.insert(0, str(src_dir))
 sys.path.insert(0, str(backend_dir))
 
 from analysis.deep_code_analyzer import generate_comprehensive_report
-from analysis.resume_generator import print_resume_items, generate_formatted_resume_entry
+from analysis.resume_generator import (generate_formatted_resume_entry,
+                                       print_resume_items)
 
 from backend.analysis_database import (
     init_db,
@@ -379,6 +380,23 @@ def main():
             elif resume_items_by_project:
                 print("="*78 + "\n")
                 print(f" All {len(resume_items_by_project)} resume item(s) retrieved from database")
+        print_separator("STORING ANALYSIS IN DATABASE")
+        try:
+            analysis_id = record_analysis(analysis_type="non_llm", payload=report)
+            print(f"  Analysis successfully stored in database")
+            print(f"  Total Projects: {len(report['projects'])}")
+        except Exception as e:
+            print(f"  Error storing analysis in database: {e}")
+            import traceback
+
+            traceback.print_exc()
+        print("\n" + "=" * 78)
+        print("  FULL RESUME")
+        print("=" * 78 + "\n")
+        from analysis.resume_generator import generate_full_resume
+
+        print(generate_full_resume(report))
+        print("\n" + "=" * 78 + "\n")
 
         # Offer to save JSON
         print_separator()
