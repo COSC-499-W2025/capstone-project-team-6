@@ -10,7 +10,9 @@ Or directly:
 
 import sys
 from pathlib import Path
-from analysis.resume_generator import generate_full_resume, generate_formatted_resume_entry
+
+from analysis.resume_generator import (generate_formatted_resume_entry,
+                                       generate_full_resume)
 
 # Add parent directories to path to allow imports
 current_dir = Path(__file__).parent
