@@ -10,6 +10,7 @@ Or directly:
 
 import sys
 from pathlib import Path
+from analysis.resume_generator import generate_full_resume, generate_formatted_resume_entry
 
 # Add parent directories to path to allow imports
 current_dir = Path(__file__).parent
@@ -96,8 +97,11 @@ def main():
         print(f"   Has CI/CD: {'Yes' if project['has_ci_cd'] else 'No'}")
         print(f"   Has Docker: {'Yes' if project['has_docker'] else 'No'}")
 
+        print(generate_formatted_resume_entry(project))
+
     print(f"\n{'-' * 60}")
     print(f"Full report saved to: {output_path}")
+    print(generate_full_resume(report))
     print()
 
 

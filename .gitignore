@@ -17,3 +17,5 @@ pgvector/
 sample_*.txt
 myapp.db
 src/myapp.db
+*.db
+src/myapp.db

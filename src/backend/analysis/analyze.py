@@ -20,19 +20,30 @@ sys.path.insert(0, str(src_dir))
 sys.path.insert(0, str(backend_dir))
 
 from analysis.deep_code_analyzer import generate_comprehensive_report
-from analysis.resume_generator import print_resume_items
+from analysis.resume_generator import print_resume_items, generate_formatted_resume_entry
 
-from backend.analysis_database import init_db, record_analysis
+from backend.analysis_database import (
+    init_db,
+    record_analysis,
+    store_resume_item,
+    get_analysis_report,
+    get_resume_items_for_project,
+    count_analyses_by_zip_file,
+    delete_analyses_by_zip_file,
+    get_analysis_by_zip_file,
+    get_all_analyses_by_zip_file,
+    get_connection,
+)
 
 
 def print_separator(title=""):
     """Print a separator line."""
     if title:
-        print(f"\n{'=' * 70}")
+        print(f"\n{'=' * 78}")
         print(f"  {title}")
-        print(f"{'=' * 70}\n")
+        print(f"{'=' * 78}\n")
     else:
-        print("=" * 70)
+        print("=" * 78)
 
 
 def main():
@@ -51,19 +62,170 @@ def main():
     # Initialize database
     init_db()
 
-    print_separator("COMPLETE PROJECT ANALYSIS")
+    print_separator("COMPLETE  ANALYSIS")
     print(f"Analyzing: {zip_path}")
-    print("Running: File Classification → Metadata Extraction → Deep Code Analysis\n")
 
     try:
-        report = generate_comprehensive_report(zip_path)
-        report["analysis_metadata"] = {
-            "zip_file": str(zip_path.absolute()),
-            "analysis_timestamp": datetime.now().isoformat(),
-            "total_projects": len(report["projects"]),
-        }
-
-        print_separator("PHASE 1 & 2: FILE CLASSIFICATION + METADATA")
+        # Check if analysis already exists
+        zip_file_path = str(zip_path.absolute())
+        existing_report = get_analysis_report(zip_file_path)
+        new_analysis_generated = False 
+        
+        if existing_report:
+            # Get the current analysis to show the most recent timestamp from database
+            current_analysis = get_analysis_by_zip_file(zip_file_path)
+            if current_analysis:
+                try:
+                    timestamp = current_analysis['analysis_timestamp'] or current_analysis['created_at']
+                except KeyError:
+                    try:
+                        timestamp = current_analysis['created_at']
+                    except KeyError:
+                        timestamp = existing_report.get('analysis_metadata', {}).get('analysis_timestamp', 'unknown time')
+            else:
+                timestamp = existing_report.get('analysis_metadata', {}).get('analysis_timestamp', 'unknown time')
+            print(f"\nFound existing analysis in database (from {timestamp})")
+            # Check if there are analyses and ask if user wants to delete them
+            existing_count = count_analyses_by_zip_file(zip_file_path)
+            choice = None 
+            if existing_count > 0:
+                print_separator("EXISTING ANALYSIS DETECTED" if existing_count == 1 else "EXISTING ANALYSES DETECTED")
+                print(f"  Found {existing_count} analysis{'es' if existing_count > 1 else ''} in database.")
+                print(f"  Note: Deleting analysis/analyses will remove analysis data but preserve resume items (they are shared across reports and will not be affected).")
+                print()
+                print(f"  Options:")
+            
+                print(f"    1. Delete {existing_count - 1} older analysis/analyses (keep most recent)")
+                print(f"    2. Delete ALL {existing_count} analysis/analyses (including most recent)")
+                print(f"    3. Keep all analyses and run a new analysis")
+                print()
+                choice = None
+                while choice not in ["1", "2", "3"]:
+                    choice = input(f"Enter your choice (1/2/3): ").strip()
+                    if choice not in ["1", "2", "3"]:
+                        print(f"  Invalid choice. Please enter 1, 2, or 3.")
+                
+                if choice == "1":
+                    # Delete older analyses choce 1
+                    all_analyses = get_all_analyses_by_zip_file(zip_file_path)
+                    current_analysis = get_analysis_by_zip_file(zip_file_path)
+                    current_analysis_id = current_analysis["id"] if current_analysis else None
+                    
+                    older_count = 0
+                    analyses_to_delete = []
+                    for analysis in all_analyses:
+                        if analysis["id"] != current_analysis_id:
+                            older_count += 1
+                            analyses_to_delete.append(analysis)
+                    
+                    if older_count > 0:
+                        # Show details only if more than 2 analyses
+                        if older_count > 2:
+                            print(f"\n  Analyses to be deleted:")
+                            for analysis in analyses_to_delete:
+                                print(f"    - Analysis ID {analysis['id']} ({analysis['analysis_type']}) from {analysis['analysis_timestamp']}")
+                            confirm = input(f"\n  Confirm deletion of {older_count} older analysis/analyses? (y/n): ").lower().strip()
+                        else:
+                            confirm = input(f"\n  Confirm deletion of {older_count} older analysis/analyses? (y/n): ").lower().strip()
+                        
+                        if confirm == "y" or confirm == "yes":
+                            with get_connection() as conn:
+                                conn.execute("PRAGMA foreign_keys = ON;")
+                                cursor = conn.execute(
+                                    "DELETE FROM analyses WHERE zip_file = ? AND id != ?",
+                                    (zip_file_path, current_analysis_id),
+                                )
+                                deleted_rows = cursor.rowcount
+                                conn.commit()
+                            
+                            # Verify deletion worked
+                            remaining_count = count_analyses_by_zip_file(zip_file_path)
+                            if deleted_rows > 0:
+                                print(f"  ✓ Deleted {deleted_rows} older analysis/analyses")
+                                print(f"  ✓ {remaining_count} analysis/analyses remaining in database")
+                                # Refresh the report and analysis after deletion to get updated timestamp
+                                existing_report = get_analysis_report(zip_file_path)
+                                # Update the displayed timestamp to reflect the current (remaining) analysis
+                                if existing_report:
+                                    current_analysis = get_analysis_by_zip_file(zip_file_path)
+                                    if current_analysis:
+                                        try:
+                                            timestamp = current_analysis['analysis_timestamp'] or current_analysis['created_at']
+                                        except KeyError:
+                                            timestamp = existing_report.get('analysis_metadata', {}).get('analysis_timestamp', 'unknown time')
+                                        print(f"  ✓ Now displaying analysis from {timestamp}")
+                            else:
+                                print(f"  ⚠ Warning: Deletion query executed but no rows were deleted (rowcount: {deleted_rows})")
+                                print(f"  ⚠ Current count: {remaining_count} analyses in database")
+                                print(f"  ⚠ This might indicate a path mismatch issue")
+                            print(f"  ✓ Resume items preserved (not affected by deletion)")
+                        else:
+                            print(f"  Deletion cancelled.")
+                    else:
+                        print(f"  No older analyses to delete.")
+                elif choice == "2":
+                    all_analyses = get_all_analyses_by_zip_file(zip_file_path)
+                    print(f"\n  ALL analyses to be deleted:")
+                    for analysis in all_analyses:
+                        print(f"    - Analysis ID {analysis['id']} ({analysis['analysis_type']}) from {analysis['analysis_timestamp']}")
+                    confirm = input(f"\n  WARNING: This will delete ALL {existing_count} analysis/analyses. Confirm? (type 'yes' to confirm): ").lower().strip()
+                    
+                    if confirm == "yes":
+                        with get_connection() as conn:
+                            conn.execute("PRAGMA foreign_keys = ON;")
+                            cursor = conn.execute(
+                                "DELETE FROM analyses WHERE zip_file = ?",
+                                (zip_file_path,),
+                            )
+                            deleted_rows = cursor.rowcount
+                            conn.commit()
+                        
+                        # Verify deletion worked
+                        remaining_count = count_analyses_by_zip_file(zip_file_path)
+                        if deleted_rows > 0:
+                            print(f"  ✓ Deleted ALL {deleted_rows} analysis/analyses")
+                            print(f"  ✓ {remaining_count} analysis/analyses remaining in database")
+                            # Clear the existing report since all analyses were deleted
+                            existing_report = None
+                        else:
+                            print(f"  ⚠ Warning: Deletion query executed but no rows were deleted (rowcount: {deleted_rows})")
+                            print(f"  ⚠ Current count: {remaining_count} analyses in database")
+                        print(f"  ✓ Resume items preserved (not affected by deletion)")
+                    else:
+                        print(f"  Deletion cancelled.")
+                elif choice == "3":
+                    print(f"  Keeping all existing analyses. Running new analysis...\n")
+                    new_analysis_generated = True
+                elif choice == "4":
+                    print(f"  Keeping existing analysis. Skipping new analysis.")
+                    # Use existing report and don't create new one
+                    report = existing_report if existing_report else get_analysis_report(zip_file_path)
+                    new_analysis_generated = False
+            
+            if choice != "4":  # Only update report if not skipping
+                report = existing_report if existing_report else get_analysis_report(zip_file_path)
+            
+            if report is None or choice == "3":
+                if choice == "3":
+                    print("\nRunning new analysis (existing analyses will be kept)...\n")
+                else:
+                    print("\nNo existing analysis found. Running new analysis...\n")
+                report = generate_comprehensive_report(zip_path)
+                report["analysis_metadata"] = {
+                    "zip_file": zip_file_path,
+                    "analysis_timestamp": datetime.now().isoformat(),
+                    "total_projects": len(report["projects"]),
+                }
+                new_analysis_generated = True
+        else:
+            print("No existing analysis found. Running new analysis...\n")
+            report = generate_comprehensive_report(zip_path)
+            report["analysis_metadata"] = {
+                "zip_file": zip_file_path,
+                "analysis_timestamp": datetime.now().isoformat(),
+                "total_projects": len(report["projects"]),
+            }
+            new_analysis_generated = True
 
         summary = report["summary"]
         print(f"Total Files: {summary['total_files']}")
@@ -114,8 +276,6 @@ def main():
             print(f"  Has CI/CD: {'true' if project['has_ci_cd'] else 'false'}")
             print(f"  Has Docker: {'true' if project['has_docker'] else 'false'}")
             print(f"  Test Coverage: {project['test_coverage_estimate']}")
-
-        print_separator("PHASE 3: CODE ANALYSIS FOR OOP PRINCIPLES")
 
         # Analyze Python projects
         python_projects = [p for p in report["projects"] if "python" in p.get("languages", {})]
@@ -202,9 +362,6 @@ def main():
         # Analyze Java projects
         java_projects = [p for p in report["projects"] if "java" in p.get("languages", {})]
 
-        # Analyze Java projects
-        java_projects = [p for p in report["projects"] if "java" in p.get("languages", {})]
-
         if java_projects:
             print(f"\n{'*' * 70}")
             print(f"  JAVA OOP ANALYSIS")
@@ -275,46 +432,14 @@ def main():
                 from dataclasses import dataclass, field
                 from typing import Dict, List
 
-                from analysis.java_oop_analyzer import (calculate_oop_score,
+                from analysis.java_oop_analyzer import (JavaOOPAnalysis, calculate_oop_score,
                                                         calculate_solid_score,
                                                         get_coding_style)
-
-                @dataclass
-                class JavaOOPAnalysis:
-                    total_classes: int = 0
-                    interface_count: int = 0
-                    abstract_classes: List[str] = field(default_factory=list)
-                    enum_count: int = 0
-                    private_methods: int = 0
-                    protected_methods: int = 0
-                    public_methods: int = 0
-                    package_methods: int = 0
-                    private_fields: int = 0
-                    protected_fields: int = 0
-                    public_fields: int = 0
-                    classes_with_inheritance: int = 0
-                    inheritance_depth: int = 0
-                    override_count: int = 0
-                    method_overloads: int = 0
-                    generic_classes: int = 0
-                    nested_classes: int = 0
-                    anonymous_classes: int = 0
-                    lambda_count: int = 0
-                    annotations: Dict[str, int] = field(default_factory=dict)
-                    design_patterns: List[str] = field(default_factory=list)
-                    getter_setter_pairs: int = 0
 
                 analysis_obj = JavaOOPAnalysis(**java_oop)
                 oop_score = calculate_oop_score(analysis_obj)
                 solid_score = calculate_solid_score(analysis_obj)
                 coding_style = get_coding_style(oop_score)
-
-                print(f"\nOOP Score: {oop_score}/6")
-                print(f"SOLID Score: {solid_score:.1f}/5.0")
-                print(f"Principles Used:")
-                print(
-                    f"  {'✓' if java_oop['total_classes'] > 0 or java_oop['interface_count'] > 0 else '✗'} Uses Classes/Interfaces"
-                )
 
                 print(f"\nOOP Score: {oop_score}/6")
                 print(f"SOLID Score: {solid_score:.1f}/5.0")
@@ -330,24 +455,96 @@ def main():
                     f"  {'✓' if java_oop['generic_classes'] > 0 or java_oop['annotations'] or java_oop['lambda_count'] > 0 else '✗'} Advanced Features"
                 )
 
-                print(
-                    f"  {'✓' if java_oop['generic_classes'] > 0 or java_oop['annotations'] or java_oop['lambda_count'] > 0 else '✗'} Advanced Features"
-                )
-
                 print(f"\nCoding Style: {coding_style}")
         else:
             print("\nNo Java projects found for OOP analysis.")
-        print_separator("STORING ANALYSIS IN DATABASE")
-        try:
-            analysis_id = record_analysis(analysis_type="non_llm", payload=report)
-            print(f"  Analysis successfully stored in database")
-            print(f"  Total Projects: {len(report['projects'])}")
-        except Exception as e:
-            print(f"  Error storing analysis in database: {e}")
-            import traceback
+        if not existing_report or new_analysis_generated:
+            if choice is None or choice != "3":
+                existing_count = count_analyses_by_zip_file(zip_file_path)
+                if existing_count > 0:
+                    print_separator("EXISTING ANALYSIS DETECTED")
+                    print(f"  Found {existing_count} previous analysis/analyses for this project.")
+                    print(f"  Note: Deleting old analyses will remove analysis data but preserve")
+                    print(f"  resume items (they are shared across reports and will not be affected).")
+                    print()
+                    delete_old = input(f"Delete {existing_count} previous analysis/analyses? (y/n): ").lower().strip()
+                    
+                    if delete_old == "y":
+                        deleted_count = delete_analyses_by_zip_file(zip_file_path)
+                        print(f"  Deleted {deleted_count} previous analysis/analyses")
+                        print(f"  Resume items preserved (not affected by deletion)")
+                    else:
+                        print(f"  Keeping existing analyses. New analysis will be stored separately.")
+            
+            print_separator("STORING ANALYSIS IN DATABASE")
+            try:
+                analysis_id = record_analysis(analysis_type="non_llm", payload=report)
+                print(f"  Analysis successfully stored in database")
+                print(f"  Total Projects: {len(report['projects'])}")
+            except Exception as e:
+                print(f"  Error storing analysis in database: {e}")
+                import traceback
 
-            traceback.print_exc()
-        print_resume_items(report)
+                traceback.print_exc()
+        
+        # Ask user if they want to generate resume
+        print_separator()
+        generate_resume = input("Generate resume? (y/n): ").lower().strip()
+        
+        if generate_resume == "y":
+            print("\n" + "="*78)
+            print("  FULL RESUME")
+            print("="*78 + "\n")
+            from analysis.resume_generator import generate_full_resume, generate_formatted_resume_entry
+            
+            # Check if resume items already exist 
+            resume_items_by_project = {}
+            projects_needing_resume = []
+            
+            for project in report.get("projects", []):
+                project_name = project.get("project_name", "Unknown Project")
+                existing_resume_items = get_resume_items_for_project(project_name)
+                
+                if existing_resume_items:
+                    resume_items_by_project[project_name] = existing_resume_items[0]["resume_text"]
+                else:
+                    projects_needing_resume.append(project)
+            
+            # Display existing resume items
+            if resume_items_by_project:
+                print("Found existing resume items in database. Using cached resumes.\n")
+                for project in report.get("projects", []):
+                    project_name = project.get("project_name", "Unknown Project")
+                    if project_name in resume_items_by_project:
+                        print(resume_items_by_project[project_name])
+                        print()
+            
+            # Generate and store resumes for projects that don't have them
+            if projects_needing_resume:
+                if resume_items_by_project:
+                    print("Generating resumes for remaining projects...\n")
+                else:
+                    print("No existing resume items found. Generating new resumes.\n")
+                
+                for project in projects_needing_resume:
+                    project_name = project.get("project_name", "Unknown Project")
+                    resume_entry = generate_formatted_resume_entry(project)
+                    print(resume_entry)
+                    print()
+                    
+                    try:
+                        store_resume_item(project_name, resume_entry)
+                    except Exception as e:
+                        print(f" Warning: Could not store resume item for {project_name}: {e}")
+                        import traceback
+                        traceback.print_exc()
+                
+                if projects_needing_resume:
+                    print("="*78 + "\n")
+                    print(f" Successfully stored {len(projects_needing_resume)} resume item(s) in the database")
+            elif resume_items_by_project:
+                print("="*78 + "\n")
+                print(f" All {len(resume_items_by_project)} resume item(s) retrieved from database")
 
         # Offer to save JSON
         print_separator()
