@@ -17,3 +17,4 @@ pgvector/
 sample_*.txt
 myapp.db
 src/myapp.db
+analysis_report.json
