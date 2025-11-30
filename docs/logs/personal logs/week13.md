@@ -37,7 +37,7 @@ Due to time constraints, I couldn’t finish implementing retrieval for previous
 - Summarize the top ranked projects + display only code files #188: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/188 
 - Unit testing for top ranked projects #189: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/189
 
-![alt text](image-3.png) 
+![alt text](image-3.png)
 ![alt text](image-4.png)
 ![alt text](image-5.png)
 ![alt text](image-6.png)
