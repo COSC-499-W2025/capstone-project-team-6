@@ -264,21 +264,76 @@ class GitAnalyzer:
                 return 0
         return 0
     
+    #def get_contributor_stats(self) -> List[ContributorStats]:
+    #    """
+    #    Get statistics for all contributors in the repository.
+    #    Returns:
+    #        List of ContributorStats objects, sorted by commit count (descending)
+    #    """
+    #    # 123  Author Name <email@example.com>"
+    #    output = self.run_git_command(['shortlog', '-sne', '--all'])
+    #    
+    #    if not output:
+    #        return []
+    #    
+    #    contributors = []
+    #    total_commits = 0
+    #    
+    #    # parse shortlog output
+    #    for line in output.split('\n'):
+    #        line = line.strip()
+    #        if not line:
+    #            continue
+    #        
+    #        # Extract data
+    #        #123 Name <email>"
+    #        match = re.match(r'(\d+)\s+(.+?)\s+<(.+?)>', line)
+    #        if match:
+    #            commit_count = int(match.group(1))
+    #            name = match.group(2).strip()
+    #            email = match.group(3).strip()
+    #            
+    #            total_commits += commit_count
+    #            
+    #            #commit date extraction
+    #            first_date, last_date = self.get_author_commit_dates(email)
+    #
+    #
+    #            contributors.append(ContributorStats(
+    #                name=name,
+    #                email=email,
+    #                commit_count=commit_count,
+    #                percentage=0.0,
+    #                first_commit_date=first_date,
+    #                last_commit_date=last_date
+    #            ))
+    #    
+    #    #calc percent
+    #    if total_commits > 0:
+    #        for contributor in contributors:
+    #            contributor.percentage = round(
+    #                (contributor.commit_count / total_commits) * 100, 2
+    #            )
+    #    
+    #    contributors.sort(key=lambda x: x.commit_count, reverse=True)
+    #    
+    #    return contributors
+
     def get_contributor_stats(self) -> List[ContributorStats]:
         """
         Get statistics for all contributors in the repository.
+
         Returns:
             List of ContributorStats objects, sorted by commit count (descending)
         """
         # 123  Author Name <email@example.com>"
         output = self.run_git_command(['shortlog', '-sne', '--all'])
-        
+
         if not output:
             return []
-        
-        contributors = []
-        total_commits = 0
-        
+
+        email_to_data = {}
+
         # parse shortlog output
         for line in output.split('\n'):
             line = line.strip()
@@ -286,39 +341,60 @@ class GitAnalyzer:
                 continue
             
             # Extract data
-            #123 Name <email>"
             match = re.match(r'(\d+)\s+(.+?)\s+<(.+?)>', line)
             if match:
                 commit_count = int(match.group(1))
                 name = match.group(2).strip()
                 email = match.group(3).strip()
-                
-                total_commits += commit_count
-                
-                #commit date extraction
-                first_date, last_date = self.get_author_commit_dates(email)
 
+                # normalize email
+                normalized_email = self.normalize_email(email)
 
-                contributors.append(ContributorStats(
-                    name=name,
-                    email=email,
-                    commit_count=commit_count,
-                    percentage=0.0,
-                    first_commit_date=first_date,
-                    last_commit_date=last_date
-                ))
-        
+                if normalized_email not in email_to_data:
+                    email_to_data[normalized_email] = {
+                        'names': [],
+                        'commit_count': 0,
+                        'original_email': email
+                    }
+
+                
+                email_to_data[normalized_email]['names'].append(name)
+                email_to_data[normalized_email]['commit_count'] += commit_count
+
+        # make list
+        contributors = []
+        total_commits = 0
+
+        for normalized_email, data in email_to_data.items():
+            best_name = self.choose_best_name(data['names'])
+
+            commit_count = data['commit_count']
+            original_email = data['original_email']
+
+            total_commits += commit_count
+
+            first_date, last_date = self.get_author_commit_dates(original_email)
+
+            contributors.append(ContributorStats(
+                name=best_name,
+                email=original_email,
+                commit_count=commit_count,
+                percentage=0.0,
+                first_commit_date=first_date,
+                last_commit_date=last_date
+            ))
+
         #calc percent
         if total_commits > 0:
             for contributor in contributors:
                 contributor.percentage = round(
                     (contributor.commit_count / total_commits) * 100, 2
                 )
-        
+
         contributors.sort(key=lambda x: x.commit_count, reverse=True)
-        
+
         return contributors
-    
+
     def get_author_commit_dates(self, email: str) -> tuple[Optional[str], Optional[str]]:
         """
         Get first and last commit dates for a specific author in one Git call.
@@ -332,9 +408,9 @@ class GitAnalyzer:
         # Get ALL commit dates by this author, oldest first
         output = self.run_git_command([
             'log',
-            '--all',              # Search all branches
+            '--all',              
             '--author=' + email,
-            '--format=%aI',       # ISO 8601 format
+            '--format=%aI',       
             '--reverse',          # Oldest first
         ])
 
@@ -344,42 +420,58 @@ class GitAnalyzer:
         # Split into individual dates
         dates = output.strip().split('\n')
 
-        # Handle empty or invalid results
         if not dates or dates == ['']:
             return None, None
 
-        # First date is the oldest (we used --reverse)
-        # Last date is the newest (last item in list)
         first_date = dates[0]
         last_date = dates[-1]
 
         return first_date, last_date
     
-    def get_author_first_commit_date(self, email: str) -> Optional[str]:
+    def normalize_email(self, email: str) -> str:
         """
-        Get the date of the first commit by a specific author.
+        Normalize email addresses for consistent matching.
+        Args:
+            email: Raw email address
+
+        Returns:
+            Normalized email address
         """
-        output = self.run_git_command([
-            'log',
-            '--author=' + email,
-            '--format=%aI',  
-            '--reverse',  
-            '--max-count=1'
-        ])
-        return output if output else None
-    
-    def get_author_last_commit_date(self, email: str) -> Optional[str]:
+        email = email.lower().strip()
+
+        # GitHub noreply emails: "12345+username@users.noreply.github.com"
+
+        return email
+
+    def choose_best_name(self, names: List[str]) -> str:
         """
-        Get the date of the most recent commit by a specific author.
+        Strategy:
+        1. Prefer longer names (more complete)
+        2. Prefer names with capitals (proper formatting)
+        3. Prefer most common name (if tie)
         """
-        output = self.run_git_command([
-            'log',
-            '--author=' + email,
-            '--format=%aI',
-            '--max-count=1'
-        ])
-        return output if output else None
-    
+        if not names:
+            return "Unknown"
+
+        if len(names) == 1:
+            return names[0]
+
+        from collections import Counter
+        name_counts = Counter(names)
+
+        most_common = name_counts.most_common()
+
+        if most_common[0][1] > most_common[1][1]:
+            return most_common[0][0]
+
+        top_names = [name for name, count in most_common if count == most_common[0][1]]
+
+        capitalized = [n for n in top_names if any(c.isupper() for c in n)]
+        if capitalized:
+            return max(capitalized, key=len)
+
+        return max(top_names, key=len)
+
     def get_primary_branch(self) -> Optional[str]:
         """
         Returns:
