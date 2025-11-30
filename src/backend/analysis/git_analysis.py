@@ -296,9 +296,9 @@ class GitAnalyzer:
                 total_commits += commit_count
                 
                 #commit date extraction
-                first_date = self.get_author_first_commit_date(email)
-                last_date = self.get_author_last_commit_date(email)
-                
+                first_date, last_date = self.get_author_commit_dates(email)
+
+
                 contributors.append(ContributorStats(
                     name=name,
                     email=email,
@@ -319,6 +319,42 @@ class GitAnalyzer:
         
         return contributors
     
+    def get_author_commit_dates(self, email: str) -> tuple[Optional[str], Optional[str]]:
+        """
+        Get first and last commit dates for a specific author in one Git call.
+
+        Args:
+            email: Author's email address
+
+        Returns:
+            Tuple of (first_commit_date, last_commit_date) or (None, None) if no commits
+        """
+        # Get ALL commit dates by this author, oldest first
+        output = self.run_git_command([
+            'log',
+            '--all',              # Search all branches
+            '--author=' + email,
+            '--format=%aI',       # ISO 8601 format
+            '--reverse',          # Oldest first
+        ])
+
+        if not output:
+            return None, None
+
+        # Split into individual dates
+        dates = output.strip().split('\n')
+
+        # Handle empty or invalid results
+        if not dates or dates == ['']:
+            return None, None
+
+        # First date is the oldest (we used --reverse)
+        # Last date is the newest (last item in list)
+        first_date = dates[0]
+        last_date = dates[-1]
+
+        return first_date, last_date
+    
     def get_author_first_commit_date(self, email: str) -> Optional[str]:
         """
         Get the date of the first commit by a specific author.
@@ -326,8 +362,8 @@ class GitAnalyzer:
         output = self.run_git_command([
             'log',
             '--author=' + email,
-            '--format=%aI',  # ISO 8601 format
-            '--reverse',  # Oldest first
+            '--format=%aI',  
+            '--reverse',  
             '--max-count=1'
         ])
         return output if output else None
@@ -339,7 +375,7 @@ class GitAnalyzer:
         output = self.run_git_command([
             'log',
             '--author=' + email,
-            '--format=%aI',  # ISO 8601 format
+            '--format=%aI',
             '--max-count=1'
         ])
         return output if output else None
