@@ -58,3 +58,5 @@ ollama==0.3.2
 libclang
 # Resilience
 tenacity>=8.2.3
+#Gemini
+google-genai
