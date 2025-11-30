@@ -20,7 +20,8 @@ sys.path.insert(0, str(src_dir))
 sys.path.insert(0, str(backend_dir))
 
 from analysis.deep_code_analyzer import generate_comprehensive_report
-from analysis.resume_generator import print_resume_items, generate_formatted_resume_entry
+from analysis.resume_generator import (generate_formatted_resume_entry,
+                                       print_resume_items)
 
 from backend.analysis_database import init_db, record_analysis
 
