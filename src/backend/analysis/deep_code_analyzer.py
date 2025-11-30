@@ -496,43 +496,13 @@ def generate_comprehensive_report(zip_path: Path, output_path: Optional[Path] = 
                     java_analysis = analyze_java_project(zip_path, project_path)
                     report["projects"][i]["java_oop_analysis"] = java_analysis["java_oop_analysis"]
                 except ImportError:
-                    report["projects"][i]["java_oop_analysis"] = {
+                    report["projects"][i]["java_oop_analyzer"] = {
                         "error": "Java analyzer not available (javalang not installed)",
                         "total_classes": 0,
                     }
                 except Exception as e:
                     # If deep analysis fails, add error info
                     report["projects"][i]["java_oop_analysis"] = {"error": str(e), "total_classes": 0}
-
-            if "cpp" in project.get("languages", {}):
-                try:
-                    from .cpp_oop_analyzer import analyze_cpp_project
-
-                    cpp_analysis = analyze_cpp_project(zip_path, project_path)
-                    report["projects"][i]["cpp_oop_analysis"] = cpp_analysis["cpp_oop_analysis"]
-                except ImportError:
-                    report["projects"][i]["cpp_oop_analysis"] = {
-                        "error": "C++ analyzer not available (libclang not installed)",
-                        "total_classes": 0,
-                    }
-                except Exception as e:
-                    # If deep analysis fails, add error info
-                    report["projects"][i]["cpp_oop_analysis"] = {"error": str(e), "total_classes": 0}
-
-            if "c" in project.get("languages", {}):
-                try:
-                    from .c_oop_analyzer import analyze_c_project
-
-                    c_analysis = analyze_c_project(zip_path, project_path)
-                    report["projects"][i]["c_oop_analysis"] = c_analysis["c_oop_analysis"]
-                except ImportError:
-                    report["projects"][i]["c_oop_analysis"] = {
-                        "error": "C analyzer not available (libclang not installed)",
-                        "total_structs": 0,
-                    }
-                except Exception as e:
-                    # If deep analysis fails, add error info
-                    report["projects"][i]["c_oop_analysis"] = {"error": str(e), "total_structs": 0}
     # Save to file if requested
     if output_path:
         import json

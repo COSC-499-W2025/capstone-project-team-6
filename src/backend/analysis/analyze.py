@@ -57,6 +57,39 @@ def main():
 
     try:
         report = generate_comprehensive_report(zip_path)
+
+        # Add C++ and C analysis to the report
+        for i, project in enumerate(report["projects"]):
+            project_path = project.get("project_path", "")
+
+            # C++ Analysis
+            if "cpp" in project.get("languages", {}):
+                try:
+                    from analysis.cpp_oop_analyzer import analyze_cpp_project
+                    cpp_analysis = analyze_cpp_project(zip_path, project_path)
+                    report["projects"][i]["cpp_oop_analysis"] = cpp_analysis["cpp_oop_analysis"]
+                except ImportError:
+                    report["projects"][i]["cpp_oop_analysis"] = {
+                        "error": "C++ analyzer not available (libclang not installed)",
+                        "total_classes": 0,
+                    }
+                except Exception as e:
+                    report["projects"][i]["cpp_oop_analysis"] = {"error": str(e), "total_classes": 0}
+
+            # C Analysis
+            if "c" in project.get("languages", {}):
+                try:
+                    from analysis.c_oop_analyzer import analyze_c_project
+                    c_analysis = analyze_c_project(zip_path, project_path)
+                    report["projects"][i]["c_oop_analysis"] = c_analysis["c_oop_analysis"]
+                except ImportError:
+                    report["projects"][i]["c_oop_analysis"] = {
+                        "error": "C analyzer not available (libclang not installed)",
+                        "total_structs": 0,
+                    }
+                except Exception as e:
+                    report["projects"][i]["c_oop_analysis"] = {"error": str(e), "total_structs": 0}
+
         report["analysis_metadata"] = {
             "zip_file": str(zip_path.absolute()),
             "analysis_timestamp": datetime.now().isoformat(),
@@ -337,6 +370,102 @@ def main():
                 print(f"\nCoding Style: {coding_style}")
         else:
             print("\nNo Java projects found for OOP analysis.")
+
+        # Analyze C++ projects
+        cpp_projects = [p for p in report["projects"] if "cpp" in p.get("languages", {})]
+
+        if cpp_projects:
+            print(f"\n{'*' * 70}")
+            print(f"  C++ OOP ANALYSIS")
+            print(f"{'*' * 70}\n")
+
+            for i, project in enumerate(cpp_projects, 1):
+                if "cpp_oop_analysis" not in project:
+                    continue
+
+                print(f"\n{'-' * 70}")
+                print(f"Project {i}: {project['project_name']}")
+                print(f"{'-' * 70}")
+
+                cpp_oop = project["cpp_oop_analysis"]
+
+                if "error" in cpp_oop:
+                    print(f"\nError during analysis: {cpp_oop['error']}\n")
+                    continue
+
+                print(f"\nOOP Metrics:")
+                print(f"  Total Classes: {cpp_oop['total_classes']}")
+                print(f"  Abstract classes: {cpp_oop['abstract_classes']}")
+                print(f"  Classes with Inheritance: {cpp_oop['classes_with_inheritance']}")
+                print(f"  Inheritance depth: {cpp_oop['inheritance_depth']}")
+
+                print(f"\nEncapsulation:")
+                print(f"  Private methods: {cpp_oop['private_methods']}")
+                print(f"  Protected methods: {cpp_oop['protected_methods']}")
+                print(f"  Public methods: {cpp_oop['public_methods']}")
+
+                print(f"\nPolymorphism:")
+                print(f"  Virtual methods: {cpp_oop['virtual_methods']}")
+                print(f"  Operator overloads: {cpp_oop['operator_overloads']}")
+
+                print(f"\nC++-Specific Features:")
+                print(f"  Templates: {cpp_oop['template_classes']}")
+                print(f"  Namespaces: {cpp_oop['namespace_count']}")
+        else:
+            print("\nNo C++ projects found for OOP analysis.")
+
+        # Analyze C projects
+        c_projects = [p for p in report["projects"] if "c" in p.get("languages", {})]
+
+        if c_projects:
+            print(f"\n{'*' * 70}")
+            print(f"  C OOP-STYLE ANALYSIS")
+            print(f"{'*' * 70}\n")
+
+            for i, project in enumerate(c_projects, 1):
+                if "c_oop_analysis" not in project:
+                    continue
+
+                print(f"\n{'-' * 70}")
+                print(f"Project {i}: {project['project_name']}")
+                print(f"{'-' * 70}")
+
+                c_oop = project["c_oop_analysis"]
+
+                if "error" in c_oop:
+                    print(f"\nError during analysis: {c_oop['error']}\n")
+                    continue
+
+                print(f"\nOOP-Style Metrics:")
+                print(f"  Total Structs: {c_oop['total_structs']}")
+                print(f"  Structs with function pointers: {c_oop['structs_with_function_pointers']}")
+                print(f"  Function pointer fields: {c_oop['function_pointer_fields']}")
+
+                print(f"\nEncapsulation Patterns:")
+                print(f"  Opaque pointer patterns: {c_oop['opaque_pointer_patterns']}")
+                print(f"  Init/cleanup patterns: {c_oop['init_cleanup_patterns']}")
+
+                print(f"\nPolymorphism Patterns:")
+                print(f"  Callback patterns: {c_oop['callback_patterns']}")
+
+                # Calculate OOP-style score
+                score = 0
+                if c_oop["total_structs"] > 0:
+                    score += 1
+                if c_oop["structs_with_function_pointers"] > 0:
+                    score += 1
+                if c_oop["opaque_pointer_patterns"] > 0:
+                    score += 1
+                if c_oop["init_cleanup_patterns"] > 0:
+                    score += 1
+                if c_oop["callback_patterns"] > 0:
+                    score += 1
+
+                print(f"\nOOP-Style Score: {score}/5")
+                print(f"Coding Style: {'Object-Oriented C' if score >= 3 else 'Procedural C'}")
+        else:
+            print("\nNo C projects found for OOP-style analysis.")
+
         print_separator("STORING ANALYSIS IN DATABASE")
         try:
             analysis_id = record_analysis(analysis_type="non_llm", payload=report)

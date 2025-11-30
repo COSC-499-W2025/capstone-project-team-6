@@ -135,6 +135,7 @@ def analyze_folder(path: Path) -> dict:
         ValueError: If path is neither a directory nor a ZIP file
         zipfile.BadZipFile: If ZIP file is corrupted
     """
+    from datetime import datetime
     temp_zip = None
     try:
         # Determine if we need to create a ZIP
@@ -147,9 +148,48 @@ def analyze_folder(path: Path) -> dict:
         else:
             raise ValueError(f"Path must be a directory or ZIP file: {path}")
 
-        # Run comprehensive analysis
+        # Run comprehensive analysis (Python/Java)
         print(f"Running analysis pipeline...")
         report = generate_comprehensive_report(zip_path)
+
+        # Add C++ and C analysis to the report
+        for i, project in enumerate(report["projects"]):
+            project_path = project.get("project_path", "")
+
+            # C++ Analysis
+            if "cpp" in project.get("languages", {}):
+                try:
+                    from .analysis.cpp_oop_analyzer import analyze_cpp_project
+                    cpp_analysis = analyze_cpp_project(zip_path, project_path)
+                    report["projects"][i]["cpp_oop_analysis"] = cpp_analysis["cpp_oop_analysis"]
+                except ImportError:
+                    report["projects"][i]["cpp_oop_analysis"] = {
+                        "error": "C++ analyzer not available (libclang not installed)",
+                        "total_classes": 0,
+                    }
+                except Exception as e:
+                    report["projects"][i]["cpp_oop_analysis"] = {"error": str(e), "total_classes": 0}
+
+            # C Analysis
+            if "c" in project.get("languages", {}):
+                try:
+                    from .analysis.c_oop_analyzer import analyze_c_project
+                    c_analysis = analyze_c_project(zip_path, project_path)
+                    report["projects"][i]["c_oop_analysis"] = c_analysis["c_oop_analysis"]
+                except ImportError:
+                    report["projects"][i]["c_oop_analysis"] = {
+                        "error": "C analyzer not available (libclang not installed)",
+                        "total_structs": 0,
+                    }
+                except Exception as e:
+                    report["projects"][i]["c_oop_analysis"] = {"error": str(e), "total_structs": 0}
+
+        # Add analysis metadata
+        report["analysis_metadata"] = {
+            "zip_file": str(zip_path.absolute()),
+            "analysis_timestamp": datetime.now().isoformat(),
+            "total_projects": len(report["projects"]),
+        }
 
         return report
 
@@ -280,6 +320,32 @@ def display_analysis(results: dict) -> None:
             overloads = oop.get("operator_overloads", 0)
             if overloads > 0:
                 print(f"   Polymorphism: {overloads} operator overloads")
+
+        # OOP Analysis (for Java projects)
+        java_oop = project.get("java_oop_analysis", {})
+        if java_oop and java_oop.get("total_classes", 0) > 0:
+            print(f"\nOOP Analysis (Java):")
+            print(f"   Classes: {java_oop.get('total_classes', 0)}")
+            print(f"   Interfaces: {java_oop.get('interface_count', 0)}")
+            print(f"   Enums: {java_oop.get('enum_count', 0)}")
+
+            abstract = java_oop.get("abstract_classes", [])
+            if abstract:
+                print(f"   Abstraction: {len(abstract)} abstract classes")
+
+            private = java_oop.get("private_methods", 0)
+            protected = java_oop.get("protected_methods", 0)
+            if private > 0 or protected > 0:
+                print(f"   Encapsulation: {private} private, {protected} protected methods")
+
+            inheritance = java_oop.get("classes_with_inheritance", 0)
+            if inheritance > 0:
+                print(f"   Inheritance: {inheritance} classes")
+
+            overrides = java_oop.get("override_count", 0)
+            overloads_java = java_oop.get("method_overloads", 0)
+            if overrides > 0 or overloads_java > 0:
+                print(f"   Polymorphism: {overrides} overrides, {overloads_java} overloads")
 
         # OOP Analysis (for C++ projects)
         cpp_oop = project.get("cpp_oop_analysis", {})
