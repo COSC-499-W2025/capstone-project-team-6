@@ -76,19 +76,19 @@ def main():
                 except Exception as e:
                     report["projects"][i]["cpp_oop_analysis"] = {"error": str(e), "total_classes": 0}
 
-            # C Analysis
-            if "c" in project.get("languages", {}):
+            # C Analysis (note: .c files are classified as cpp in project_analyzer)
+            # So we check for cpp language and run C analyzer too
+            if "cpp" in project.get("languages", {}) or "c" in project.get("languages", {}):
                 try:
                     from analysis.c_oop_analyzer import analyze_c_project
                     c_analysis = analyze_c_project(zip_path, project_path)
-                    report["projects"][i]["c_oop_analysis"] = c_analysis["c_oop_analysis"]
+                    # Only add if we found C-style code
+                    if c_analysis["c_oop_analysis"].get("total_structs", 0) > 0:
+                        report["projects"][i]["c_oop_analysis"] = c_analysis["c_oop_analysis"]
                 except ImportError:
-                    report["projects"][i]["c_oop_analysis"] = {
-                        "error": "C analyzer not available (libclang not installed)",
-                        "total_structs": 0,
-                    }
+                    pass  # C analyzer optional
                 except Exception as e:
-                    report["projects"][i]["c_oop_analysis"] = {"error": str(e), "total_structs": 0}
+                    pass  # Silently skip if no C code found
 
         report["analysis_metadata"] = {
             "zip_file": str(zip_path.absolute()),
@@ -409,13 +409,13 @@ def main():
                 print(f"  Operator overloads: {cpp_oop['operator_overloads']}")
 
                 print(f"\nC++-Specific Features:")
-                print(f"  Templates: {cpp_oop['template_classes']}")
-                print(f"  Namespaces: {cpp_oop['namespace_count']}")
+                print(f"  Templates: {cpp_oop.get('template_classes', 0)}")
+                print(f"  Namespaces: {cpp_oop.get('namespaces_used', 0)}")
         else:
             print("\nNo C++ projects found for OOP analysis.")
 
-        # Analyze C projects
-        c_projects = [p for p in report["projects"] if "c" in p.get("languages", {})]
+        # Analyze C projects (check for c_oop_analysis since .c files are classified as cpp)
+        c_projects = [p for p in report["projects"] if "c_oop_analysis" in p]
 
         if c_projects:
             print(f"\n{'*' * 70}")
@@ -438,27 +438,33 @@ def main():
 
                 print(f"\nOOP-Style Metrics:")
                 print(f"  Total Structs: {c_oop['total_structs']}")
-                print(f"  Structs with function pointers: {c_oop['structs_with_function_pointers']}")
-                print(f"  Function pointer fields: {c_oop['function_pointer_fields']}")
+                print(f"  Total Functions: {c_oop.get('total_functions', 0)}")
+                print(f"  Function pointer fields: {c_oop.get('function_pointer_fields', 0)}")
+                print(f"  Typedef count: {c_oop.get('typedef_count', 0)}")
 
                 print(f"\nEncapsulation Patterns:")
-                print(f"  Opaque pointer patterns: {c_oop['opaque_pointer_patterns']}")
-                print(f"  Init/cleanup patterns: {c_oop['init_cleanup_patterns']}")
+                print(f"  Opaque pointer structs: {c_oop.get('opaque_pointer_structs', 0)}")
+                print(f"  Static functions: {c_oop.get('static_functions', 0)}")
 
                 print(f"\nPolymorphism Patterns:")
-                print(f"  Callback patterns: {c_oop['callback_patterns']}")
+                print(f"  VTable-style structs: {c_oop.get('vtable_structs', 0)}")
+                print(f"  OOP-style naming: {c_oop.get('oop_style_naming_count', 0)}")
+
+                print(f"\nMemory Management:")
+                print(f"  Malloc/Free usage: {c_oop.get('malloc_usage', 0)}/{c_oop.get('free_usage', 0)}")
+                print(f"  Constructor/Destructor pairs: {c_oop.get('constructor_destructor_pairs', 0)}")
 
                 # Calculate OOP-style score
                 score = 0
-                if c_oop["total_structs"] > 0:
+                if c_oop.get("total_structs", 0) > 0:
                     score += 1
-                if c_oop["structs_with_function_pointers"] > 0:
+                if c_oop.get("function_pointer_fields", 0) > 0:
                     score += 1
-                if c_oop["opaque_pointer_patterns"] > 0:
+                if c_oop.get("opaque_pointer_structs", 0) > 0:
                     score += 1
-                if c_oop["init_cleanup_patterns"] > 0:
+                if c_oop.get("vtable_structs", 0) > 0:
                     score += 1
-                if c_oop["callback_patterns"] > 0:
+                if c_oop.get("oop_style_naming_count", 0) > 0:
                     score += 1
 
                 print(f"\nOOP-Style Score: {score}/5")

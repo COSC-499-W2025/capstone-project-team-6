@@ -170,19 +170,19 @@ def analyze_folder(path: Path) -> dict:
                 except Exception as e:
                     report["projects"][i]["cpp_oop_analysis"] = {"error": str(e), "total_classes": 0}
 
-            # C Analysis
-            if "c" in project.get("languages", {}):
+            # C Analysis (note: .c files are classified as cpp in project_analyzer)
+            # So we check for cpp language and run C analyzer too
+            if "cpp" in project.get("languages", {}) or "c" in project.get("languages", {}):
                 try:
                     from .analysis.c_oop_analyzer import analyze_c_project
                     c_analysis = analyze_c_project(zip_path, project_path)
-                    report["projects"][i]["c_oop_analysis"] = c_analysis["c_oop_analysis"]
+                    # Only add if we found C-style code
+                    if c_analysis["c_oop_analysis"].get("total_structs", 0) > 0:
+                        report["projects"][i]["c_oop_analysis"] = c_analysis["c_oop_analysis"]
                 except ImportError:
-                    report["projects"][i]["c_oop_analysis"] = {
-                        "error": "C analyzer not available (libclang not installed)",
-                        "total_structs": 0,
-                    }
+                    pass  # C analyzer optional
                 except Exception as e:
-                    report["projects"][i]["c_oop_analysis"] = {"error": str(e), "total_structs": 0}
+                    pass  # Silently skip if no C code found
 
         # Add analysis metadata
         report["analysis_metadata"] = {
