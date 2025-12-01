@@ -158,3 +158,47 @@ November 24-November 30
 - When running our CLI, at the end when it asks for the output to be stored as json, our code does not account for users to enter something other than y/n. I plan to fix this error in our code and have it handle different user inputs!
 
 # Mohamed Sakr
+## Date Ranges
+
+November 24-November 30
+![MohamedWeek 13](images/mohamedW13.png)
+
+## Weekly recap goals
+- Refactor `llm_pipeline` and `gemini_file_search` to use `google-genai` SDK
+- Implement deep semantic analysis lenses (Architecture, Complexity, Security, Skills, Domain)
+- Integrate `rich` library for CLI output and add JSON export
+- Ingest offline analysis report into RAG model
+- Review teammates’ PRs
+- Study for Quiz 2 and complete the quiz
+
+## What went well
+I successfully refactored the `llm_pipeline` and `gemini_file_search` modules to migrate to the modern `google-genai` SDK (v1.5+). This resolved a critical `TypeError` during file uploading and fixed data quality issues regarding macOS system files.
+
+I implemented comprehensive Deep Semantic Analysis features, allowing users to trigger specific lenses via CLI flags:
+- **Architecture**: Design pattern critiques, anti-pattern detection, and data flow tracing.
+- **Complexity**: Efficiency gap analysis, data structure maturity, and concurrency audits.
+- **Security**: Logical flaw detection, trust boundary analysis, and error handling maturity.
+- **Skills & Domain**: Developer profiling (refactoring, testing psychology) and framework/API fluency checks.
+
+Furthermore, I improved the User Interface by integrating the `rich` library for Markdown rendering, project statistics tables, and error panels in the terminal, alongside a JSON export feature. The full offline analysis report is now also ingested into the RAG model for deeper insights.
+
+## What didn't go well
+The migration to the `google-genai` SDK, while necessary, presented documentation gaps that made mapping legacy API calls to the new v1.5+ schema time-consuming, particularly for file state management. Additionally, prompt engineering for the specific analysis lenses required significantly more iterations than anticipated to ensure the LLM provided distinct, non-generic insights for categories like "Soft Skills" versus "Architecture." I also encountered intermittent rate-limiting issues during the RAG ingestion of larger codebases, which required implementing more robust backoff strategies.
+
+## Plan for next week
+- Refine prompt engineering for the "Soft Skills" and "Domain Competency" lenses to improve insight specificity.
+- Optimize the RAG ingestion process to better handle large context windows and prevent timeouts.
+- Update project documentation to verify the new deep analysis CLI flags and `rich` output features.
+- Collaborate with the team to finalize the Milestone 1 submission and presentation.
+
+## PR's initiated
+- Deep Semantic Analysis Core Features #181 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/181
+- Deep RAG Analytical Features #185 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/185
+
+## PR's reviewed
+- Unit tests for deletion workflow #184 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/184
+- cli analysis integration #179 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/179
+- Add Resume Data Tables and Retrieval Functions with Analysis/Resume Caching #175 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/175
+- Unit tests for the resume generator #169 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/169
+- C oop #154 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/154
+
