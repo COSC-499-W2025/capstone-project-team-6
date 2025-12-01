@@ -16,7 +16,8 @@ from .analysis.deep_code_analyzer import generate_comprehensive_report
 from .analysis.document_analyzer import DocumentAnalysis, analyze_document
 from .analysis_database import init_db
 from .consent import ask_for_consent
-from .text_extractor import extract_text
+
+# Avoid importing heavy optional dependencies at module import time
 
 
 def handle_first_time_consent(username: str) -> bool:
@@ -522,7 +523,9 @@ def analyze_essay(file_path: Path) -> DocumentAnalysis:
     Returns:
         DocumentAnalysis object with results
     """
-    # Extract text from the document
+    # Extract text from the document (lazy import to avoid optional deps blocking other commands)
+    from .text_extractor import extract_text
+
     text = extract_text(str(file_path))
 
     if not text or len(text.strip()) < 100:
@@ -637,6 +640,9 @@ def main() -> int:
     llm_parser = subparsers.add_parser("analyze-llm", help="Analyze code using AI (Gemini)")
     llm_parser.add_argument("path", help="Path to the ZIP file to analyze")
     llm_parser.add_argument("--prompt", help="Custom analysis prompt (optional)")
+    # Timeline command
+    timeline_parser = subparsers.add_parser("timeline", help="Show chronological timelines from stored analyses")
+    timeline_parser.add_argument("type", choices=["projects", "skills"], help="Timeline type to display")
 
     # Consent command
     consent_parser = subparsers.add_parser("consent", help="View or update consent status")
@@ -897,6 +903,49 @@ def main() -> int:
 
                 traceback.print_exc()
                 return 1
+        elif args.command == "timeline":
+            # No login/consent required to view previously stored aggregate timelines
+            from .analysis.chronology import (get_projects_timeline,
+                                              get_skills_timeline)
+
+            try:
+                init_db()
+            except Exception:
+                pass
+
+            if args.type == "projects":
+                entries = get_projects_timeline()
+                if not entries:
+                    print("\nNo projects found in the analysis database.")
+                    return 0
+                print("\nProjects Timeline (by analysis date):")
+                for i, e in enumerate(entries, 1):
+                    print(f"  {i}. {e.analysis_timestamp} — {e.project_name}")
+                    if e.primary_language:
+                        print(f"     Language: {e.primary_language}")
+                    if e.total_files is not None:
+                        print(f"     Files: {e.total_files}")
+                    if e.has_tests is not None:
+                        print(f"     Tests: {'yes' if e.has_tests else 'no'}")
+                    if e.has_ci_cd is not None:
+                        print(f"     CI/CD: {'yes' if e.has_ci_cd else 'no'}")
+                    if e.has_docker is not None:
+                        print(f"     Docker: {'yes' if e.has_docker else 'no'}")
+                return 0
+
+            elif args.type == "skills":
+                entries = get_skills_timeline()
+                if not entries:
+                    print("\nNo skills found in the analysis database.")
+                    return 0
+                print("\nSkills Timeline (by analysis date):")
+                for i, e in enumerate(entries, 1):
+                    langs = ", ".join(e.skills.get("languages", [])) or "-"
+                    fws = ", ".join(e.skills.get("frameworks", [])) or "-"
+                    print(f"  {i}. {e.date}")
+                    print(f"     Languages: {langs}")
+                    print(f"     Frameworks: {fws}")
+                return 0
 
     except KeyboardInterrupt:
         print("\n\nInterrupted by user. Exiting.")
