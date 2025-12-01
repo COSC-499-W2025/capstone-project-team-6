@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import List, Dict, Any, Optional
 import sqlite3
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 from .. import analysis_database as db
 
@@ -74,9 +74,7 @@ def get_skills_timeline() -> List[SkillEntry]:
     """
     with db.get_connection() as conn:
         conn.execute("PRAGMA foreign_keys = ON;")
-        analyses = conn.execute(
-            "SELECT id, analysis_timestamp FROM analyses ORDER BY analysis_timestamp ASC"
-        ).fetchall()
+        analyses = conn.execute("SELECT id, analysis_timestamp FROM analyses ORDER BY analysis_timestamp ASC").fetchall()
 
         timeline: List[SkillEntry] = []
         for arow in analyses:

@@ -16,6 +16,7 @@ from .analysis.deep_code_analyzer import generate_comprehensive_report
 from .analysis.document_analyzer import DocumentAnalysis, analyze_document
 from .analysis_database import init_db
 from .consent import ask_for_consent
+
 # Avoid importing heavy optional dependencies at module import time
 
 
@@ -407,6 +408,7 @@ def analyze_essay(file_path: Path) -> DocumentAnalysis:
     """
     # Extract text from the document (lazy import to avoid optional deps blocking other commands)
     from .text_extractor import extract_text
+
     text = extract_text(str(file_path))
 
     if not text or len(text.strip()) < 100:
@@ -705,7 +707,8 @@ def main() -> int:
 
         elif args.command == "timeline":
             # No login/consent required to view previously stored aggregate timelines
-            from .analysis.chronology import get_projects_timeline, get_skills_timeline
+            from .analysis.chronology import (get_projects_timeline,
+                                              get_skills_timeline)
 
             try:
                 init_db()

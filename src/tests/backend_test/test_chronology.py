@@ -1,6 +1,6 @@
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 
@@ -9,7 +9,8 @@ SRC = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(SRC))
 
 from backend import analysis_database as db
-from backend.analysis.chronology import get_projects_timeline, get_skills_timeline
+from backend.analysis.chronology import (get_projects_timeline,
+                                         get_skills_timeline)
 
 
 def iso(ts: datetime) -> str:
@@ -111,4 +112,3 @@ def test_skills_timeline_collects_unique_per_analysis():
     assert set(skills[0].skills["frameworks"]) == {"Django"}
     assert set(skills[1].skills["languages"]) == {"JavaScript"}
     assert set(skills[1].skills["frameworks"]) == {"React"}
-
