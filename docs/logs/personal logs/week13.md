@@ -156,5 +156,5 @@ The migration to the `google-genai` SDK, while necessary, presented documentatio
 - cli analysis integration #179 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/179
 - Add Resume Data Tables and Retrieval Functions with Analysis/Resume Caching #175 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/175
 - Unit tests for the resume generator #169 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/169
-
+- C oop #154 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/154
 
