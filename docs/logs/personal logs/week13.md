@@ -112,5 +112,49 @@ Additionally, coordinating the integration of multiple features simultaneously (
 - Add documentation for the new analyze-llm command
 
 # Harjot Sahota
+<img width="1077" height="632" alt="Screenshot 2025-11-30 at 4 01 01 PM" src="https://github.com/user-attachments/assets/ed0477a7-1cef-48b0-be23-59dd3c715fe7" />
+
+## Date Ranges
+November 24-November 30
+
+## Weekly recap goals
+- Implemented and integrated the new portfolio item generator into the backend analysis pipeline.
+- Ensured portfolio items save to the database alongside resume items.
+- Built a full automated test suite for the portfolio generator.
+
+## What went well
+- Successfully built the full portfolio_item_generator.py with architecture, contributions, skills, and overview generation.
+- Fully integrated portfolio generation into analyze.py without duplicating OOP analysis or breaking existing resume logic.
+- Created a comprehensive test suite (quality score, architecture, contributions, skills, and full item generation) — all tests pass.
+- Cleanly resolved merge conflicts and ensured compatibility with Development.
+
+## What didn't go well
+- Integration required reorganizing parts of analyze.py to avoid duplicated or misplaced logic.
+- My portfolio analysis does not yet evaluate C, C++, Git activity, or document files because those analyzers were not integrated or merged into Development in time. This will be completed next sprint alongisde with proper tests for those specific analyzers to ensure full coverage and consistency with the existing pipeline.
+  
+## PR's initiated
+- portfolio item generator #187 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/187
+  
+<img width="1470" height="956" alt="Screenshot 2025-11-30 at 3 46 23 PM" src="https://github.com/user-attachments/assets/4d243227-cdcb-429d-bb46-0f0b78321e26" />
+
+## PR's reviewed
+- Further OOP analysis and design principles detection in Python #164 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/164
+- Mithish Week 13 logs #190 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/190
+- Unit tests for the resume generator #169 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/169
+- Deep Semantic Analysis Core Features #181 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/181
+- CLI integration analysis test #182 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/182
+- Unit tests for deletion workflow #184 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/184
+- Summarize the top ranked projects + display only code files #188 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/188
+  
+<img width="1221" height="262" alt="Screenshot 2025-11-30 at 3 54 58 PM" src="https://github.com/user-attachments/assets/0078b778-3e30-4442-beb5-e6457f552168" />
+<img width="1222" height="137" alt="Screenshot 2025-11-30 at 3 52 11 PM" src="https://github.com/user-attachments/assets/b5aff214-453f-418c-bd8e-eee558d6aafa" />
+<img width="1217" height="70" alt="Screenshot 2025-11-30 at 8 10 10 PM" src="https://github.com/user-attachments/assets/ba35c553-5d3b-4416-ab62-3e36867d9fca" />
+
+
+
+## Plan for next week
+- Extend the portfolio generator to incorporate insights from the new analyzers (C/C++ OOP metrics, Git contribution depth, documentation quality).
+- refractor portfolio genereator to produce a cleaner output i.e not including a summary length output, clean up format (i.e 1 class instead of 1 classes)
+- When running our CLI, at the end when it asks for the output to be stored as json, our code does not account for users to enter something other than y/n. I plan to fix this error in our code and have it handle different user inputs!
 
 # Mohamed Sakr
