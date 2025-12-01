@@ -23,8 +23,13 @@ from analysis.deep_code_analyzer import generate_comprehensive_report
 from analysis.resume_generator import (generate_formatted_resume_entry,
                                        print_resume_items)
 
-from backend.analysis.portfolio_item_generator import generate_portfolio_item
-from backend.analysis_database import init_db, record_analysis
+from backend.analysis_database import (
+    init_db,
+    record_analysis,
+    store_resume_item,
+    get_analysis_report,
+    get_resume_items_for_project,
+)
 
 
 def print_separator(title=""):
@@ -57,12 +62,21 @@ def main():
     print(f"Analyzing: {zip_path}")
 
     try:
-        report = generate_comprehensive_report(zip_path)
-        report["analysis_metadata"] = {
-            "zip_file": str(zip_path.absolute()),
-            "analysis_timestamp": datetime.now().isoformat(),
-            "total_projects": len(report["projects"]),
-        }
+        # Check if analysis already exists
+        zip_file_path = str(zip_path.absolute())
+        existing_report = get_analysis_report(zip_file_path)
+        
+        if existing_report:
+            print(f"\nFound existing analysis in database (from {existing_report.get('analysis_metadata', {}).get('analysis_timestamp', 'unknown time')})")
+            report = existing_report
+        else:
+            print("No existing analysis found. Running new analysis...\n")
+            report = generate_comprehensive_report(zip_path)
+            report["analysis_metadata"] = {
+                "zip_file": zip_file_path,
+                "analysis_timestamp": datetime.now().isoformat(),
+                "total_projects": len(report["projects"]),
+            }
 
         summary = report["summary"]
         print(f"Total Files: {summary['total_files']}")
@@ -199,9 +213,6 @@ def main():
         # Analyze Java projects
         java_projects = [p for p in report["projects"] if "java" in p.get("languages", {})]
 
-        # Analyze Java projects
-        java_projects = [p for p in report["projects"] if "java" in p.get("languages", {})]
-
         if java_projects:
             print(f"\n{'*' * 70}")
             print(f"  JAVA OOP ANALYSIS")
@@ -272,46 +283,14 @@ def main():
                 from dataclasses import dataclass, field
                 from typing import Dict, List
 
-                from analysis.java_oop_analyzer import (calculate_oop_score,
+                from analysis.java_oop_analyzer import (JavaOOPAnalysis, calculate_oop_score,
                                                         calculate_solid_score,
                                                         get_coding_style)
-
-                @dataclass
-                class JavaOOPAnalysis:
-                    total_classes: int = 0
-                    interface_count: int = 0
-                    abstract_classes: List[str] = field(default_factory=list)
-                    enum_count: int = 0
-                    private_methods: int = 0
-                    protected_methods: int = 0
-                    public_methods: int = 0
-                    package_methods: int = 0
-                    private_fields: int = 0
-                    protected_fields: int = 0
-                    public_fields: int = 0
-                    classes_with_inheritance: int = 0
-                    inheritance_depth: int = 0
-                    override_count: int = 0
-                    method_overloads: int = 0
-                    generic_classes: int = 0
-                    nested_classes: int = 0
-                    anonymous_classes: int = 0
-                    lambda_count: int = 0
-                    annotations: Dict[str, int] = field(default_factory=dict)
-                    design_patterns: List[str] = field(default_factory=list)
-                    getter_setter_pairs: int = 0
 
                 analysis_obj = JavaOOPAnalysis(**java_oop)
                 oop_score = calculate_oop_score(analysis_obj)
                 solid_score = calculate_solid_score(analysis_obj)
                 coding_style = get_coding_style(oop_score)
-
-                print(f"\nOOP Score: {oop_score}/6")
-                print(f"SOLID Score: {solid_score:.1f}/5.0")
-                print(f"Principles Used:")
-                print(
-                    f"  {'✓' if java_oop['total_classes'] > 0 or java_oop['interface_count'] > 0 else '✗'} Uses Classes/Interfaces"
-                )
 
                 print(f"\nOOP Score: {oop_score}/6")
                 print(f"SOLID Score: {solid_score:.1f}/5.0")
@@ -327,13 +306,80 @@ def main():
                     f"  {'✓' if java_oop['generic_classes'] > 0 or java_oop['annotations'] or java_oop['lambda_count'] > 0 else '✗'} Advanced Features"
                 )
 
-                print(
-                    f"  {'✓' if java_oop['generic_classes'] > 0 or java_oop['annotations'] or java_oop['lambda_count'] > 0 else '✗'} Advanced Features"
-                )
-
                 print(f"\nCoding Style: {coding_style}")
         else:
             print("\nNo Java projects found for OOP analysis.")
+        # Only store analysis if it's new
+        if not existing_report:
+            print_separator("STORING ANALYSIS IN DATABASE")
+            try:
+                analysis_id = record_analysis(analysis_type="non_llm", payload=report)
+                print(f"  Analysis successfully stored in database")
+                print(f"  Total Projects: {len(report['projects'])}")
+            except Exception as e:
+                print(f"  Error storing analysis in database: {e}")
+                import traceback
+
+                traceback.print_exc()
+        
+        # Ask user if they want to generate resume
+        print_separator()
+        generate_resume = input("Generate resume? (y/n): ").lower().strip()
+        
+        if generate_resume == "y":
+            print("\n" + "="*78)
+            print("  FULL RESUME")
+            print("="*78 + "\n")
+            from analysis.resume_generator import generate_full_resume, generate_formatted_resume_entry
+            
+            # Check if resume items already exist 
+            resume_items_by_project = {}
+            projects_needing_resume = []
+            
+            for project in report.get("projects", []):
+                project_name = project.get("project_name", "Unknown Project")
+                existing_resume_items = get_resume_items_for_project(project_name)
+                
+                if existing_resume_items:
+                    resume_items_by_project[project_name] = existing_resume_items[0]["resume_text"]
+                else:
+                    projects_needing_resume.append(project)
+            
+            # Display existing resume items
+            if resume_items_by_project:
+                print("Found existing resume items in database. Using cached resumes.\n")
+                for project in report.get("projects", []):
+                    project_name = project.get("project_name", "Unknown Project")
+                    if project_name in resume_items_by_project:
+                        print(resume_items_by_project[project_name])
+                        print()
+            
+            # Generate and store resumes for projects that don't have them
+            if projects_needing_resume:
+                if resume_items_by_project:
+                    print("Generating resumes for remaining projects...\n")
+                else:
+                    print("No existing resume items found. Generating new resumes.\n")
+                
+                for project in projects_needing_resume:
+                    project_name = project.get("project_name", "Unknown Project")
+                    resume_entry = generate_formatted_resume_entry(project)
+                    print(resume_entry)
+                    print()
+                    
+                    try:
+                        store_resume_item(project_name, resume_entry)
+                    except Exception as e:
+                        print(f" Warning: Could not store resume item for {project_name}: {e}")
+                        import traceback
+                        traceback.print_exc()
+                
+                if projects_needing_resume:
+                    print("="*78 + "\n")
+                    print(f" Successfully stored {len(projects_needing_resume)} resume item(s) in the database")
+            elif resume_items_by_project:
+                print("="*78 + "\n")
+                print(f" All {len(resume_items_by_project)} resume item(s) retrieved from database")
         for project in report["projects"]:
             try:
                 portfolio_item = generate_portfolio_item(project)

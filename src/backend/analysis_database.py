@@ -160,6 +160,17 @@ def init_db() -> None:
             );
             """
         )
+        
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS resume_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_name TEXT NOT NULL,
+                resume_text TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
 
         conn.commit()
 
@@ -393,3 +404,77 @@ def get_projects_for_analysis(analysis_id: int) -> List[sqlite3.Row]:
             "SELECT * FROM projects WHERE analysis_id = ? ORDER BY id",
             (analysis_id,),
         ).fetchall()
+
+
+def get_analysis_by_zip_file(zip_file: str) -> Optional[sqlite3.Row]:
+    """Get the most recent analysis for a given zip file path."""
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT * FROM analyses 
+            WHERE zip_file = ? 
+            ORDER BY created_at DESC 
+            LIMIT 1
+            """,
+            (zip_file,),
+        ).fetchone()
+
+
+def get_analysis_report(zip_file: str) -> Optional[Dict[str, Any]]:
+    """Retrieve the full analysis report (JSON) for a given zip file path."""
+    analysis = get_analysis_by_zip_file(zip_file)
+    if not analysis:
+        return None
+    
+    try:
+        return json.loads(analysis["raw_json"])
+    except (json.JSONDecodeError, KeyError):
+        return None
+
+def store_resume_item(project_name: str, resume_text: str) -> None:
+    if not project_name or not resume_text:
+        raise ValueError("project_name and resume_text are required")
+
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO resume_items (project_name, resume_text)
+            VALUES (?, ?)
+            """,
+            (project_name, resume_text),
+        )
+        conn.commit()
+
+def get_all_resume_items() -> List[sqlite3.Row]:
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT id, project_name, resume_text, created_at
+            FROM resume_items
+            ORDER BY created_at DESC
+            """
+        ).fetchall()
+def get_resume_items_for_project(project_name: str) -> List[sqlite3.Row]:
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT id, project_name, resume_text, created_at
+            FROM resume_items
+            WHERE project_name = ?
+            ORDER BY created_at DESC
+            """,
+            (project_name,),
+        ).fetchall()
+
+def delete_resume_item(item_id: int) -> None:
+    with get_connection() as conn:
+        conn.execute(
+            "DELETE FROM resume_items WHERE id = ?",
+            (item_id,),
+        )
+        conn.commit()
+
+def clear_resume_items() -> None:
+    with get_connection() as conn:
+        conn.execute("DELETE FROM resume_items")
+        conn.commit()
