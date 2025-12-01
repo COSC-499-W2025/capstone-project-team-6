@@ -3,22 +3,28 @@ LLM Analysis Pipeline
 Orchestrates the analysis of projects using Gemini File Search.
 """
 
+import json
 import logging
-import uuid
+import sys
 from pathlib import Path
-from typing import Any, Dict, Optional, Sequence
+from typing import Any, Dict, List, Optional
 
-from backend.analysis.metadata_extractor import MetadataExtractor
+from dotenv import load_dotenv
+
+from backend.analysis.deep_code_analyzer import generate_comprehensive_report
 from backend.analysis.project_analyzer import FileClassifier
 from backend.gemini_file_search import GeminiFileSearchClient
-from backend.session import get_session
+
+# Load environment variables
+load_dotenv()
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-DEFAULT_MAX_FILE_SIZE_BYTES = 1_000_000
-IGNORED_PATH_KEYWORDS: Sequence[str] = (
+DEFAULT_MAX_FILE_SIZE_BYTES = 2_000_000
+IGNORED_PATH_KEYWORDS = (
     ".git/",
     "node_modules/",
     "dist/",
@@ -29,102 +35,59 @@ IGNORED_PATH_KEYWORDS: Sequence[str] = (
     "venv/",
     "env/",
     ".terraform/",
+    ".idea/",
+    ".vscode/",
+    "__MACOSX/",  # Added MACOSX ignore
 )
-IGNORED_FILE_NAMES = {".env", ".env.local", ".env.example", ".DS_Store"}
+IGNORED_FILE_NAMES = {".env", ".env.local", ".env.example", ".DS_Store", "package-lock.json", "yarn.lock"}
 IGNORED_FILE_NAMES_LOWER = {name.lower() for name in IGNORED_FILE_NAMES}
-
-# Global cache for session-based corpora (in-memory for now, ideally redundant with DB)
-# Key: session_username, Value: corpus_name
-_SESSION_CORPORA: Dict[str, str] = {}
 
 
 def run_gemini_analysis(zip_path: Path, prompt_override: Optional[str] = None) -> Dict[str, Any]:
-    """
-    Run the full analysis pipeline using Gemini.
+    """Run the full analysis pipeline using Gemini."""
 
-    Args:
-        zip_path: Path to the uploaded ZIP file.
-        prompt_override: Optional custom prompt.
-
-    Returns:
-        The complete analysis payload including LLM results.
-    """
-    # 1. Run standard metadata extraction (Non-LLM)
-    logger.info(f"Starting metadata extraction for {zip_path}")
-    with MetadataExtractor(zip_path) as extractor:
-        report = extractor.generate_report()
+    # 1. Run the complete offline analysis pipeline
+    logger.info(f"Starting offline analysis for {zip_path}")
+    report = generate_comprehensive_report(zip_path)
+    report.setdefault("analysis_metadata", {})
 
     # 2. Initialize Gemini Client
     try:
         client = GeminiFileSearchClient()
     except Exception as e:
         logger.error(f"Failed to initialize Gemini Client: {e}")
-        report["llm_error"] = str(e)
+        report["llm_error"] = f"Client Initialization Error: {str(e)}"
         return report
 
-    # 3. Session-based Corpus Management
-    session = get_session()
-    username = session.get("username")
-
-    # If user is logged in, try to reuse their corpus
-    corpus_name = None
-    if username and username in _SESSION_CORPORA:
-        corpus_name = _SESSION_CORPORA[username]
-        logger.info(f"Reusing session corpus for user {username}: {corpus_name}")
-        # Check if it still exists
-        try:
-            client.get_corpus(corpus_name)
-        except Exception:
-            logger.warning("Session corpus not found, creating new one.")
-            corpus_name = None
-
-    if not corpus_name:
-        analysis_id = str(uuid.uuid4())
-        display_name = f"Session Corpus {username}" if username else f"Analysis {analysis_id}"
-        try:
-            corpus_name = client.create_corpus(display_name=display_name)
-            logger.info(f"Created corpus: {corpus_name}")
-            if username:
-                _SESSION_CORPORA[username] = corpus_name
-        except Exception as e:
-            logger.error(f"Failed to create corpus: {e}")
-            report["llm_error"] = str(e)
-            return report
+    uploaded_files_refs = []
 
     try:
-        # 4. Prepare Files for Ingestion
+        # 3. Prepare Files for Ingestion
         files_to_ingest = []
+
         with FileClassifier(zip_path) as classifier:
             classification = classifier.classify_project("")
             files_section = classification.get("files", {})
 
-            # Collect all categories
             all_file_infos = []
+            for category in ["configs", "docs", "tests", "other"]:
+                all_file_infos.extend(files_section.get(category, []))
             for files in files_section.get("code", {}).values():
                 all_file_infos.extend(files)
-            all_file_infos.extend(files_section.get("configs", []))
-            all_file_infos.extend(files_section.get("docs", []))
-            all_file_infos.extend(files_section.get("tests", []))
-            all_file_infos.extend(files_section.get("other", []))
 
             with classifier.zip_file as zf:
                 for file_info in all_file_infos:
                     path = file_info["path"]
-
                     if _should_ignore_path(path):
                         continue
 
                     try:
-                        # Read content
                         content_bytes = zf.read(path)
-
-                        # Truncate if too large instead of skipping
                         if len(content_bytes) > DEFAULT_MAX_FILE_SIZE_BYTES:
-                            logger.warning(f"Truncating large file {path} ({len(content_bytes)} bytes)")
-                            content_bytes = content_bytes[:DEFAULT_MAX_FILE_SIZE_BYTES]
+                            logger.warning(f"Skipping large file {path} ({len(content_bytes)} bytes)")
+                            continue
 
                         content = content_bytes.decode("utf-8", errors="ignore")
-
                         if not content.strip():
                             continue
 
@@ -132,68 +95,80 @@ def run_gemini_analysis(zip_path: Path, prompt_override: Optional[str] = None) -
                     except Exception as e:
                         logger.warning(f"Failed to read {path}: {e}")
 
-        total_files = len(files_to_ingest)
-        logger.info(f"Found {total_files} relevant files to ingest.")
+        # Add offline analysis
+        offline_doc = _build_offline_analysis_document(report)
+        files_to_ingest.append(offline_doc)
 
-        # 5. Parallel Ingestion
-        successful_count = client.ingest_batch(corpus_name, files_to_ingest)
-        logger.info(f"Successfully ingested {successful_count}/{total_files} files.")
+        logger.info(f"Prepared {len(files_to_ingest)} files for Gemini ingestion.")
 
-        # 6. Generate Content
+        # 4. Upload Files
+        uploaded_files_refs = client.upload_batch(files_to_ingest)
+        logger.info(f"Successfully uploaded {len(uploaded_files_refs)} files to Gemini.")
+
+        # 5. Generate Content
+        offline_summary = _summarize_offline_report(report)
         default_prompt = (
-            "Analyze the provided codebase. Identify the main projects, their architecture, "
-            "key technologies used, and any potential code quality or security issues. "
-            "Provide a summary of the implementation."
+            "You are a Senior Principal Software Architect.\n"
+            "You have access to the source code of a project and a pre-computed offline analysis report.\n"
+            "Analyze the uploaded files to answer the following requirements:\n"
+            "1. Validate the findings in the offline analysis report.\n"
+            "2. Identify architectural patterns, security risks, and code quality issues.\n"
+            "3. Suggest concrete code improvements.\n\n"
+            f"Offline Analysis Context:\n{offline_summary}"
         )
         prompt = prompt_override or default_prompt
 
-        logger.info("Generating analysis...")
-        response_text = client.generate_content(corpus_name, prompt)
+        logger.info("Generating analysis with Gemini...")
+        response_text = client.generate_content(uploaded_files_refs, prompt)
 
-        # 7. Attach to report
         report["llm_summary"] = response_text
-        report["analysis_metadata"]["gemini_corpus"] = corpus_name
-        report["analysis_metadata"]["ingested_files_count"] = successful_count
+        report["analysis_metadata"]["gemini_file_count"] = len(uploaded_files_refs)
 
     except Exception as e:
         logger.error(f"Error during Gemini analysis: {e}")
         report["llm_error"] = str(e)
 
     finally:
-        # Cleanup logic changes:
-        # If persistent session, DO NOT delete corpus.
-        # If ephemeral (no username), delete it.
-        if not username:
-            logger.info("Cleaning up ephemeral corpus...")
-            try:
-                client.cleanup_corpus(corpus_name)
-            except Exception as e:
-                logger.error(f"Cleanup failed: {e}")
-        else:
-            logger.info(f"Persisting corpus {corpus_name} for user session.")
+        if uploaded_files_refs:
+            logger.info("Cleaning up remote files...")
+            client.cleanup_files(uploaded_files_refs)
 
     return report
 
 
+def _build_offline_analysis_document(report: Dict[str, Any]) -> Dict[str, str]:
+    serialized = json.dumps(report, indent=2, ensure_ascii=False, default=str)
+    return {"path": "_offline_analysis.json", "content": serialized}
+
+
+def _summarize_offline_report(report: Dict[str, Any]) -> str:
+    if not report:
+        return "No offline analysis available."
+    summary = report.get("summary", {})
+    projects = report.get("projects", [])
+    lines = [f"Total Files: {summary.get('total_files', 0)}"]
+    lines.append(f"Languages: {', '.join(summary.get('languages_used', []))}")
+    for p in projects[:3]:
+        lines.append(f"- Project: {p.get('project_name')} ({p.get('primary_language')})")
+    return "\n".join(lines)
+
+
 def _should_ignore_path(path: str) -> bool:
-    """Check if path should be ignored using strict directory matching."""
-    # Normalize path to forward slashes
     normalized = path.replace("\\", "/")
     parts = normalized.split("/")
+    filename = parts[-1]
 
-    # Check filename (last part)
-    filename = parts[-1].lower()
-    if filename in IGNORED_FILE_NAMES_LOWER:
+    # FILTER 1: Strict filename match
+    if filename.lower() in IGNORED_FILE_NAMES_LOWER:
         return True
 
-    # Check directory parts
-    # We look for exact directory name matches against keywords
-    # Remove trailing slashes from keywords for comparison
-    ignored_dirs = {k.rstrip("/") for k in IGNORED_PATH_KEYWORDS}
+    # FILTER 2: Mac resource fork files (._filename)
+    if filename.startswith("._"):
+        return True
 
-    # Check if any part of the path matches an ignored directory name
-    for part in parts[:-1]:  # Don't check filename against dir list
-        if part in ignored_dirs:
+    # FILTER 3: Directory keywords
+    for keyword in IGNORED_PATH_KEYWORDS:
+        if keyword in normalized:
             return True
 
     return False
@@ -201,12 +176,20 @@ def _should_ignore_path(path: str) -> bool:
 
 if __name__ == "__main__":
     import argparse
-    import json
     import sys
+
+    from rich import box
+    from rich.console import Console
+    from rich.markdown import Markdown
+    from rich.panel import Panel
+    from rich.syntax import Syntax
+    from rich.table import Table
 
     parser = argparse.ArgumentParser(description="Run Gemini Analysis on a ZIP file.")
     parser.add_argument("zip_path", type=Path, help="Path to the ZIP file to analyze")
     parser.add_argument("--prompt", type=str, help="Optional custom prompt", default=None)
+    # Add a flag to still output JSON if you need it for piping
+    parser.add_argument("--json", action="store_true", help="Output raw JSON instead of formatted report")
 
     args = parser.parse_args()
 
@@ -215,9 +198,67 @@ if __name__ == "__main__":
         sys.exit(1)
 
     try:
-        result = run_gemini_analysis(args.zip_path, prompt_override=args.prompt)
-        # Use default=str to handle non-serializable objects like Path or datetime
-        print(json.dumps(result, indent=2, default=str))
+        # Run the analysis
+        report = run_gemini_analysis(args.zip_path, prompt_override=args.prompt)
+
+        # If user requested raw JSON (e.g., for piping to another tool)
+        if args.json:
+            print(json.dumps(report, indent=2, default=str))
+            sys.exit(0)
+
+        # --- RICH FORMATTING START ---
+        console = Console()
+
+        # 1. Title Panel
+        console.print()
+        console.print(Panel.fit("[bold white]Gemini Deep Code Analysis[/bold white]", style="blue"))
+        console.print()
+
+        # 2. Metadata Table
+        # Extract basic info
+        meta = report.get("analysis_metadata", {})
+        summary = report.get("summary", {})
+        project_name = "Unknown"
+        if report.get("projects"):
+            project_name = report["projects"][0].get("project_name", "Unknown")
+
+        # Create a grid/table for metrics
+        grid = Table.grid(expand=True)
+        grid.add_column()
+        grid.add_column(justify="right")
+
+        # Inner table for stats
+        stats_table = Table(box=box.SIMPLE, show_header=False)
+        stats_table.add_column("Key", style="cyan")
+        stats_table.add_column("Value", style="white")
+
+        stats_table.add_row("Project Name", project_name)
+        stats_table.add_row("Primary Language", ", ".join(summary.get("languages_used", ["N/A"])))
+        stats_table.add_row("Total Files", str(summary.get("total_files", 0)))
+        stats_table.add_row("Gemini Files Processed", str(meta.get("gemini_file_count", 0)))
+        stats_table.add_row("Analysis Mode", report.get("analysis_mode", "General Audit"))
+
+        console.print(Panel(stats_table, title="[bold]Project Statistics[/bold]", border_style="cyan"))
+
+        # 3. The LLM Report (Markdown Rendering)
+        llm_text = report.get("llm_summary", "No analysis generated.")
+
+        # Render the markdown content
+        md = Markdown(llm_text)
+
+        console.print(Panel(md, title="[bold green]Gemini Insights[/bold green]", border_style="green", padding=(1, 2)))
+
+        # 4. Error Handling Display
+        if report.get("llm_error"):
+            console.print(
+                Panel(
+                    f"[bold red]Error during analysis:[/bold red]\n{report['llm_error']}",
+                    title="System Warnings",
+                    border_style="red",
+                )
+            )
+
     except Exception as e:
-        print(f"Analysis failed: {e}", file=sys.stderr)
+        console = Console()
+        console.print_exception()
         sys.exit(1)
