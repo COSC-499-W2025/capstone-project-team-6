@@ -23,6 +23,7 @@ from analysis.deep_code_analyzer import generate_comprehensive_report
 from analysis.resume_generator import (generate_formatted_resume_entry,
                                        print_resume_items)
 
+from backend.analysis.portfolio_item_generator import generate_portfolio_item
 from backend.analysis_database import init_db, record_analysis
 
 
@@ -333,6 +334,12 @@ def main():
                 print(f"\nCoding Style: {coding_style}")
         else:
             print("\nNo Java projects found for OOP analysis.")
+        for project in report["projects"]:
+            try:
+                portfolio_item = generate_portfolio_item(project)
+                project["portfolio_item"] = portfolio_item
+            except Exception as e:
+                print(f"[ERROR] Failed to generate portfolio item: {e}")
         print_separator("STORING ANALYSIS IN DATABASE")
         try:
             analysis_id = record_analysis(analysis_type="non_llm", payload=report)
