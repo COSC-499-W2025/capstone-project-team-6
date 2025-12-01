@@ -7,13 +7,13 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, List, Optional
+
+from dotenv import load_dotenv
 
 from backend.analysis.deep_code_analyzer import generate_comprehensive_report
 from backend.analysis.project_analyzer import FileClassifier
 from backend.gemini_file_search import GeminiFileSearchClient
-
-from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
@@ -25,16 +25,27 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_MAX_FILE_SIZE_BYTES = 2_000_000
 IGNORED_PATH_KEYWORDS = (
-    ".git/", "node_modules/", "dist/", "build/", ".next/", 
-    "__pycache__/", ".venv/", "venv/", "env/", ".terraform/", 
-    ".idea/", ".vscode/", "__MACOSX/"  # Added MACOSX ignore
+    ".git/",
+    "node_modules/",
+    "dist/",
+    "build/",
+    ".next/",
+    "__pycache__/",
+    ".venv/",
+    "venv/",
+    "env/",
+    ".terraform/",
+    ".idea/",
+    ".vscode/",
+    "__MACOSX/",  # Added MACOSX ignore
 )
 IGNORED_FILE_NAMES = {".env", ".env.local", ".env.example", ".DS_Store", "package-lock.json", "yarn.lock"}
 IGNORED_FILE_NAMES_LOWER = {name.lower() for name in IGNORED_FILE_NAMES}
 
+
 def run_gemini_analysis(zip_path: Path, prompt_override: Optional[str] = None) -> Dict[str, Any]:
     """Run the full analysis pipeline using Gemini."""
-    
+
     # 1. Run the complete offline analysis pipeline
     logger.info(f"Starting offline analysis for {zip_path}")
     report = generate_comprehensive_report(zip_path)
@@ -53,7 +64,7 @@ def run_gemini_analysis(zip_path: Path, prompt_override: Optional[str] = None) -
     try:
         # 3. Prepare Files for Ingestion
         files_to_ingest = []
-        
+
         with FileClassifier(zip_path) as classifier:
             classification = classifier.classify_project("")
             files_section = classification.get("files", {})
@@ -75,7 +86,7 @@ def run_gemini_analysis(zip_path: Path, prompt_override: Optional[str] = None) -
                         if len(content_bytes) > DEFAULT_MAX_FILE_SIZE_BYTES:
                             logger.warning(f"Skipping large file {path} ({len(content_bytes)} bytes)")
                             continue
-                        
+
                         content = content_bytes.decode("utf-8", errors="ignore")
                         if not content.strip():
                             continue
@@ -131,7 +142,8 @@ def _build_offline_analysis_document(report: Dict[str, Any]) -> Dict[str, str]:
 
 
 def _summarize_offline_report(report: Dict[str, Any]) -> str:
-    if not report: return "No offline analysis available."
+    if not report:
+        return "No offline analysis available."
     summary = report.get("summary", {})
     projects = report.get("projects", [])
     lines = [f"Total Files: {summary.get('total_files', 0)}"]
@@ -145,7 +157,7 @@ def _should_ignore_path(path: str) -> bool:
     normalized = path.replace("\\", "/")
     parts = normalized.split("/")
     filename = parts[-1]
-    
+
     # FILTER 1: Strict filename match
     if filename.lower() in IGNORED_FILE_NAMES_LOWER:
         return True
@@ -153,23 +165,25 @@ def _should_ignore_path(path: str) -> bool:
     # FILTER 2: Mac resource fork files (._filename)
     if filename.startswith("._"):
         return True
-        
+
     # FILTER 3: Directory keywords
     for keyword in IGNORED_PATH_KEYWORDS:
         if keyword in normalized:
             return True
-            
+
     return False
+
 
 if __name__ == "__main__":
     import argparse
     import sys
+
+    from rich import box
     from rich.console import Console
     from rich.markdown import Markdown
     from rich.panel import Panel
-    from rich.table import Table
-    from rich import box
     from rich.syntax import Syntax
+    from rich.table import Table
 
     parser = argparse.ArgumentParser(description="Run Gemini Analysis on a ZIP file.")
     parser.add_argument("zip_path", type=Path, help="Path to the ZIP file to analyze")
@@ -194,7 +208,7 @@ if __name__ == "__main__":
 
         # --- RICH FORMATTING START ---
         console = Console()
-        
+
         # 1. Title Panel
         console.print()
         console.print(Panel.fit("[bold white]Gemini Deep Code Analysis[/bold white]", style="blue"))
@@ -212,12 +226,12 @@ if __name__ == "__main__":
         grid = Table.grid(expand=True)
         grid.add_column()
         grid.add_column(justify="right")
-        
+
         # Inner table for stats
         stats_table = Table(box=box.SIMPLE, show_header=False)
         stats_table.add_column("Key", style="cyan")
         stats_table.add_column("Value", style="white")
-        
+
         stats_table.add_row("Project Name", project_name)
         stats_table.add_row("Primary Language", ", ".join(summary.get("languages_used", ["N/A"])))
         stats_table.add_row("Total Files", str(summary.get("total_files", 0)))
@@ -228,24 +242,21 @@ if __name__ == "__main__":
 
         # 3. The LLM Report (Markdown Rendering)
         llm_text = report.get("llm_summary", "No analysis generated.")
-        
+
         # Render the markdown content
         md = Markdown(llm_text)
-        
-        console.print(Panel(
-            md, 
-            title="[bold green]Gemini Insights[/bold green]", 
-            border_style="green", 
-            padding=(1, 2)
-        ))
-        
+
+        console.print(Panel(md, title="[bold green]Gemini Insights[/bold green]", border_style="green", padding=(1, 2)))
+
         # 4. Error Handling Display
         if report.get("llm_error"):
-            console.print(Panel(
-                f"[bold red]Error during analysis:[/bold red]\n{report['llm_error']}", 
-                title="System Warnings", 
-                border_style="red"
-            ))
+            console.print(
+                Panel(
+                    f"[bold red]Error during analysis:[/bold red]\n{report['llm_error']}",
+                    title="System Warnings",
+                    border_style="red",
+                )
+            )
 
     except Exception as e:
         console = Console()

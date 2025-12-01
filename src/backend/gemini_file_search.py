@@ -9,12 +9,13 @@ import logging
 import os
 import tempfile
 import time
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 from google import genai
 from google.genai import types
 
 logger = logging.getLogger(__name__)
+
 
 class GeminiFileSearchClient:
     def __init__(self):
@@ -28,11 +29,7 @@ class GeminiFileSearchClient:
             self.model_name = "gemini-2.5-flash"
             logger.info("Initialized Gemini Client in AI Studio mode.")
         elif self.project_id:
-            self.client = genai.Client(
-                vertexai=True, 
-                project=self.project_id, 
-                location=self.location
-            )
+            self.client = genai.Client(vertexai=True, project=self.project_id, location=self.location)
             self.model_name = "gemini-1.5-pro-002"
             logger.info(f"Initialized Gemini Client in Vertex AI mode ({self.project_id}).")
         else:
@@ -43,32 +40,28 @@ class GeminiFileSearchClient:
         Uploads a batch of files to the Gemini File API.
         """
         uploaded_files = []
-        
+
         with tempfile.TemporaryDirectory() as temp_dir:
             for file_dat in files_data:
                 try:
                     rel_path = file_dat["path"]
                     content = file_dat["content"]
-                    
+
                     # Sanitize filename
                     safe_filename = os.path.basename(rel_path)
                     temp_file_path = os.path.join(temp_dir, safe_filename)
-                    
+
                     with open(temp_file_path, "w", encoding="utf-8") as f:
                         f.write(content)
-                        
+
                     logger.info(f"Uploading {safe_filename}...")
-                    
+
                     # FIX: Use 'file=' instead of 'path='
                     uploaded_file = self.client.files.upload(
-                        file=temp_file_path,
-                        config=types.UploadFileConfig(
-                            display_name=rel_path,
-                            mime_type="text/plain"
-                        )
+                        file=temp_file_path, config=types.UploadFileConfig(display_name=rel_path, mime_type="text/plain")
                     )
                     uploaded_files.append(uploaded_file)
-                    
+
                 except Exception as e:
                     logger.error(f"Failed to upload {file_dat.get('path')}: {e}")
 
@@ -85,7 +78,7 @@ class GeminiFileSearchClient:
                 while current_file.state.name == "PROCESSING":
                     time.sleep(1)
                     current_file = self.client.files.get(name=f.name)
-                
+
                 if current_file.state.name == "ACTIVE":
                     active_files.append(current_file)
                 else:
@@ -108,13 +101,13 @@ class GeminiFileSearchClient:
                 contents=[prompt, *files],
                 config=types.GenerateContentConfig(
                     temperature=0.2,
-                )
+                ),
             )
-            
+
             if response.text:
                 return response.text
             return "No text response generated."
-            
+
         except Exception as e:
             logger.error(f"Generation failed: {e}")
             return f"Error executing analysis: {str(e)}"

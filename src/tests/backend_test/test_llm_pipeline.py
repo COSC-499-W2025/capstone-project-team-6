@@ -116,12 +116,12 @@ class TestLLMPipeline:
             report = run_gemini_analysis(zip_path)
 
             assert report["llm_summary"] == "Mock LLM Summary"
-            assert report["analysis_metadata"]["gemini_file_count"] == 2 # mocked return len
+            assert report["analysis_metadata"]["gemini_file_count"] == 2  # mocked return len
 
             # Verify Upload Batch called
             mock_gemini_client.upload_batch.assert_called_once()
             uploaded_files = mock_gemini_client.upload_batch.call_args[0][0]
-            
+
             # Check if expected files are in the upload list
             paths = [f["path"] for f in uploaded_files]
             assert "main.py" in paths
@@ -141,7 +141,7 @@ class TestLLMPipeline:
         with patch("backend.analysis.llm_pipeline.FileClassifier", return_value=mock_file_classifier):
             # Simulate upload failure
             mock_gemini_client.upload_batch.side_effect = Exception("Upload failed")
-            
+
             zip_path = Path("test.zip")
             report = run_gemini_analysis(zip_path)
 
@@ -149,7 +149,7 @@ class TestLLMPipeline:
             assert "Upload failed" in report["llm_error"]
             # Should still return offline analysis
             assert report["projects"][0]["project_name"] == "test-project"
-            
+
             # Cleanup should not be called if upload failed (uploaded_files_refs is empty)
             mock_gemini_client.cleanup_files.assert_not_called()
 
@@ -166,7 +166,7 @@ class TestLLMPipeline:
 
             assert "llm_error" in report
             assert "Generation failed" in report["llm_error"]
-            
+
             # Cleanup MUST be called
             mock_gemini_client.cleanup_files.assert_called_once()
 
