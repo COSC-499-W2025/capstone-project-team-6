@@ -9,6 +9,28 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+try:
+    from .metadata_extractor import MetadataExtractor
+    from .project_analyzer import FileClassifier
+except ImportError:
+    from backend.analysis.metadata_extractor import MetadataExtractor
+    from backend.analysis.project_analyzer import FileClassifier
+
+try:
+    from ..gemini_file_search import GeminiFileSearchClient
+except ImportError:
+    try:
+        from backend.gemini_file_search import GeminiFileSearchClient
+    except ImportError:
+        GeminiFileSearchClient = None
+
+try:
+    from ..session import get_session
+except ImportError:
+    try:
+        from backend.session import get_session
+    except ImportError:
+        from session import get_session
 from dotenv import load_dotenv
 
 from backend.analysis.deep_code_analyzer import generate_comprehensive_report
@@ -50,6 +72,13 @@ def run_gemini_analysis(zip_path: Path, prompt_override: Optional[str] = None) -
     logger.info(f"Starting offline analysis for {zip_path}")
     report = generate_comprehensive_report(zip_path)
     report.setdefault("analysis_metadata", {})
+
+    # Check if Gemini client is available
+    if GeminiFileSearchClient is None:
+        error_msg = "Google Cloud AI Platform libraries not installed. Install with: pip install google-cloud-aiplatform google-auth google-generativeai"
+        logger.error(error_msg)
+        report["llm_error"] = error_msg
+        return report
 
     # 2. Initialize Gemini Client
     try:
