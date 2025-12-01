@@ -63,6 +63,46 @@ This PR adds a **chronology feature** that produces:
 
 # Aakash Tirithdas
 
+## Date Ranges
+
+November 24-November 30
+![Aakash Week 13](images/aakash-logw13.png)
+
+## Weekly recap goals
+- Complete analysis of .git folder
+- update the system architecture
+- update the data flow diagram
+- integrate C code
+
+## What went well
+- Completed .git folder analysis for without API connection
+- redid the system architecture
+- team communication
+
+## What didnt go well
+
+Due to time constrainst and being unavailable for most the weekend I could not complete:
+- data flow diagram 
+- integration of C analysis
+- Could not do the git analysis with API connection
+
+## PR's initiated
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/165
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/177
+
+## PR's reviewed
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/168
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/175
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/185
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/189
+
+## Goals for next week
+- integrate the C analysis
+- improve the .git folder analysis
+- integrate the .git folder analysis
+- update the data flow diagram
+
+
 # Mithish Ravisankar Geetha
 
 ## Date Ranges
