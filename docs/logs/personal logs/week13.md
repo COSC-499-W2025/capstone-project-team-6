@@ -1,5 +1,66 @@
 # Mandira Samarasekara
 
+## Date Ranges
+
+November 24–November 30  
+![Mandira Week 13](images/MandiraWeek13.png)
+
+## Weekly recap goals
+
+- Studied and wrote for Quiz 2  
+- Attended and organized multiple team meetings  
+- Prepared for the project presentation  
+- Reviewed multiple PRs from teammates  
+- Implemented requirements 19 and 20 of the project requirement list  
+- Implemented chronological project and skill timelines  
+- Wrote tests for my code  
+- Wrote personal logs  
+- Wrote the team logs  
+
+## What went well
+
+All the tests for the features that I implemented passed without any issues. We completed a lot of features this week compared to previous weeks. I completed 2 issues: [**#191**](https://github.com/COSC-499-W2025/capstone-project-team-6/issues/191) and [**#192**](https://github.com/COSC-499-W2025/capstone-project-team-6/issues/192), and reviewed many PRs.  
+
+I also held multiple team meetings, which helped us get a lot of work done and stay aligned on dependencies, such as identifying which PRs needed to be merged before starting work on others.
+
+## What didn't go well
+
+There was a small issue with the logic behind the chronological ordering of skills/projects. This ordering was supposed to be based on the date of the last commit for each project. However, this data was not stored in our current database, and the git commit history extraction function had not been merged at the time my feature was being implemented.  
+
+As a result, the current implementation uses the timestamp of when the project was analyzed as its chronology. This will be refactored and changed to use the last commit date in the following week.
+
+## PR's reviewed
+
+- [Refactored resume generator #168  ](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/168)
+- [Git analysis #177](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/177)  
+- [CLI integration analysis test #182 ](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/182) 
+- [Delete previously generated insights #183](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/183)  
+- [Portfolio item generator #187  ](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/187)
+- [Unit testing for top ranked projects #189  ](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/189)
+- [Mohamed W13 Logs #196 ](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/196) 
+
+## PR's initiated
+
+[- Project chronology #193](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/193)  
+
+**Description of my PR (#193):**
+
+This PR adds a **chronology feature** that produces:
+
+- **Projects timeline**: an ordered list of analyzed projects by `analysis_timestamp` with key metadata.  
+- **Skills timeline**: aggregated unique languages and frameworks per analysis date.  
+- **CLI integration**: integrates the feature into the CLI via a new `timeline` subcommand with `projects` and `skills` options.  
+- Adjusts CLI imports to lazily load `text_extractor` so unrelated commands (e.g., `timeline`) don't fail when optional OCR dependencies are missing.  
+- Adds unit tests to verify the new functionality.
+
+## Plan for next week
+
+- Refactor the chronology feature to use the last commit date instead of the analysis timestamp.  
+- Finish the project report.  
+- Finish the project demo.  
+- Finish the group contract.  
+- Refactor parts of the code that I have previously worked on.  
+
 # Aakash Tirithdas
 
 # Mithish Ravisankar Geetha
