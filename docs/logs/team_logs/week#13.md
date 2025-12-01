@@ -100,6 +100,8 @@
   - [#189](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/189)  
   - [#196](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/196)  
 
+
+![Maddy Issues](Images/MandiraWeek13.png)
 ---
 
 ### Aakash Tirathdas (**aakash-tir**)
@@ -121,6 +123,7 @@
   - [#185](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/185)  
   - [#189](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/189)  
 
+![Aakash Issues](Images/AakashWeek13.png)
 ---
 
 ### Mithish Ravisankar Geetha (**MithishR**)
@@ -151,6 +154,8 @@
   - [#187](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/187)  
   - [#179](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/179)  
 
+![Mithish Issues](Images/MithishWeek13.png)
+
 ---
 
 ### Ansh Rastogi (**anshr18**)
@@ -174,6 +179,7 @@
   - [#185](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/185)  
   - [#188](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/188)  
 
+![Ansh Issues](Images/AnshWeek13.png)
 ---
 
 ### Harjot Sahota (**HarjotSahota**)
@@ -196,6 +202,8 @@
   - [#182](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/182)  
   - [#184](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/184)  
   - [#188](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/188)  
+
+![Harjot Issues](Images/HarjotWeek13.png)
 
 ---
 
@@ -228,6 +236,7 @@
   - [#169](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/169)  
   - [#154](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/154)  
 
+![Mohomad Issues](Images/MohomadWeek13.png)
 ---
 
 ## What Went Well
