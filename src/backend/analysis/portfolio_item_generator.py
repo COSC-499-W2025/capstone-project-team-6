@@ -10,6 +10,7 @@ actual project sophistication detected in the analysis.
 # 1. QUALITY SCORE (NO artificial OOP score, only real metrics)
 # ---------------------------------------------------------------
 
+
 def _calculate_project_quality_score(analysis: dict) -> dict:
     """
     Calculate overall project sophistication based on real metrics:
@@ -68,7 +69,7 @@ def _calculate_project_quality_score(analysis: dict) -> dict:
     elif total_classes > 0:
         quality_score += 5
 
-    # Advanced OOP 
+    # Advanced OOP
     advanced_points = 0
     advanced_points += min(len(java_patterns) * 5, 10)
     advanced_points += min(total_abstract * 2, 5)
@@ -115,6 +116,7 @@ def _calculate_project_quality_score(analysis: dict) -> dict:
 # ---------------------------------------------------------------
 # 2. ARCHITECTURE DESCRIPTION
 # ---------------------------------------------------------------
+
 
 def _generate_architecture_description(analysis: dict, quality: dict) -> str:
     python_oop = analysis.get("oop_analysis", {})
@@ -185,6 +187,7 @@ def _generate_architecture_description(analysis: dict, quality: dict) -> str:
 # 3. CONTRIBUTIONS
 # ---------------------------------------------------------------
 
+
 def _generate_contributions_summary(analysis: dict, quality: dict) -> str:
     contrib = []
 
@@ -223,6 +226,7 @@ def _generate_contributions_summary(analysis: dict, quality: dict) -> str:
 # ---------------------------------------------------------------
 # 4. SKILLS LIST
 # ---------------------------------------------------------------
+
 
 def _generate_skills_list(analysis: dict, quality: dict) -> list[str]:
     python_oop = analysis.get("oop_analysis", {})
@@ -272,6 +276,7 @@ def _generate_skills_list(analysis: dict, quality: dict) -> list[str]:
 # 5. MAIN PORTFOLIO ITEM BUILDER
 # ---------------------------------------------------------------
 
+
 def generate_portfolio_item(analysis: dict) -> dict:
     quality = _calculate_project_quality_score(analysis)
 
@@ -314,7 +319,7 @@ def generate_portfolio_item(analysis: dict) -> dict:
         f"It contains {file_stats['total_files']} total files, including "
         f"{file_stats['code_files']} source files and {file_stats['test_files']} test files.",
         architecture,
-        contributions_summary
+        contributions_summary,
     ]
 
     if analysis.get("has_tests") and analysis.get("test_coverage_estimate") != "none":
@@ -339,5 +344,5 @@ def generate_portfolio_item(analysis: dict) -> dict:
         },
         "skills_exercised": skills,
         "text_summary": text_summary,
-        "quality_metrics": quality
+        "quality_metrics": quality,
     }
