@@ -34,7 +34,8 @@ def sample_python_project_zip(tmp_path):
 
     # Create a Python file with OOP code
     python_file = project_dir / "main.py"
-    python_file.write_text("""
+    python_file.write_text(
+        """
 from abc import ABC, abstractmethod
 
 class Animal(ABC):
@@ -63,7 +64,8 @@ class Cat(Animal):
     '''Cat implementation.'''
     def speak(self):
         return "Meow!"
-""")
+"""
+    )
 
     # Create a README
     readme = project_dir / "README.md"
@@ -87,7 +89,8 @@ def sample_cpp_project_zip(tmp_path):
 
     # Create a C++ file with OOP code
     cpp_file = project_dir / "main.cpp"
-    cpp_file.write_text("""
+    cpp_file.write_text(
+        """
 #include <iostream>
 #include <string>
 
@@ -124,7 +127,8 @@ int main() {
     d.speak();
     return 0;
 }
-""")
+"""
+    )
 
     # Create ZIP
     zip_path = tmp_path / "cpp_project.zip"
@@ -144,7 +148,8 @@ def sample_c_project_zip(tmp_path):
 
     # Create a C file with OOP-style code
     c_file = project_dir / "main.c"
-    c_file.write_text("""
+    c_file.write_text(
+        """
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -178,7 +183,8 @@ int main() {
     Animal_destroy(a);
     return 0;
 }
-""")
+"""
+    )
 
     # Create ZIP
     zip_path = tmp_path / "c_project.zip"
@@ -198,7 +204,8 @@ def sample_java_project_zip(tmp_path):
 
     # Create a Java file with OOP code
     java_file = project_dir / "Main.java"
-    java_file.write_text("""
+    java_file.write_text(
+        """
 public abstract class Animal {
     private String name;
     protected int age;
@@ -225,7 +232,8 @@ public class Dog extends Animal {
         System.out.println("Woof!");
     }
 }
-""")
+"""
+    )
 
     # Create ZIP
     zip_path = tmp_path / "java_project.zip"
@@ -278,9 +286,7 @@ class TestCppOOPAnalysisIntegration:
 
         session.save_session("testuser")
 
-        with patch("sys.argv", ["cli", "analyze", str(sample_cpp_project_zip)]), patch(
-            "sys.stdout", new=StringIO()
-        ) as fake_out:
+        with patch("sys.argv", ["cli", "analyze", str(sample_cpp_project_zip)]), patch("sys.stdout", new=StringIO()) as fake_out:
             result = main()
             output = fake_out.getvalue()
 
@@ -301,9 +307,7 @@ class TestCppOOPAnalysisIntegration:
 
         session.save_session("testuser")
 
-        with patch("sys.argv", ["cli", "analyze", str(sample_cpp_project_zip)]), patch(
-            "sys.stdout", new=StringIO()
-        ) as fake_out:
+        with patch("sys.argv", ["cli", "analyze", str(sample_cpp_project_zip)]), patch("sys.stdout", new=StringIO()) as fake_out:
             result = main()
             output = fake_out.getvalue()
 
@@ -325,9 +329,7 @@ class TestCOOPAnalysisIntegration:
 
         session.save_session("testuser")
 
-        with patch("sys.argv", ["cli", "analyze", str(sample_c_project_zip)]), patch(
-            "sys.stdout", new=StringIO()
-        ) as fake_out:
+        with patch("sys.argv", ["cli", "analyze", str(sample_c_project_zip)]), patch("sys.stdout", new=StringIO()) as fake_out:
             result = main()
             output = fake_out.getvalue()
 
@@ -348,9 +350,7 @@ class TestJavaOOPAnalysisIntegration:
 
         session.save_session("testuser")
 
-        with patch("sys.argv", ["cli", "analyze", str(sample_java_project_zip)]), patch(
-            "sys.stdout", new=StringIO()
-        ) as fake_out:
+        with patch("sys.argv", ["cli", "analyze", str(sample_java_project_zip)]), patch("sys.stdout", new=StringIO()) as fake_out:
             result = main()
             output = fake_out.getvalue()
 
@@ -438,9 +438,7 @@ class TestDatabaseStorageIntegration:
                 count = cursor.fetchone()[0]
                 assert count >= 1
 
-    def test_database_storage_non_fatal_on_failure(
-        self, isolated_test_env, temp_session_file, sample_python_project_zip
-    ):
+    def test_database_storage_non_fatal_on_failure(self, isolated_test_env, temp_session_file, sample_python_project_zip):
         """Test that analysis continues even if database storage fails."""
         # Setup: Create user with consent and session
         database.create_user("testuser", "password123")
@@ -510,9 +508,7 @@ class TestLLMPipelineIntegration:
         test_dir = tmp_path / "test"
         test_dir.mkdir()
 
-        with patch("sys.argv", ["cli", "analyze-llm", str(test_dir)]), patch(
-            "sys.stdout", new=StringIO()
-        ) as fake_out:
+        with patch("sys.argv", ["cli", "analyze-llm", str(test_dir)]), patch("sys.stdout", new=StringIO()) as fake_out:
             result = main()
             output = fake_out.getvalue()
 
@@ -565,9 +561,9 @@ class TestLLMPipelineIntegration:
         custom_prompt = "Analyze code quality"
 
         # Mock the LLM pipeline
-        with patch(
-            "sys.argv", ["cli", "analyze-llm", str(sample_python_project_zip), "--prompt", custom_prompt]
-        ), patch("backend.analysis.llm_pipeline.run_gemini_analysis") as mock_llm, patch("sys.stdout", new=StringIO()):
+        with patch("sys.argv", ["cli", "analyze-llm", str(sample_python_project_zip), "--prompt", custom_prompt]), patch(
+            "backend.analysis.llm_pipeline.run_gemini_analysis"
+        ) as mock_llm, patch("sys.stdout", new=StringIO()):
             # Setup mock return value
             mock_llm.return_value = {
                 "analysis_metadata": {"analysis_uuid": "test-uuid", "zip_file": "test.zip", "analysis_timestamp": "2025-01-01"},
@@ -650,9 +646,7 @@ class TestCompleteAnalysisPipeline:
                 count = cursor.fetchone()[0]
                 assert count >= 1
 
-    def test_multi_language_project_analysis(
-        self, isolated_test_env, temp_session_file, sample_python_project_zip, tmp_path
-    ):
+    def test_multi_language_project_analysis(self, isolated_test_env, temp_session_file, sample_python_project_zip, tmp_path):
         """Test analysis of project with multiple languages."""
         # Create a multi-language project
         project_dir = tmp_path / "multi_lang"

@@ -137,6 +137,7 @@ def analyze_folder(path: Path) -> dict:
         zipfile.BadZipFile: If ZIP file is corrupted
     """
     from datetime import datetime
+
     temp_zip = None
     try:
         # Determine if we need to create a ZIP
@@ -161,6 +162,7 @@ def analyze_folder(path: Path) -> dict:
             if "cpp" in project.get("languages", {}):
                 try:
                     from .analysis.cpp_oop_analyzer import analyze_cpp_project
+
                     cpp_analysis = analyze_cpp_project(zip_path, project_path)
                     report["projects"][i]["cpp_oop_analysis"] = cpp_analysis["cpp_oop_analysis"]
                 except ImportError:
@@ -176,6 +178,7 @@ def analyze_folder(path: Path) -> dict:
             if "cpp" in project.get("languages", {}) or "c" in project.get("languages", {}):
                 try:
                     from .analysis.c_oop_analyzer import analyze_c_project
+
                     c_analysis = analyze_c_project(zip_path, project_path)
                     # Only add if we found C-style code
                     if c_analysis["c_oop_analysis"].get("total_structs", 0) > 0:
@@ -774,11 +777,13 @@ def main() -> int:
 
                 # Generate resume highlights
                 from .analysis.resume_generator import print_resume_items
+
                 print_resume_items(results)
 
                 # Store analysis in database
                 try:
                     from .analysis_database import record_analysis
+
                     analysis_id = record_analysis("non_llm", results)
                     analysis_uuid = results.get("analysis_metadata", {}).get("analysis_uuid", "unknown")
                     print(f"\n📊 Analysis saved to database (ID: {analysis_id}, UUID: {analysis_uuid})")
@@ -889,6 +894,7 @@ def main() -> int:
                 # Store in database
                 try:
                     from .analysis_database import record_analysis
+
                     analysis_id = record_analysis("llm", results)
                     analysis_uuid = results.get("analysis_metadata", {}).get("analysis_uuid", "unknown")
                     print(f"\n📊 Analysis saved to database (ID: {analysis_id}, UUID: {analysis_uuid})")

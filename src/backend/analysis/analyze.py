@@ -68,6 +68,7 @@ def main():
             if "cpp" in project.get("languages", {}):
                 try:
                     from analysis.cpp_oop_analyzer import analyze_cpp_project
+
                     cpp_analysis = analyze_cpp_project(zip_path, project_path)
                     report["projects"][i]["cpp_oop_analysis"] = cpp_analysis["cpp_oop_analysis"]
                 except ImportError:
@@ -83,6 +84,7 @@ def main():
             if "cpp" in project.get("languages", {}) or "c" in project.get("languages", {}):
                 try:
                     from analysis.c_oop_analyzer import analyze_c_project
+
                     c_analysis = analyze_c_project(zip_path, project_path)
                     # Only add if we found C-style code
                     if c_analysis["c_oop_analysis"].get("total_structs", 0) > 0:
