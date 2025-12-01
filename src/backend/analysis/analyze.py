@@ -380,6 +380,12 @@ def main():
             elif resume_items_by_project:
                 print("="*78 + "\n")
                 print(f" All {len(resume_items_by_project)} resume item(s) retrieved from database")
+        for project in report["projects"]:
+            try:
+                portfolio_item = generate_portfolio_item(project)
+                project["portfolio_item"] = portfolio_item
+            except Exception as e:
+                print(f"[ERROR] Failed to generate portfolio item: {e}")
         print_separator("STORING ANALYSIS IN DATABASE")
         try:
             analysis_id = record_analysis(analysis_type="non_llm", payload=report)
@@ -390,6 +396,21 @@ def main():
             import traceback
 
             traceback.print_exc()
+        print_resume_items(report)
+        print_separator("GENERATED PORTFOLIO ITEM")
+
+        try:
+            for project in report["projects"]:
+                portfolio_item = project["portfolio_item"]  # already generated earlier
+
+                print(f"\nProject: {project['project_name']}")
+                print("-" * 70)
+                print(portfolio_item["text_summary"])
+                print("\nSummary Length:", len(portfolio_item["text_summary"]))
+                print("-" * 70)
+
+        except Exception as e:
+            print(f"[ERROR] Failed to print portfolio item: {e}")
         print("\n" + "=" * 78)
         print("  FULL RESUME")
         print("=" * 78 + "\n")
