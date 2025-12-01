@@ -87,13 +87,17 @@ November 24-November 30
 - Deep Semantic Analysis Core Features #181 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/181
 - CLI integration analysis test #182 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/182
 - Unit tests for deletion workflow #184 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/184
+- Summarize the top ranked projects + display only code files #188 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/188
   
 <img width="1221" height="262" alt="Screenshot 2025-11-30 at 3 54 58 PM" src="https://github.com/user-attachments/assets/0078b778-3e30-4442-beb5-e6457f552168" />
 <img width="1222" height="137" alt="Screenshot 2025-11-30 at 3 52 11 PM" src="https://github.com/user-attachments/assets/b5aff214-453f-418c-bd8e-eee558d6aafa" />
+<img width="1217" height="70" alt="Screenshot 2025-11-30 at 8 10 10 PM" src="https://github.com/user-attachments/assets/ba35c553-5d3b-4416-ab62-3e36867d9fca" />
+
 
 
 ## Plan for next week
 - Extend the portfolio generator to incorporate insights from the new analyzers (C/C++ OOP metrics, Git contribution depth, documentation quality).
 - refractor portfolio genereator to produce a cleaner output i.e not including a summary length output, clean up format (i.e 1 class instead of 1 classes)
+- When running our CLI, at the end when it asks for the output to be stored as json, our code does not account for users to enter something other than y/n. I plan to fix this error in our code and have it handle different user inputs!
 
 # Mohamed Sakr
