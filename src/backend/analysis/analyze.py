@@ -53,9 +53,8 @@ def main():
     # Initialize database
     init_db()
 
-    print_separator("COMPLETE PROJECT ANALYSIS")
+    print_separator("COMPLETE  ANALYSIS")
     print(f"Analyzing: {zip_path}")
-    print("Running: File Classification → Metadata Extraction → Deep Code Analysis\n")
 
     try:
         report = generate_comprehensive_report(zip_path)
@@ -64,8 +63,6 @@ def main():
             "analysis_timestamp": datetime.now().isoformat(),
             "total_projects": len(report["projects"]),
         }
-
-        print_separator("PHASE 1 & 2: FILE CLASSIFICATION + METADATA")
 
         summary = report["summary"]
         print(f"Total Files: {summary['total_files']}")
@@ -116,8 +113,6 @@ def main():
             print(f"  Has CI/CD: {'true' if project['has_ci_cd'] else 'false'}")
             print(f"  Has Docker: {'true' if project['has_docker'] else 'false'}")
             print(f"  Test Coverage: {project['test_coverage_estimate']}")
-
-        print_separator("PHASE 3: CODE ANALYSIS FOR OOP PRINCIPLES")
 
         # Analyze Python projects
         python_projects = [p for p in report["projects"] if "python" in p.get("languages", {})]
@@ -355,28 +350,18 @@ def main():
             import traceback
 
             traceback.print_exc()
-        print_resume_items(report)
-        print_separator("GENERATED PORTFOLIO ITEM")
-
-        try:
-            for project in report["projects"]:
-                portfolio_item = project["portfolio_item"]  # already generated earlier
-
-                print(f"\nProject: {project['project_name']}")
-                print("-" * 70)
-                print(portfolio_item["text_summary"])
-                print("\nSummary Length:", len(portfolio_item["text_summary"]))
-                print("-" * 70)
-
-        except Exception as e:
-            print(f"[ERROR] Failed to print portfolio item: {e}")
-        print("\n" + "=" * 78)
-        print("  FULL RESUME")
-        print("=" * 78 + "\n")
-        from analysis.resume_generator import generate_full_resume
-
-        print(generate_full_resume(report))
-        print("\n" + "=" * 78 + "\n")
+        
+        # Ask user if they want to generate resume
+        print_separator()
+        generate_resume = input("Generate resume? (y/n): ").lower().strip()
+        
+        if generate_resume == "y":
+            print("\n" + "="*78)
+            print("  FULL RESUME")
+            print("="*78 + "\n")
+            from analysis.resume_generator import generate_full_resume
+            print(generate_full_resume(report))
+            print("\n" + "="*78 + "\n")
 
         # Offer to save JSON
         print_separator()
