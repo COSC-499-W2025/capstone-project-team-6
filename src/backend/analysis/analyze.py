@@ -488,7 +488,6 @@ def main():
                 from dataclasses import dataclass, field
                 from typing import Dict, List
 
-                from analysis.java_oop_analyzer import (JavaOOPAnalysis, calculate_oop_score,
                 from analysis.java_oop_analyzer import (JavaOOPAnalysis,
                                                         calculate_oop_score,
                                                         calculate_solid_score,
@@ -731,8 +730,7 @@ def main():
             elif resume_items_by_project:
                 print("="*78 + "\n")
                 print(f" All {len(resume_items_by_project)} resume item(s) retrieved from database")
-
-                        traceback.print_exc()
+                traceback.print_exc()
 
                 if projects_needing_resume:
                     print("=" * 78 + "\n")
