@@ -100,6 +100,7 @@ def test_directory_depth():
     items = _generate_architecture_items(project, "TestProject", "application")
     assert any("5-level" in item or "hierarchical" in item.lower() for item in items)
 
+
 def test_database_integration():
     """Test database integration."""
     project = {
@@ -133,6 +134,7 @@ def test_complete_project():
     assert len(items) > 0
     assert all(isinstance(item, str) for item in items)
     assert any("TestProject" in item for item in items)
+
 
 def test_empty_report():
     """Test empty report."""

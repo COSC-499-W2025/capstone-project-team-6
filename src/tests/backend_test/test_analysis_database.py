@@ -276,6 +276,10 @@ def test_get_analysis_by_zip_file(temp_analysis_db):
     analysis_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD)
     analysis = adb.get_analysis_by_zip_file(SAMPLE_PAYLOAD["analysis_metadata"]["zip_file"])
     
+
+    analysis_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD)
+    analysis = adb.get_analysis_by_zip_file(SAMPLE_PAYLOAD["analysis_metadata"]["zip_file"])
+
     assert analysis is not None
     assert analysis["id"] == analysis_id
     assert analysis["zip_file"] == "path/to/project.zip"
@@ -288,14 +292,17 @@ def test_get_analysis_by_zip_file_not_found(temp_analysis_db):
     analysis = adb.get_analysis_by_zip_file("/nonexistent/path.zip")
     assert analysis is None
 
+
 def test_get_analysis_report(temp_analysis_db):
     """Test retrieving full analysis report by zip file."""
     # Store an analysis
     analysis_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD)
     
+       
+
     # Retrieve report
     report = adb.get_analysis_report(SAMPLE_PAYLOAD["analysis_metadata"]["zip_file"])
-    
+
     assert report is not None
     assert report["analysis_metadata"]["zip_file"] == "path/to/project.zip"
     assert len(report["projects"]) == 1
@@ -327,6 +334,7 @@ def test_get_resume_items_for_project_not_found(temp_analysis_db):
     """Test retrieving resume items for a project that doesn't exist."""
     items = adb.get_resume_items_for_project("nonexistent_project")
     assert len(items) == 0
+
 
 def test_store_resume_item_validates_input(temp_analysis_db):
     """Test that store_resume_item validates required inputs."""

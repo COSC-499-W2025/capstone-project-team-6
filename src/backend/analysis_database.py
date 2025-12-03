@@ -172,6 +172,17 @@ def init_db() -> None:
             """
         )
 
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS resume_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_name TEXT NOT NULL,
+                resume_text TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+
         conn.commit()
 
 
@@ -488,6 +499,7 @@ def store_resume_item(project_name: str, resume_text: str) -> None:
         )
         conn.commit()
 
+
 def get_all_resume_items() -> List[sqlite3.Row]:
     with get_connection() as conn:
         return conn.execute(
@@ -497,6 +509,8 @@ def get_all_resume_items() -> List[sqlite3.Row]:
             ORDER BY created_at DESC
             """
         ).fetchall()
+
+
 def get_resume_items_for_project(project_name: str) -> List[sqlite3.Row]:
     with get_connection() as conn:
         return conn.execute(
@@ -509,6 +523,7 @@ def get_resume_items_for_project(project_name: str) -> List[sqlite3.Row]:
             (project_name,),
         ).fetchall()
 
+
 def delete_resume_item(item_id: int) -> None:
     with get_connection() as conn:
         conn.execute(
@@ -516,6 +531,7 @@ def delete_resume_item(item_id: int) -> None:
             (item_id,),
         )
         conn.commit()
+
 
 def clear_resume_items() -> None:
     with get_connection() as conn:
