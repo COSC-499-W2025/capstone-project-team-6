@@ -137,8 +137,11 @@ def analyze_folder(path: Path) -> dict:
         zipfile.BadZipFile: If ZIP file is corrupted
     """
     from datetime import datetime
+    import tempfile
+    import zipfile as zipfile_module
 
     temp_zip = None
+    temp_extract_dir = None
     original_path = path  # Store original path before any temp zip creation
     try:
         # Determine if we need to create a ZIP
@@ -146,8 +149,12 @@ def analyze_folder(path: Path) -> dict:
             print(f"Creating temporary archive...")
             temp_zip = create_temp_zip(path)
             zip_path = temp_zip
+            # For directories, we can analyze git directly
+            analysis_dir = path
         elif path.is_file() and path.suffix.lower() == ".zip":
             zip_path = path
+            # For ZIPs, we need to extract to analyze git
+            analysis_dir = None  # Will extract if needed
         else:
             raise ValueError(f"Path must be a directory or ZIP file: {path}")
 
@@ -189,6 +196,43 @@ def analyze_folder(path: Path) -> dict:
                 except Exception as e:
                     pass  # Silently skip if no C code found
 
+        # Git Analysis
+        # For directories, analyze directly; for ZIPs, extract if .git exists
+        if analysis_dir and (analysis_dir / ".git").exists():
+            # Direct directory with .git
+            try:
+                from .analysis.git_analysis import analyze_project
+                git_result = analyze_project(analysis_dir, export_to_file=False)
+                # Add git analysis to first project (assuming single project)
+                if report["projects"]:
+                    report["projects"][0]["git_analysis"] = git_result.to_dict()
+            except Exception as e:
+                print(f"Warning: Git analysis failed: {e}")
+        elif not analysis_dir:
+            # ZIP file - check if it contains .git
+            try:
+                with zipfile_module.ZipFile(zip_path, 'r') as zf:
+                    git_files = [f for f in zf.namelist() if '.git/' in f]
+                    if git_files:
+                        # Extract to temp directory
+                        temp_extract_dir = tempfile.mkdtemp()
+                        zf.extractall(temp_extract_dir)
+
+                        # Find the project root (where .git is)
+                        git_root = Path(temp_extract_dir)
+                        for item in git_root.rglob('.git'):
+                            if item.is_dir():
+                                git_root = item.parent
+                                break
+
+                        # Run git analysis
+                        from .analysis.git_analysis import analyze_project
+                        git_result = analyze_project(git_root, export_to_file=False)
+                        if report["projects"]:
+                            report["projects"][0]["git_analysis"] = git_result.to_dict()
+            except Exception as e:
+                print(f"Warning: Git analysis failed: {e}")
+
         # Add analysis metadata - use original path, not temp zip path
         report["analysis_metadata"] = {
             "zip_file": str(original_path.absolute()),
@@ -199,9 +243,15 @@ def analyze_folder(path: Path) -> dict:
         return report
 
     finally:
-        # Cleanup temporary ZIP if created
+        # Cleanup temporary directories and files
         if temp_zip and temp_zip.exists():
             temp_zip.unlink()
+        if temp_extract_dir:
+            import shutil
+            try:
+                shutil.rmtree(temp_extract_dir)
+            except Exception:
+                pass  # Best effort cleanup
 
 
 def display_analysis(results: dict) -> None:
@@ -402,6 +452,28 @@ def display_analysis(results: dict) -> None:
             constructors = c_oop.get("constructor_destructor_pairs", 0)
             if constructors > 0:
                 print(f"   Memory Management: {constructors} constructor/destructor pairs")
+
+        # Git Analysis
+        git_analysis = project.get("git_analysis", {})
+        if git_analysis and git_analysis.get("is_git_repo"):
+            print(f"\nGit Analysis:")
+            print(f"   Total Commits: {git_analysis.get('total_commits', 0)}")
+            print(f"   Contributors: {git_analysis.get('total_contributors', 0)}")
+
+            if git_analysis.get("is_collaborative"):
+                print(f"   Project Type: Collaborative")
+            elif git_analysis.get("is_solo_project"):
+                print(f"   Project Type: Solo")
+
+            # Show top contributors
+            contributors = git_analysis.get("contributors", [])
+            if contributors:
+                print(f"\n   Top Contributors:")
+                for contrib in contributors[:3]:  # Show top 3
+                    name = contrib.get("name", "Unknown")
+                    commits = contrib.get("commit_count", 0)
+                    percentage = contrib.get("percentage", 0)
+                    print(f"      • {name}: {commits} commits ({percentage:.1f}%)")
 
     print("\n" + "=" * 70)
 
