@@ -635,8 +635,8 @@ def main():
         else:
             print("\nNo C projects found for OOP-style analysis.")
 
-        # Only store analysis if it's new
-        if not existing_report:
+        # Store analysis in database if it's new
+        if new_analysis_generated:
             print_separator("STORING ANALYSIS IN DATABASE")
             try:
                 analysis_id = record_analysis(analysis_type="non_llm", payload=report)
@@ -645,9 +645,7 @@ def main():
             except Exception as e:
                 print(f"  Error storing analysis in database: {e}")
                 import traceback
-
                 traceback.print_exc()
-                        
 
         # Ask user if they want to generate resume
         print_separator()
@@ -657,8 +655,7 @@ def main():
             print("\n" + "=" * 78)
             print("  FULL RESUME")
             print("=" * 78 + "\n")
-            from analysis.resume_generator import (
-                generate_formatted_resume_entry, generate_full_resume)
+            from analysis.resume_generator import generate_formatted_resume_entry
 
             # Check if resume items already exist
             resume_items_by_project = {}
@@ -672,7 +669,6 @@ def main():
                     resume_items_by_project[project_name] = existing_resume_items[0]["resume_text"]
                 else:
                     projects_needing_resume.append(project)
-            
 
             # Display existing resume items
             if resume_items_by_project:
@@ -682,7 +678,6 @@ def main():
                     if project_name in resume_items_by_project:
                         print(resume_items_by_project[project_name])
                         print()
-            
 
             # Generate and store resumes for projects that don't have them
             if projects_needing_resume:
@@ -690,14 +685,12 @@ def main():
                     print("Generating resumes for remaining projects...\n")
                 else:
                     print("No existing resume items found. Generating new resumes.\n")
-                
 
                 for project in projects_needing_resume:
                     project_name = project.get("project_name", "Unknown Project")
                     resume_entry = generate_formatted_resume_entry(project)
                     print(resume_entry)
                     print()
-                    
 
                     try:
                         store_resume_item(project_name, resume_entry)
@@ -705,14 +698,6 @@ def main():
                         print(f" Warning: Could not store resume item for {project_name}: {e}")
                         import traceback
                         traceback.print_exc()
-                
-                if projects_needing_resume:
-                    print("="*78 + "\n")
-                    print(f" Successfully stored {len(projects_needing_resume)} resume item(s) in the database")
-            elif resume_items_by_project:
-                print("="*78 + "\n")
-                print(f" All {len(resume_items_by_project)} resume item(s) retrieved from database")
-                traceback.print_exc()
 
                 if projects_needing_resume:
                     print("=" * 78 + "\n")
@@ -720,30 +705,6 @@ def main():
             elif resume_items_by_project:
                 print("=" * 78 + "\n")
                 print(f" All {len(resume_items_by_project)} resume item(s) retrieved from database")
-        
-        print_separator("STORING ANALYSIS IN DATABASE")
-        try:
-            analysis_id = record_analysis(analysis_type="non_llm", payload=report)
-            print(f"  Analysis successfully stored in database")
-            print(f"  Total Projects: {len(report['projects'])}")
-        except Exception as e:
-            print(f"  Error storing analysis in database: {e}")
-            import traceback
-
-            traceback.print_exc()
-
-        # Ask user if they want to generate resume
-        print_separator()
-        generate_resume = input("Generate resume? (y/n): ").lower().strip()
-
-        if generate_resume == "y":
-            print("\n" + "=" * 78)
-            print("  FULL RESUME")
-            print("=" * 78 + "\n")
-            from analysis.resume_generator import generate_full_resume
-
-            print(generate_full_resume(report))
-            print("\n" + "=" * 78 + "\n")
 
         # Offer to save JSON
         print_separator()
