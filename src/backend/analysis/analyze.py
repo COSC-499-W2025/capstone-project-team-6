@@ -647,25 +647,7 @@ def main():
                 import traceback
 
                 traceback.print_exc()
-        
-        # Ask user if they want to generate resume
-        print_separator()
-        generate_resume = input("Generate resume? (y/n): ").lower().strip()
-        
-        if generate_resume == "y":
-            print("\n" + "="*78)
-            print("  FULL RESUME")
-            print("="*78 + "\n")
-            from analysis.resume_generator import generate_full_resume, generate_formatted_resume_entry
-            
-            # Check if resume items already exist 
-            resume_items_by_project = {}
-            projects_needing_resume = []
-            
-            for project in report.get("projects", []):
-                project_name = project.get("project_name", "Unknown Project")
-                existing_resume_items = get_resume_items_for_project(project_name)
-                
+                        
 
         # Ask user if they want to generate resume
         print_separator()
