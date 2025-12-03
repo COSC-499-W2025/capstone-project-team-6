@@ -509,24 +509,6 @@ def main():
                 print(f"\nCoding Style: {coding_style}")
         else:
             print("\nNo Java projects found for OOP analysis.")
-        if not existing_report or new_analysis_generated:
-            if choice is None or choice != "3":
-                existing_count = count_analyses_by_zip_file(zip_file_path)
-                if existing_count > 0:
-                    print_separator("EXISTING ANALYSIS DETECTED")
-                    print(f"  Found {existing_count} previous analysis/analyses for this project.")
-                    print(f"  Note: Deleting old analyses will remove analysis data but preserve")
-                    print(f"  resume items (they are shared across reports and will not be affected).")
-                    print()
-                    delete_old = input(f"Delete {existing_count} previous analysis/analyses? (y/n): ").lower().strip()
-                    
-                    if delete_old == "y":
-                        deleted_count = delete_analyses_by_zip_file(zip_file_path)
-                        print(f"  Deleted {deleted_count} previous analysis/analyses")
-                        print(f"  Resume items preserved (not affected by deletion)")
-                    else:
-                        print(f"  Keeping existing analyses. New analysis will be stored separately.")
-            
 
         # Analyze C++ projects
         cpp_projects = [p for p in report["projects"] if "cpp" in p.get("languages", {})]
