@@ -199,29 +199,23 @@ def main():
                         print(f"  Deletion cancelled.")
                 elif choice == "3":
                     print(f"  Keeping all existing analyses. Running new analysis...\n")
-                    new_analysis_generated = True
-                elif choice == "4":
-                    print(f"  Keeping existing analysis. Skipping new analysis.")
-                    # Use existing report and don't create new one
-                    report = existing_report if existing_report else get_analysis_report(zip_file_path)
-                    new_analysis_generated = False
             
-            if choice != "4":  # Only update report if not skipping
-                report = existing_report if existing_report else get_analysis_report(zip_file_path)
-            
-            if report is None or choice == "3":
-                if choice == "3":
-                    print("\nRunning new analysis (existing analyses will be kept)...\n")
-                else:
-                    print("\nNo existing analysis found. Running new analysis...\n")
-                report = generate_comprehensive_report(zip_path)
-                report["analysis_metadata"] = {
-                    "zip_file": zip_file_path,
-                    "analysis_timestamp": datetime.now().isoformat(),
-                    "total_projects": len(report["projects"]),
-                }
-                new_analysis_generated = True
-        report = generate_comprehensive_report(zip_path)
+            if choice != "3":
+                # Choice 1 or 2: Use existing report (after potential deletions)
+                report = existing_report
+            else:
+                # Choice 3: Generate new analysis (set flag, will generate below)
+                existing_report = None
+        
+        # Generate new analysis if no existing report
+        if existing_report is None:
+            report = generate_comprehensive_report(zip_path)
+            report["analysis_metadata"] = {
+                "zip_file": zip_file_path,
+                "analysis_timestamp": datetime.now().isoformat(),
+                "total_projects": len(report["projects"]),
+            }
+            new_analysis_generated = True
 
         # Add C++ and C analysis to the report
         for i, project in enumerate(report["projects"]):
