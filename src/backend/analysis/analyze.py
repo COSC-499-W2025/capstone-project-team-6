@@ -91,16 +91,16 @@ def main():
                 timestamp = existing_report.get('analysis_metadata', {}).get('analysis_timestamp', 'unknown time')
             print(f"\nFound existing analysis in database (from {timestamp})")
             # Check if there are analyses and ask if user wants to delete them
-            existing_count = count_analyses_by_zip_file(zip_file_path)
-            if existing_count > 0:
-                print_separator("EXISTING ANALYSIS DETECTED" if existing_count == 1 else "EXISTING ANALYSES DETECTED")
-                print(f"  Found {existing_count} analysis{'es' if existing_count > 1 else ''} in database.")
+            total_analyses_count = count_analyses_by_zip_file(zip_file_path)
+            if total_analyses_count > 0:
+                print_separator("EXISTING ANALYSIS DETECTED" if total_analyses_count == 1 else "EXISTING ANALYSES DETECTED")
+                print(f"  Found {total_analyses_count} analysis{'es' if total_analyses_count > 1 else ''} in database.")
                 print(f"  Note: Deleting analysis/analyses will remove analysis data but preserve resume items (they are shared across reports and will not be affected).")
                 print()
                 print(f"  Options:")
             
-                print(f"    1. Delete {existing_count - 1} older analysis/analyses (keep most recent)")
-                print(f"    2. Delete ALL {existing_count} analysis/analyses (including most recent)")
+                print(f"    1. Delete {total_analyses_count - 1} older analysis/analyses (keep most recent)")
+                print(f"    2. Delete ALL {total_analyses_count} analysis/analyses (including most recent)")
                 print(f"    3. Keep all analyses and run a new analysis")
                 print()
                 choice = None
@@ -110,27 +110,23 @@ def main():
                         print(f"  Invalid choice. Please enter 1, 2, or 3.")
                 
                 if choice == "1":
-                    # Delete older analyses choce 1
+                    # Delete older analyses (keep most recent)
                     all_analyses = get_all_analyses_by_zip_file(zip_file_path)
                     current_analysis = get_analysis_by_zip_file(zip_file_path)
                     current_analysis_id = current_analysis["id"] if current_analysis else None
                     
-                    older_count = 0
-                    analyses_to_delete = []
-                    for analysis in all_analyses:
-                        if analysis["id"] != current_analysis_id:
-                            older_count += 1
-                            analyses_to_delete.append(analysis)
+                    analyses_to_delete = [a for a in all_analyses if a["id"] != current_analysis_id]
+                    analyses_to_delete_count = len(analyses_to_delete)
                     
-                    if older_count > 0:
+                    if analyses_to_delete_count > 0:
                         # Show details only if more than 2 analyses
-                        if older_count > 2:
+                        if analyses_to_delete_count > 2:
                             print(f"\n  Analyses to be deleted:")
                             for analysis in analyses_to_delete:
                                 print(f"    - Analysis ID {analysis['id']} ({analysis['analysis_type']}) from {analysis['analysis_timestamp']}")
-                            confirm = input(f"\n  Confirm deletion of {older_count} older analysis/analyses? (y/n): ").lower().strip()
+                            confirm = input(f"\n  Confirm deletion of {analyses_to_delete_count} older analysis/analyses? (y/n): ").lower().strip()
                         else:
-                            confirm = input(f"\n  Confirm deletion of {older_count} older analysis/analyses? (y/n): ").lower().strip()
+                            confirm = input(f"\n  Confirm deletion of {analyses_to_delete_count} older analysis/analyses? (y/n): ").lower().strip()
                         
                         if confirm == "y" or confirm == "yes":
                             with get_connection() as conn:
@@ -139,13 +135,13 @@ def main():
                                     "DELETE FROM analyses WHERE zip_file = ? AND id != ?",
                                     (zip_file_path, current_analysis_id),
                                 )
-                                deleted_rows = cursor.rowcount
+                                deleted_count = cursor.rowcount
                                 conn.commit()
                             
                             # Verify deletion worked
                             remaining_count = count_analyses_by_zip_file(zip_file_path)
-                            if deleted_rows > 0:
-                                print(f"  ✓ Deleted {deleted_rows} older analysis/analyses")
+                            if deleted_count > 0:
+                                print(f"  ✓ Deleted {deleted_count} older analysis/analyses")
                                 print(f"  ✓ {remaining_count} analysis/analyses remaining in database")
                                 # Refresh the report and analysis after deletion to get updated timestamp
                                 existing_report = get_analysis_report(zip_file_path)
@@ -159,7 +155,7 @@ def main():
                                             timestamp = existing_report.get('analysis_metadata', {}).get('analysis_timestamp', 'unknown time')
                                         print(f"  ✓ Now displaying analysis from {timestamp}")
                             else:
-                                print(f"  ⚠ Warning: Deletion query executed but no rows were deleted (rowcount: {deleted_rows})")
+                                print(f"  ⚠ Warning: Deletion query executed but no rows were deleted (rowcount: {deleted_count})")
                                 print(f"  ⚠ Current count: {remaining_count} analyses in database")
                                 print(f"  ⚠ This might indicate a path mismatch issue")
                             print(f"  ✓ Resume items preserved (not affected by deletion)")
@@ -172,7 +168,7 @@ def main():
                     print(f"\n  ALL analyses to be deleted:")
                     for analysis in all_analyses:
                         print(f"    - Analysis ID {analysis['id']} ({analysis['analysis_type']}) from {analysis['analysis_timestamp']}")
-                    confirm = input(f"\n  WARNING: This will delete ALL {existing_count} analysis/analyses. Confirm? (type 'yes' to confirm): ").lower().strip()
+                    confirm = input(f"\n  WARNING: This will delete ALL {total_analyses_count} analysis/analyses. Confirm? (type 'yes' to confirm): ").lower().strip()
                     
                     if confirm == "yes":
                         with get_connection() as conn:
@@ -181,18 +177,18 @@ def main():
                                 "DELETE FROM analyses WHERE zip_file = ?",
                                 (zip_file_path,),
                             )
-                            deleted_rows = cursor.rowcount
+                            deleted_count = cursor.rowcount
                             conn.commit()
                         
                         # Verify deletion worked
                         remaining_count = count_analyses_by_zip_file(zip_file_path)
-                        if deleted_rows > 0:
-                            print(f"  ✓ Deleted ALL {deleted_rows} analysis/analyses")
+                        if deleted_count > 0:
+                            print(f"  ✓ Deleted ALL {deleted_count} analysis/analyses")
                             print(f"  ✓ {remaining_count} analysis/analyses remaining in database")
                             # Clear the existing report since all analyses were deleted
                             existing_report = None
                         else:
-                            print(f"  ⚠ Warning: Deletion query executed but no rows were deleted (rowcount: {deleted_rows})")
+                            print(f"  ⚠ Warning: Deletion query executed but no rows were deleted (rowcount: {deleted_count})")
                             print(f"  ⚠ Current count: {remaining_count} analyses in database")
                         print(f"  ✓ Resume items preserved (not affected by deletion)")
                     else:
