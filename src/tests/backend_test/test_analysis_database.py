@@ -277,9 +277,6 @@ def test_get_analysis_by_zip_file(temp_analysis_db):
     analysis = adb.get_analysis_by_zip_file(SAMPLE_PAYLOAD["analysis_metadata"]["zip_file"])
     
 
-    analysis_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD)
-    analysis = adb.get_analysis_by_zip_file(SAMPLE_PAYLOAD["analysis_metadata"]["zip_file"])
-
     assert analysis is not None
     assert analysis["id"] == analysis_id
     assert analysis["zip_file"] == "path/to/project.zip"
