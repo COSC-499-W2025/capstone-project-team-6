@@ -67,11 +67,50 @@ IGNORED_FILE_NAMES_LOWER = {name.lower() for name in IGNORED_FILE_NAMES}
 
 def run_gemini_analysis(zip_path: Path, prompt_override: Optional[str] = None) -> Dict[str, Any]:
     """Run the full analysis pipeline using Gemini."""
+    from datetime import datetime
 
-    # 1. Run the complete offline analysis pipeline
+    # 1. Run the complete offline analysis pipeline (Python/Java)
     logger.info(f"Starting offline analysis for {zip_path}")
     report = generate_comprehensive_report(zip_path)
     report.setdefault("analysis_metadata", {})
+
+    # Add C++ and C analysis to match non-LLM pipeline
+    for i, project in enumerate(report["projects"]):
+        project_path = project.get("project_path", "")
+
+        # C++ Analysis
+        if "cpp" in project.get("languages", {}):
+            try:
+                from .cpp_oop_analyzer import analyze_cpp_project
+                cpp_analysis = analyze_cpp_project(zip_path, project_path)
+                report["projects"][i]["cpp_oop_analysis"] = cpp_analysis["cpp_oop_analysis"]
+            except ImportError:
+                report["projects"][i]["cpp_oop_analysis"] = {
+                    "error": "C++ analyzer not available (libclang not installed)",
+                    "total_classes": 0,
+                }
+            except Exception as e:
+                report["projects"][i]["cpp_oop_analysis"] = {"error": str(e), "total_classes": 0}
+
+        # C Analysis (note: .c files are classified as cpp in project_analyzer)
+        if "cpp" in project.get("languages", {}) or "c" in project.get("languages", {}):
+            try:
+                from .c_oop_analyzer import analyze_c_project
+                c_analysis = analyze_c_project(zip_path, project_path)
+                # Only add if we found C-style code
+                if c_analysis["c_oop_analysis"].get("total_structs", 0) > 0:
+                    report["projects"][i]["c_oop_analysis"] = c_analysis["c_oop_analysis"]
+            except ImportError:
+                pass  # C analyzer optional
+            except Exception as e:
+                pass  # Silently skip if no C code found
+
+    # Update metadata with timestamp
+    report["analysis_metadata"].update({
+        "zip_file": str(zip_path.absolute()),
+        "analysis_timestamp": datetime.now().isoformat(),
+        "total_projects": len(report["projects"]),
+    })
 
     # Check if Gemini client is available
     if GeminiFileSearchClient is None:

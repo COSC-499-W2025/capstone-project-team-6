@@ -139,6 +139,7 @@ def analyze_folder(path: Path) -> dict:
     from datetime import datetime
 
     temp_zip = None
+    original_path = path  # Store original path before any temp zip creation
     try:
         # Determine if we need to create a ZIP
         if path.is_dir():
@@ -188,9 +189,9 @@ def analyze_folder(path: Path) -> dict:
                 except Exception as e:
                     pass  # Silently skip if no C code found
 
-        # Add analysis metadata
+        # Add analysis metadata - use original path, not temp zip path
         report["analysis_metadata"] = {
-            "zip_file": str(zip_path.absolute()),
+            "zip_file": str(original_path.absolute()),
             "analysis_timestamp": datetime.now().isoformat(),
             "total_projects": len(report["projects"]),
         }
