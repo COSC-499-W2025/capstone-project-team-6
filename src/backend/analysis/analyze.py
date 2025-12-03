@@ -73,7 +73,8 @@ def main():
         # Check if analysis already exists
         zip_file_path = str(zip_path.absolute())
         existing_report = get_analysis_report(zip_file_path)
-        new_analysis_generated = False 
+        new_analysis_generated = False
+        choice = None  # Initialize choice variable to avoid UnboundLocalError
         
         if existing_report:
             # Get the current analysis to show the most recent timestamp from database
@@ -91,7 +92,6 @@ def main():
             print(f"\nFound existing analysis in database (from {timestamp})")
             # Check if there are analyses and ask if user wants to delete them
             existing_count = count_analyses_by_zip_file(zip_file_path)
-            choice = None 
             if existing_count > 0:
                 print_separator("EXISTING ANALYSIS DETECTED" if existing_count == 1 else "EXISTING ANALYSES DETECTED")
                 print(f"  Found {existing_count} analysis{'es' if existing_count > 1 else ''} in database.")
@@ -738,12 +738,7 @@ def main():
             elif resume_items_by_project:
                 print("=" * 78 + "\n")
                 print(f" All {len(resume_items_by_project)} resume item(s) retrieved from database")
-        for project in report["projects"]:
-            try:
-                portfolio_item = generate_portfolio_item(project)
-                project["portfolio_item"] = portfolio_item
-            except Exception as e:
-                print(f"[ERROR] Failed to generate portfolio item: {e}")
+        
         print_separator("STORING ANALYSIS IN DATABASE")
         try:
             analysis_id = record_analysis(analysis_type="non_llm", payload=report)
