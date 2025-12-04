@@ -46,7 +46,7 @@ def _ensure_parent_dir(path: Path) -> None:
 def get_connection() -> sqlite3.Connection:
     db_path = get_db_path()
     _ensure_parent_dir(db_path)
-    conn = sqlite3.connect(db_path, detect_types=sqlite3.PARSE_DECLTYPES, check_same_thread=False)
+    conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     try:
         yield conn
@@ -161,6 +161,17 @@ def init_db() -> None:
             """
         )
         
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS resume_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_name TEXT NOT NULL,
+                resume_text TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS resume_items (
@@ -450,6 +461,7 @@ def get_analysis_report(zip_file: str) -> Optional[Dict[str, Any]]:
     if not analysis:
         return None
     
+
     try:
         return json.loads(analysis["raw_json"])
     except (json.JSONDecodeError, KeyError):
@@ -464,12 +476,13 @@ def count_analyses_by_zip_file(zip_file: str) -> int:
             (zip_file,),
         ).fetchone()
         return result["count"] if result else 0
+
+
 def delete_analyses_by_zip_file(zip_file: str) -> int:
-    """Delete all analyses for a given zip file path.
-    """
+    """Delete all analyses for a given zip file path."""
     if not zip_file:
         raise ValueError("zip_file path cannot be empty")
-    
+
     try:
         with get_connection() as conn:
             conn.execute("PRAGMA foreign_keys = ON;")
@@ -478,7 +491,7 @@ def delete_analyses_by_zip_file(zip_file: str) -> int:
                 (zip_file,),
             ).fetchone()
             count = count_result["count"] if count_result else 0
-            
+
             if count > 0:
                 cursor = conn.execute(
                     "DELETE FROM analyses WHERE zip_file = ?",
@@ -488,17 +501,18 @@ def delete_analyses_by_zip_file(zip_file: str) -> int:
                 conn.commit()
                 if deleted_rows != count:
                     import logging
-                    logging.warning(
-                        f"Expected to delete {count} analyses, but only deleted {deleted_rows}"
-                    )
-                
+
+                    logging.warning(f"Expected to delete {count} analyses, but only deleted {deleted_rows}")
+
                 return deleted_rows
-            
+
             return 0
     except Exception as e:
         import logging
+
         logging.error(f"Error deleting analyses for {zip_file}: {e}")
         raise
+
 
 def store_resume_item(project_name: str, resume_text: str) -> None:
     if not project_name or not resume_text:
@@ -552,3 +566,14 @@ def clear_resume_items() -> None:
     with get_connection() as conn:
         conn.execute("DELETE FROM resume_items")
         conn.commit()
+
+
+def get_all_analyses() -> List[sqlite3.Row]:
+    """Get all analyses from the database, ordered by most recent first."""
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT * FROM analyses 
+            ORDER BY created_at DESC
+            """
+        ).fetchall()

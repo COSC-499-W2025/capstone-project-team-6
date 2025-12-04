@@ -3,8 +3,15 @@
 from __future__ import annotations
 
 import json
+import sys
+from pathlib import Path
 
 import pytest
+
+# Add src directory to path for imports
+SRC_DIR = Path(__file__).resolve().parent.parent.parent
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
 from src.backend import analysis_database as adb
 
@@ -272,10 +279,9 @@ def test_project_analysis_stored_in_db(temp_analysis_db):
 def test_get_analysis_by_zip_file(temp_analysis_db):
     """Test retrieving analysis by zip file path."""
     zip_file_path = "/path/to/test_project.zip"
-    
+
     analysis_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD)
     analysis = adb.get_analysis_by_zip_file(SAMPLE_PAYLOAD["analysis_metadata"]["zip_file"])
-    
 
     assert analysis is not None
     assert analysis["id"] == analysis_id
@@ -294,8 +300,6 @@ def test_get_analysis_report(temp_analysis_db):
     """Test retrieving full analysis report by zip file."""
     # Store an analysis
     analysis_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD)
-    
-       
 
     # Retrieve report
     report = adb.get_analysis_report(SAMPLE_PAYLOAD["analysis_metadata"]["zip_file"])
@@ -317,11 +321,11 @@ def test_store_and_get_resume_items(temp_analysis_db):
     """Test storing and retrieving resume items."""
     project_name = "test_project"
     resume_text = "Test Project\nTechnologies: Python, Django\n  • Built amazing features"
-    
+
     adb.store_resume_item(project_name, resume_text)
-    
+
     items = adb.get_resume_items_for_project(project_name)
-    
+
     assert len(items) == 1
     assert items[0]["project_name"] == project_name
     assert items[0]["resume_text"] == resume_text
@@ -337,9 +341,9 @@ def test_store_resume_item_validates_input(temp_analysis_db):
     """Test that store_resume_item validates required inputs."""
     with pytest.raises(ValueError, match="project_name and resume_text are required"):
         adb.store_resume_item("", "some text")
-    
+
     with pytest.raises(ValueError, match="project_name and resume_text are required"):
         adb.store_resume_item("project", "")
-    
+
     with pytest.raises(ValueError, match="project_name and resume_text are required"):
         adb.store_resume_item(None, "some text")
