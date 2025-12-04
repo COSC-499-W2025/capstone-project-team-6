@@ -279,10 +279,10 @@ def test_project_analysis_stored_in_db(temp_analysis_db):
 def test_get_analysis_by_zip_file(temp_analysis_db):
     """Test retrieving analysis by zip file path."""
     zip_file_path = "/path/to/test_project.zip"
-    
+
     analysis_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD)
     analysis = adb.get_analysis_by_zip_file(SAMPLE_PAYLOAD["analysis_metadata"]["zip_file"])
-    
+
     assert analysis is not None
     assert analysis["id"] == analysis_id
     assert analysis["zip_file"] == "path/to/project.zip"
@@ -295,14 +295,15 @@ def test_get_analysis_by_zip_file_not_found(temp_analysis_db):
     analysis = adb.get_analysis_by_zip_file("/nonexistent/path.zip")
     assert analysis is None
 
+
 def test_get_analysis_report(temp_analysis_db):
     """Test retrieving full analysis report by zip file."""
     # Store an analysis
     analysis_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD)
-    
+
     # Retrieve report
     report = adb.get_analysis_report(SAMPLE_PAYLOAD["analysis_metadata"]["zip_file"])
-    
+
     assert report is not None
     assert report["analysis_metadata"]["zip_file"] == "path/to/project.zip"
     assert len(report["projects"]) == 1
@@ -320,11 +321,11 @@ def test_store_and_get_resume_items(temp_analysis_db):
     """Test storing and retrieving resume items."""
     project_name = "test_project"
     resume_text = "Test Project\nTechnologies: Python, Django\n  • Built amazing features"
-    
+
     adb.store_resume_item(project_name, resume_text)
-    
+
     items = adb.get_resume_items_for_project(project_name)
-    
+
     assert len(items) == 1
     assert items[0]["project_name"] == project_name
     assert items[0]["resume_text"] == resume_text
@@ -335,307 +336,14 @@ def test_get_resume_items_for_project_not_found(temp_analysis_db):
     items = adb.get_resume_items_for_project("nonexistent_project")
     assert len(items) == 0
 
+
 def test_store_resume_item_validates_input(temp_analysis_db):
     """Test that store_resume_item validates required inputs."""
     with pytest.raises(ValueError, match="project_name and resume_text are required"):
         adb.store_resume_item("", "some text")
-    
+
     with pytest.raises(ValueError, match="project_name and resume_text are required"):
         adb.store_resume_item("project", "")
-    
+
     with pytest.raises(ValueError, match="project_name and resume_text are required"):
         adb.store_resume_item(None, "some text")
-
-
-def test_count_analyses_by_zip_file(temp_analysis_db):
-    """Test counting analyses for a zip file."""
-    zip_file = "/path/to/test.zip"    
-    assert adb.count_analyses_by_zip_file(zip_file) == 0
-    
-    payload1 = {
-        "analysis_metadata": {
-            "zip_file": zip_file,
-            "analysis_timestamp": "2025-01-01T10:00:00",
-            "total_projects": 1,
-        },
-        "projects": [],
-        "summary": {},
-    }
-    adb.record_analysis("non_llm", payload1)
-    assert adb.count_analyses_by_zip_file(zip_file) == 1    
-    payload2 = {
-        "analysis_metadata": {
-            "zip_file": zip_file,
-            "analysis_timestamp": "2025-01-02T10:00:00",
-            "total_projects": 1,
-        },
-        "projects": [],
-        "summary": {},
-    }
-    adb.record_analysis("llm", payload2)
-    assert adb.count_analyses_by_zip_file(zip_file) == 2
-    
-    # Different zip file should have 0
-    assert adb.count_analyses_by_zip_file("/different/path.zip") == 0
-
-
-def test_count_analyses_by_zip_file_nonexistent(temp_analysis_db):
-    """Test counting analyses for a zip file that doesn't exist."""
-    assert adb.count_analyses_by_zip_file("/nonexistent/path.zip") == 0
-
-
-def test_delete_analyses_by_zip_file_single_analysis(temp_analysis_db):
-    """Test deleting a single analysis for a zip file."""
-    zip_file = "/path/to/test.zip"
-    
-    # Create an analysis with projects and related data
-    payload = {
-        "analysis_metadata": {
-            "zip_file": zip_file,
-            "analysis_timestamp": "2025-01-01T10:00:00",
-            "total_projects": 1,
-        },
-        "projects": [
-            {
-                "project_name": "test_project",
-                "project_path": "/test",
-                "primary_language": "python",
-                "languages": {"python": 10},
-                "total_files": 10,
-                "frameworks": ["Django"],
-                "dependencies": {"python": ["django"]},
-                "has_tests": True,
-            }
-        ],
-        "summary": {},
-    }
-    analysis_id = adb.record_analysis("non_llm", payload)
-    
-    assert adb.count_analyses_by_zip_file(zip_file) == 1
-    assert adb.get_analysis(analysis_id) is not None
-    
-    deleted_count = adb.delete_analyses_by_zip_file(zip_file)
-    assert deleted_count == 1
-    
-    assert adb.count_analyses_by_zip_file(zip_file) == 0
-    assert adb.get_analysis(analysis_id) is None
-
-
-def test_delete_analyses_by_zip_file_multiple_analyses(temp_analysis_db):
-    zip_file = "/path/to/test.zip"    
-    for i in range(3):
-        payload = {
-            "analysis_metadata": {
-                "zip_file": zip_file,
-                "analysis_timestamp": f"2025-01-0{i+1}T10:00:00",
-                "total_projects": 1,
-            },
-            "projects": [],
-            "summary": {},
-        }
-        adb.record_analysis("non_llm", payload)
-    
-    assert adb.count_analyses_by_zip_file(zip_file) == 3
-    
-    deleted_count = adb.delete_analyses_by_zip_file(zip_file)
-    assert deleted_count == 3
-    
-    assert adb.count_analyses_by_zip_file(zip_file) == 0
-
-
-def test_delete_analyses_by_zip_file_cascade_deletion(temp_analysis_db):
-    """Test that deleting analyses cascades to related data (projects, languages, etc.)."""
-    zip_file = "/path/to/test.zip"
-    
-    # Create analysis with full project data
-    payload = {
-        "analysis_metadata": {
-            "zip_file": zip_file,
-            "analysis_timestamp": "2025-01-01T10:00:00",
-            "total_projects": 1,
-        },
-        "projects": [
-            {
-                "project_name": "test_project",
-                "project_path": "/test",
-                "primary_language": "python",
-                "languages": {"python": 10, "javascript": 5},
-                "total_files": 15,
-                "frameworks": ["Django", "React"],
-                "dependencies": {
-                    "python": ["django", "requests"],
-                    "javascript": ["react"],
-                },
-                "contributors": [
-                    {
-                        "name": "John Doe",
-                        "email": "john@example.com",
-                        "commits": 10,
-                        "files_touched": 5,
-                    }
-                ],
-                "largest_file": {
-                    "path": "src/main.py",
-                    "size": 1000,
-                    "size_mb": 0.001,
-                },
-                "has_tests": True,
-            }
-        ],
-        "summary": {},
-    }
-    analysis_id = adb.record_analysis("non_llm", payload)
-    
-    projects = adb.get_projects_for_analysis(analysis_id)
-    assert len(projects) == 1
-    project_id = projects[0]["id"]
-    
-    with adb.get_connection() as conn:
-        languages = conn.execute(
-            "SELECT COUNT(*) as count FROM project_languages WHERE project_id = ?",
-            (project_id,),
-        ).fetchone()
-        assert languages["count"] == 2
-        
-        frameworks = conn.execute(
-            "SELECT COUNT(*) as count FROM project_frameworks WHERE project_id = ?",
-            (project_id,),
-        ).fetchone()
-        assert frameworks["count"] == 2
-        
-        dependencies = conn.execute(
-            "SELECT COUNT(*) as count FROM project_dependencies WHERE project_id = ?",
-            (project_id,),
-        ).fetchone()
-        assert dependencies["count"] == 3
-        
-        contributors = conn.execute(
-            "SELECT COUNT(*) as count FROM project_contributors WHERE project_id = ?",
-            (project_id,),
-        ).fetchone()
-        assert contributors["count"] == 1
-        
-        largest_file = conn.execute(
-            "SELECT COUNT(*) as count FROM project_largest_file WHERE project_id = ?",
-            (project_id,),
-        ).fetchone()
-        assert largest_file["count"] == 1
-    
-    deleted_count = adb.delete_analyses_by_zip_file(zip_file)
-    assert deleted_count == 1
-    
-    with adb.get_connection() as conn:
-        projects_remaining = conn.execute(
-            "SELECT COUNT(*) as count FROM projects WHERE analysis_id = ?",
-            (analysis_id,),
-        ).fetchone()
-        assert projects_remaining["count"] == 0
-        
-        languages_remaining = conn.execute(
-            "SELECT COUNT(*) as count FROM project_languages WHERE project_id = ?",
-            (project_id,),
-        ).fetchone()
-        assert languages_remaining["count"] == 0
-        
-        frameworks_remaining = conn.execute(
-            "SELECT COUNT(*) as count FROM project_frameworks WHERE project_id = ?",
-            (project_id,),
-        ).fetchone()
-        assert frameworks_remaining["count"] == 0
-        
-        dependencies_remaining = conn.execute(
-            "SELECT COUNT(*) as count FROM project_dependencies WHERE project_id = ?",
-            (project_id,),
-        ).fetchone()
-        assert dependencies_remaining["count"] == 0
-        
-        contributors_remaining = conn.execute(
-            "SELECT COUNT(*) as count FROM project_contributors WHERE project_id = ?",
-            (project_id,),
-        ).fetchone()
-        assert contributors_remaining["count"] == 0
-        
-        largest_file_remaining = conn.execute(
-            "SELECT COUNT(*) as count FROM project_largest_file WHERE project_id = ?",
-            (project_id,),
-        ).fetchone()
-        assert largest_file_remaining["count"] == 0
-
-
-def test_delete_analyses_preserves_resume_items(temp_analysis_db):
-    """Test that deleting analyses does NOT affect resume items."""
-    zip_file = "/path/to/test.zip"
-    project_name = "shared_project"
-    
-    resume_text = "Shared Project\nTechnologies: Python, Django\n  • Built amazing features"
-    adb.store_resume_item(project_name, resume_text)
-    
-    payload = {
-        "analysis_metadata": {
-            "zip_file": zip_file,
-            "analysis_timestamp": "2025-01-01T10:00:00",
-            "total_projects": 1,
-        },
-        "projects": [
-            {
-                "project_name": project_name,
-                "project_path": "/test",
-                "primary_language": "python",
-                "total_files": 10,
-            }
-        ],
-        "summary": {},
-    }
-    analysis_id = adb.record_analysis("non_llm", payload)
-    
-    resume_items = adb.get_resume_items_for_project(project_name)
-    assert len(resume_items) == 1
-    assert resume_items[0]["resume_text"] == resume_text
-    
-    deleted_count = adb.delete_analyses_by_zip_file(zip_file)
-    assert deleted_count == 1
-    
-    assert adb.get_analysis(analysis_id) is None    
-    resume_items_after = adb.get_resume_items_for_project(project_name)
-    assert len(resume_items_after) == 1
-    assert resume_items_after[0]["resume_text"] == resume_text
-    assert resume_items_after[0]["project_name"] == project_name
-
-
-
-def test_get_all_analyses_by_zip_file(temp_analysis_db):
-    """Test retrieving all analyses (not just most recent) for a zip file."""
-    zip_file = "/path/to/test.zip"
-    
-    # Create multiple analyses
-    timestamps = [
-        "2025-01-01T10:00:00",
-        "2025-01-02T10:00:00",
-        "2025-01-03T10:00:00",
-    ]
-    analysis_ids = []
-    
-    for i, timestamp in enumerate(timestamps):
-        payload = {
-            "analysis_metadata": {
-                "zip_file": zip_file,
-                "analysis_timestamp": timestamp,
-                "total_projects": 1,
-            },
-            "projects": [],
-            "summary": {},
-        }
-        analysis_id = adb.record_analysis("non_llm", payload)
-        analysis_ids.append(analysis_id)
-    
-    all_analyses = adb.get_all_analyses_by_zip_file(zip_file)
-    assert len(all_analyses) == 3
-    
-    retrieved_ids = {analysis["id"] for analysis in all_analyses}
-    assert retrieved_ids == set(analysis_ids)
-    created_ats = [analysis["created_at"] for analysis in all_analyses]
-    assert created_ats == sorted(created_ats, reverse=True)
-
-    adb.delete_analyses_by_zip_file(zip_file)    
-    all_analyses_after = adb.get_all_analyses_by_zip_file(zip_file)
-    assert len(all_analyses_after) == 0

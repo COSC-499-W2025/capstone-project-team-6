@@ -11,17 +11,15 @@ backend_dir = src_dir / "backend"
 sys.path.insert(0, str(src_dir))
 sys.path.insert(0, str(backend_dir))
 
-from backend.analysis.resume_generator import (
-    _detect_project_type,
-    _generate_architecture_items,
-    _generate_opening_item,
-    _generate_project_items,
-    _generate_tech_items,
-    format_resume_items,
-    generate_formatted_resume_entry,
-    generate_full_resume,
-    generate_resume_items,
-)
+from backend.analysis.resume_generator import (_detect_project_type,
+                                               _generate_architecture_items,
+                                               _generate_opening_item,
+                                               _generate_project_items,
+                                               _generate_tech_items,
+                                               format_resume_items,
+                                               generate_formatted_resume_entry,
+                                               generate_full_resume,
+                                               generate_resume_items)
 
 
 def test_detect_web_app():
@@ -40,8 +38,6 @@ def test_detect_api():
         "dependencies": {"pip": ["fastapi", "rest-api"]},
     }
     assert _detect_project_type(project) == "api"
-
-
 
 
 def test_detect_backend():
@@ -90,7 +86,6 @@ def test_opening_item():
     assert "FastAPI" in item
 
 
-
 def test_directory_depth():
     """Test directory depth items."""
     project = {
@@ -100,6 +95,7 @@ def test_directory_depth():
     items = _generate_architecture_items(project, "TestProject", "application")
     assert any("5-level" in item or "hierarchical" in item.lower() for item in items)
 
+
 def test_database_integration():
     """Test database integration."""
     project = {
@@ -108,7 +104,6 @@ def test_database_integration():
     }
     items = _generate_tech_items(project, "TestProject", "application")
     assert any("database" in item.lower() or "sqlalchemy" in item.lower() for item in items)
-
 
 
 def test_complete_project():
@@ -133,6 +128,7 @@ def test_complete_project():
     assert len(items) > 0
     assert all(isinstance(item, str) for item in items)
     assert any("TestProject" in item for item in items)
+
 
 def test_empty_report():
     """Test empty report."""
@@ -218,4 +214,3 @@ def test_full_resume():
     resume = generate_full_resume(report)
     assert "TestProject" in resume
     assert isinstance(resume, str)
-

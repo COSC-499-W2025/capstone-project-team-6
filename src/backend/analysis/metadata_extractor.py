@@ -672,8 +672,10 @@ class MetadataExtractor:
 
     def close(self):
         # Close resources
-        self.classifier.close()
-        self.zip_file.close()
+        if hasattr(self, "classifier"):
+            self.classifier.close()
+        if hasattr(self, "zip_file"):
+            self.zip_file.close()
 
     def __enter__(self):
         # Context manager enter
