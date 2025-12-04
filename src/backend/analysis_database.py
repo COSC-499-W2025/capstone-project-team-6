@@ -160,6 +160,17 @@ def init_db() -> None:
             );
             """
         )
+        
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS resume_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_name TEXT NOT NULL,
+                resume_text TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
 
         conn.execute(
             """
@@ -420,17 +431,74 @@ def get_analysis_by_zip_file(zip_file: str) -> Optional[sqlite3.Row]:
         ).fetchone()
 
 
+def get_all_analyses_by_zip_file(zip_file: str) -> List[sqlite3.Row]:
+    """Get all analyses (not just the most recent) for a given zip file path."""
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT * FROM analyses 
+            WHERE zip_file = ? 
+            ORDER BY created_at DESC
+            """,
+            (zip_file,),
+        ).fetchall()
+
+
 def get_analysis_report(zip_file: str) -> Optional[Dict[str, Any]]:
     """Retrieve the full analysis report (JSON) for a given zip file path."""
     analysis = get_analysis_by_zip_file(zip_file)
     if not analysis:
         return None
-
+    
     try:
         return json.loads(analysis["raw_json"])
     except (json.JSONDecodeError, KeyError):
         return None
 
+
+def count_analyses_by_zip_file(zip_file: str) -> int:
+    """Count the number of analyses for a given zip file path."""
+    with get_connection() as conn:
+        result = conn.execute(
+            "SELECT COUNT(*) as count FROM analyses WHERE zip_file = ?",
+            (zip_file,),
+        ).fetchone()
+        return result["count"] if result else 0
+def delete_analyses_by_zip_file(zip_file: str) -> int:
+    """Delete all analyses for a given zip file path.
+    """
+    if not zip_file:
+        raise ValueError("zip_file path cannot be empty")
+    
+    try:
+        with get_connection() as conn:
+            conn.execute("PRAGMA foreign_keys = ON;")
+            count_result = conn.execute(
+                "SELECT COUNT(*) as count FROM analyses WHERE zip_file = ?",
+                (zip_file,),
+            ).fetchone()
+            count = count_result["count"] if count_result else 0
+            
+            if count > 0:
+                cursor = conn.execute(
+                    "DELETE FROM analyses WHERE zip_file = ?",
+                    (zip_file,),
+                )
+                deleted_rows = cursor.rowcount
+                conn.commit()
+                if deleted_rows != count:
+                    import logging
+                    logging.warning(
+                        f"Expected to delete {count} analyses, but only deleted {deleted_rows}"
+                    )
+                
+                return deleted_rows
+            
+            return 0
+    except Exception as e:
+        import logging
+        logging.error(f"Error deleting analyses for {zip_file}: {e}")
+        raise
 
 def store_resume_item(project_name: str, resume_text: str) -> None:
     if not project_name or not resume_text:
