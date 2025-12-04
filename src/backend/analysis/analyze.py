@@ -30,13 +30,18 @@ from analysis.deep_code_analyzer import generate_comprehensive_report
 from analysis.resume_generator import (generate_formatted_resume_entry,
                                        print_resume_items)
 
-from backend.analysis_database import (count_analyses_by_zip_file,
-                                       delete_analyses_by_zip_file,
-                                       get_all_analyses_by_zip_file,
-                                       get_analysis_by_zip_file,
-                                       get_analysis_report, get_connection,
-                                       get_resume_items_for_project, init_db,
-                                       record_analysis, store_resume_item)
+from backend.analysis_database import (
+    init_db,
+    record_analysis,
+    store_resume_item,
+    get_analysis_report,
+    get_resume_items_for_project,
+    count_analyses_by_zip_file,
+    delete_analyses_by_zip_file,
+    get_analysis_by_zip_file,
+    get_all_analyses_by_zip_file,
+    get_connection,
+)
 
 
 def print_separator(title=""):
@@ -673,6 +678,7 @@ def main():
                     resume_items_by_project[project_name] = existing_resume_items[0]["resume_text"]
                 else:
                     projects_needing_resume.append(project)
+            
 
             # Display existing resume items
             if resume_items_by_project:
@@ -682,6 +688,7 @@ def main():
                     if project_name in resume_items_by_project:
                         print(resume_items_by_project[project_name])
                         print()
+            
 
             # Generate and store resumes for projects that don't have them
             if projects_needing_resume:
@@ -689,18 +696,27 @@ def main():
                     print("Generating resumes for remaining projects...\n")
                 else:
                     print("No existing resume items found. Generating new resumes.\n")
+                
 
                 for project in projects_needing_resume:
                     project_name = project.get("project_name", "Unknown Project")
                     resume_entry = generate_formatted_resume_entry(project)
                     print(resume_entry)
                     print()
+                    
 
                     try:
                         store_resume_item(project_name, resume_entry)
                     except Exception as e:
                         print(f" Warning: Could not store resume item for {project_name}: {e}")
                         import traceback
+                        traceback.print_exc()
+                
+                if projects_needing_resume:
+                    print("="*78 + "\n")
+                    print(f" Successfully stored {len(projects_needing_resume)} resume item(s) in the database")
+            elif resume_items_by_project:
+                print("="*78 + "\n")
 
                         traceback.print_exc()
 

@@ -46,7 +46,7 @@ def _ensure_parent_dir(path: Path) -> None:
 def get_connection() -> sqlite3.Connection:
     db_path = get_db_path()
     _ensure_parent_dir(db_path)
-    conn = sqlite3.connect(db_path, detect_types=sqlite3.PARSE_DECLTYPES, check_same_thread=False)
+    conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     try:
         yield conn
@@ -157,6 +157,17 @@ def init_db() -> None:
                 commits INTEGER,
                 files_touched INTEGER,
                 PRIMARY KEY (project_id, email)
+            );
+            """
+        )
+        
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS resume_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_name TEXT NOT NULL,
+                resume_text TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
             """
         )
@@ -449,6 +460,7 @@ def get_analysis_report(zip_file: str) -> Optional[Dict[str, Any]]:
     analysis = get_analysis_by_zip_file(zip_file)
     if not analysis:
         return None
+    
 
     try:
         return json.loads(analysis["raw_json"])
