@@ -41,10 +41,13 @@ import pytest
 
 try:
     # Try direct import first (if running from project root)
-    from backend.analysis.git_analysis import (ContributorStats,
-                                               GitAnalysisExporter,
-                                               GitAnalysisResult, GitAnalyzer,
-                                               analyze_project)
+    from backend.analysis.git_analysis import (
+        ContributorStats,
+        GitAnalysisExporter,
+        GitAnalysisResult,
+        GitAnalyzer,
+        analyze_project,
+    )
 except ImportError:
     # Add src directory to path and try again
     # Get the project root (go up from tests/backend_test to src, then to project root)
@@ -55,11 +58,13 @@ except ImportError:
     sys.path.insert(0, str(src_dir))
 
     try:
-        from src.backend.analysis.git_analysis import (ContributorStats,
-                                                       GitAnalysisExporter,
-                                                       GitAnalysisResult,
-                                                       GitAnalyzer,
-                                                       analyze_project)
+        from src.backend.analysis.git_analysis import (
+            ContributorStats,
+            GitAnalysisExporter,
+            GitAnalysisResult,
+            GitAnalyzer,
+            analyze_project,
+        )
     except ImportError as e:
         print(f"Error importing git_analysis module: {e}")
         print(f"Test directory: {test_dir}")

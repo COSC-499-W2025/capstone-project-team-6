@@ -10,8 +10,7 @@ import zipfile
 from pathlib import Path
 from typing import Optional
 
-from . import (Folder_traversal_fs, MDAShell, UserAlreadyExistsError,
-               authenticate_user, create_user, initialize)
+from . import Folder_traversal_fs, MDAShell, UserAlreadyExistsError, authenticate_user, create_user, initialize
 from .analysis.deep_code_analyzer import generate_comprehensive_report
 from .analysis.document_analyzer import DocumentAnalysis, analyze_document
 from .analysis_database import init_db
@@ -911,8 +910,7 @@ def main() -> int:
                 return 1
         elif args.command == "timeline":
             # No login/consent required to view previously stored aggregate timelines
-            from .analysis.chronology import (get_projects_timeline,
-                                              get_skills_timeline)
+            from .analysis.chronology import get_projects_timeline, get_skills_timeline
 
             try:
                 init_db()
