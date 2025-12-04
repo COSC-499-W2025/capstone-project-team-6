@@ -160,7 +160,7 @@ def init_db() -> None:
             );
             """
         )
-        
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS resume_items (
@@ -449,7 +449,7 @@ def get_analysis_report(zip_file: str) -> Optional[Dict[str, Any]]:
     analysis = get_analysis_by_zip_file(zip_file)
     if not analysis:
         return None
-    
+
     try:
         return json.loads(analysis["raw_json"])
     except (json.JSONDecodeError, KeyError):
@@ -464,12 +464,13 @@ def count_analyses_by_zip_file(zip_file: str) -> int:
             (zip_file,),
         ).fetchone()
         return result["count"] if result else 0
+
+
 def delete_analyses_by_zip_file(zip_file: str) -> int:
-    """Delete all analyses for a given zip file path.
-    """
+    """Delete all analyses for a given zip file path."""
     if not zip_file:
         raise ValueError("zip_file path cannot be empty")
-    
+
     try:
         with get_connection() as conn:
             conn.execute("PRAGMA foreign_keys = ON;")
@@ -478,7 +479,7 @@ def delete_analyses_by_zip_file(zip_file: str) -> int:
                 (zip_file,),
             ).fetchone()
             count = count_result["count"] if count_result else 0
-            
+
             if count > 0:
                 cursor = conn.execute(
                     "DELETE FROM analyses WHERE zip_file = ?",
@@ -488,17 +489,18 @@ def delete_analyses_by_zip_file(zip_file: str) -> int:
                 conn.commit()
                 if deleted_rows != count:
                     import logging
-                    logging.warning(
-                        f"Expected to delete {count} analyses, but only deleted {deleted_rows}"
-                    )
-                
+
+                    logging.warning(f"Expected to delete {count} analyses, but only deleted {deleted_rows}")
+
                 return deleted_rows
-            
+
             return 0
     except Exception as e:
         import logging
+
         logging.error(f"Error deleting analyses for {zip_file}: {e}")
         raise
+
 
 def store_resume_item(project_name: str, resume_text: str) -> None:
     if not project_name or not resume_text:

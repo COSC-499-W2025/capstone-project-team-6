@@ -7,16 +7,16 @@ Usage:
     python src/backend/analysis/analyze.py <zip_file_path>
 """
 
+import io
 import json
 import sys
-import io
 from datetime import datetime
 from pathlib import Path
 
 # Configure stdout/stderr to use UTF-8 encoding on Windows to handle Unicode characters
-if sys.platform.startswith('win'):
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+if sys.platform.startswith("win"):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
 
 # Add paths for imports
 current_dir = Path(__file__).parent
@@ -30,19 +30,11 @@ from analysis.deep_code_analyzer import generate_comprehensive_report
 from analysis.resume_generator import (generate_formatted_resume_entry,
                                        print_resume_items)
 
-from backend.analysis_database import (
-    init_db,
-    record_analysis,
-    store_resume_item,
-    get_analysis_report,
-    get_resume_items_for_project,
-    count_analyses_by_zip_file,
-    delete_analyses_by_zip_file,
-    get_analysis_by_zip_file,
-    get_all_analyses_by_zip_file,
-    get_connection,
-)
-from backend.analysis_database import (get_analysis_report,
+from backend.analysis_database import (count_analyses_by_zip_file,
+                                       delete_analyses_by_zip_file,
+                                       get_all_analyses_by_zip_file,
+                                       get_analysis_by_zip_file,
+                                       get_analysis_report, get_connection,
                                        get_resume_items_for_project, init_db,
                                        record_analysis, store_resume_item)
 
@@ -82,30 +74,32 @@ def main():
         existing_report = get_analysis_report(zip_file_path)
         new_analysis_generated = False
         choice = None  # Initialize choice variable to avoid UnboundLocalError
-        
+
         if existing_report:
             # Get the current analysis to show the most recent timestamp from database
             current_analysis = get_analysis_by_zip_file(zip_file_path)
             if current_analysis:
                 try:
-                    timestamp = current_analysis['analysis_timestamp'] or current_analysis['created_at']
+                    timestamp = current_analysis["analysis_timestamp"] or current_analysis["created_at"]
                 except KeyError:
                     try:
-                        timestamp = current_analysis['created_at']
+                        timestamp = current_analysis["created_at"]
                     except KeyError:
-                        timestamp = existing_report.get('analysis_metadata', {}).get('analysis_timestamp', 'unknown time')
+                        timestamp = existing_report.get("analysis_metadata", {}).get("analysis_timestamp", "unknown time")
             else:
-                timestamp = existing_report.get('analysis_metadata', {}).get('analysis_timestamp', 'unknown time')
+                timestamp = existing_report.get("analysis_metadata", {}).get("analysis_timestamp", "unknown time")
             print(f"\nFound existing analysis in database (from {timestamp})")
             # Check if there are analyses and ask if user wants to delete them
             total_analyses_count = count_analyses_by_zip_file(zip_file_path)
             if total_analyses_count > 0:
                 print_separator("EXISTING ANALYSIS DETECTED" if total_analyses_count == 1 else "EXISTING ANALYSES DETECTED")
                 print(f"  Found {total_analyses_count} analysis{'es' if total_analyses_count > 1 else ''} in database.")
-                print(f"  Note: Deleting analysis/analyses will remove analysis data but preserve resume items (they are shared across reports and will not be affected).")
+                print(
+                    f"  Note: Deleting analysis/analyses will remove analysis data but preserve resume items (they are shared across reports and will not be affected)."
+                )
                 print()
                 print(f"  Options:")
-            
+
                 print(f"    1. Delete {total_analyses_count - 1} older analysis/analyses (keep most recent)")
                 print(f"    2. Delete ALL {total_analyses_count} analysis/analyses (including most recent)")
                 print(f"    3. Keep all analyses and run a new analysis")
@@ -115,26 +109,36 @@ def main():
                     choice = input(f"Enter your choice (1/2/3): ").strip()
                     if choice not in ["1", "2", "3"]:
                         print(f"  Invalid choice. Please enter 1, 2, or 3.")
-                
+
                 if choice == "1":
                     # Delete older analyses (keep most recent)
                     all_analyses = get_all_analyses_by_zip_file(zip_file_path)
                     current_analysis = get_analysis_by_zip_file(zip_file_path)
                     current_analysis_id = current_analysis["id"] if current_analysis else None
-                    
+
                     analyses_to_delete = [a for a in all_analyses if a["id"] != current_analysis_id]
                     analyses_to_delete_count = len(analyses_to_delete)
-                    
+
                     if analyses_to_delete_count > 0:
                         # Show details only if more than 2 analyses
                         if analyses_to_delete_count > 2:
                             print(f"\n  Analyses to be deleted:")
                             for analysis in analyses_to_delete:
-                                print(f"    - Analysis ID {analysis['id']} ({analysis['analysis_type']}) from {analysis['analysis_timestamp']}")
-                            confirm = input(f"\n  Confirm deletion of {analyses_to_delete_count} older analysis/analyses? (y/n): ").lower().strip()
+                                print(
+                                    f"    - Analysis ID {analysis['id']} ({analysis['analysis_type']}) from {analysis['analysis_timestamp']}"
+                                )
+                            confirm = (
+                                input(f"\n  Confirm deletion of {analyses_to_delete_count} older analysis/analyses? (y/n): ")
+                                .lower()
+                                .strip()
+                            )
                         else:
-                            confirm = input(f"\n  Confirm deletion of {analyses_to_delete_count} older analysis/analyses? (y/n): ").lower().strip()
-                        
+                            confirm = (
+                                input(f"\n  Confirm deletion of {analyses_to_delete_count} older analysis/analyses? (y/n): ")
+                                .lower()
+                                .strip()
+                            )
+
                         if confirm == "y" or confirm == "yes":
                             with get_connection() as conn:
                                 conn.execute("PRAGMA foreign_keys = ON;")
@@ -144,7 +148,7 @@ def main():
                                 )
                                 deleted_count = cursor.rowcount
                                 conn.commit()
-                            
+
                             # Verify deletion worked
                             remaining_count = count_analyses_by_zip_file(zip_file_path)
                             if deleted_count > 0:
@@ -157,12 +161,16 @@ def main():
                                     current_analysis = get_analysis_by_zip_file(zip_file_path)
                                     if current_analysis:
                                         try:
-                                            timestamp = current_analysis['analysis_timestamp'] or current_analysis['created_at']
+                                            timestamp = current_analysis["analysis_timestamp"] or current_analysis["created_at"]
                                         except KeyError:
-                                            timestamp = existing_report.get('analysis_metadata', {}).get('analysis_timestamp', 'unknown time')
+                                            timestamp = existing_report.get("analysis_metadata", {}).get(
+                                                "analysis_timestamp", "unknown time"
+                                            )
                                         print(f"  ✓ Now displaying analysis from {timestamp}")
                             else:
-                                print(f"  ⚠ Warning: Deletion query executed but no rows were deleted (rowcount: {deleted_count})")
+                                print(
+                                    f"  ⚠ Warning: Deletion query executed but no rows were deleted (rowcount: {deleted_count})"
+                                )
                                 print(f"  ⚠ Current count: {remaining_count} analyses in database")
                                 print(f"  ⚠ This might indicate a path mismatch issue")
                             print(f"  ✓ Resume items preserved (not affected by deletion)")
@@ -174,9 +182,17 @@ def main():
                     all_analyses = get_all_analyses_by_zip_file(zip_file_path)
                     print(f"\n  ALL analyses to be deleted:")
                     for analysis in all_analyses:
-                        print(f"    - Analysis ID {analysis['id']} ({analysis['analysis_type']}) from {analysis['analysis_timestamp']}")
-                    confirm = input(f"\n  WARNING: This will delete ALL {total_analyses_count} analysis/analyses. Confirm? (type 'yes' to confirm): ").lower().strip()
-                    
+                        print(
+                            f"    - Analysis ID {analysis['id']} ({analysis['analysis_type']}) from {analysis['analysis_timestamp']}"
+                        )
+                    confirm = (
+                        input(
+                            f"\n  WARNING: This will delete ALL {total_analyses_count} analysis/analyses. Confirm? (type 'yes' to confirm): "
+                        )
+                        .lower()
+                        .strip()
+                    )
+
                     if confirm == "yes":
                         with get_connection() as conn:
                             conn.execute("PRAGMA foreign_keys = ON;")
@@ -186,7 +202,7 @@ def main():
                             )
                             deleted_count = cursor.rowcount
                             conn.commit()
-                        
+
                         # Verify deletion worked
                         remaining_count = count_analyses_by_zip_file(zip_file_path)
                         if deleted_count > 0:
@@ -202,7 +218,7 @@ def main():
                         print(f"  Deletion cancelled.")
                 elif choice == "3":
                     print(f"  Keeping all existing analyses. Running new analysis...\n")
-            
+
             if choice == "1":
                 # Choice 1: Use existing report (after deleting older ones)
                 report = existing_report
@@ -216,7 +232,7 @@ def main():
             else:
                 # Choice 3: Generate new analysis (set flag, will generate below)
                 existing_report = None
-        
+
         # Generate new analysis if no existing report
         if existing_report is None:
             report = generate_comprehensive_report(zip_path)
@@ -631,6 +647,7 @@ def main():
             except Exception as e:
                 print(f"  Error storing analysis in database: {e}")
                 import traceback
+
                 traceback.print_exc()
 
         # Ask user if they want to generate resume
@@ -641,7 +658,8 @@ def main():
             print("\n" + "=" * 78)
             print("  FULL RESUME")
             print("=" * 78 + "\n")
-            from analysis.resume_generator import generate_formatted_resume_entry
+            from analysis.resume_generator import \
+                generate_formatted_resume_entry
 
             # Check if resume items already exist
             resume_items_by_project = {}
@@ -683,6 +701,7 @@ def main():
                     except Exception as e:
                         print(f" Warning: Could not store resume item for {project_name}: {e}")
                         import traceback
+
                         traceback.print_exc()
 
                 if projects_needing_resume:
