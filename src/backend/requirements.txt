@@ -39,8 +39,7 @@ pgvector==0.2.5
 libclang
 
 # Gemini / Google Cloud
-google-generativeai>=0.8.3
-google-auth>=2.36.0
+google-genai
 
 # Resilience
 tenacity>=8.2.3
