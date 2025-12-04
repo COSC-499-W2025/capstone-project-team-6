@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Complete Analysis Script - Detailed Metadata Extraction and Deep Code Analysis
 
@@ -8,8 +9,14 @@ Usage:
 
 import json
 import sys
+import io
 from datetime import datetime
 from pathlib import Path
+
+# Configure stdout/stderr to use UTF-8 encoding on Windows to handle Unicode characters
+if sys.platform.startswith('win'):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 # Add paths for imports
 current_dir = Path(__file__).parent
@@ -196,9 +203,16 @@ def main():
                 elif choice == "3":
                     print(f"  Keeping all existing analyses. Running new analysis...\n")
             
-            if choice != "3":
-                # Choice 1 or 2: Use existing report (after potential deletions)
+            if choice == "1":
+                # Choice 1: Use existing report (after deleting older ones)
                 report = existing_report
+                # Don't mark as new since we're keeping the most recent
+                new_analysis_generated = False
+            elif choice == "2":
+                # Choice 2: Use existing report but mark as new to re-store after deletion
+                report = existing_report
+                # Mark as new analysis to re-store it after deletion
+                new_analysis_generated = True
             else:
                 # Choice 3: Generate new analysis (set flag, will generate below)
                 existing_report = None
