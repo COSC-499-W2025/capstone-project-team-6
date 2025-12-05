@@ -25,9 +25,19 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_MAX_FILE_SIZE_BYTES = 2_000_000
 IGNORED_PATH_KEYWORDS = (
-    ".git/", "node_modules/", "dist/", "build/", ".next/", 
-    "__pycache__/", ".venv/", "venv/", "env/", ".terraform/", 
-    ".idea/", ".vscode/", "__MACOSX/"
+    ".git/",
+    "node_modules/",
+    "dist/",
+    "build/",
+    ".next/",
+    "__pycache__/",
+    ".venv/",
+    "venv/",
+    "env/",
+    ".terraform/",
+    ".idea/",
+    ".vscode/",
+    "__MACOSX/",
 )
 IGNORED_FILE_NAMES = {".env", ".env.local", ".env.example", ".DS_Store", "package-lock.json", "yarn.lock"}
 IGNORED_FILE_NAMES_LOWER = {name.lower() for name in IGNORED_FILE_NAMES}
@@ -130,12 +140,15 @@ Act as a Technical Hiring Manager reviewing a candidate's code submission. Your 
   ],
   "deliverable": "Produce a concise report that cites concrete files/functions and explains how well the author demonstrates domain fluency for the detected frameworks."
 }"""
-    )
+    ),
 }
 
-def run_gemini_analysis(zip_path: Path, active_features: List[str] = None, prompt_override: Optional[str] = None) -> Dict[str, Any]:
+
+def run_gemini_analysis(
+    zip_path: Path, active_features: List[str] = None, prompt_override: Optional[str] = None
+) -> Dict[str, Any]:
     """Run the full analysis pipeline using Gemini."""
-    
+
     # 1. Run the complete offline analysis pipeline
     logger.info(f"Starting offline analysis for {zip_path}")
     report = generate_comprehensive_report(zip_path)
@@ -154,7 +167,7 @@ def run_gemini_analysis(zip_path: Path, active_features: List[str] = None, promp
     try:
         # 3. Prepare Files for Ingestion
         files_to_ingest = []
-        
+
         with FileClassifier(zip_path) as classifier:
             classification = classifier.classify_project("")
             files_section = classification.get("files", {})
@@ -176,7 +189,7 @@ def run_gemini_analysis(zip_path: Path, active_features: List[str] = None, promp
                         if len(content_bytes) > DEFAULT_MAX_FILE_SIZE_BYTES:
                             logger.warning(f"Skipping large file {path} ({len(content_bytes)} bytes)")
                             continue
-                        
+
                         content = content_bytes.decode("utf-8", errors="ignore")
                         if not content.strip():
                             continue
@@ -197,7 +210,7 @@ def run_gemini_analysis(zip_path: Path, active_features: List[str] = None, promp
 
         # 5. Generate Prompt (Base + Features)
         offline_summary = _summarize_offline_report(report)
-        
+
         # Base Prompt (Always runs)
         base_prompt = (
             "You are a Senior Principal Software Architect.\n"
@@ -216,18 +229,16 @@ def run_gemini_analysis(zip_path: Path, active_features: List[str] = None, promp
             for feature in active_features:
                 if feature in PROMPT_MODULES:
                     additional_instructions.append(PROMPT_MODULES[feature])
-        
+
         # If no specific features requested, add a generic deep dive instruction
         if not additional_instructions and not prompt_override:
-             additional_instructions.append(
-                 "### 2. General Deep Dive\nIdentify architectural patterns, security risks, and code quality issues."
-             )
+            additional_instructions.append(
+                "### 2. General Deep Dive\nIdentify architectural patterns, security risks, and code quality issues."
+            )
 
         # Final Prompt Construction
         full_prompt = prompt_override or (
-            f"{base_prompt}\n"
-            + "\n".join(additional_instructions)
-            + "\n\n### Output Format\n"
+            f"{base_prompt}\n" + "\n".join(additional_instructions) + "\n\n### Output Format\n"
             "Structure your response with clear headings corresponding to the sections above. Use Markdown.\n"
             f"\nOffline Analysis Context:\n{offline_summary}"
         )
@@ -257,7 +268,8 @@ def _build_offline_analysis_document(report: Dict[str, Any]) -> Dict[str, str]:
 
 
 def _summarize_offline_report(report: Dict[str, Any]) -> str:
-    if not report: return "No offline analysis available."
+    if not report:
+        return "No offline analysis available."
     summary = report.get("summary", {})
     projects = report.get("projects", [])
     lines = [f"Total Files: {summary.get('total_files', 0)}"]
@@ -271,18 +283,19 @@ def _should_ignore_path(path: str) -> bool:
     normalized = path.replace("\\", "/")
     parts = normalized.split("/")
     filename = parts[-1]
-    
+
     if filename.lower() in IGNORED_FILE_NAMES_LOWER:
         return True
 
     if filename.startswith("._"):
         return True
-        
+
     for keyword in IGNORED_PATH_KEYWORDS:
         if keyword in normalized:
             return True
-            
+
     return False
+
 
 if __name__ == "__main__":
     import argparse
@@ -292,12 +305,12 @@ if __name__ == "__main__":
     from rich.panel import Panel
     from rich.table import Table
     from rich import box
-    
+
     parser = argparse.ArgumentParser(description="Run Gemini Analysis on a ZIP file.")
     parser.add_argument("zip_path", type=Path, help="Path to the ZIP file to analyze")
     parser.add_argument("--prompt", type=str, help="Optional custom prompt (overrides all)", default=None)
     parser.add_argument("--json", action="store_true", help="Output raw JSON instead of formatted report")
-    
+
     # Feature Flags
     parser.add_argument("--architecture", action="store_true", help="Deep analysis of patterns and anti-patterns")
     parser.add_argument("--complexity", action="store_true", help="Algorithmic intent and Big O gap analysis")
@@ -313,11 +326,16 @@ if __name__ == "__main__":
     if args.all:
         active_features = ["architecture", "complexity", "security", "skills", "domain"]
     else:
-        if args.architecture: active_features.append("architecture")
-        if args.complexity: active_features.append("complexity")
-        if args.security: active_features.append("security")
-        if args.skills: active_features.append("skills")
-        if args.domain: active_features.append("domain")
+        if args.architecture:
+            active_features.append("architecture")
+        if args.complexity:
+            active_features.append("complexity")
+        if args.security:
+            active_features.append("security")
+        if args.skills:
+            active_features.append("skills")
+        if args.domain:
+            active_features.append("domain")
 
     if not args.zip_path.exists():
         print(f"Error: File not found: {args.zip_path}", file=sys.stderr)
@@ -325,11 +343,7 @@ if __name__ == "__main__":
 
     try:
         # Run the analysis with selected features
-        report = run_gemini_analysis(
-            args.zip_path, 
-            active_features=active_features,
-            prompt_override=args.prompt
-        )
+        report = run_gemini_analysis(args.zip_path, active_features=active_features, prompt_override=args.prompt)
 
         if args.json:
             print(json.dumps(report, indent=2, default=str))
@@ -348,11 +362,11 @@ if __name__ == "__main__":
         grid = Table.grid(expand=True)
         grid.add_column()
         grid.add_column(justify="right")
-        
+
         stats_table = Table(box=box.SIMPLE, show_header=False)
         stats_table.add_column("Key", style="cyan")
         stats_table.add_column("Value", style="white")
-        
+
         stats_table.add_row("Project Name", project_name)
         stats_table.add_row("Primary Language", ", ".join(summary.get("languages_used", ["N/A"])))
         stats_table.add_row("Total Files", str(summary.get("total_files", 0)))
@@ -363,20 +377,17 @@ if __name__ == "__main__":
 
         llm_text = report.get("llm_summary", "No analysis generated.")
         md = Markdown(llm_text)
-        
-        console.print(Panel(
-            md, 
-            title="[bold green]AI-Powered Insights[/bold green]", 
-            border_style="green", 
-            padding=(1, 2)
-        ))
-        
+
+        console.print(Panel(md, title="[bold green]AI-Powered Insights[/bold green]", border_style="green", padding=(1, 2)))
+
         if report.get("llm_error"):
-            console.print(Panel(
-                f"[bold red]Error during analysis:[/bold red]\n{report['llm_error']}", 
-                title="System Warnings", 
-                border_style="red"
-            ))
+            console.print(
+                Panel(
+                    f"[bold red]Error during analysis:[/bold red]\n{report['llm_error']}",
+                    title="System Warnings",
+                    border_style="red",
+                )
+            )
 
     except Exception as e:
         console = Console()
