@@ -4,12 +4,15 @@ Tests for C++ OOP Analyzer Module
 
 import pytest
 
-from backend.analysis.cpp_oop_analyzer import (CLANG_AVAILABLE, CppOOPAnalysis,
-                                               CppOOPAnalyzer,
-                                               analyze_cpp_file,
-                                               calculate_oop_score,
-                                               calculate_solid_score,
-                                               get_coding_style)
+from backend.analysis.cpp_oop_analyzer import (
+    CLANG_AVAILABLE,
+    CppOOPAnalysis,
+    CppOOPAnalyzer,
+    analyze_cpp_file,
+    calculate_oop_score,
+    calculate_solid_score,
+    get_coding_style,
+)
 
 # Skip all tests if clang is not available
 pytestmark = pytest.mark.skipif(not CLANG_AVAILABLE, reason="libclang not installed")

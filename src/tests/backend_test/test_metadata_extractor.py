@@ -8,8 +8,7 @@ import pytest
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from backend.analysis.metadata_extractor import (MetadataExtractor,
-                                                 ProjectMetadata)
+from backend.analysis.metadata_extractor import MetadataExtractor, ProjectMetadata
 
 # Test configuration
 SCRIPT_DIR = Path(__file__).parent

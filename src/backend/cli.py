@@ -10,13 +10,13 @@ import zipfile
 from pathlib import Path
 from typing import Optional
 
-from . import (Folder_traversal_fs, MDAShell, UserAlreadyExistsError,
-               authenticate_user, create_user, initialize)
+from . import Folder_traversal_fs, MDAShell, UserAlreadyExistsError, authenticate_user, create_user, initialize
 from .analysis.deep_code_analyzer import generate_comprehensive_report
 from .analysis.document_analyzer import DocumentAnalysis, analyze_document
 from .analysis_database import init_db
 from .consent import ask_for_consent
-from .text_extractor import extract_text
+
+# Avoid importing heavy optional dependencies at module import time
 
 
 def handle_first_time_consent(username: str) -> bool:
@@ -135,6 +135,8 @@ def analyze_folder(path: Path) -> dict:
         ValueError: If path is neither a directory nor a ZIP file
         zipfile.BadZipFile: If ZIP file is corrupted
     """
+    from datetime import datetime
+
     temp_zip = None
     try:
         # Determine if we need to create a ZIP
@@ -147,9 +149,50 @@ def analyze_folder(path: Path) -> dict:
         else:
             raise ValueError(f"Path must be a directory or ZIP file: {path}")
 
-        # Run comprehensive analysis
+        # Run comprehensive analysis (Python/Java)
         print(f"Running analysis pipeline...")
         report = generate_comprehensive_report(zip_path)
+
+        # Add C++ and C analysis to the report
+        for i, project in enumerate(report["projects"]):
+            project_path = project.get("project_path", "")
+
+            # C++ Analysis
+            if "cpp" in project.get("languages", {}):
+                try:
+                    from .analysis.cpp_oop_analyzer import analyze_cpp_project
+
+                    cpp_analysis = analyze_cpp_project(zip_path, project_path)
+                    report["projects"][i]["cpp_oop_analysis"] = cpp_analysis["cpp_oop_analysis"]
+                except ImportError:
+                    report["projects"][i]["cpp_oop_analysis"] = {
+                        "error": "C++ analyzer not available (libclang not installed)",
+                        "total_classes": 0,
+                    }
+                except Exception as e:
+                    report["projects"][i]["cpp_oop_analysis"] = {"error": str(e), "total_classes": 0}
+
+            # C Analysis (note: .c files are classified as cpp in project_analyzer)
+            # So we check for cpp language and run C analyzer too
+            if "cpp" in project.get("languages", {}) or "c" in project.get("languages", {}):
+                try:
+                    from .analysis.c_oop_analyzer import analyze_c_project
+
+                    c_analysis = analyze_c_project(zip_path, project_path)
+                    # Only add if we found C-style code
+                    if c_analysis["c_oop_analysis"].get("total_structs", 0) > 0:
+                        report["projects"][i]["c_oop_analysis"] = c_analysis["c_oop_analysis"]
+                except ImportError:
+                    pass  # C analyzer optional
+                except Exception as e:
+                    pass  # Silently skip if no C code found
+
+        # Add analysis metadata
+        report["analysis_metadata"] = {
+            "zip_file": str(zip_path.absolute()),
+            "analysis_timestamp": datetime.now().isoformat(),
+            "total_projects": len(report["projects"]),
+        }
 
         return report
 
@@ -281,6 +324,83 @@ def display_analysis(results: dict) -> None:
             if overloads > 0:
                 print(f"   Polymorphism: {overloads} operator overloads")
 
+        # OOP Analysis (for Java projects)
+        java_oop = project.get("java_oop_analysis", {})
+        if java_oop and java_oop.get("total_classes", 0) > 0:
+            print(f"\nOOP Analysis (Java):")
+            print(f"   Classes: {java_oop.get('total_classes', 0)}")
+            print(f"   Interfaces: {java_oop.get('interface_count', 0)}")
+            print(f"   Enums: {java_oop.get('enum_count', 0)}")
+
+            abstract = java_oop.get("abstract_classes", [])
+            if abstract:
+                print(f"   Abstraction: {len(abstract)} abstract classes")
+
+            private = java_oop.get("private_methods", 0)
+            protected = java_oop.get("protected_methods", 0)
+            if private > 0 or protected > 0:
+                print(f"   Encapsulation: {private} private, {protected} protected methods")
+
+            inheritance = java_oop.get("classes_with_inheritance", 0)
+            if inheritance > 0:
+                print(f"   Inheritance: {inheritance} classes")
+
+            overrides = java_oop.get("override_count", 0)
+            overloads_java = java_oop.get("method_overloads", 0)
+            if overrides > 0 or overloads_java > 0:
+                print(f"   Polymorphism: {overrides} overrides, {overloads_java} overloads")
+
+        # OOP Analysis (for C++ projects)
+        cpp_oop = project.get("cpp_oop_analysis", {})
+        if cpp_oop and (cpp_oop.get("total_classes", 0) > 0 or cpp_oop.get("struct_count", 0) > 0):
+            print(f"\nOOP Analysis (C++):")
+            print(f"   Classes: {cpp_oop.get('total_classes', 0)}")
+            print(f"   Structs: {cpp_oop.get('struct_count', 0)}")
+
+            abstract = cpp_oop.get("abstract_classes", [])
+            if abstract:
+                print(f"   Abstraction: {len(abstract)} abstract classes")
+
+            private = cpp_oop.get("private_methods", 0)
+            protected = cpp_oop.get("protected_methods", 0)
+            if private > 0 or protected > 0:
+                print(f"   Encapsulation: {private} private, {protected} protected methods")
+
+            virtual = cpp_oop.get("virtual_methods", 0)
+            if virtual > 0:
+                print(f"   Polymorphism: {virtual} virtual methods")
+
+            inheritance = cpp_oop.get("classes_with_inheritance", 0)
+            if inheritance > 0:
+                print(f"   Inheritance: {inheritance} classes")
+
+            templates = cpp_oop.get("template_classes", 0)
+            if templates > 0:
+                print(f"   Templates: {templates} template classes")
+
+        # OOP-Style Analysis (for C projects)
+        c_oop = project.get("c_oop_analysis", {})
+        if c_oop and c_oop.get("total_structs", 0) > 0:
+            print(f"\nOOP-Style Analysis (C):")
+            print(f"   Structs: {c_oop.get('total_structs', 0)}")
+            print(f"   Functions: {c_oop.get('total_functions', 0)}")
+
+            opaque = c_oop.get("opaque_pointer_structs", 0)
+            if opaque > 0:
+                print(f"   Abstraction: {opaque} opaque pointer structs")
+
+            static = c_oop.get("static_functions", 0)
+            if static > 0:
+                print(f"   Encapsulation: {static} static functions")
+
+            vtables = c_oop.get("vtable_structs", 0)
+            if vtables > 0:
+                print(f"   Polymorphism: {vtables} vtable-style structs")
+
+            constructors = c_oop.get("constructor_destructor_pairs", 0)
+            if constructors > 0:
+                print(f"   Memory Management: {constructors} constructor/destructor pairs")
+
     print("\n" + "=" * 70)
 
 
@@ -405,7 +525,9 @@ def analyze_essay(file_path: Path) -> DocumentAnalysis:
     Returns:
         DocumentAnalysis object with results
     """
-    # Extract text from the document
+    # Extract text from the document (lazy import to avoid optional deps blocking other commands)
+    from .text_extractor import extract_text
+
     text = extract_text(str(file_path))
 
     if not text or len(text.strip()) < 100:
@@ -515,6 +637,14 @@ def main() -> int:
     # Analyze-essay command
     essay_parser = subparsers.add_parser("analyze-essay", help="Analyze an essay or document")
     essay_parser.add_argument("path", help="Path to the document file (.txt, .pdf, .docx, .md)")
+
+    # Analyze-llm command
+    llm_parser = subparsers.add_parser("analyze-llm", help="Analyze code using AI (Gemini)")
+    llm_parser.add_argument("path", help="Path to the ZIP file to analyze")
+    llm_parser.add_argument("--prompt", help="Custom analysis prompt (optional)")
+    # Timeline command
+    timeline_parser = subparsers.add_parser("timeline", help="Show chronological timelines from stored analyses")
+    timeline_parser.add_argument("type", choices=["projects", "skills"], help="Timeline type to display")
 
     # Consent command
     consent_parser = subparsers.add_parser("consent", help="View or update consent status")
@@ -643,6 +773,22 @@ def main() -> int:
                 print(f"\n[*] Analyzing: {path}")
                 results = analyze_folder(path)
                 display_analysis(results)
+
+                # Generate resume highlights
+                from .analysis.resume_generator import print_resume_items
+
+                print_resume_items(results)
+
+                # Store analysis in database
+                try:
+                    from .analysis_database import record_analysis
+
+                    analysis_id = record_analysis("non_llm", results)
+                    analysis_uuid = results.get("analysis_metadata", {}).get("analysis_uuid", "unknown")
+                    print(f"\n📊 Analysis saved to database (ID: {analysis_id}, UUID: {analysis_uuid})")
+                except Exception as db_error:
+                    print(f"\n⚠️  Warning: Could not save to database: {db_error}")
+
                 print("\n✅ Analysis complete!")
                 return 0
             except zipfile.BadZipFile:
@@ -697,6 +843,113 @@ def main() -> int:
 
                 traceback.print_exc()
                 return 1
+
+        elif args.command == "analyze-llm":
+            session = get_session()
+            if not session["logged_in"]:
+                print("\nPlease login first")
+                return 1
+
+            username = session["username"]
+            if not check_user_consent(username):
+                print("\nPlease provide consent before analyzing files")
+                print("Run 'mda consent --update' to view and accept the consent form")
+                return 1
+
+            path = Path(args.path)
+            if not path.exists():
+                print(f"\nPath does not exist: {path}")
+                return 1
+
+            # Validate file type - must be ZIP
+            if not path.is_file() or path.suffix.lower() != ".zip":
+                print(f"\nLLM analysis requires a ZIP file")
+                return 1
+
+            # Run LLM analysis
+            try:
+                from .analysis.llm_pipeline import run_gemini_analysis
+
+                print(f"\n[*] Running AI-powered analysis on: {path}")
+                print("This may take a few moments...")
+                results = run_gemini_analysis(path, args.prompt)
+
+                # Display standard analysis
+                display_analysis(results)
+
+                # Display LLM summary
+                llm_summary = results.get("llm_summary")
+                llm_error = results.get("llm_error")
+
+                if llm_error:
+                    print(f"\n⚠️  LLM Analysis Error: {llm_error}")
+                elif llm_summary:
+                    print("\n" + "=" * 70)
+                    print("  AI-POWERED ANALYSIS SUMMARY")
+                    print("=" * 70)
+                    print(f"\n{llm_summary}\n")
+                    print("=" * 70)
+
+                # Store in database
+                try:
+                    from .analysis_database import record_analysis
+
+                    analysis_id = record_analysis("llm", results)
+                    analysis_uuid = results.get("analysis_metadata", {}).get("analysis_uuid", "unknown")
+                    print(f"\n📊 Analysis saved to database (ID: {analysis_id}, UUID: {analysis_uuid})")
+                except Exception as db_error:
+                    print(f"\n⚠️  Warning: Could not save to database: {db_error}")
+
+                print("\n✅ LLM analysis complete!")
+                return 0
+            except Exception as e:
+                print(f"\n❌ LLM analysis failed: {e}")
+                import traceback
+
+                traceback.print_exc()
+                return 1
+        elif args.command == "timeline":
+            # No login/consent required to view previously stored aggregate timelines
+            from .analysis.chronology import get_projects_timeline, get_skills_timeline
+
+            try:
+                init_db()
+            except Exception:
+                pass
+
+            if args.type == "projects":
+                entries = get_projects_timeline()
+                if not entries:
+                    print("\nNo projects found in the analysis database.")
+                    return 0
+                print("\nProjects Timeline (by analysis date):")
+                for i, e in enumerate(entries, 1):
+                    print(f"  {i}. {e.analysis_timestamp} — {e.project_name}")
+                    if e.primary_language:
+                        print(f"     Language: {e.primary_language}")
+                    if e.total_files is not None:
+                        print(f"     Files: {e.total_files}")
+                    if e.has_tests is not None:
+                        print(f"     Tests: {'yes' if e.has_tests else 'no'}")
+                    if e.has_ci_cd is not None:
+                        print(f"     CI/CD: {'yes' if e.has_ci_cd else 'no'}")
+                    if e.has_docker is not None:
+                        print(f"     Docker: {'yes' if e.has_docker else 'no'}")
+                return 0
+
+            elif args.type == "skills":
+                entries = get_skills_timeline()
+                if not entries:
+                    print("\nNo skills found in the analysis database.")
+                    return 0
+                print("\nSkills Timeline (by analysis date):")
+                for i, e in enumerate(entries, 1):
+                    langs = ", ".join(e.skills.get("languages", [])) or "-"
+                    fws = ", ".join(e.skills.get("frameworks", [])) or "-"
+                    print(f"  {i}. {e.date}")
+                    print(f"     Languages: {langs}")
+                    print(f"     Frameworks: {fws}")
+                return 0
 
     except KeyboardInterrupt:
         print("\n\nInterrupted by user. Exiting.")

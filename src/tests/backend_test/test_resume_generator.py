@@ -1,115 +1,218 @@
-"""
-Unit tests for resume_generator.py
-"""
+import sys
+from pathlib import Path
 
 import pytest
 
-from src.backend.analysis import resume_generator as rg
+current_dir = Path(__file__).parent
+tests_dir = current_dir.parent
+src_dir = tests_dir.parent
+backend_dir = src_dir / "backend"
 
-PROJECT_TECH = {
-    "project_name": "TestProj",
-    "languages": {"python": 10, "javascript": 2, "c++": 1, "go": 1},
-    "frameworks": ["Django", "React", "Flask", "Vue"],
-    "total_files": 20,
-    "code_files": 15,
-}
+sys.path.insert(0, str(src_dir))
+sys.path.insert(0, str(backend_dir))
 
-PROJECT_OOP = {
-    "project_name": "OOPProj",
-    "languages": {"python": 5},
-    "oop_analysis": {
-        "total_classes": 4,
-        "abstract_classes": ["A", "B"],
-        "inheritance_depth": 2,
-        "private_methods": 3,
-        "protected_methods": 2,
-        "properties_count": 1,
-    },
-}
-
-PROJECT_JAVA_OOP = {
-    "project_name": "JavaProj",
-    "languages": {"java": 8},
-    "java_oop_analysis": {
-        "total_classes": 6,
-        "interface_count": 2,
-        "abstract_classes": ["Abs1"],
-        "design_patterns": ["Singleton", "Factory", "Observer"],
-        "generic_classes": 2,
-        "lambda_count": 3,
-    },
-}
-
-PROJECT_QUALITY = {
-    "project_name": "QualProj",
-    "has_tests": True,
-    "test_files": 5,
-    "has_ci_cd": True,
-    "test_coverage_estimate": "high",
-    "total_files": 50,
-    "total_commits": 100,
-    "contributors": [{"name": "A"}, {"name": "B"}],
-    "has_docker": True,
-    "directory_depth": 5,
-}
-
-# Project with minimal info
-PROJECT_MINIMAL = {
-    "project_name": "EmptyProj",
-}
+from backend.analysis.resume_generator import (
+    _detect_project_type,
+    _generate_architecture_items,
+    _generate_opening_item,
+    _generate_project_items,
+    _generate_tech_items,
+    format_resume_items,
+    generate_formatted_resume_entry,
+    generate_full_resume,
+    generate_resume_items,
+)
 
 
-def test_generate_tech_stack_item():
-    item = rg._generate_tech_stack_item(PROJECT_TECH, "TestProj")
-    assert "python, javascript, c++, and 1 more" in item
-    assert "Django, React, Flask, and 1 more" in item
-    assert "15 source files" in item
+def test_detect_web_app():
+    """Test detection of web application."""
+    project = {
+        "frameworks": ["React", "Express"],
+        "dependencies": {"npm": ["react", "express"]},
+    }
+    assert _detect_project_type(project) == "web_app"
 
 
-def test_generate_python_oop_item():
-    item = rg._generate_python_oop_item(PROJECT_OOP, "OOPProj")
-    assert "4 classes" in item
-    assert "abstraction with 2 abstract base classes" in item or "inheritance hierarchies up to 2 levels deep" in item
+def test_detect_api():
+    """Test detection of API."""
+    project = {
+        "frameworks": ["FastAPI"],
+        "dependencies": {"pip": ["fastapi", "rest-api"]},
+    }
+    assert _detect_project_type(project) == "api"
 
 
-def test_generate_java_oop_item():
-    item = rg._generate_java_oop_item(PROJECT_JAVA_OOP, "JavaProj")
-    assert "8 classes/interfaces" in item or "6 classes/interfaces" in item
-    assert "Singleton, Factory design patterns" in item
-    assert "2 interfaces" in item or "1 abstract classes" in item
+def test_detect_backend():
+    """Test detection of backend service."""
+    project = {
+        "frameworks": [],
+        "dependencies": {"pip": ["sqlalchemy"]},
+    }
+    assert _detect_project_type(project) == "backend"
 
 
-def test_generate_quality_item():
-    item = rg._generate_quality_item(PROJECT_QUALITY, "QualProj")
-    assert "5 test files" in item
-    assert "CI/CD pipeline" in item
-    assert "high coverage" in item
+def test_detect_library():
+    """Test detection of library."""
+    project = {
+        "code_files": 10,
+        "test_files": 5,
+        "frameworks": [],
+        "dependencies": {},
+    }
+    assert _detect_project_type(project) == "library"
 
 
-def test_generate_resume_items_full():
-    report = {"projects": [PROJECT_TECH, PROJECT_OOP, PROJECT_JAVA_OOP, PROJECT_QUALITY]}
-    items = rg.generate_resume_items(report)
-    assert len(items) >= 4
-    assert any("TestProj" in i for i in items)
-    assert any("OOPProj" in i for i in items)
-    assert any("JavaProj" in i for i in items)
-    assert any("QualProj" in i for i in items)
+def test_detect_application_default():
+    """Test default application type."""
+    project = {
+        "code_files": 5,
+        "test_files": 0,
+        "frameworks": [],
+        "dependencies": {},
+    }
+    assert _detect_project_type(project) == "application"
 
 
-def test_generate_resume_items_empty():
-    report = {"projects": [PROJECT_MINIMAL]}
-    items = rg.generate_resume_items(report)
-    assert items == [] or all(isinstance(i, str) for i in items)
+def test_opening_item():
+    """Test opening item."""
+    project = {
+        "project_name": "TestProject",
+        "primary_language": "Python",
+        "code_files": 60,
+        "frameworks": ["FastAPI", "SQLAlchemy"],
+    }
+    item = _generate_opening_item(project, "TestProject", "web_app")
+    assert "TestProject" in item
+    assert "web application" in item
+    assert "60" in item
+    assert "FastAPI" in item
 
 
-def test_format_resume_items():
-    items = ["Did X", "Did Y"]
-    formatted = rg.format_resume_items(items)
-    assert "• Did X" in formatted
-    assert "• Did Y" in formatted
-    assert formatted.startswith("\n  • ")
+def test_directory_depth():
+    """Test directory depth items."""
+    project = {
+        "project_name": "TestProject",
+        "directory_depth": 5,
+    }
+    items = _generate_architecture_items(project, "TestProject", "application")
+    assert any("5-level" in item or "hierarchical" in item.lower() for item in items)
 
 
-def test_format_resume_items_empty():
-    formatted = rg.format_resume_items([])
+def test_database_integration():
+    """Test database integration."""
+    project = {
+        "project_name": "TestProject",
+        "dependencies": {"pip": ["sqlalchemy", "flask"]},
+    }
+    items = _generate_tech_items(project, "TestProject", "application")
+    assert any("database" in item.lower() or "sqlalchemy" in item.lower() for item in items)
+
+
+def test_complete_project():
+    """Test complete project with all features."""
+    project = {
+        "project_name": "TestProject",
+        "primary_language": "Python",
+        "code_files": 50,
+        "frameworks": ["FastAPI"],
+        "dependencies": {"pip": ["fastapi", "sqlalchemy"]},
+        "oop_analysis": {
+            "total_classes": 10,
+            "inheritance_depth": 2,
+        },
+        "test_files": 15,
+        "code_files": 30,
+        "has_tests": True,
+        "has_ci_cd": True,
+        "has_docker": True,
+    }
+    items = _generate_project_items(project)
+    assert len(items) > 0
+    assert all(isinstance(item, str) for item in items)
+    assert any("TestProject" in item for item in items)
+
+
+def test_empty_report():
+    """Test empty report."""
+    report = {"projects": []}
+    items = generate_resume_items(report)
+    assert items == []
+
+
+def test_single_project():
+    """Test single project."""
+    report = {
+        "projects": [
+            {
+                "project_name": "TestProject",
+                "code_files": 20,
+                "primary_language": "Python",
+            }
+        ]
+    }
+    items = generate_resume_items(report)
+    assert len(items) > 0
+
+
+def test_multiple_projects():
+    """Test multiple projects."""
+    report = {
+        "projects": [
+            {
+                "project_name": "Project1",
+                "code_files": 20,
+            },
+            {
+                "project_name": "Project2",
+                "code_files": 30,
+            },
+        ]
+    }
+    items = generate_resume_items(report)
+    assert len(items) > 0
+    assert any("Project1" in item for item in items)
+    assert any("Project2" in item for item in items)
+
+
+def test_format_items():
+    """Test formatting items."""
+    items = ["Item 1", "Item 2", "Item 3"]
+    formatted = format_resume_items(items)
+    assert "Item 1" in formatted
+    assert "Item 2" in formatted
+    assert "•" in formatted
+
+
+def test_format_empty_items():
+    """Test formatting empty items."""
+    items = []
+    formatted = format_resume_items(items)
     assert "No resume items" in formatted
+
+
+def test_formatted_entry_with_docker():
+    """Test formatted entry with Docker."""
+    project = {
+        "project_name": "TestProject",
+        "has_docker": True,
+        "languages": {"python": 10},
+        "dependencies": {},
+    }
+    entry = generate_formatted_resume_entry(project)
+    assert "Docker" in entry or "docker" in entry.lower()
+
+
+def test_full_resume():
+    """Test full resume."""
+    report = {
+        "projects": [
+            {
+                "project_name": "TestProject",
+                "code_files": 20,
+                "languages": {"python": 10},
+            }
+        ]
+    }
+    resume = generate_full_resume(report)
+    assert "TestProject" in resume
+    assert isinstance(resume, str)

@@ -46,7 +46,7 @@ def _ensure_parent_dir(path: Path) -> None:
 def get_connection() -> sqlite3.Connection:
     db_path = get_db_path()
     _ensure_parent_dir(db_path)
-    conn = sqlite3.connect(db_path, detect_types=sqlite3.PARSE_DECLTYPES, check_same_thread=False)
+    conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     try:
         yield conn
@@ -157,6 +157,39 @@ def init_db() -> None:
                 commits INTEGER,
                 files_touched INTEGER,
                 PRIMARY KEY (project_id, email)
+            );
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS resume_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_name TEXT NOT NULL,
+                resume_text TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS resume_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_name TEXT NOT NULL,
+                resume_text TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS resume_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_name TEXT NOT NULL,
+                resume_text TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             """
         )
@@ -392,4 +425,154 @@ def get_projects_for_analysis(analysis_id: int) -> List[sqlite3.Row]:
         return conn.execute(
             "SELECT * FROM projects WHERE analysis_id = ? ORDER BY id",
             (analysis_id,),
+        ).fetchall()
+
+
+def get_analysis_by_zip_file(zip_file: str) -> Optional[sqlite3.Row]:
+    """Get the most recent analysis for a given zip file path."""
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT * FROM analyses 
+            WHERE zip_file = ? 
+            ORDER BY created_at DESC 
+            LIMIT 1
+            """,
+            (zip_file,),
+        ).fetchone()
+
+
+def get_all_analyses_by_zip_file(zip_file: str) -> List[sqlite3.Row]:
+    """Get all analyses (not just the most recent) for a given zip file path."""
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT * FROM analyses 
+            WHERE zip_file = ? 
+            ORDER BY created_at DESC
+            """,
+            (zip_file,),
+        ).fetchall()
+
+
+def get_analysis_report(zip_file: str) -> Optional[Dict[str, Any]]:
+    """Retrieve the full analysis report (JSON) for a given zip file path."""
+    analysis = get_analysis_by_zip_file(zip_file)
+    if not analysis:
+        return None
+
+    try:
+        return json.loads(analysis["raw_json"])
+    except (json.JSONDecodeError, KeyError):
+        return None
+
+
+def count_analyses_by_zip_file(zip_file: str) -> int:
+    """Count the number of analyses for a given zip file path."""
+    with get_connection() as conn:
+        result = conn.execute(
+            "SELECT COUNT(*) as count FROM analyses WHERE zip_file = ?",
+            (zip_file,),
+        ).fetchone()
+        return result["count"] if result else 0
+
+
+def delete_analyses_by_zip_file(zip_file: str) -> int:
+    """Delete all analyses for a given zip file path."""
+    if not zip_file:
+        raise ValueError("zip_file path cannot be empty")
+
+    try:
+        with get_connection() as conn:
+            conn.execute("PRAGMA foreign_keys = ON;")
+            count_result = conn.execute(
+                "SELECT COUNT(*) as count FROM analyses WHERE zip_file = ?",
+                (zip_file,),
+            ).fetchone()
+            count = count_result["count"] if count_result else 0
+
+            if count > 0:
+                cursor = conn.execute(
+                    "DELETE FROM analyses WHERE zip_file = ?",
+                    (zip_file,),
+                )
+                deleted_rows = cursor.rowcount
+                conn.commit()
+                if deleted_rows != count:
+                    import logging
+
+                    logging.warning(f"Expected to delete {count} analyses, but only deleted {deleted_rows}")
+
+                return deleted_rows
+
+            return 0
+    except Exception as e:
+        import logging
+
+        logging.error(f"Error deleting analyses for {zip_file}: {e}")
+        raise
+
+
+def store_resume_item(project_name: str, resume_text: str) -> None:
+    if not project_name or not resume_text:
+        raise ValueError("project_name and resume_text are required")
+
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO resume_items (project_name, resume_text)
+            VALUES (?, ?)
+            """,
+            (project_name, resume_text),
+        )
+        conn.commit()
+
+
+def get_all_resume_items() -> List[sqlite3.Row]:
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT id, project_name, resume_text, created_at
+            FROM resume_items
+            ORDER BY created_at DESC
+            """
+        ).fetchall()
+
+
+def get_resume_items_for_project(project_name: str) -> List[sqlite3.Row]:
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT id, project_name, resume_text, created_at
+            FROM resume_items
+            WHERE project_name = ?
+            ORDER BY created_at DESC
+            """,
+            (project_name,),
+        ).fetchall()
+
+
+def delete_resume_item(item_id: int) -> None:
+    with get_connection() as conn:
+        conn.execute(
+            "DELETE FROM resume_items WHERE id = ?",
+            (item_id,),
+        )
+        conn.commit()
+
+
+def clear_resume_items() -> None:
+    with get_connection() as conn:
+        conn.execute("DELETE FROM resume_items")
+        conn.commit()
+
+
+def get_all_analyses() -> List[sqlite3.Row]:
+    """Get all analyses from the database, ordered by most recent first."""
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT * FROM analyses 
+            ORDER BY created_at DESC
+            """
         ).fetchall()
