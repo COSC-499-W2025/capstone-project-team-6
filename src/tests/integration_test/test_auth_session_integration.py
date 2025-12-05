@@ -9,6 +9,7 @@ These tests verify the complete authentication flow across multiple components:
 """
 
 import json
+
 # Import backend modules
 import sys
 from pathlib import Path

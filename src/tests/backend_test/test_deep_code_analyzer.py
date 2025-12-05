@@ -16,8 +16,7 @@ backend_dir = src_dir / "backend"
 sys.path.insert(0, str(src_dir))
 sys.path.insert(0, str(backend_dir))
 
-from src.backend.analysis.deep_code_analyzer import (OOPAnalysis,
-                                                     analyze_python_file)
+from src.backend.analysis.deep_code_analyzer import OOPAnalysis, analyze_python_file
 
 
 class TestOOPAnalysis:
@@ -155,8 +154,7 @@ class StrategyPlane: pass
 
 
 def test_project_size_labels():
-    from src.backend.analysis.deep_code_analyzer import \
-        calculate_python_oop_score
+    from src.backend.analysis.deep_code_analyzer import calculate_python_oop_score
 
     analysis = OOPAnalysis(total_classes=2)
     analysis.oop_score = calculate_python_oop_score(analysis)
@@ -170,8 +168,7 @@ def test_project_size_labels():
 
 
 def test_solid_score_ranges():
-    from src.backend.analysis.deep_code_analyzer import \
-        calculate_python_solid_score
+    from src.backend.analysis.deep_code_analyzer import calculate_python_solid_score
 
     analysis = OOPAnalysis(total_classes=5, private_methods=2, public_methods=3, abstract_classes=["A"], properties_count=1)
     score = calculate_python_solid_score(analysis)

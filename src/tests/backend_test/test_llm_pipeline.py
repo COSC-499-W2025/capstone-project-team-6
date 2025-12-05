@@ -42,8 +42,7 @@ import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 
-from backend.analysis.llm_pipeline import (_should_ignore_path,
-                                           run_gemini_analysis)
+from backend.analysis.llm_pipeline import _should_ignore_path, run_gemini_analysis
 
 
 class TestLLMPipeline:

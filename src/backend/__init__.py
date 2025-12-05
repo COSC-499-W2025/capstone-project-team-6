@@ -1,7 +1,6 @@
 """Mining Digital Artifacts (MDA) package initialization."""
 
-from .database import (UserAlreadyExistsError, authenticate_user, create_user,
-                       get_db_path, get_user, initialize, set_db_path)
+from .database import UserAlreadyExistsError, authenticate_user, create_user, get_db_path, get_user, initialize, set_db_path
 from .shell import MDAShell
 from .traversal import Folder_traversal_fs
 

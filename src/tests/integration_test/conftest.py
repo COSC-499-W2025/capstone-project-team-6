@@ -1,6 +1,7 @@
 """Shared fixtures for integration tests."""
 
 import os
+
 # Add src to path so we can import backend modules
 import sys
 import tempfile
