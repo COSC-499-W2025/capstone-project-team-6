@@ -5,10 +5,6 @@ Generates a detailed portfolio item from a single project's
 analysis dictionary. Adapts output quality and detail based on
 actual project sophistication detected in the analysis.
 """
-def _calculate_project_quality_score(analysis: dict) -> dict:
-    print("\n=== DEBUG: Incoming Analysis ===")
-    print("Keys:", analysis.keys())
-    print("cpp_oop_analysis:", analysis.get("cpp_oop_analysis"))
 
 # ---------------------------------------------------------------
 # 1. QUALITY SCORE (NO artificial OOP score, only real metrics)
