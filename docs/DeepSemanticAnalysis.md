@@ -1,4 +1,4 @@
-# Deep Semantic Code Analysis with Gemini 1.5
+# Deep Semantic Code Analysis with Gemini Pro
 
 This document details the architecture, features, and usage of the AI-powered **Deep Semantic Analysis** engine included in the backend. This system leverages Google's Gemini Pro/Flash models and their **Long Context** capabilities to analyze entire codebases at once, providing insights that static analysis tools cannot match.
 
