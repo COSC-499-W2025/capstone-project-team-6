@@ -163,6 +163,7 @@ def run_gemini_analysis(
         if "cpp" in project.get("languages", {}):
             try:
                 from .cpp_oop_analyzer import analyze_cpp_project
+
                 cpp_analysis = analyze_cpp_project(zip_path, project_path)
                 report["projects"][i]["cpp_oop_analysis"] = cpp_analysis["cpp_oop_analysis"]
             except ImportError:
@@ -177,6 +178,7 @@ def run_gemini_analysis(
         if "cpp" in project.get("languages", {}) or "c" in project.get("languages", {}):
             try:
                 from .c_oop_analyzer import analyze_c_project
+
                 c_analysis = analyze_c_project(zip_path, project_path)
                 # Only add if we found C-style code
                 if c_analysis["c_oop_analysis"].get("total_structs", 0) > 0:
@@ -187,11 +189,13 @@ def run_gemini_analysis(
                 pass  # Silently skip if no C code found
 
     # Update metadata with timestamp
-    report["analysis_metadata"].update({
-        "zip_file": str(zip_path.absolute()),
-        "analysis_timestamp": datetime.now().isoformat(),
-        "total_projects": len(report["projects"]),
-    })
+    report["analysis_metadata"].update(
+        {
+            "zip_file": str(zip_path.absolute()),
+            "analysis_timestamp": datetime.now().isoformat(),
+            "total_projects": len(report["projects"]),
+        }
+    )
 
     # Check if Gemini client is available
     if GeminiFileSearchClient is None:

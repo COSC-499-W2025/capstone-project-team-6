@@ -201,6 +201,7 @@ def analyze_folder(path: Path) -> dict:
             # Direct directory with .git
             try:
                 from .analysis.git_analysis import analyze_project
+
                 git_result = analyze_project(analysis_dir, export_to_file=False)
                 # Add git analysis to first project (assuming single project)
                 if report["projects"]:
@@ -210,8 +211,8 @@ def analyze_folder(path: Path) -> dict:
         elif not analysis_dir:
             # ZIP file - check if it contains .git
             try:
-                with zipfile_module.ZipFile(zip_path, 'r') as zf:
-                    git_files = [f for f in zf.namelist() if '.git/' in f]
+                with zipfile_module.ZipFile(zip_path, "r") as zf:
+                    git_files = [f for f in zf.namelist() if ".git/" in f]
                     if git_files:
                         # Extract to temp directory
                         temp_extract_dir = tempfile.mkdtemp()
@@ -219,13 +220,14 @@ def analyze_folder(path: Path) -> dict:
 
                         # Find the project root (where .git is)
                         git_root = Path(temp_extract_dir)
-                        for item in git_root.rglob('.git'):
+                        for item in git_root.rglob(".git"):
                             if item.is_dir():
                                 git_root = item.parent
                                 break
 
                         # Run git analysis
                         from .analysis.git_analysis import analyze_project
+
                         git_result = analyze_project(git_root, export_to_file=False)
                         if report["projects"]:
                             report["projects"][0]["git_analysis"] = git_result.to_dict()
@@ -247,6 +249,7 @@ def analyze_folder(path: Path) -> dict:
             temp_zip.unlink()
         if temp_extract_dir:
             import shutil
+
             try:
                 shutil.rmtree(temp_extract_dir)
             except Exception:
