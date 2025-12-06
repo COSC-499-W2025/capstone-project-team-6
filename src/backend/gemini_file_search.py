@@ -9,7 +9,7 @@ import logging
 import os
 import tempfile
 import time
-from typing import Any, Dict, List
+from typing import Dict, List, Any, Callable, Optional
 
 # New SDK import
 from google import genai
@@ -39,21 +39,30 @@ class GeminiFileSearchClient:
         else:
             raise ValueError("No valid credentials found. Set GOOGLE_API_KEY or GOOGLE_CLOUD_PROJECT.")
 
-    def upload_batch(self, files_data: List[Dict[str, str]]) -> List[types.File]:
+    def upload_batch(
+        self,
+        files_data: List[Dict[str, str]],
+        progress_callback: Optional[Callable[[int, int, str], None]] = None,
+    ) -> List[types.File]:
         """
         Uploads a batch of files to the Gemini File API.
 
         Args:
             files_data: List of dicts containing 'path' (str) and 'content' (str).
+            progress_callback: Optional callback(current, total, description) for progress updates.
 
         Returns:
             List of active Gemini File objects ready for generation.
         """
         uploaded_files = []
+        total_files = len(files_data)
+        # We estimate total steps as 2 * total_files (upload + process)
+        total_steps = total_files * 2
+        current_step = 0
 
         # The File API requires physical files, so we dump content to temp storage first
         with tempfile.TemporaryDirectory() as temp_dir:
-            for file_dat in files_data:
+            for i, file_dat in enumerate(files_data):
                 try:
                     rel_path = file_dat["path"]
                     content = file_dat["content"]
@@ -65,23 +74,35 @@ class GeminiFileSearchClient:
                     with open(temp_file_path, "w", encoding="utf-8") as f:
                         f.write(content)
 
-                    logger.info(f"Uploading {safe_filename}...")
+                    msg = f"Uploading {safe_filename}..."
+                    if progress_callback:
+                        progress_callback(current_step, total_steps, msg)
+                    else:
+                        logger.info(msg)
 
                     # Upload to Gemini
                     # Note: We pass the 'file' argument (path to file), NOT 'path'
                     uploaded_file = self.client.files.upload(
-                        file=temp_file_path, config=types.UploadFileConfig(display_name=rel_path, mime_type="text/plain")
+                        file=temp_file_path,
+                        config=types.UploadFileConfig(display_name=rel_path, mime_type="text/plain"),
                     )
                     uploaded_files.append(uploaded_file)
 
                 except Exception as e:
                     logger.error(f"Failed to upload {file_dat.get('path')}: {e}")
 
+                current_step += 1
+
         # Wait for files to transition from PROCESSING to ACTIVE
         if not uploaded_files:
             return []
 
-        logger.info("Waiting for remote file processing...")
+        msg = "Waiting for remote file processing..."
+        if progress_callback:
+            progress_callback(current_step, total_steps, msg)
+        else:
+            logger.info(msg)
+
         active_files = []
 
         # Simple polling mechanism
@@ -91,6 +112,10 @@ class GeminiFileSearchClient:
 
                 # Poll until ready or failed
                 while current_file.state.name == "PROCESSING":
+                    if progress_callback:
+                        progress_callback(
+                            current_step, total_steps, f"Processing {f.display_name}..."
+                        )
                     time.sleep(1)
                     current_file = self.client.files.get(name=f.name)
 
@@ -100,6 +125,10 @@ class GeminiFileSearchClient:
                     logger.error(f"File {f.display_name} failed processing: {current_file.state.name}")
             except Exception as e:
                 logger.error(f"Error checking state for {f.name}: {e}")
+
+            current_step += 1
+            if progress_callback:
+                progress_callback(current_step, total_steps, "Processing files...")
 
         return active_files
 
