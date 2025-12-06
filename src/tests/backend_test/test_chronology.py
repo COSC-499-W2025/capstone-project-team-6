@@ -9,7 +9,8 @@ SRC = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(SRC))
 
 from backend import analysis_database as db
-from backend.analysis.chronology import get_projects_timeline, get_skills_timeline
+from backend.analysis.chronology import (get_projects_timeline,
+                                         get_skills_timeline)
 
 
 def iso(ts: datetime) -> str:

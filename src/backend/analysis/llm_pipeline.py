@@ -9,11 +9,11 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Optional, List, Callable
 
+from dotenv import load_dotenv
+
 from backend.analysis.deep_code_analyzer import generate_comprehensive_report
 from backend.analysis.project_analyzer import FileClassifier
 from backend.gemini_file_search import GeminiFileSearchClient
-
-from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
@@ -389,6 +389,8 @@ def _should_ignore_path(path: str) -> bool:
 if __name__ == "__main__":
     import argparse
     import sys
+
+    from rich import box
     from rich.console import Console
     from rich.markdown import Markdown
     from rich.panel import Panel

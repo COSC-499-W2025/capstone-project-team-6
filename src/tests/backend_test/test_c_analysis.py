@@ -37,20 +37,16 @@ try:
     # Import the analyzer - use relative imports since we added analysis_dir to path
     # Verify libclang is available
     import clang.cindex
-
     # Import the project generator (in same directory as this test file)
     from project_generator import generate_all_test_projects
 
-    from backend.analysis.c_oop_analyzer import (
-        COOPAnalysis,
-        analyze_c_file,
-        analyze_c_project,
-        calculate_encapsulation_ratio,
-        calculate_memory_safety_score,
-        calculate_oop_score,
-        calculate_solid_score,
-        get_coding_style,
-    )
+    from backend.analysis.c_oop_analyzer import (COOPAnalysis, analyze_c_file,
+                                                 analyze_c_project,
+                                                 calculate_encapsulation_ratio,
+                                                 calculate_memory_safety_score,
+                                                 calculate_oop_score,
+                                                 calculate_solid_score,
+                                                 get_coding_style)
 
     CLANG_AVAILABLE = True
 except ImportError as e:
