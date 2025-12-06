@@ -25,24 +25,35 @@ def _calculate_project_quality_score(analysis: dict) -> dict:
 
     python_oop = analysis.get("oop_analysis", {})
     java_oop = analysis.get("java_oop_analysis", {})
+    cpp_oop = analysis.get("cpp_oop_analysis", {})
+    
 
-    # Core OOP quantities
+    # C++ OOP Analysis
+    cpp_classes = cpp_oop.get("total_classes", 0)
+    cpp_inheritance = cpp_oop.get("classes_with_inheritance", 0)
+    cpp_abstract = len(cpp_oop.get("abstract_classes", []))
+    cpp_virtual = cpp_oop.get("virtual_methods", 0)
+    cpp_overloads = cpp_oop.get("operator_overloads", 0)
+    cpp_templates = cpp_oop.get("template_classes", 0)
+    cpp_namespaces = cpp_oop.get("namespaces_used", 0)
+
+    # Core OOP quantities (python/java)
     py_classes = python_oop.get("total_classes", 0)
     java_classes = java_oop.get("total_classes", 0)
-    total_classes = py_classes + java_classes
-
     py_inheritance = python_oop.get("classes_with_inheritance", 0)
     java_inheritance = java_oop.get("classes_with_inheritance", 0)
-
     py_abstract = len(python_oop.get("abstract_classes", []))
     java_abstract = len(java_oop.get("abstract_classes", []))
-    total_abstract = py_abstract + java_abstract
 
     # Advanced feature metrics
     java_patterns = java_oop.get("design_patterns", [])
+    cpp_patterns = cpp_oop.get("design_patterns", [])
+    design_patterns = java_patterns + cpp_patterns
     java_lambdas = java_oop.get("lambda_count", 0)
     py_properties = python_oop.get("properties_count", 0)
     py_overloads = python_oop.get("operator_overloads", 0)
+    py_overloads += cpp_overloads
+
 
     # Engineering practices
     has_tests = analysis.get("has_tests", False)
@@ -55,7 +66,9 @@ def _calculate_project_quality_score(analysis: dict) -> dict:
 
     # --------------------------
     # Quality score calculation
-    # --------------------------
+    # ----------------------
+    total_classes = py_classes + java_classes + cpp_classes
+    total_abstract = py_abstract + java_abstract + cpp_abstract
 
     quality_score = 0
 
@@ -71,7 +84,10 @@ def _calculate_project_quality_score(analysis: dict) -> dict:
 
     # Advanced OOP
     advanced_points = 0
-    advanced_points += min(len(java_patterns) * 5, 10)
+    advanced_points += min(cpp_virtual * 1.5, 6)
+    advanced_points += min(cpp_templates * 2, 6)
+    advanced_points += min(cpp_namespaces * 1, 4)
+    advanced_points += min(len(design_patterns) * 5, 10)
     advanced_points += min(total_abstract * 2, 5)
     if java_lambdas > 0:
         advanced_points += 3
@@ -103,10 +119,10 @@ def _calculate_project_quality_score(analysis: dict) -> dict:
         "quality_score": quality_score,
         "sophistication_level": sophistication,
         "total_classes": total_classes,
-        "uses_inheritance": (py_inheritance + java_inheritance) > 0,
+        "uses_inheritance": (py_inheritance + java_inheritance + cpp_inheritance) > 0,
         "uses_abstraction": total_abstract > 0,
         "total_abstract": total_abstract,
-        "design_patterns": java_patterns,
+        "design_patterns": design_patterns,
         "java_lambdas": java_lambdas,
         "py_properties": py_properties,
         "py_overloads": py_overloads,
@@ -121,15 +137,19 @@ def _calculate_project_quality_score(analysis: dict) -> dict:
 def _generate_architecture_description(analysis: dict, quality: dict) -> str:
     python_oop = analysis.get("oop_analysis", {})
     java_oop = analysis.get("java_oop_analysis", {})
+    cpp_oop = analysis.get("cpp_oop_analysis", {})
 
     py_classes = python_oop.get("total_classes", 0)
     java_classes = java_oop.get("total_classes", 0)
+    cpp_classes = cpp_oop.get("total_classes", 0)
 
     arch_parts = []
     if py_classes > 0:
         arch_parts.append(f"{py_classes} Python classes")
     if java_classes > 0:
         arch_parts.append(f"{java_classes} Java classes")
+    if cpp_classes > 0:
+        arch_parts.append(f"{cpp_classes} C++ classes")
 
     if not arch_parts:
         return "The project follows a modular structure with organized code files."
@@ -138,15 +158,32 @@ def _generate_architecture_description(analysis: dict, quality: dict) -> str:
 
     py_depth = python_oop.get("inheritance_depth", 0)
     java_depth = java_oop.get("inheritance_depth", 0)
+    cpp_depth = cpp_oop.get("inheritance_depth", 0)
+    cpp_virtual = cpp_oop.get("virtual_methods", 0)
+    cpp_templates = cpp_oop.get("template_classes", 0)
+    cpp_namespaces = cpp_oop.get("namespaces_used", 0)
+    cpp_overloads = cpp_oop.get("operator_overloads", 0)
 
     # Advanced tier
     if quality["sophistication_level"] == "advanced":
         details = []
 
+        # C++ advanced features
+        if cpp_templates > 0:
+            details.append(f"{cpp_templates} template-based components")
+        if cpp_virtual > 0:
+            details.append(f"{cpp_virtual} virtual-method implementations")
+        if cpp_namespaces > 0:
+            details.append(f"{cpp_namespaces} namespaces")
+        if cpp_overloads > 0:
+            details.append(f"{cpp_overloads} operator overloads")
+        if cpp_depth > 0:
+            details.append(f"inheritance depth {cpp_depth} in C++ hierarchy")
+
         if quality["uses_abstraction"]:
             details.append(f"{quality['total_abstract']} abstract classes")
         if quality["uses_inheritance"]:
-            depth = max(py_depth, java_depth)
+            depth = max(py_depth, java_depth, cpp_depth)
             if depth > 0:
                 details.append(f"inheritance up to depth {depth}")
         if quality["design_patterns"]:
@@ -173,6 +210,14 @@ def _generate_architecture_description(analysis: dict, quality: dict) -> str:
             tags.append("abstraction")
         if quality["design_patterns"]:
             tags.append(f"{', '.join(quality['design_patterns'])} patterns")
+        if cpp_templates > 0:
+            tags.append("templates")
+        if cpp_virtual > 0:
+            tags.append("virtual methods")
+        if cpp_namespaces > 0:
+            tags.append("namespaces")
+        if cpp_overloads > 0:
+            tags.append("operator overloading")
 
         if tags:
             return f"{base}, demonstrating object-oriented principles including {', '.join(tags)}."
@@ -191,20 +236,53 @@ def _generate_architecture_description(analysis: dict, quality: dict) -> str:
 def _generate_contributions_summary(analysis: dict, quality: dict) -> str:
     contrib = []
 
+    python_oop = analysis.get("oop_analysis", {})
+    java_oop = analysis.get("java_oop_analysis", {})
+    cpp_oop = analysis.get("cpp_oop_analysis", {})
+
+    # --- Python & Java contributions ---
     if quality["uses_abstraction"]:
         contrib.append("implementing abstract classes")
+
     if quality["design_patterns"]:
         patterns = quality["design_patterns"]
-        if patterns:
-            name = ", ".join(patterns)
-            plural = "pattern" if len(patterns) == 1 else "patterns"
-            contrib.append(f"applying {name} {plural}")
+        name = ", ".join(patterns)
+        plural = "pattern" if len(patterns) == 1 else "patterns"
+        contrib.append(f"applying {name} {plural}")
+
     if quality["java_lambdas"] > 0:
         contrib.append(f"using {quality['java_lambdas']} lambda expressions")
+
     if quality["py_overloads"] > 0:
         contrib.append("implementing operator overloading")
 
-    # Engineering
+    # --- C++ contributions ---
+    cpp_virtual = cpp_oop.get("virtual_methods", 0)
+    cpp_templates = cpp_oop.get("template_classes", 0)
+    cpp_namespaces = cpp_oop.get("namespaces_used", 0)
+    cpp_overloads = cpp_oop.get("operator_overloads", 0)
+    cpp_depth = cpp_oop.get("inheritance_depth", 0)
+    cpp_abstract = len(cpp_oop.get("abstract_classes", []))
+
+    if cpp_virtual > 0:
+        contrib.append(f"building {cpp_virtual} virtual-method hierarchies")
+
+    if cpp_templates > 0:
+        contrib.append(f"designing {cpp_templates} template-based components")
+
+    if cpp_namespaces > 0:
+        contrib.append(f"organizing code across {cpp_namespaces} namespaces")
+
+    if cpp_overloads > 0:
+        contrib.append(f"using {cpp_overloads} C++ operator overloads")
+
+    if cpp_depth > 0:
+        contrib.append(f"working with C++ inheritance depth {cpp_depth}")
+
+    if cpp_abstract > 0:
+        contrib.append(f"defining {cpp_abstract} abstract C++ classes")
+
+    # --- Engineering contributions ---
     if analysis.get("has_tests"):
         test_files = analysis.get("test_files", 0)
         cov = analysis.get("test_coverage_estimate", "unknown")
@@ -212,8 +290,10 @@ def _generate_contributions_summary(analysis: dict, quality: dict) -> str:
 
     if analysis.get("has_ci_cd"):
         contrib.append("configuring CI/CD pipelines")
+
     if analysis.get("has_docker"):
         contrib.append("adding Docker containerization")
+
     if analysis.get("has_readme"):
         contrib.append("writing documentation")
 
@@ -231,44 +311,70 @@ def _generate_contributions_summary(analysis: dict, quality: dict) -> str:
 def _generate_skills_list(analysis: dict, quality: dict) -> list[str]:
     python_oop = analysis.get("oop_analysis", {})
     java_oop = analysis.get("java_oop_analysis", {})
+    cpp_oop = analysis.get("cpp_oop_analysis", {})
     languages = analysis.get("languages", {})
     frameworks = analysis.get("frameworks", [])
-
     skills = []
 
-    # OOP skills only if classes exist
+    # Language OOP skills
     if "python" in languages and python_oop.get("total_classes", 0) > 0:
         skills.append("Python OOP")
     if "java" in languages and java_oop.get("total_classes", 0) > 0:
         skills.append("Java OOP")
+    if "cpp" in languages and cpp_oop.get("total_classes", 0) > 0:
+        skills.append("C++ OOP")
 
-    # Framework skills
+    # Frameworks
     for fw in frameworks[:2]:
         skills.append(f"{fw} framework")
 
-    # Advanced OOP
+    # Design Patterns (Java and C++)
     for pattern in quality["design_patterns"]:
         skills.append(f"{pattern} design pattern")
-    if quality["java_lambdas"] > 0:
-        skills.append("Functional programming")
+
+    # Python specifics
     if quality["py_overloads"] > 0:
-        skills.append("Operator overloading")
+        skills.append("Operator overloading (Python)")
+    if quality["py_properties"] > 0:
+        skills.append("Python properties")
+    
+    # Abstract classes 
     if quality["uses_abstraction"]:
-        skills.append("Abstract design")
+        skills.append("Abstract class design")
+
+    # Java specifics
+    if quality["java_lambdas"] > 0:
+        skills.append("Functional programming (Java lambdas)")
+
+    # C++ specifics
+    cpp_virtual = cpp_oop.get("virtual_methods", 0)
+    cpp_templates = cpp_oop.get("template_classes", 0)
+    cpp_overloads = cpp_oop.get("operator_overloads", 0)
+    cpp_namespaces = cpp_oop.get("namespaces_used", 0)
+    cpp_abstract = len(cpp_oop.get("abstract_classes", []))
+
+    if cpp_virtual > 0:
+        skills.append("Virtual methods (C++)")
+    if cpp_templates > 0:
+        skills.append("Templates (C++)")
+    if cpp_overloads > 0:
+        skills.append("Operator overloading (C++)")
+    if cpp_namespaces > 0:
+        skills.append("Namespaces (C++)")
+    if cpp_abstract > 0:
+        skills.append("Abstract classes (C++)")
 
     # Engineering skills
     if analysis.get("test_coverage_estimate") in ["high", "medium"]:
         skills.append("Test-driven development")
     elif analysis.get("has_tests"):
         skills.append("Unit testing")
-
     if analysis.get("has_ci_cd"):
         skills.append("CI/CD pipelines")
     if analysis.get("has_docker"):
         skills.append("Docker")
     if analysis.get("has_readme"):
         skills.append("Technical documentation")
-
     return skills
 
 
