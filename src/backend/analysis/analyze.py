@@ -1277,14 +1277,15 @@ def main():
 
         # Ask user if they want to generate resume
         print_separator()
-        
+
         # Check if any resume items exist first
         total_projects = len(report.get("projects", []))
         existing_resume_count = sum(
-            1 for project in report.get("projects", [])
+            1
+            for project in report.get("projects", [])
             if get_resume_items_for_project(project.get("project_name", "Unknown Project"))
         )
-        
+
         if existing_resume_count > 0:
             print(f"Found {existing_resume_count}/{total_projects} résumé item(s) in database.")
             print()
@@ -1298,12 +1299,12 @@ def main():
                 resume_choice = input("Enter your choice (1/2/3): ").strip()
                 if resume_choice not in ["1", "2", "3"]:
                     print("  Invalid choice. Please enter 1, 2, or 3.")
-            
+
             if resume_choice == "3":
                 generate_resume = "n"
             else:
                 generate_resume = "y"
-                regenerate_all = (resume_choice == "2")
+                regenerate_all = resume_choice == "2"
         else:
             generate_resume = input("Generate résumé items? (y/n): ").lower().strip()
             regenerate_all = False
@@ -1324,17 +1325,14 @@ def main():
                 existing_resume_items = get_resume_items_for_project(project_name)
 
                 if existing_resume_items and not regenerate_all:
-                    resume_items_by_project[project_name] = {
-                        "text": existing_resume_items[0]["resume_text"],
-                        "cached": True
-                    }
+                    resume_items_by_project[project_name] = {"text": existing_resume_items[0]["resume_text"], "cached": True}
                 else:
                     projects_needing_resume.append(project)
 
             # Display existing resume items
             if resume_items_by_project and not regenerate_all:
                 print(f"✓ Retrieved {len(resume_items_by_project)} cached résumé item(s) from database\n")
-                
+
                 for i, project in enumerate(report.get("projects", []), 1):
                     project_name = project.get("project_name", "Unknown Project")
                     if project_name in resume_items_by_project:
@@ -1347,7 +1345,7 @@ def main():
 
             # Generate and store resumes for projects that don't have them
             newly_generated = 0  # Initialize to avoid UnboundLocalError
-            
+
             if projects_needing_resume:
                 if resume_items_by_project and not regenerate_all:
                     print(f"\nGenerating {len(projects_needing_resume)} new résumé item(s)...\n")
@@ -1357,13 +1355,13 @@ def main():
                     print(f"Generating {len(projects_needing_resume)} résumé item(s)...\n")
 
                 cached_count = len(resume_items_by_project)
-                
+
                 for idx, project in enumerate(projects_needing_resume, 1):
                     project_name = project.get("project_name", "Unknown Project")
                     resume_entry = generate_formatted_resume_entry(project)
-                    
+
                     item_number = cached_count + idx if not regenerate_all else idx
-                    
+
                     print("=" * 78)
                     print(f"RÉSUMÉ ITEM {item_number}/{total_projects}- Project: {project_name}")
                     print("=" * 78)
@@ -1375,12 +1373,9 @@ def main():
                         # Delete old resume item if regenerating
                         if regenerate_all:
                             with get_connection() as conn:
-                                conn.execute(
-                                    "DELETE FROM resume_items WHERE project_name = ?",
-                                    (project_name,)
-                                )
+                                conn.execute("DELETE FROM resume_items WHERE project_name = ?", (project_name,))
                                 conn.commit()
-                        
+
                         store_resume_item(project_name, resume_entry)
                         newly_generated += 1
                     except Exception as e:
@@ -1388,12 +1383,14 @@ def main():
                         import traceback
 
                         traceback.print_exc()
-                
+
                 print("=" * 78)
                 if regenerate_all:
                     print(f"✓ Successfully regenerated {newly_generated}/{len(projects_needing_resume)} résumé item(s)")
                 elif newly_generated > 0:
-                    print(f"✓ Successfully generated and stored {newly_generated}/{len(projects_needing_resume)} new résumé item(s)")
+                    print(
+                        f"✓ Successfully generated and stored {newly_generated}/{len(projects_needing_resume)} new résumé item(s)"
+                    )
                 print("=" * 78 + "\n")
             elif resume_items_by_project:
                 print("=" * 78)

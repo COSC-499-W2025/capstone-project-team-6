@@ -1,9 +1,10 @@
 """
 Unit tests for résumé retrieval and regeneration functionality in analyze.py
 """
+
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -16,11 +17,9 @@ sys.path.insert(0, str(src_dir))
 sys.path.insert(0, str(backend_dir))
 
 import backend.analysis_database as adb
-from backend.analysis_database import (
-    get_resume_items_for_project,
-    store_resume_item,
-    get_connection,
-)
+from backend.analysis_database import (get_connection,
+                                       get_resume_items_for_project,
+                                       store_resume_item)
 
 pytest_plugins = ["tests.backend_test.test_analysis_database"]
 
@@ -143,10 +142,7 @@ class TestResumeFilteringLogic:
             existing_resume_items = get_resume_items_for_project(project_name)
 
             if existing_resume_items:
-                resume_items_by_project[project_name] = {
-                    "text": existing_resume_items[0]["resume_text"],
-                    "cached": True
-                }
+                resume_items_by_project[project_name] = {"text": existing_resume_items[0]["resume_text"], "cached": True}
             else:
                 projects_needing_resume.append(project)
 
@@ -170,10 +166,7 @@ class TestResumeFilteringLogic:
             existing_resume_items = get_resume_items_for_project(project_name)
 
             if existing_resume_items:
-                resume_items_by_project[project_name] = {
-                    "text": existing_resume_items[0]["resume_text"],
-                    "cached": True
-                }
+                resume_items_by_project[project_name] = {"text": existing_resume_items[0]["resume_text"], "cached": True}
             else:
                 projects_needing_resume.append(project)
 
@@ -197,10 +190,7 @@ class TestResumeFilteringLogic:
             existing_resume_items = get_resume_items_for_project(project_name)
 
             if existing_resume_items:
-                resume_items_by_project[project_name] = {
-                    "text": existing_resume_items[0]["resume_text"],
-                    "cached": True
-                }
+                resume_items_by_project[project_name] = {"text": existing_resume_items[0]["resume_text"], "cached": True}
             else:
                 projects_needing_resume.append(project)
 
@@ -227,10 +217,7 @@ class TestResumeFilteringLogic:
             existing_resume_items = get_resume_items_for_project(project_name)
 
             if existing_resume_items and not regenerate_all:
-                resume_items_by_project[project_name] = {
-                    "text": existing_resume_items[0]["resume_text"],
-                    "cached": True
-                }
+                resume_items_by_project[project_name] = {"text": existing_resume_items[0]["resume_text"], "cached": True}
             else:
                 projects_needing_resume.append(project)
         assert len(resume_items_by_project) == 0
@@ -252,9 +239,9 @@ class TestResumeItemNumbering:
     def test_item_numbering_mixed_cached_and_new(self):
         """Test item numbering when mixing cached and new items"""
         total_projects = 5
-        cached_count = 2  
+        cached_count = 2
 
-        expected_numbers = [3, 4, 5]  
+        expected_numbers = [3, 4, 5]
 
         for idx, expected in enumerate(expected_numbers, 1):
             item_number = cached_count + idx
@@ -263,10 +250,10 @@ class TestResumeItemNumbering:
     def test_item_numbering_regenerate_all(self):
         """Test item numbering when regenerating all items"""
         total_projects = 3
-        cached_count = 0  
+        cached_count = 0
 
         for idx in range(1, 4):
-            item_number = idx  
+            item_number = idx
             assert item_number == idx
 
 
