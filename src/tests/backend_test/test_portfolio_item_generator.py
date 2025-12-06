@@ -471,6 +471,7 @@ def test_architecture_c_only():
     assert "opaque" not in text.lower()
     assert "vtable" not in text.lower()
 
+
 def test_contributions_c_features():
     project = {
         "project_name": "CProj",
@@ -507,6 +508,7 @@ def test_contributions_c_features():
     assert "constructor/destructor" in text.lower()
     assert "strategy" in text.lower()
 
+
 def test_skills_c_features():
     project = {
         "project_name": "CProj",
@@ -542,6 +544,7 @@ def test_skills_c_features():
     assert "Function pointer–based modularity (C)" in skills
     assert "Encapsulation using opaque pointers (C)" in skills
     assert any("Strategy" in s for s in skills)
+
 
 def test_generate_portfolio_c_project():
     project = {

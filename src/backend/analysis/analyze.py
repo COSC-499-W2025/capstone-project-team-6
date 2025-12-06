@@ -27,11 +27,11 @@ src_dir = backend_dir.parent
 sys.path.insert(0, str(src_dir))
 sys.path.insert(0, str(backend_dir))
 
-from backend.analysis.portfolio_item_generator import generate_portfolio_item
 from analysis.deep_code_analyzer import generate_comprehensive_report
 from analysis.resume_generator import (generate_formatted_resume_entry,
                                        print_resume_items)
 
+from backend.analysis.portfolio_item_generator import generate_portfolio_item
 from backend.analysis_database import (count_analyses_by_zip_file,
                                        delete_analyses_by_zip_file,
                                        get_all_analyses,
@@ -1274,7 +1274,7 @@ def main():
             print("-" * 70)
             print(item["text_summary"])
             print("-" * 70 + "\n")
-        
+
         # Ask user if they want to generate resume
         print_separator()
         generate_resume = input("Generate resume? (y/n): ").lower().strip()

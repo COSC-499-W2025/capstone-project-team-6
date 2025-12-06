@@ -10,6 +10,7 @@ actual project sophistication detected in the analysis.
 # 1. QUALITY SCORE (NO artificial OOP score, only real metrics)
 # ---------------------------------------------------------------
 
+
 def _calculate_project_quality_score(analysis: dict) -> dict:
     """
     Calculate overall project sophistication based on real metrics:
@@ -63,7 +64,6 @@ def _calculate_project_quality_score(analysis: dict) -> dict:
     py_overloads = python_oop.get("operator_overloads", 0)
     py_overloads += cpp_overloads
 
-
     # Engineering practices
     has_tests = analysis.get("has_tests", False)
     has_readme = analysis.get("has_readme", False)
@@ -91,7 +91,7 @@ def _calculate_project_quality_score(analysis: dict) -> dict:
     elif total_classes > 0:
         quality_score += 5
 
-    # Advanced OOP 
+    # Advanced OOP
     advanced_points = 0
     # C
     advanced_points += min(c_oop.get("vtable_structs", 0) * 2, 6)
@@ -161,7 +161,6 @@ def _generate_architecture_description(analysis: dict, quality: dict) -> str:
     java_classes = java_oop.get("total_classes", 0)
     cpp_classes = cpp_oop.get("total_classes", 0)
     c_structs = c_oop.get("total_structs", 0)
-
 
     arch_parts = []
     if py_classes > 0:
@@ -283,8 +282,7 @@ def _generate_contributions_summary(analysis: dict, quality: dict) -> str:
     cpp_oop = analysis.get("cpp_oop_analysis", {})
     c_oop = analysis.get("c_oop_analysis", {})
 
-
-    # Python & Java contributions 
+    # Python & Java contributions
     if quality["uses_abstraction"]:
         contrib.append("implementing abstract classes")
 
@@ -300,7 +298,7 @@ def _generate_contributions_summary(analysis: dict, quality: dict) -> str:
     if quality["py_overloads"] > 0:
         contrib.append("implementing operator overloading")
 
-    # C++ contributions 
+    # C++ contributions
     cpp_virtual = cpp_oop.get("virtual_methods", 0)
     cpp_templates = cpp_oop.get("template_classes", 0)
     cpp_namespaces = cpp_oop.get("namespaces_used", 0)
@@ -345,11 +343,11 @@ def _generate_contributions_summary(analysis: dict, quality: dict) -> str:
     if c_memory_pairs > 0:
         contrib.append(f"maintaining {c_memory_pairs} constructor/destructor memory-safety pairs")
     if c_patterns:
-        name = ', '.join(c_patterns)
+        name = ", ".join(c_patterns)
         plural = "pattern" if len(c_patterns) == 1 else "patterns"
         contrib.append(f"applying C-style {name} {plural}")
 
-    # Engineering contributions 
+    # Engineering contributions
     if analysis.get("has_tests"):
         test_files = analysis.get("test_files", 0)
         cov = analysis.get("test_coverage_estimate", "unknown")
@@ -394,7 +392,6 @@ def _generate_skills_list(analysis: dict, quality: dict) -> list[str]:
     if "c" in languages and c_oop.get("total_structs", 0) > 0:
         skills.append("C (OOP-style design)")
 
-
     # Frameworks
     for fw in frameworks[:2]:
         skills.append(f"{fw} framework")
@@ -408,8 +405,8 @@ def _generate_skills_list(analysis: dict, quality: dict) -> list[str]:
         skills.append("Operator overloading (Python)")
     if quality["py_properties"] > 0:
         skills.append("Python properties")
-    
-    # Abstract classes 
+
+    # Abstract classes
     if quality["uses_abstraction"]:
         skills.append("Abstract class design")
 
