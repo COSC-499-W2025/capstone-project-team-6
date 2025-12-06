@@ -27,6 +27,7 @@ src_dir = backend_dir.parent
 sys.path.insert(0, str(src_dir))
 sys.path.insert(0, str(backend_dir))
 
+from backend.analysis.portfolio_item_generator import generate_portfolio_item
 from analysis.deep_code_analyzer import generate_comprehensive_report
 from analysis.resume_generator import (generate_formatted_resume_entry,
                                        print_resume_items)
@@ -1238,7 +1239,12 @@ def main():
                 print(f"Coding Style: {'Object-Oriented C' if score >= 3 else 'Procedural C'}")
         else:
             print("\nNo C projects found for OOP-style analysis.")
-
+        for project in report["projects"]:
+            try:
+                portfolio_item = generate_portfolio_item(project)
+                project["portfolio_item"] = portfolio_item
+            except Exception as e:
+                print(f"[ERROR] Failed to generate portfolio item for {project.get('project_name', 'Unknown')} : {e}")
         # Store analysis in database if it's new
         if new_analysis_generated:
             print_separator("STORING ANALYSIS IN DATABASE")
@@ -1255,6 +1261,20 @@ def main():
         # Automatically summarize top-ranked projects from current zip file
         summarize_top_ranked_projects(limit=10, zip_file_path=zip_file_path)
 
+        print("\n" + "=" * 78)
+        print("  GENERATED PORTFOLIO ITEMS")
+        print("=" * 78 + "\n")
+
+        for project in report["projects"]:
+            if "portfolio_item" not in project:
+                continue
+            item = project["portfolio_item"]
+
+            print(f"Project: {project['project_name']}")
+            print("-" * 70)
+            print(item["text_summary"])
+            print("-" * 70 + "\n")
+        
         # Ask user if they want to generate resume
         print_separator()
         generate_resume = input("Generate resume? (y/n): ").lower().strip()
