@@ -1314,9 +1314,6 @@ def main():
                     print(f" Successfully stored {len(projects_needing_resume)} resume item(s) in the database")
             elif resume_items_by_project:
                 print("="*78 + "\n")
-
-                        traceback.print_exc()
-
                 print("=" * 78)
                 if regenerate_all:
                     print(f"✓ Successfully regenerated {newly_generated}/{len(projects_needing_resume)} résumé item(s)")
