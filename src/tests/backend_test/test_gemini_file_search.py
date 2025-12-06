@@ -214,8 +214,8 @@ class TestLLMPipeline:
         fake_zip = tmp_path / "bad.zip"
         fake_zip.touch()
 
-        # Setup valid report return
-        mock_deps.report_gen.return_value = {}
+        # Setup valid report return with required structure
+        mock_deps.report_gen.return_value = {"projects": [], "summary": {}}
 
         # Simulate Client Init Failure (e.g., Auth Error)
         mock_deps.gemini_client.side_effect = Exception("Auth Failed")
@@ -232,7 +232,7 @@ class TestLLMPipeline:
         fake_zip = tmp_path / "huge.zip"
         fake_zip.touch()
 
-        mock_deps.report_gen.return_value = {}
+        mock_deps.report_gen.return_value = {"projects": [], "summary": {}}
 
         # Mock Classifier
         mock_classifier = mock_deps.classifier.return_value.__enter__.return_value

@@ -31,19 +31,14 @@ from analysis.deep_code_analyzer import generate_comprehensive_report
 from analysis.resume_generator import (generate_formatted_resume_entry,
                                        print_resume_items)
 
-from backend.analysis_database import (
-    init_db,
-    record_analysis,
-    store_resume_item,
-    get_analysis_report,
-    get_resume_items_for_project,
-    count_analyses_by_zip_file,
-    delete_analyses_by_zip_file,
-    get_analysis_by_zip_file,
-    get_all_analyses_by_zip_file,
-    get_connection,
-    get_all_analyses,
-)
+from backend.analysis_database import (count_analyses_by_zip_file,
+                                       delete_analyses_by_zip_file,
+                                       get_all_analyses,
+                                       get_all_analyses_by_zip_file,
+                                       get_analysis_by_zip_file,
+                                       get_analysis_report, get_connection,
+                                       get_resume_items_for_project, init_db,
+                                       record_analysis, store_resume_item)
 
 
 def print_separator(title=""):
@@ -59,13 +54,13 @@ def print_separator(title=""):
 def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
     """
     Calculate a comprehensive composite score for a project using a balanced multi-factor approach.
-    
+
     New Scoring System (total: 100 points):
     - Code Architecture (30 points): OOP principles, SOLID design, design patterns
     - Code Quality (25 points): Test coverage, code organization, documentation
     - Project Maturity (25 points): CI/CD, Docker, Git activity, project structure
     - Algorithmic Quality (20 points): Complexity awareness, optimization patterns
-    
+
     This system balances theoretical code quality with practical project health indicators.
     """
     score_breakdown = {
@@ -74,87 +69,93 @@ def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
         "project_maturity": 0.0,
         "algorithmic_quality": 0.0,
     }
-    
-    #this is architecture score, 30 points total. metrics: OOP, SOLID, Design Patterns
+
+    # this is architecture score, 30 points total. metrics: OOP, SOLID, Design Patterns
     architecture_scores = []
     architecture_details = []
-    
+
     oop_scores = []
     solid_scores = []
     design_patterns_count = 0
-    
+
     # Python OOP & SOLID
     if "oop_analysis" in project:
         python_oop = project["oop_analysis"]
         if "error" not in python_oop:
             oop_score = python_oop.get("oop_score", 0)
             solid_score = python_oop.get("solid_score", 0.0)
-            
+
             if oop_score > 0:
                 oop_scores.append((oop_score / 6.0) * 100)
             if solid_score > 0:
                 solid_scores.append((solid_score / 5.0) * 100)
-            
+
             design_patterns = python_oop.get("design_patterns", [])
             if design_patterns:
                 design_patterns_count += len(design_patterns)
                 architecture_details.append(f"Python: {len(design_patterns)} design pattern(s)")
-    
+
     # Java OOP & SOLID
     if "java_oop_analysis" in project:
         java_oop = project["java_oop_analysis"]
         if "error" not in java_oop:
             oop_score = java_oop.get("oop_score", 0)
             if oop_score == 0:
-                from analysis.java_oop_analyzer import JavaOOPAnalysis, calculate_oop_score
+                from analysis.java_oop_analyzer import (JavaOOPAnalysis,
+                                                        calculate_oop_score)
+
                 try:
                     analysis_obj = JavaOOPAnalysis(**java_oop)
                     oop_score = calculate_oop_score(analysis_obj)
                 except:
                     oop_score = 0
-            
+
             if oop_score > 0:
                 oop_scores.append((oop_score / 6.0) * 100)
-            
+
             solid_score = java_oop.get("solid_score", 0.0)
             if solid_score == 0:
                 from analysis.java_oop_analyzer import calculate_solid_score
+
                 try:
                     analysis_obj = JavaOOPAnalysis(**java_oop)
                     solid_score = calculate_solid_score(analysis_obj)
                 except:
                     solid_score = 0.0
-            
+
             if solid_score > 0:
                 solid_scores.append((solid_score / 5.0) * 100)
-            
+
             design_patterns = java_oop.get("design_patterns", [])
             if design_patterns:
                 design_patterns_count += len(design_patterns)
                 architecture_details.append(f"Java: {len(design_patterns)} design pattern(s)")
-    
+
     # C++ OOP & SOLID
     if "cpp_oop_analysis" in project:
         cpp_oop = project["cpp_oop_analysis"]
         if "error" not in cpp_oop:
-            from analysis.cpp_oop_analyzer import CppOOPAnalysis, calculate_oop_score, calculate_solid_score
+            from analysis.cpp_oop_analyzer import (CppOOPAnalysis,
+                                                   calculate_oop_score,
+                                                   calculate_solid_score)
+
             try:
                 analysis_obj = CppOOPAnalysis(**cpp_oop)
                 oop_score = calculate_oop_score(analysis_obj)
                 if oop_score > 0:
                     oop_scores.append((oop_score / 6.0) * 100)
-                
+
                 solid_score = calculate_solid_score(analysis_obj)
                 if solid_score > 0:
                     solid_scores.append((solid_score / 5.0) * 100)
-                
+
                 design_patterns = cpp_oop.get("design_patterns", [])
                 if design_patterns:
                     design_patterns_count += len(design_patterns)
                     architecture_details.append(f"C++: {len(design_patterns)} design pattern(s)")
             except:
                 pass
-    
+
     # C OOP-style patterns
     if "c_oop_analysis" in project:
         c_oop = project["c_oop_analysis"]
@@ -171,14 +172,14 @@ def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
             if c_oop.get("design_patterns"):
                 c_architecture_score += 15
                 design_patterns_count += len(c_oop.get("design_patterns", []))
-            
+
             if c_architecture_score > 0:
                 architecture_scores.append(min(c_architecture_score, 100))
-    
+
     # with this we calculate the architecture score, 60% OOP, 30% SOLID, 10% design patterns
     architecture_total = 0.0
     has_oop_or_solid = False
-    
+
     if oop_scores:
         architecture_total += (sum(oop_scores) / len(oop_scores)) * 0.6
         has_oop_or_solid = True
@@ -189,7 +190,7 @@ def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
         # Design patterns: 0-3 patterns = 0-10%, 4+ = 10%
         pattern_bonus = min(design_patterns_count * 2.5, 10)
         architecture_total += pattern_bonus * 0.1
-    
+
     # If we have C-style architecture scores, use them if no OOP/SOLID scores
     if architecture_scores and not has_oop_or_solid:
         architecture_total = sum(architecture_scores) / len(architecture_scores)
@@ -197,22 +198,26 @@ def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
         # Average both if we have both types
         c_avg = sum(architecture_scores) / len(architecture_scores)
         architecture_total = (architecture_total + c_avg) / 2
-    
+
     score_breakdown["code_architecture"] = min(architecture_total, 100) * 0.30
-    
-    #coding practices, 25 points total. metrics: Tests, Documentation, Organization
+
+    # coding practices, 25 points total. metrics: Tests, Documentation, Organization
     quality_score = 0.0
     quality_details = []
-    
+
     # tests-10pts
     total_files = project.get("total_files", 0)
     test_files = project.get("test_files", 0)
     code_files = project.get("code_files", 0)
-    
+
     if total_files > 0 and code_files > 0:
-        test_ratio = test_files / code_files  #the ratio is defined as the number of test files divided by the number of code files.
-        if test_ratio >= 0.5: #we use the ratio because it is a more accurate measure of test coverage than the number of test files alone.
-            quality_score += 10 #higher ratio means more test coverage.
+        test_ratio = (
+            test_files / code_files
+        )  # the ratio is defined as the number of test files divided by the number of code files.
+        if (
+            test_ratio >= 0.5
+        ):  # we use the ratio because it is a more accurate measure of test coverage than the number of test files alone.
+            quality_score += 10  # higher ratio means more test coverage.
             quality_details.append("Excellent test coverage (≥50%)")
         elif test_ratio >= 0.3:
             quality_score += 7
@@ -225,7 +230,7 @@ def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
             quality_details.append("Low test coverage (<15%)")
         else:
             quality_details.append("No tests found")
-    
+
     # Documentation (5 points)
     doc_files = project.get("doc_files", 0)
     has_readme = project.get("has_readme", False)
@@ -238,11 +243,11 @@ def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
             quality_details.append("Basic documentation")
     else:
         quality_details.append("No documentation")
-    
+
     # Code organization: defined as the depth of the directory structure (10 points)
     directory_depth = project.get("directory_depth", 0)
     config_files = project.get("config_files", 0)
-    
+
     # Structure depth indicates organization
     if directory_depth >= 4:
         quality_score += 5
@@ -252,45 +257,45 @@ def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
         quality_details.append("Moderate organization")
     else:
         quality_details.append("Flat structure")
-    
-    #configuration management: defined as the number of configuration files such as .json, .yml, .yaml, .ini, etc. (3 points)
+
+    # configuration management: defined as the number of configuration files such as .json, .yml, .yaml, .ini, etc. (3 points)
     if config_files >= 3:
         quality_score += 3
         quality_details.append("Good config management")
     elif config_files > 0:
         quality_score += 1
         quality_details.append("Basic config")
-    
+
     # File size distribution (2 points) - projects with reasonable file sizes
     largest_file = project.get("largest_file")
     if largest_file and largest_file.get("size_mb", 0) < 1.0:
         quality_score += 2
         quality_details.append("Reasonable file sizes")
-    
+
     score_breakdown["code_quality"] = min(quality_score, 25) * 0.25
-    
-    #DevOps practices, 25 points total. metrics: CI/CD, Docker, Git activity, Test infrastructure etc
+
+    # DevOps practices, 25 points total. metrics: CI/CD, Docker, Git activity, Test infrastructure etc
     maturity_score = 0.0
     maturity_details = []
-    
+
     # CI/CD (8 points)
     if project.get("has_ci_cd", False):
         maturity_score += 8
         maturity_details.append("CI/CD configured")
     else:
         maturity_details.append("No CI/CD")
-    
+
     # Docker (5 points)
     if project.get("has_docker", False):
         maturity_score += 5
         maturity_details.append("Dockerized")
     else:
         maturity_details.append("No Docker")
-    
+
     # Git activity (7 points)
     is_git_repo = project.get("is_git_repo", False)
     total_commits = project.get("total_commits", 0)
-    
+
     if is_git_repo:
         maturity_score += 3
         if total_commits >= 100:
@@ -303,11 +308,11 @@ def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
             maturity_details.append(f"New Git repo ({total_commits} commits)")
     else:
         maturity_details.append("Not a Git repo")
-    
+
     # Test infrastructure (5 points)
     has_tests = project.get("has_tests", False)
     coverage_estimate = project.get("test_coverage_estimate", "").lower()
-    
+
     if has_tests:
         maturity_score += 2
         if coverage_estimate == "high":
@@ -320,16 +325,16 @@ def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
             maturity_details.append("Tests present")
     else:
         maturity_details.append("No test infrastructure")
-    
+
     score_breakdown["project_maturity"] = min(maturity_score, 25) * 0.25
-    
-   #algorithmic quality, 20 points total. metrics: Complexity, Optimization
-   #currently only python is supported for this metric.
-   #the score is calculated based on the optimization score from the complexity analysis.
-   #we will add support for other languages in the future probably during the winter break
+
+    # algorithmic quality, 20 points total. metrics: Complexity, Optimization
+    # currently only python is supported for this metric.
+    # the score is calculated based on the optimization score from the complexity analysis.
+    # we will add support for other languages in the future probably during the winter break
     algorithmic_score = 0.0
     algorithmic_details = []
-    
+
     if "complexity_analysis" in project:
         complexity = project["complexity_analysis"]
         if "error" not in complexity:
@@ -347,13 +352,13 @@ def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
             algorithmic_details.append("Complexity analysis unavailable")
     else:
         algorithmic_details.append("No complexity analysis")
-    
+
     score_breakdown["algorithmic_quality"] = algorithmic_score * 0.20
-    
-  #total
+
+    # total
     total_score = sum(score_breakdown.values())
-    
-    #justifications for the architecture score
+
+    # justifications for the architecture score
     arch_justification = []
     if oop_scores:
         arch_justification.append(f"OOP: {sum(oop_scores)/len(oop_scores):.1f}/100")
@@ -363,16 +368,17 @@ def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
         arch_justification.append(f"{design_patterns_count} design pattern(s)")
     if not arch_justification:
         arch_justification.append("No architecture analysis")
-    
+
     return {
         "composite_score": total_score,
         "breakdown": score_breakdown,
         "justification": {
-            "code_architecture": "; ".join(arch_justification) + (" | " + "; ".join(architecture_details) if architecture_details else ""),
+            "code_architecture": "; ".join(arch_justification)
+            + (" | " + "; ".join(architecture_details) if architecture_details else ""),
             "code_quality": "; ".join(quality_details) if quality_details else "No quality metrics",
             "project_maturity": "; ".join(maturity_details) if maturity_details else "No maturity indicators",
             "algorithmic_quality": "; ".join(algorithmic_details) if algorithmic_details else "No algorithmic analysis",
-        }
+        },
     }
 
 
@@ -384,47 +390,49 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
         print_separator(f"TOP RANKED PROJECTS SUMMARY - {Path(zip_file_path).name}")
     else:
         print_separator("TOP RANKED PROJECTS SUMMARY (ALL ZIP FILES)")
-    
+
     # Get analyses - filter by zip_file_path if provided
     if zip_file_path:
         all_analyses = get_all_analyses_by_zip_file(zip_file_path)
     else:
         # Get all analyses
         all_analyses = get_all_analyses()
-    
+
     if not all_analyses:
         if zip_file_path:
             print(f"No analyses found for {Path(zip_file_path).name}.")
         else:
             print("No analyses found in database.")
         return
-    
+
     projects_with_scores = []
-    
+
     for analysis in all_analyses:
         try:
             report = json.loads(analysis["raw_json"])
             projects = report.get("projects", [])
-            
+
             for project in projects:
                 score_data = calculate_composite_score(project)
-                
+
                 try:
                     analysis_timestamp = analysis["analysis_timestamp"]
                 except (KeyError, IndexError):
                     analysis_timestamp = "Unknown"
-                
+
                 try:
                     zip_file = analysis["zip_file"]
                 except (KeyError, IndexError):
                     zip_file = "Unknown"
-                
-                projects_with_scores.append({
-                    "project": project,
-                    "score_data": score_data,
-                    "analysis_timestamp": analysis_timestamp,
-                    "zip_file": zip_file,
-                })
+
+                projects_with_scores.append(
+                    {
+                        "project": project,
+                        "score_data": score_data,
+                        "analysis_timestamp": analysis_timestamp,
+                        "zip_file": zip_file,
+                    }
+                )
         except (json.JSONDecodeError, KeyError) as e:
             try:
                 analysis_id = analysis["id"]
@@ -432,11 +440,11 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
                 analysis_id = "unknown"
             print(f"Warning: Could not parse analysis {analysis_id}: {e}")
             continue
-    
+
     if not projects_with_scores:
         print("No projects found in analyses.")
         return
-    
+
     # Deduplicate by project name - keep the best version (highest score, then most recent)
     unique_projects = {}
     for item in projects_with_scores:
@@ -444,92 +452,107 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
         project_path = item["project"].get("project_path", "")
         # Use project_name + project_path as unique key to handle projects with same name in different locations
         unique_key = f"{project_name}::{project_path}"
-        
+
         if unique_key not in unique_projects:
             unique_projects[unique_key] = item
         else:
             existing = unique_projects[unique_key]
             existing_score = existing["score_data"]["composite_score"]
             new_score = item["score_data"]["composite_score"]
-            
+
             if new_score > existing_score:
                 unique_projects[unique_key] = item
             elif new_score == existing_score:
                 if item["analysis_timestamp"] > existing["analysis_timestamp"]:
                     unique_projects[unique_key] = item
-    
+
     # Convert back to list and sort by composite score (descending)
     projects_with_scores = list(unique_projects.values())
     projects_with_scores.sort(key=lambda x: x["score_data"]["composite_score"], reverse=True)
-    
+
     # Display top projects
     top_projects = projects_with_scores[:limit]
-    
+
     print(f"\nFound {len(projects_with_scores)} total projects")
     print(f"Displaying top {len(top_projects)} ranked projects:\n")
-    
+
     for rank, item in enumerate(top_projects, 1):
         project = item["project"]
         score_data = item["score_data"]
-        
+
         print(f"{'=' * 78}")
         print(f"RANK #{rank}: {project.get('project_name', 'Unknown Project')}")
         print(f"{'=' * 78}")
-        
-        print(f"Analysis Date: {item['analysis_timestamp']}")        
+
+        print(f"Analysis Date: {item['analysis_timestamp']}")
         print(f"\nCOMPOSITE SCORE: {score_data['composite_score']:.2f}/100.0")
         print(f"\nScore Breakdown:")
-        print(f"  • Code Architecture:  {score_data['breakdown']['code_architecture']:.2f}/30.0  ({score_data['justification']['code_architecture']})")
-        print(f"  • Code Quality:       {score_data['breakdown']['code_quality']:.2f}/25.0  ({score_data['justification']['code_quality']})")
-        print(f"  • Project Maturity:  {score_data['breakdown']['project_maturity']:.2f}/25.0  ({score_data['justification']['project_maturity']})")
-        print(f"  • Algorithmic Quality: {score_data['breakdown']['algorithmic_quality']:.2f}/20.0  ({score_data['justification']['algorithmic_quality']})")
+        print(
+            f"  • Code Architecture:  {score_data['breakdown']['code_architecture']:.2f}/30.0  ({score_data['justification']['code_architecture']})"
+        )
+        print(
+            f"  • Code Quality:       {score_data['breakdown']['code_quality']:.2f}/25.0  ({score_data['justification']['code_quality']})"
+        )
+        print(
+            f"  • Project Maturity:  {score_data['breakdown']['project_maturity']:.2f}/25.0  ({score_data['justification']['project_maturity']})"
+        )
+        print(
+            f"  • Algorithmic Quality: {score_data['breakdown']['algorithmic_quality']:.2f}/20.0  ({score_data['justification']['algorithmic_quality']})"
+        )
         print(f"\nProject Overview:")
         print(f"  • Primary Language: {project.get('primary_language', 'N/A')}")
         print(f"  • Total Files: {project.get('total_files', 0)}")
         print(f"  • Code Files: {project.get('code_files', 0)}")
         print(f"  • Test Files: {project.get('test_files', 0)}")
-        
+
         languages = project.get("languages", {})
         if languages:
             lang_str = ", ".join([f"{lang} ({count})" for lang, count in list(languages.items())[:5]])
             if len(languages) > 5:
                 lang_str += f" ... and {len(languages) - 5} more"
             print(f"  • Languages: {lang_str}")
-        
+
         frameworks = project.get("frameworks", [])
         if frameworks:
             print(f"  • Frameworks: {', '.join(frameworks[:5])}")
             if len(frameworks) > 5:
                 print(f"               ... and {len(frameworks) - 5} more")
-        
+
         # OOP Analysis Summary
         print(f"\nOOP Analysis:")
-        
+
         if "oop_analysis" in project and "error" not in project["oop_analysis"]:
             python_oop = project["oop_analysis"]
-            print(f"  Python: {python_oop.get('total_classes', 0)} classes, "
-                  f"inheritance depth: {python_oop.get('inheritance_depth', 0)}, "
-                  f"encapsulation: {python_oop.get('private_methods', 0) + python_oop.get('protected_methods', 0)} private/protected methods")
-        
+            print(
+                f"  Python: {python_oop.get('total_classes', 0)} classes, "
+                f"inheritance depth: {python_oop.get('inheritance_depth', 0)}, "
+                f"encapsulation: {python_oop.get('private_methods', 0) + python_oop.get('protected_methods', 0)} private/protected methods"
+            )
+
         if "java_oop_analysis" in project and "error" not in project["java_oop_analysis"]:
             java_oop = project["java_oop_analysis"]
-            print(f"  Java: {java_oop.get('total_classes', 0)} classes, "
-                  f"{java_oop.get('interface_count', 0)} interfaces, "
-                  f"SOLID score: {java_oop.get('solid_score', 0.0):.1f}/5.0")
-        
+            print(
+                f"  Java: {java_oop.get('total_classes', 0)} classes, "
+                f"{java_oop.get('interface_count', 0)} interfaces, "
+                f"SOLID score: {java_oop.get('solid_score', 0.0):.1f}/5.0"
+            )
+
         if "cpp_oop_analysis" in project and "error" not in project["cpp_oop_analysis"]:
             cpp_oop = project["cpp_oop_analysis"]
-            print(f"  C++: {cpp_oop.get('total_classes', 0)} classes, "
-                  f"{cpp_oop.get('template_classes', 0)} templates, "
-                  f"virtual methods: {cpp_oop.get('virtual_methods', 0)}")
-        
+            print(
+                f"  C++: {cpp_oop.get('total_classes', 0)} classes, "
+                f"{cpp_oop.get('template_classes', 0)} templates, "
+                f"virtual methods: {cpp_oop.get('virtual_methods', 0)}"
+            )
+
         if "c_oop_analysis" in project and "error" not in project["c_oop_analysis"]:
             c_oop = project["c_oop_analysis"]
-            print(f"  C: {c_oop.get('total_structs', 0)} structs, "
-                  f"{c_oop.get('opaque_pointer_structs', 0)} opaque pointers, "
-                  f"{c_oop.get('vtable_structs', 0)} vtable structs")
-        
-        
+            print(
+                f"  C: {c_oop.get('total_structs', 0)} structs, "
+                f"{c_oop.get('opaque_pointer_structs', 0)} opaque pointers, "
+                f"{c_oop.get('vtable_structs', 0)} vtable structs"
+            )
+
         if "complexity_analysis" in project and "error" not in project["complexity_analysis"]:
             complexity = project["complexity_analysis"]
             opt_score = complexity.get("optimization_score", 0.0)
@@ -540,7 +563,7 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
             elif opt_score >= 50:
                 print(f"   Assessment: Moderate optimization awareness")
             else:
-                print(f"   Assessment: Limited optimization awareness")        
+                print(f"   Assessment: Limited optimization awareness")
         print(f"\nProject Health Indicators:")
         health_items = []
         if project.get("has_tests"):
@@ -553,17 +576,17 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
             health_items.append("✓ Docker")
         if project.get("is_git_repo"):
             health_items.append("✓ Git")
-        
+
         if health_items:
             print(f"   {', '.join(health_items)}")
         else:
             print(f"   No health indicators found")
-        
+
         if project.get("test_coverage_estimate"):
             print(f"   Test Coverage: {project['test_coverage_estimate']}")
-        
-        print()  
-    
+
+        print()
+
     print_separator()
     print(f"\nSummary complete. Top {len(top_projects)} projects displayed.")
 
@@ -577,7 +600,7 @@ def main():
         print("  python src/backend/analysis/analyze.py --summarize")
         print("  python src/backend/analysis/analyze.py --summarize 5")
         sys.exit(1)
-    
+
     # Check if user wants to summarize top projects
     if sys.argv[1] == "--summarize" or sys.argv[1] == "-s":
         limit = 10
@@ -586,7 +609,7 @@ def main():
                 limit = int(sys.argv[2])
             except ValueError:
                 print(f"Warning: Invalid limit '{sys.argv[2]}', using default 10")
-        
+
         init_db()
         summarize_top_ranked_projects(limit=limit)
         return
@@ -831,6 +854,42 @@ def main():
         else:
             print("No existing analysis found. Running new analysis...\n")
             report = generate_comprehensive_report(zip_path)
+
+            # Add C++ and C analysis to the report
+            for i, project in enumerate(report["projects"]):
+                project_path = project.get("project_path", "")
+
+                # C++ Analysis
+                if "cpp" in project.get("languages", {}):
+                    try:
+                        from analysis.cpp_oop_analyzer import \
+                            analyze_cpp_project
+
+                        cpp_analysis = analyze_cpp_project(zip_path, project_path)
+                        report["projects"][i]["cpp_oop_analysis"] = cpp_analysis["cpp_oop_analysis"]
+                    except ImportError:
+                        report["projects"][i]["cpp_oop_analysis"] = {
+                            "error": "C++ analyzer not available (libclang not installed)",
+                            "total_classes": 0,
+                        }
+                    except Exception as e:
+                        report["projects"][i]["cpp_oop_analysis"] = {"error": str(e), "total_classes": 0}
+
+                # C Analysis (note: .c files are classified as cpp in project_analyzer)
+                # So we check for cpp language and run C analyzer too
+                if "cpp" in project.get("languages", {}) or "c" in project.get("languages", {}):
+                    try:
+                        from analysis.c_oop_analyzer import analyze_c_project
+
+                        c_analysis = analyze_c_project(zip_path, project_path)
+                        # Only add if we found C-style code
+                        if c_analysis["c_oop_analysis"].get("total_structs", 0) > 0:
+                            report["projects"][i]["c_oop_analysis"] = c_analysis["c_oop_analysis"]
+                    except ImportError:
+                        pass  # C analyzer optional
+                    except Exception as e:
+                        pass  # Silently skip if no C code found
+
             report["analysis_metadata"] = {
                 "zip_file": zip_file_path,
                 "analysis_timestamp": datetime.now().isoformat(),
@@ -935,7 +994,7 @@ def main():
                 # Use pre-calculated OOP score from deep_code_analyzer
                 oop_score = oop.get("oop_score", 0)
                 solid_score = oop.get("solid_score", 0.0)
-                
+
                 # Fallback calculation if not present (shouldn't happen with deep_code_analyzer)
                 if oop_score == 0:
                     score = 0
@@ -1192,10 +1251,10 @@ def main():
                 import traceback
 
                 traceback.print_exc()
-        
+
         # Automatically summarize top-ranked projects from current zip file
         summarize_top_ranked_projects(limit=10, zip_file_path=zip_file_path)
-        
+
         # Ask user if they want to generate resume
         print_separator()
         
@@ -1251,7 +1310,6 @@ def main():
                     }
                 else:
                     projects_needing_resume.append(project)
-            
 
             # Display existing resume items
             if resume_items_by_project and not regenerate_all:
@@ -1308,6 +1366,7 @@ def main():
                     except Exception as e:
                         print(f"⚠  Warning: Could not store résumé item for {project_name}: {e}")
                         import traceback
+
                         traceback.print_exc()
                 
                 print("=" * 78)
@@ -1316,6 +1375,17 @@ def main():
                 elif newly_generated > 0:
                     print(f"✓ Successfully generated and stored {newly_generated}/{len(projects_needing_resume)} new résumé item(s)")
                 print("=" * 78 + "\n")
+
+                if projects_needing_resume:
+                    print("=" * 78 + "\n")
+                    print(f" Successfully stored {len(projects_needing_resume)} resume item(s) in the database")
+            elif resume_items_by_project:
+                print("=" * 78 + "\n")
+                traceback.print_exc()
+
+                if projects_needing_resume:
+                    print("=" * 78 + "\n")
+                    print(f" Successfully stored {len(projects_needing_resume)} resume item(s) in the database")
             elif resume_items_by_project:
                 print("=" * 78)
                 print(f"✓ All {len(resume_items_by_project)} résumé item(s) retrieved from database")

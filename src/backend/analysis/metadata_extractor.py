@@ -172,7 +172,7 @@ class MetadataExtractor:
         """
         normalized = path.replace("\\", "/").lower()
         parts = normalized.split("/")
-        
+
         # Exclude patterns
         exclude_patterns = [
             "__macosx",  # macOS metadata
@@ -199,7 +199,7 @@ class MetadataExtractor:
             ".next",  # Next.js build
             ".nuxt",  # Nuxt.js build
         ]
-        
+
         # Check if any part of the path matches exclude patterns
         for part in parts:
             if part in exclude_patterns:
@@ -208,7 +208,7 @@ class MetadataExtractor:
             for pattern in exclude_patterns:
                 if part.startswith(pattern) or part.endswith(pattern):
                     return True
-        
+
         return False
 
     def _has_code_files(self, project_path: str) -> bool:
@@ -217,21 +217,58 @@ class MetadataExtractor:
         Returns True if the project has code files, False otherwise.
         """
         code_extensions = {
-            ".py", ".java", ".js", ".ts", ".jsx", ".tsx", ".cpp", ".c", ".h", ".hpp",
-            ".cs", ".go", ".rs", ".rb", ".php", ".swift", ".kt", ".scala", ".clj",
-            ".r", ".m", ".mm", ".sh", ".bash", ".zsh", ".fish", ".ps1",
-            ".html", ".css", ".scss", ".sass", ".less", ".vue", ".svelte",
-            ".sql", ".pl", ".pm", ".lua", ".dart", ".elm", ".ex", ".exs"
+            ".py",
+            ".java",
+            ".js",
+            ".ts",
+            ".jsx",
+            ".tsx",
+            ".cpp",
+            ".c",
+            ".h",
+            ".hpp",
+            ".cs",
+            ".go",
+            ".rs",
+            ".rb",
+            ".php",
+            ".swift",
+            ".kt",
+            ".scala",
+            ".clj",
+            ".r",
+            ".m",
+            ".mm",
+            ".sh",
+            ".bash",
+            ".zsh",
+            ".fish",
+            ".ps1",
+            ".html",
+            ".css",
+            ".scss",
+            ".sass",
+            ".less",
+            ".vue",
+            ".svelte",
+            ".sql",
+            ".pl",
+            ".pm",
+            ".lua",
+            ".dart",
+            ".elm",
+            ".ex",
+            ".exs",
         }
-        
+
         prefix = f"{project_path}/" if project_path else ""
-        
+
         for file_path in self.zip_file.namelist():
             if file_path.endswith("/"):
                 continue
-            
+
             normalized = file_path.replace("\\", "/")
-            
+
             # Check if file belongs to this project
             if project_path:
                 if not normalized.startswith(prefix):
@@ -240,12 +277,12 @@ class MetadataExtractor:
                 # For root project, exclude excluded directories
                 if "/" in normalized and self._is_excluded_directory(normalized.split("/")[0]):
                     continue
-            
+
             # Check if it's a code file
             ext = Path(normalized).suffix.lower()
             if ext in code_extensions:
                 return True
-        
+
         return False
 
     def detect_projects(self) -> List[str]:
@@ -289,7 +326,7 @@ class MetadataExtractor:
                     project_root = "/".join(parts[:-1])
                 else:
                     project_root = ""
-                
+
                 # Skip if the project root is in an excluded directory
                 if not self._is_excluded_directory(project_root):
                     project_indicators.add(project_root)
@@ -309,7 +346,7 @@ class MetadataExtractor:
             # Skip excluded directories
             if self._is_excluded_directory(indicator):
                 continue
-            
+
             # Check if this is a nested project of an already detected one
             is_nested = False
             for existing in final_projects:
@@ -633,17 +670,17 @@ class MetadataExtractor:
             # Skip excluded directories
             if self._is_excluded_directory(project_path):
                 continue
-            
+
             # Skip if no code files
             if not self._has_code_files(project_path):
                 continue
-            
+
             metadata = self.extract_project_metadata(project_path)
-            
+
             # Additional validation: skip projects with no files or no code files
             if metadata.total_files == 0 or metadata.code_files == 0:
                 continue
-            
+
             projects_metadata.append(metadata.to_dict())
 
         # Build final report

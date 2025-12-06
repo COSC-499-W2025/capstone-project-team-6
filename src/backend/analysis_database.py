@@ -160,7 +160,7 @@ def init_db() -> None:
             );
             """
         )
-        
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS resume_items (
@@ -460,7 +460,6 @@ def get_analysis_report(zip_file: str) -> Optional[Dict[str, Any]]:
     analysis = get_analysis_by_zip_file(zip_file)
     if not analysis:
         return None
-    
 
     try:
         return json.loads(analysis["raw_json"])
