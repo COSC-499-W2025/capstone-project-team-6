@@ -1293,8 +1293,7 @@ def main():
                     print(f" Successfully stored {len(projects_needing_resume)} resume item(s) in the database")
             elif resume_items_by_project:
                 print("="*78 + "\n")
-
-                        traceback.print_exc()
+                traceback.print_exc()
 
                 if projects_needing_resume:
                     print("=" * 78 + "\n")
