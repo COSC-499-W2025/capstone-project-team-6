@@ -3,12 +3,9 @@
 import pytest
 
 from backend.analysis.portfolio_item_generator import (
-    _calculate_project_quality_score,
-    _generate_architecture_description,
-    _generate_contributions_summary,
-    _generate_skills_list,
-    generate_portfolio_item,
-)
+    _calculate_project_quality_score, _generate_architecture_description,
+    _generate_contributions_summary, _generate_skills_list,
+    generate_portfolio_item)
 
 # ------------------------------------------------------------
 # FIXTURES
