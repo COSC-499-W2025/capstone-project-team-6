@@ -362,6 +362,27 @@ class GitAnalyzer:
 
         return first_date, last_date
 
+    def get_repository_last_commit_date(self) -> Optional[str]:
+        """
+        Get the date of the most recent commit in the entire repository.
+
+        Returns:
+            ISO format timestamp of the last commit, or None if unable to determine
+        """
+        output = self.run_git_command(
+            [
+                "log",
+                "--all",
+                "--format=%aI",
+                "-1",  # Only get the most recent commit
+            ]
+        )
+
+        if not output:
+            return None
+
+        return output.strip()
+
     def normalize_email(self, email: str) -> str:
         """
         Normalize email addresses for consistent matching.

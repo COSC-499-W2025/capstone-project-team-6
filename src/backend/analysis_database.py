@@ -100,6 +100,8 @@ def init_db() -> None:
                 test_coverage_estimate TEXT,
                 is_git_repo INTEGER CHECK(is_git_repo IN (0, 1)),
                 total_commits INTEGER,
+                last_commit_date TEXT,
+                last_modified_date TEXT,
                 directory_depth INTEGER
             );
             """
@@ -314,8 +316,10 @@ def record_analysis(
                     test_coverage_estimate,
                     is_git_repo,
                     total_commits,
+                    last_commit_date,
+                    last_modified_date,
                     directory_depth
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     analysis_id,
@@ -335,6 +339,8 @@ def record_analysis(
                     project.get("test_coverage_estimate"),
                     _boolean_to_int(project.get("is_git_repo")),
                     project.get("total_commits"),
+                    project.get("last_commit_date"),
+                    project.get("last_modified_date"),
                     project.get("directory_depth"),
                 ),
             )
