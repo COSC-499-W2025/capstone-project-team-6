@@ -1268,6 +1268,8 @@ def main():
                         print("\n")
 
             # Generate and store resumes for projects that don't have them
+            newly_generated = 0  # Initialize to avoid UnboundLocalError
+            
             if projects_needing_resume:
                 if resume_items_by_project and not regenerate_all:
                     print(f"\nGenerating {len(projects_needing_resume)} new résumé item(s)...\n")
@@ -1276,7 +1278,6 @@ def main():
                 else:
                     print(f"Generating {len(projects_needing_resume)} résumé item(s)...\n")
 
-                newly_generated = 0
                 cached_count = len(resume_items_by_project)
                 
                 for idx, project in enumerate(projects_needing_resume, 1):
@@ -1309,15 +1310,10 @@ def main():
                         import traceback
                         traceback.print_exc()
                 
-                if projects_needing_resume:
-                    print("="*78 + "\n")
-                    print(f" Successfully stored {len(projects_needing_resume)} resume item(s) in the database")
-            elif resume_items_by_project:
-                print("="*78 + "\n")
                 print("=" * 78)
                 if regenerate_all:
                     print(f"✓ Successfully regenerated {newly_generated}/{len(projects_needing_resume)} résumé item(s)")
-                else:
+                elif newly_generated > 0:
                     print(f"✓ Successfully generated and stored {newly_generated}/{len(projects_needing_resume)} new résumé item(s)")
                 print("=" * 78 + "\n")
             elif resume_items_by_project:
