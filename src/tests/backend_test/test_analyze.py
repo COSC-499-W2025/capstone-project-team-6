@@ -44,39 +44,38 @@ class MyClass:
             yield zip_path
 
     @pytest.fixture
-    def sample_java_zip(self):
+    def sample_java_zip(self, tmp_path: Path):
         """Create a temporary ZIP file with Java code."""
-        with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
-            with zipfile.ZipFile(tmp.name, "w") as zf:
-                # Add a simple Java file
-                java_code = """
-public class Plane {
-    private int altitude;
+        zip_path = tmp_path / "sample_java_project.zip"
 
-    public int getAltitude() {
-        return altitude;
+        # Create the ZIP file
+        with zipfile.ZipFile(zip_path, "w") as zf:
+            java_code = """
+        public class Plane {
+            private int altitude;
+
+        public int getAltitude() {
+            return altitude;
+        }
+
+        public void setAltitude(int altitude) {
+            this.altitude = altitude;
+        }
     }
+    """
+            zf.writestr("Plane.java", java_code)
+            zf.writestr("pom.xml", "<project></project>")
+
+        yield zip_path
+
     
-    public void setAltitude(int altitude) {
-        this.altitude = altitude;
-    }
-}
-"""
-                zf.writestr("Plane.java", java_code)
-                zf.writestr("pom.xml", "<project></project>")
-
-            yield Path(tmp.name)
-
-            # Cleanup
-            os.unlink(tmp.name)
-
     @pytest.fixture
-    def sample_mixed_zip(self):
+    def sample_mixed_zip(self, tmp_path: Path):
         """Create a temporary ZIP file with both Python and Java aircraft-related code."""
-        with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
-            with zipfile.ZipFile(tmp.name, "w") as zf:
-                # Add Python file
-                python_code = """
+        zip_path = tmp_path / "mixed_aircraft_project.zip"
+        with zipfile.ZipFile(zip_path, "w") as zf:
+            # Add Python file
+            python_code = """
     from abc import ABC, abstractmethod
 
     class Aircraft(ABC):
@@ -88,10 +87,10 @@ public class Plane {
         def fly(self):
             return "Boeing 737 climbing to 35,000 feet"
     """
-                zf.writestr("Aircraft.py", python_code)
+            zf.writestr("Aircraft.py", python_code)
 
-                # Add Java file
-                java_code = """
+            # Add Java file
+            java_code = """
     public interface AircraftSpec {
         double maxSpeed();
     }
@@ -109,14 +108,11 @@ public class Plane {
         }
     }
     """
-                zf.writestr("Jet.java", java_code)
+            zf.writestr("Jet.java", java_code)
 
-                zf.writestr("README.md", "# Mixed Aircraft Project")
+            zf.writestr("README.md", "# Mixed Aircraft Project")
 
-            yield Path(tmp.name)
-
-            # Cleanup
-            os.unlink(tmp.name)
+        yield zip_path
 
     def test_java_project_analysis(self, sample_java_zip):
         """Test analyzing a Java project."""
@@ -148,21 +144,18 @@ public class Plane {
         # Should detect both languages
         assert "python" in languages or "java" in languages
 
-    def test_empty_zip(self):
+    def test_empty_zip(self, tmp_path: Path):
         """Test analyzing an empty ZIP file."""
-        with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
-            with zipfile.ZipFile(tmp.name, "w") as zf:
-                pass  # Empty zip
+        zip_path = tmp_path / "empty.zip"
+        with zipfile.ZipFile(zip_path, "w") as zf:
+            pass  # Empty zip
 
-            try:
-                report = generate_comprehensive_report(Path(tmp.name))
+           
+        report = generate_comprehensive_report(zip_path)
+        assert "projects" in report
+        assert "summary" in report
+        # Should handle empty project gracefully
 
-                assert "projects" in report
-                assert "summary" in report
-                # Should handle empty project gracefully
-
-            finally:
-                os.unlink(tmp.name)
 
     def test_report_structure(self, sample_python_zip):
         """Test that the report has the expected structure."""
@@ -212,20 +205,20 @@ class TestAnalyzeScriptIntegration:
     """Test the analyze.py script functionality."""
 
     @pytest.fixture
-    def sample_project_zip(self):
-        with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
-            with zipfile.ZipFile(tmp.name, "w") as zf:
+    def sample_project_zip(self, tmp_path: Path):
+        zip_path = tmp_path / "sample_airport_project.zip"
+        with zipfile.ZipFile(zip_path, "w") as zf:
 
                 # Very simple Python OOP
-                python_code = """
+            python_code = """
                 class Gate:
                     def __init__(self, number):
                         self.number = number
                 """
-                zf.writestr("src/gate.py", python_code)
+            zf.writestr("src/gate.py", python_code)
 
                 # Very simple Java OOP
-                java_code = """
+            java_code = """
                 public class Runway {
                     private int length;
 
@@ -238,13 +231,12 @@ class TestAnalyzeScriptIntegration:
                     }
                 }
                 """
-                zf.writestr("src/Runway.java", java_code)
+            zf.writestr("src/Runway.java", java_code)
 
-                zf.writestr("README.md", "# Simple Airport Project")
-                zf.writestr("requirements.txt", "pytest==7.0.0")
+            zf.writestr("README.md", "# Simple Airport Project")
+            zf.writestr("requirements.txt", "pytest==7.0.0")
 
-            yield Path(tmp.name)
-            os.unlink(tmp.name)
+        return zip_path
 
     def test_comprehensive_analysis_with_both_languages(self, sample_project_zip):
         """Test that analyze.py can handle projects with multiple languages."""
@@ -286,35 +278,34 @@ class TestJavaAnalysisWithoutJavalang:
 class TestPythonOOPScoring:
     """Test OOP scoring for Python projects."""
 
-    def test_procedural_style(self):
+    def test_procedural_style(self, tmp_path: Path):
         """Test procedural/functional code gets low OOP score."""
-        with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
-            with zipfile.ZipFile(tmp.name, "w") as zf:
-                code = """
+        zip_path = tmp_path / "procedural_style.zip"
+        with zipfile.ZipFile(zip_path, "w") as zf:
+            code = """
             def add(x, y):
                 return x + y
 
             def multiply(x, y):
                 return x * y
             """
-                zf.writestr("math.py", code)
+            zf.writestr("math.py", code)
 
-            try:
-                report = generate_comprehensive_report(Path(tmp.name))
-                project = report["projects"][0]
+        
+        report = generate_comprehensive_report(Path(zip_path))
+        project = report["projects"][0]
 
-                if "oop_analysis" in project and "error" not in project["oop_analysis"]:
-                    oop = project["oop_analysis"]
-                    assert oop["total_classes"] == 0
+        if "oop_analysis" in project and "error" not in project["oop_analysis"]:
+            oop = project["oop_analysis"]
+            assert oop["total_classes"] == 0
 
-            finally:
-                os.unlink(tmp.name)
+            
 
-    def test_advanced_oop_style(self):
+    def test_advanced_oop_style(self, tmp_path: Path):
         """Test advanced OOP code gets high score."""
-        with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
-            with zipfile.ZipFile(tmp.name, "w") as zf:
-                code = """
+        zip_path = tmp_path / "advanced_oop_style.zip"
+        with zipfile.ZipFile(zip_path, "w") as zf:
+            code = """
 from abc import ABC, abstractmethod
 
 class Shape(ABC):
@@ -337,20 +328,19 @@ class Circle(Shape):
     def area(self):
         return 3.14 * self._radius ** 2
 """
-                zf.writestr("shapes.py", code)
+            zf.writestr("shapes.py", code)
 
-            try:
-                report = generate_comprehensive_report(Path(tmp.name))
-                project = report["projects"][0]
+            
+        report = generate_comprehensive_report(zip_path)
+        project = report["projects"][0]
 
-                if "oop_analysis" in project and "error" not in project["oop_analysis"]:
-                    oop = project["oop_analysis"]
-                    assert oop["total_classes"] >= 2
-                    assert len(oop["abstract_classes"]) > 0
-                    assert oop["inheritance_depth"] > 0
+        if "oop_analysis" in project and "error" not in project["oop_analysis"]:
+            oop = project["oop_analysis"]
+            assert oop["total_classes"] >= 2
+            assert len(oop["abstract_classes"]) > 0
+            assert oop["inheritance_depth"] > 0
 
-            finally:
-                os.unlink(tmp.name)
+        
 
 
 class TestSummarizeTopRankedProjects:
