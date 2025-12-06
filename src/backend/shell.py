@@ -5,7 +5,8 @@ import shlex
 from pathlib import Path
 from typing import Optional
 
-from .database import UserAlreadyExistsError, authenticate_user, create_user, initialize
+from .database import (UserAlreadyExistsError, authenticate_user, create_user,
+                       initialize)
 from .traversal import Folder_traversal_fs
 
 
