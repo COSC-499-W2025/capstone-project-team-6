@@ -45,3 +45,6 @@ google-genai
 tenacity>=8.2.3
 # Java
 javalang==0.13.0
+
+# Gemini
+google-genai
