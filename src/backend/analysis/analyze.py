@@ -1375,17 +1375,6 @@ def main():
                 elif newly_generated > 0:
                     print(f"✓ Successfully generated and stored {newly_generated}/{len(projects_needing_resume)} new résumé item(s)")
                 print("=" * 78 + "\n")
-
-                if projects_needing_resume:
-                    print("=" * 78 + "\n")
-                    print(f" Successfully stored {len(projects_needing_resume)} resume item(s) in the database")
-            elif resume_items_by_project:
-                print("=" * 78 + "\n")
-                traceback.print_exc()
-
-                if projects_needing_resume:
-                    print("=" * 78 + "\n")
-                    print(f" Successfully stored {len(projects_needing_resume)} resume item(s) in the database")
             elif resume_items_by_project:
                 print("=" * 78)
                 print(f"✓ All {len(resume_items_by_project)} résumé item(s) retrieved from database")
