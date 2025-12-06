@@ -37,17 +37,6 @@ def basic_project():
             "operator_overloads": 0,
         },
         "java_oop_analysis": {},
-        "cpp_oop_analysis": {
-            "total_classes": 0,
-            "classes_with_inheritance": 0,
-            "abstract_classes": [],
-            "inheritance_depth": 0,
-            "virtual_methods": 0,
-            "operator_overloads": 0,
-            "template_classes": 0,
-            "namespaces_used": 0,
-            "design_patterns": [],
-        },
     }
 
 
@@ -82,17 +71,6 @@ def intermediate_project():
             "inheritance_depth": 1,
             "design_patterns": ["Factory"],
             "lambda_count": 2,
-        },
-        "cpp_oop_analysis": {
-            "total_classes": 0,
-            "classes_with_inheritance": 0,
-            "abstract_classes": [],
-            "inheritance_depth": 0,
-            "virtual_methods": 0,
-            "operator_overloads": 0,
-            "template_classes": 0,
-            "namespaces_used": 0,
-            "design_patterns": [],
         },
     }
 
@@ -129,17 +107,6 @@ def advanced_project():
             "design_patterns": ["Factory", "Singleton"],
             "lambda_count": 5,
         },
-        "cpp_oop_analysis": {
-            "total_classes": 0,
-            "classes_with_inheritance": 0,
-            "abstract_classes": [],
-            "inheritance_depth": 0,
-            "virtual_methods": 0,
-            "operator_overloads": 0,
-            "template_classes": 0,
-            "namespaces_used": 0,
-            "design_patterns": [],
-        },
     }
 
 
@@ -168,17 +135,6 @@ def empty_project():
             "operator_overloads": 0,
         },
         "java_oop_analysis": {},
-        "cpp_oop_analysis": {
-            "total_classes": 0,
-            "classes_with_inheritance": 0,
-            "abstract_classes": [],
-            "inheritance_depth": 0,
-            "virtual_methods": 0,
-            "operator_overloads": 0,
-            "template_classes": 0,
-            "namespaces_used": 0,
-            "design_patterns": [],
-        },
     }
 
 
@@ -188,6 +144,7 @@ def empty_project():
 
 
 def test_quality_score_basic(basic_project):
+    """Basic project should score low and be classified as 'basic'."""
     quality = _calculate_project_quality_score(basic_project)
 
     assert quality["sophistication_level"] == "basic"
@@ -198,6 +155,7 @@ def test_quality_score_basic(basic_project):
 
 
 def test_quality_score_intermediate(intermediate_project):
+    """Intermediate project should score 30-49 and be 'intermediate'."""
     quality = _calculate_project_quality_score(intermediate_project)
 
     assert quality["sophistication_level"] == "intermediate"
@@ -209,6 +167,7 @@ def test_quality_score_intermediate(intermediate_project):
 
 
 def test_quality_score_advanced(advanced_project):
+    """Advanced project should score 50+ and be 'advanced'."""
     quality = _calculate_project_quality_score(advanced_project)
 
     assert quality["sophistication_level"] == "advanced"
@@ -220,6 +179,7 @@ def test_quality_score_advanced(advanced_project):
 
 
 def test_quality_score_empty(empty_project):
+    """Empty project should score very low."""
     quality = _calculate_project_quality_score(empty_project)
 
     assert quality["sophistication_level"] == "basic"
@@ -233,6 +193,7 @@ def test_quality_score_empty(empty_project):
 
 
 def test_architecture_basic(basic_project):
+    """Basic project should have foundational description."""
     quality = _calculate_project_quality_score(basic_project)
     text = _generate_architecture_description(basic_project, quality)
 
@@ -241,16 +202,18 @@ def test_architecture_basic(basic_project):
 
 
 def test_architecture_intermediate(intermediate_project):
+    """Intermediate project should mention OOP principles."""
     quality = _calculate_project_quality_score(intermediate_project)
     text = _generate_architecture_description(intermediate_project, quality)
 
     assert "5 Python classes" in text
     assert "3 Java classes" in text
     assert "object-oriented principles" in text.lower()
-    assert "Factory" in text
+    assert "Factory patterns" in text
 
 
 def test_architecture_advanced(advanced_project):
+    """Advanced project should have detailed OOP description."""
     quality = _calculate_project_quality_score(advanced_project)
     text = _generate_architecture_description(advanced_project, quality)
 
@@ -261,6 +224,7 @@ def test_architecture_advanced(advanced_project):
 
 
 def test_architecture_empty(empty_project):
+    """Empty project should use fallback description."""
     quality = _calculate_project_quality_score(empty_project)
     text = _generate_architecture_description(empty_project, quality)
 
@@ -273,6 +237,7 @@ def test_architecture_empty(empty_project):
 
 
 def test_contributions_basic(basic_project):
+    """Basic project should mention documentation."""
     quality = _calculate_project_quality_score(basic_project)
     text = _generate_contributions_summary(basic_project, quality)
 
@@ -280,17 +245,19 @@ def test_contributions_basic(basic_project):
 
 
 def test_contributions_intermediate(intermediate_project):
+    """Intermediate project should mention patterns and tests."""
     quality = _calculate_project_quality_score(intermediate_project)
     text = _generate_contributions_summary(intermediate_project, quality)
 
     assert "abstract classes" in text.lower()
-    assert "factory" in text.lower()
+    assert "factory pattern" in text.lower()
     assert "lambda expressions" in text.lower()
     assert "tests" in text.lower()
     assert "medium coverage" in text.lower()
 
 
 def test_contributions_advanced(advanced_project):
+    """Advanced project should mention all advanced features."""
     quality = _calculate_project_quality_score(advanced_project)
     text = _generate_contributions_summary(advanced_project, quality)
 
@@ -298,11 +265,12 @@ def test_contributions_advanced(advanced_project):
     assert "factory" in text.lower()
     assert "singleton" in text.lower()
     assert "lambda expressions" in text.lower()
-    assert "overload" in text.lower()
+    assert "operator overloading" in text.lower()
     assert "ci/cd" in text.lower()
 
 
 def test_contributions_empty(empty_project):
+    """Empty project should use fallback text."""
     quality = _calculate_project_quality_score(empty_project)
     text = _generate_contributions_summary(empty_project, quality)
 
@@ -316,6 +284,7 @@ def test_contributions_empty(empty_project):
 
 
 def test_skills_basic(basic_project):
+    """Basic project should list minimal skills."""
     quality = _calculate_project_quality_score(basic_project)
     skills = _generate_skills_list(basic_project, quality)
 
@@ -325,6 +294,7 @@ def test_skills_basic(basic_project):
 
 
 def test_skills_intermediate(intermediate_project):
+    """Intermediate project should list moderate skills."""
     quality = _calculate_project_quality_score(intermediate_project)
     skills = _generate_skills_list(intermediate_project, quality)
 
@@ -337,6 +307,7 @@ def test_skills_intermediate(intermediate_project):
 
 
 def test_skills_advanced(advanced_project):
+    """Advanced project should list many advanced skills."""
     quality = _calculate_project_quality_score(advanced_project)
     skills = _generate_skills_list(advanced_project, quality)
 
@@ -358,6 +329,7 @@ def test_skills_advanced(advanced_project):
 
 
 def test_generate_portfolio_basic(basic_project):
+    """Full generation for basic project."""
     item = generate_portfolio_item(basic_project)
 
     assert item["project_name"] == "BasicProj"
@@ -369,6 +341,7 @@ def test_generate_portfolio_basic(basic_project):
 
 
 def test_generate_portfolio_intermediate(intermediate_project):
+    """Full generation for intermediate project."""
     item = generate_portfolio_item(intermediate_project)
 
     assert item["project_name"] == "IntermediateProj"
@@ -379,6 +352,7 @@ def test_generate_portfolio_intermediate(intermediate_project):
 
 
 def test_generate_portfolio_advanced(advanced_project):
+    """Full generation for advanced project."""
     item = generate_portfolio_item(advanced_project)
 
     assert item["project_name"] == "AdvancedProj"
@@ -391,11 +365,12 @@ def test_generate_portfolio_advanced(advanced_project):
 
 
 def test_generate_portfolio_empty(empty_project):
+    """Full generation should handle edge case gracefully."""
     item = generate_portfolio_item(empty_project)
 
     assert item["project_name"] == "EmptyProj"
     assert item["project_statistics"]["sophistication_level"] == "basic"
-    assert len(item["text_summary"]) > 0
+    assert len(item["text_summary"]) > 0  # Should still generate something
 
 
 # ------------------------------------------------------------
@@ -404,6 +379,7 @@ def test_generate_portfolio_empty(empty_project):
 
 
 def test_missing_oop_analysis():
+    """Should handle missing OOP analysis gracefully."""
     project = {
         "project_name": "NoOOP",
         "languages": {"javascript": 5},
@@ -417,19 +393,6 @@ def test_missing_oop_analysis():
         "has_ci_cd": False,
         "has_docker": False,
         "test_coverage_estimate": "none",
-        "oop_analysis": {},
-        "java_oop_analysis": {},
-        "cpp_oop_analysis": {
-            "total_classes": 0,
-            "classes_with_inheritance": 0,
-            "abstract_classes": [],
-            "inheritance_depth": 0,
-            "virtual_methods": 0,
-            "operator_overloads": 0,
-            "template_classes": 0,
-            "namespaces_used": 0,
-            "design_patterns": [],
-        },
     }
 
     item = generate_portfolio_item(project)
@@ -438,6 +401,7 @@ def test_missing_oop_analysis():
 
 
 def test_boundary_exactly_30_points():
+    """Test project scoring exactly 30 points (intermediate boundary)."""
     project = {
         "project_name": "Boundary30",
         "languages": {"python": 5},
@@ -452,30 +416,162 @@ def test_boundary_exactly_30_points():
         "has_docker": False,
         "test_coverage_estimate": "none",
         "oop_analysis": {
-            "total_classes": 6,
+            "total_classes": 6,  # 18 points
             "classes_with_inheritance": 2,
-            "abstract_classes": ["Base"],
+            "abstract_classes": ["Base"],  # 2 points
             "inheritance_depth": 1,
             "properties_count": 5,
-            "operator_overloads": 3,
+            "operator_overloads": 3,  # 2 points
         },
         "java_oop_analysis": {
             "total_classes": 0,
-            "design_patterns": ["Factory"],
-            "lambda_count": 2,
+            "design_patterns": ["Factory"],  # 5 points
+            "lambda_count": 2,  # 3 points
         },
-        "cpp_oop_analysis": {
-            "total_classes": 0,
-            "classes_with_inheritance": 0,
-            "abstract_classes": [],
-            "inheritance_depth": 0,
-            "virtual_methods": 0,
-            "operator_overloads": 0,
-            "template_classes": 0,
-            "namespaces_used": 0,
+    }
+
+    quality = _calculate_project_quality_score(project)
+    # 18 (classes) + 2+5+3+2 (advanced=12, capped at 10) + 1 (readme) = 29-30 points
+    assert quality["sophistication_level"] == "intermediate"
+
+
+def test_architecture_c_only():
+    project = {
+        "project_name": "CProj",
+        "languages": {"c": 10},
+        "frameworks": [],
+        "total_files": 8,
+        "code_files": 6,
+        "test_files": 0,
+        "doc_files": 1,
+        "has_tests": False,
+        "has_readme": False,
+        "has_ci_cd": False,
+        "has_docker": False,
+        "test_coverage_estimate": "none",
+        "oop_analysis": {},
+        "java_oop_analysis": {},
+        "cpp_oop_analysis": {},
+        "c_oop_analysis": {
+            "total_structs": 4,
+            "total_functions": 12,
+            "static_functions": 2,
+            "constructor_destructor_pairs": 1,
+            "vtable_structs": 1,
+            "function_pointer_fields": 2,
+            "opaque_pointer_structs": 1,
             "design_patterns": [],
         },
     }
 
     quality = _calculate_project_quality_score(project)
-    assert quality["sophistication_level"] == "intermediate"
+    text = _generate_architecture_description(project, quality)
+
+    assert "4 C structs" in text
+    assert "opaque" not in text.lower()
+    assert "vtable" not in text.lower()
+
+def test_contributions_c_features():
+    project = {
+        "project_name": "CProj",
+        "languages": {"c": 5},
+        "frameworks": [],
+        "total_files": 5,
+        "code_files": 4,
+        "test_files": 0,
+        "doc_files": 1,
+        "has_tests": False,
+        "has_readme": True,
+        "has_ci_cd": False,
+        "has_docker": False,
+        "test_coverage_estimate": "none",
+        "oop_analysis": {},
+        "java_oop_analysis": {},
+        "cpp_oop_analysis": {},
+        "c_oop_analysis": {
+            "total_structs": 3,
+            "constructor_destructor_pairs": 1,
+            "vtable_structs": 1,
+            "function_pointer_fields": 1,
+            "opaque_pointer_structs": 1,
+            "design_patterns": ["Strategy"],
+        },
+    }
+
+    quality = _calculate_project_quality_score(project)
+    text = _generate_contributions_summary(project, quality)
+
+    assert "C data structures" in text
+    assert "vtable" in text.lower()
+    assert "function-pointer" in text.lower()
+    assert "constructor/destructor" in text.lower()
+    assert "strategy" in text.lower()
+
+def test_skills_c_features():
+    project = {
+        "project_name": "CProj",
+        "languages": {"c": 6},
+        "frameworks": [],
+        "total_files": 5,
+        "code_files": 4,
+        "test_files": 0,
+        "doc_files": 0,
+        "has_tests": False,
+        "has_readme": False,
+        "has_ci_cd": False,
+        "has_docker": False,
+        "test_coverage_estimate": "none",
+        "oop_analysis": {},
+        "java_oop_analysis": {},
+        "cpp_oop_analysis": {},
+        "c_oop_analysis": {
+            "total_structs": 2,
+            "vtable_structs": 1,
+            "function_pointer_fields": 2,
+            "opaque_pointer_structs": 1,
+            "constructor_destructor_pairs": 1,
+            "design_patterns": ["Strategy"],
+        },
+    }
+
+    quality = _calculate_project_quality_score(project)
+    skills = _generate_skills_list(project, quality)
+
+    assert "C (OOP-style design)" in skills
+    assert "VTable-style polymorphism (C)" in skills
+    assert "Function pointer–based modularity (C)" in skills
+    assert "Encapsulation using opaque pointers (C)" in skills
+    assert any("Strategy" in s for s in skills)
+
+def test_generate_portfolio_c_project():
+    project = {
+        "project_name": "CProj",
+        "languages": {"c": 8},
+        "frameworks": [],
+        "total_files": 10,
+        "code_files": 7,
+        "test_files": 1,
+        "doc_files": 1,
+        "has_tests": True,
+        "has_readme": False,
+        "has_ci_cd": False,
+        "has_docker": False,
+        "test_coverage_estimate": "low",
+        "oop_analysis": {},
+        "java_oop_analysis": {},
+        "cpp_oop_analysis": {},
+        "c_oop_analysis": {
+            "total_structs": 3,
+            "function_pointer_fields": 2,
+            "vtable_structs": 1,
+            "opaque_pointer_structs": 1,
+            "constructor_destructor_pairs": 1,
+            "design_patterns": [],
+        },
+    }
+
+    item = generate_portfolio_item(project)
+
+    assert "CProj" in item["project_name"]
+    assert "C structs" in item["architecture"]
+    assert any("C" in skill for skill in item["skills_exercised"])

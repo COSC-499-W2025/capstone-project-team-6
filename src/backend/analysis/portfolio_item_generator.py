@@ -5,11 +5,14 @@ Generates a detailed portfolio item from a single project's
 analysis dictionary. Adapts output quality and detail based on
 actual project sophistication detected in the analysis.
 """
+def _calculate_project_quality_score(analysis: dict) -> dict:
+    print("\n=== DEBUG: Incoming Analysis ===")
+    print("Keys:", analysis.keys())
+    print("cpp_oop_analysis:", analysis.get("cpp_oop_analysis"))
 
 # ---------------------------------------------------------------
 # 1. QUALITY SCORE (NO artificial OOP score, only real metrics)
 # ---------------------------------------------------------------
-
 
 def _calculate_project_quality_score(analysis: dict) -> dict:
     """
@@ -26,7 +29,7 @@ def _calculate_project_quality_score(analysis: dict) -> dict:
     python_oop = analysis.get("oop_analysis", {})
     java_oop = analysis.get("java_oop_analysis", {})
     cpp_oop = analysis.get("cpp_oop_analysis", {})
-    
+    c_oop = analysis.get("c_oop_analysis", {})
 
     # C++ OOP Analysis
     cpp_classes = cpp_oop.get("total_classes", 0)
@@ -36,6 +39,16 @@ def _calculate_project_quality_score(analysis: dict) -> dict:
     cpp_overloads = cpp_oop.get("operator_overloads", 0)
     cpp_templates = cpp_oop.get("template_classes", 0)
     cpp_namespaces = cpp_oop.get("namespaces_used", 0)
+
+    # C OOP Analysis
+    c_structs = c_oop.get("total_structs", 0)
+    c_functions = c_oop.get("total_functions", 0)
+    c_static = c_oop.get("static_functions", 0)
+    c_memory_pairs = c_oop.get("constructor_destructor_pairs", 0)
+    c_vtables = c_oop.get("vtable_structs", 0)
+    c_fp_fields = c_oop.get("function_pointer_fields", 0)
+    c_patterns = c_oop.get("design_patterns", [])
+    c_opaque = c_oop.get("opaque_pointer_structs", 0)
 
     # Core OOP quantities (python/java)
     py_classes = python_oop.get("total_classes", 0)
@@ -48,7 +61,7 @@ def _calculate_project_quality_score(analysis: dict) -> dict:
     # Advanced feature metrics
     java_patterns = java_oop.get("design_patterns", [])
     cpp_patterns = cpp_oop.get("design_patterns", [])
-    design_patterns = java_patterns + cpp_patterns
+    design_patterns = list(set(java_patterns + cpp_patterns + c_patterns))
     java_lambdas = java_oop.get("lambda_count", 0)
     py_properties = python_oop.get("properties_count", 0)
     py_overloads = python_oop.get("operator_overloads", 0)
@@ -82,11 +95,19 @@ def _calculate_project_quality_score(analysis: dict) -> dict:
     elif total_classes > 0:
         quality_score += 5
 
-    # Advanced OOP
+    # Advanced OOP 
     advanced_points = 0
+    # C
+    advanced_points += min(c_oop.get("vtable_structs", 0) * 2, 6)
+    advanced_points += min(c_oop.get("function_pointer_fields", 0) * 1, 4)
+    advanced_points += min(c_oop.get("opaque_pointer_structs", 0) * 2, 4)
+    if c_oop.get("constructor_destructor_pairs", 0) > 0:
+        advanced_points += 2
+    # C++
     advanced_points += min(cpp_virtual * 1.5, 6)
     advanced_points += min(cpp_templates * 2, 6)
     advanced_points += min(cpp_namespaces * 1, 4)
+
     advanced_points += min(len(design_patterns) * 5, 10)
     advanced_points += min(total_abstract * 2, 5)
     if java_lambdas > 0:
@@ -138,10 +159,13 @@ def _generate_architecture_description(analysis: dict, quality: dict) -> str:
     python_oop = analysis.get("oop_analysis", {})
     java_oop = analysis.get("java_oop_analysis", {})
     cpp_oop = analysis.get("cpp_oop_analysis", {})
+    c_oop = analysis.get("c_oop_analysis", {})
 
     py_classes = python_oop.get("total_classes", 0)
     java_classes = java_oop.get("total_classes", 0)
     cpp_classes = cpp_oop.get("total_classes", 0)
+    c_structs = c_oop.get("total_structs", 0)
+
 
     arch_parts = []
     if py_classes > 0:
@@ -150,6 +174,8 @@ def _generate_architecture_description(analysis: dict, quality: dict) -> str:
         arch_parts.append(f"{java_classes} Java classes")
     if cpp_classes > 0:
         arch_parts.append(f"{cpp_classes} C++ classes")
+    if c_structs > 0:
+        arch_parts.append(f"{c_structs} C structs")
 
     if not arch_parts:
         return "The project follows a modular structure with organized code files."
@@ -163,6 +189,10 @@ def _generate_architecture_description(analysis: dict, quality: dict) -> str:
     cpp_templates = cpp_oop.get("template_classes", 0)
     cpp_namespaces = cpp_oop.get("namespaces_used", 0)
     cpp_overloads = cpp_oop.get("operator_overloads", 0)
+    c_vtables = c_oop.get("vtable_structs", 0)
+    c_fp_fields = c_oop.get("function_pointer_fields", 0)
+    c_opaque = c_oop.get("opaque_pointer_structs", 0)
+    c_memory_pairs = c_oop.get("constructor_destructor_pairs", 0)
 
     # Advanced tier
     if quality["sophistication_level"] == "advanced":
@@ -179,6 +209,16 @@ def _generate_architecture_description(analysis: dict, quality: dict) -> str:
             details.append(f"{cpp_overloads} operator overloads")
         if cpp_depth > 0:
             details.append(f"inheritance depth {cpp_depth} in C++ hierarchy")
+
+        # C advanced features
+        if c_opaque > 0:
+            details.append(f"{c_opaque} opaque-pointer modules")
+        if c_vtables > 0:
+            details.append(f"{c_vtables} C vtable-style structs")
+        if c_fp_fields > 0:
+            details.append(f"{c_fp_fields} function-pointer fields")
+        if c_memory_pairs > 0:
+            details.append(f"{c_memory_pairs} constructor/destructor pairs")
 
         if quality["uses_abstraction"]:
             details.append(f"{quality['total_abstract']} abstract classes")
@@ -218,6 +258,12 @@ def _generate_architecture_description(analysis: dict, quality: dict) -> str:
             tags.append("namespaces")
         if cpp_overloads > 0:
             tags.append("operator overloading")
+        if c_opaque > 0:
+            tags.append("opaque pointers")
+        if c_vtables > 0:
+            tags.append("vtable-style structs")
+        if c_fp_fields > 0:
+            tags.append("function-pointer polymorphism")
 
         if tags:
             return f"{base}, demonstrating object-oriented principles including {', '.join(tags)}."
@@ -239,8 +285,10 @@ def _generate_contributions_summary(analysis: dict, quality: dict) -> str:
     python_oop = analysis.get("oop_analysis", {})
     java_oop = analysis.get("java_oop_analysis", {})
     cpp_oop = analysis.get("cpp_oop_analysis", {})
+    c_oop = analysis.get("c_oop_analysis", {})
 
-    # --- Python & Java contributions ---
+
+    # Python & Java contributions 
     if quality["uses_abstraction"]:
         contrib.append("implementing abstract classes")
 
@@ -256,7 +304,7 @@ def _generate_contributions_summary(analysis: dict, quality: dict) -> str:
     if quality["py_overloads"] > 0:
         contrib.append("implementing operator overloading")
 
-    # --- C++ contributions ---
+    # C++ contributions 
     cpp_virtual = cpp_oop.get("virtual_methods", 0)
     cpp_templates = cpp_oop.get("template_classes", 0)
     cpp_namespaces = cpp_oop.get("namespaces_used", 0)
@@ -282,7 +330,30 @@ def _generate_contributions_summary(analysis: dict, quality: dict) -> str:
     if cpp_abstract > 0:
         contrib.append(f"defining {cpp_abstract} abstract C++ classes")
 
-    # --- Engineering contributions ---
+    # C contributions
+    c_structs = c_oop.get("total_structs", 0)
+    c_vtables = c_oop.get("vtable_structs", 0)
+    c_fp_fields = c_oop.get("function_pointer_fields", 0)
+    c_opaque = c_oop.get("opaque_pointer_structs", 0)
+    c_memory_pairs = c_oop.get("constructor_destructor_pairs", 0)
+    c_patterns = c_oop.get("design_patterns", [])
+
+    if c_structs > 0:
+        contrib.append(f"designing {c_structs} C data structures")
+    if c_opaque > 0:
+        contrib.append(f"using {c_opaque} opaque-pointer modules for encapsulation")
+    if c_vtables > 0:
+        contrib.append(f"implementing {c_vtables} vtable-style polymorphic structs")
+    if c_fp_fields > 0:
+        contrib.append(f"building {c_fp_fields} function-pointer based components")
+    if c_memory_pairs > 0:
+        contrib.append(f"maintaining {c_memory_pairs} constructor/destructor memory-safety pairs")
+    if c_patterns:
+        name = ', '.join(c_patterns)
+        plural = "pattern" if len(c_patterns) == 1 else "patterns"
+        contrib.append(f"applying C-style {name} {plural}")
+
+    # Engineering contributions 
     if analysis.get("has_tests"):
         test_files = analysis.get("test_files", 0)
         cov = analysis.get("test_coverage_estimate", "unknown")
@@ -312,6 +383,7 @@ def _generate_skills_list(analysis: dict, quality: dict) -> list[str]:
     python_oop = analysis.get("oop_analysis", {})
     java_oop = analysis.get("java_oop_analysis", {})
     cpp_oop = analysis.get("cpp_oop_analysis", {})
+    c_oop = analysis.get("c_oop_analysis", {})
     languages = analysis.get("languages", {})
     frameworks = analysis.get("frameworks", [])
     skills = []
@@ -323,6 +395,9 @@ def _generate_skills_list(analysis: dict, quality: dict) -> list[str]:
         skills.append("Java OOP")
     if "cpp" in languages and cpp_oop.get("total_classes", 0) > 0:
         skills.append("C++ OOP")
+    if "c" in languages and c_oop.get("total_structs", 0) > 0:
+        skills.append("C (OOP-style design)")
+
 
     # Frameworks
     for fw in frameworks[:2]:
@@ -363,6 +438,22 @@ def _generate_skills_list(analysis: dict, quality: dict) -> list[str]:
         skills.append("Namespaces (C++)")
     if cpp_abstract > 0:
         skills.append("Abstract classes (C++)")
+
+    # C specifics
+    c_vtables = c_oop.get("vtable_structs", 0)
+    c_fp_fields = c_oop.get("function_pointer_fields", 0)
+    c_opaque = c_oop.get("opaque_pointer_structs", 0)
+    c_memory_pairs = c_oop.get("constructor_destructor_pairs", 0)
+    c_patterns = c_oop.get("design_patterns", [])
+
+    if c_opaque > 0:
+        skills.append("Encapsulation using opaque pointers (C)")
+    if c_vtables > 0:
+        skills.append("VTable-style polymorphism (C)")
+    if c_fp_fields > 0:
+        skills.append("Function pointer–based modularity (C)")
+    if c_memory_pairs > 0:
+        skills.append("Manual memory management discipline (C)")
 
     # Engineering skills
     if analysis.get("test_coverage_estimate") in ["high", "medium"]:
