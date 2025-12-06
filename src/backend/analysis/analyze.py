@@ -831,6 +831,41 @@ def main():
         else:
             print("No existing analysis found. Running new analysis...\n")
             report = generate_comprehensive_report(zip_path)
+
+            # Add C++ and C analysis to the report
+            for i, project in enumerate(report["projects"]):
+                project_path = project.get("project_path", "")
+
+                # C++ Analysis
+                if "cpp" in project.get("languages", {}):
+                    try:
+                        from analysis.cpp_oop_analyzer import analyze_cpp_project
+
+                        cpp_analysis = analyze_cpp_project(zip_path, project_path)
+                        report["projects"][i]["cpp_oop_analysis"] = cpp_analysis["cpp_oop_analysis"]
+                    except ImportError:
+                        report["projects"][i]["cpp_oop_analysis"] = {
+                            "error": "C++ analyzer not available (libclang not installed)",
+                            "total_classes": 0,
+                        }
+                    except Exception as e:
+                        report["projects"][i]["cpp_oop_analysis"] = {"error": str(e), "total_classes": 0}
+
+                # C Analysis (note: .c files are classified as cpp in project_analyzer)
+                # So we check for cpp language and run C analyzer too
+                if "cpp" in project.get("languages", {}) or "c" in project.get("languages", {}):
+                    try:
+                        from analysis.c_oop_analyzer import analyze_c_project
+
+                        c_analysis = analyze_c_project(zip_path, project_path)
+                        # Only add if we found C-style code
+                        if c_analysis["c_oop_analysis"].get("total_structs", 0) > 0:
+                            report["projects"][i]["c_oop_analysis"] = c_analysis["c_oop_analysis"]
+                    except ImportError:
+                        pass  # C analyzer optional
+                    except Exception as e:
+                        pass  # Silently skip if no C code found
+
             report["analysis_metadata"] = {
                 "zip_file": zip_file_path,
                 "analysis_timestamp": datetime.now().isoformat(),
