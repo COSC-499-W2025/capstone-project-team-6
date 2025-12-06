@@ -7,3 +7,16 @@ dist/
 .env
 .DS_Store
 *.log
+*.egg-info/
+build/
+.vscode/
+src/myapp.db
+__pycache__/
+pgvector/
+*.db
+sample_*.txt
+myapp.db
+src/myapp.db
+analysis_report.json
+*.db
+src/myapp.db
