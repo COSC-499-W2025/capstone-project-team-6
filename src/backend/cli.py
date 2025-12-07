@@ -474,6 +474,51 @@ def display_analysis(results: dict) -> None:
                     percentage = contrib.get("percentage", 0)
                     print(f"      • {name}: {commits} commits ({percentage:.1f}%)")
 
+        # Complexity Analysis (Python)
+        complexity_analysis = project.get("complexity_analysis", {})
+        if complexity_analysis and "error" not in complexity_analysis:
+            print(f"\nComplexity Analysis (Python):")
+            opt_score = complexity_analysis.get("optimization_score", 0.0)
+            print(f"   Optimization Score: {opt_score:.1f}/100")
+
+            # Assessment
+            if opt_score >= 75:
+                assessment = "Strong optimization awareness ✓"
+            elif opt_score >= 50:
+                assessment = "Moderate optimization awareness"
+            elif opt_score >= 25:
+                assessment = "Basic optimization"
+            else:
+                assessment = "Limited optimization awareness"
+            print(f"   Assessment: {assessment}")
+
+            # Summary statistics
+            summary = complexity_analysis.get("summary", {})
+            if summary:
+                good_practices = []
+                issues = []
+
+                # Good practices
+                for key in ["efficient_data_structure", "set_operations", "dict_lookup",
+                           "list_comprehension", "generator_expression", "binary_search", "memoization"]:
+                    if summary.get(key, 0) > 0:
+                        good_practices.append(f"{key.replace('_', ' ').title()}: {summary[key]}")
+
+                # Issues
+                for key in ["nested_loops", "inefficient_lookup", "inefficient_membership_test"]:
+                    if summary.get(key, 0) > 0:
+                        issues.append(f"{key.replace('_', ' ').title()}: {summary[key]}")
+
+                if good_practices:
+                    print(f"   Good Practices Found:")
+                    for practice in good_practices[:3]:  # Show top 3
+                        print(f"      • {practice}")
+
+                if issues:
+                    print(f"   Optimization Opportunities:")
+                    for issue in issues:
+                        print(f"      • {issue}")
+
     print("\n" + "=" * 70)
 
 
@@ -862,6 +907,33 @@ def main() -> int:
                 except Exception as db_error:
                     print(f"\n⚠️  Warning: Could not save to database: {db_error}")
 
+                # Prompt to save JSON output
+                print("\n" + "=" * 70)
+                response = input("Would you like to save the full analysis as JSON? (y/N): ").strip().lower()
+                if response in ['y', 'yes']:
+                    import json
+                    from datetime import datetime
+
+                    # Generate filename based on project name and timestamp
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    default_filename = f"analysis_{timestamp}.json"
+
+                    filename = input(f"Enter filename (default: {default_filename}): ").strip()
+                    if not filename:
+                        filename = default_filename
+
+                    # Ensure .json extension
+                    if not filename.endswith('.json'):
+                        filename += '.json'
+
+                    try:
+                        output_path = Path(filename)
+                        with open(output_path, 'w', encoding='utf-8') as f:
+                            json.dump(results, f, indent=2, ensure_ascii=False)
+                        print(f"✅ Analysis saved to: {output_path.absolute()}")
+                    except Exception as e:
+                        print(f"❌ Error saving JSON file: {e}")
+
                 print("\n✅ Analysis complete!")
                 return 0
             except zipfile.BadZipFile:
@@ -972,6 +1044,33 @@ def main() -> int:
                     print(f"\n📊 Analysis saved to database (ID: {analysis_id}, UUID: {analysis_uuid})")
                 except Exception as db_error:
                     print(f"\n⚠️  Warning: Could not save to database: {db_error}")
+
+                # Prompt to save JSON output
+                print("\n" + "=" * 70)
+                response = input("Would you like to save the full analysis as JSON? (y/N): ").strip().lower()
+                if response in ['y', 'yes']:
+                    import json
+                    from datetime import datetime
+
+                    # Generate filename based on project name and timestamp
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    default_filename = f"analysis_llm_{timestamp}.json"
+
+                    filename = input(f"Enter filename (default: {default_filename}): ").strip()
+                    if not filename:
+                        filename = default_filename
+
+                    # Ensure .json extension
+                    if not filename.endswith('.json'):
+                        filename += '.json'
+
+                    try:
+                        output_path = Path(filename)
+                        with open(output_path, 'w', encoding='utf-8') as f:
+                            json.dump(results, f, indent=2, ensure_ascii=False)
+                        print(f"✅ Analysis saved to: {output_path.absolute()}")
+                    except Exception as e:
+                        print(f"❌ Error saving JSON file: {e}")
 
                 print("\n✅ LLM analysis complete!")
                 return 0
