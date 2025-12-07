@@ -8,7 +8,7 @@ def ask_for_consent() -> bool:
         True  -> user consented, the program that called ask_for_consent will direct it to the file parsing page
         False -> user did not consent. The user will not be allowed to upload files.
     """
-    consent_text = """=====================================================================
+    consent_text = consent_text = """=====================================================================
             PROJECT CONSENT FORM: MINING DIGITAL WORK ARTIFACTS
 =====================================================================
 
@@ -17,9 +17,10 @@ def ask_for_consent() -> bool:
 This application analyzes a zipped project folder that you provide
 in order to generate summaries, metrics, and résumé-ready highlights.
 
-All analysis is performed locally on your device using the Llama Stack,
-a privacy-preserving AI framework. No data is transmitted to any
-external server or third-party API.
+The application offers TWO types of analysis:
+  A) LOCAL ANALYSIS (Default): All processing happens on your device.
+  B) AI-ENHANCED ANALYSIS (Optional): Uses Google Gemini API for
+     advanced insights. Requires separate consent (see below).
 
 
 2. SCOPE OF DATA ACCESS
@@ -35,24 +36,21 @@ The application may extract and process the following:
   - Image metadata (for creative project context)
 
 
-3. LOCAL ANALYSIS (LLAMA STACK)
+3. LOCAL ANALYSIS (DEFAULT MODE)
 ---------------------------------------------------------------------
-All data analysis occurs locally using the Llama Stack, which runs
-entirely on your device.
+The standard 'analyze' command performs all computations locally:
 
 Features of Local Processing:
-  - No internet connection is required for analysis.
-  - All computations and model inferences are performed locally using
-    Llama models (via Ollama or vLLM).
-  - The model and its runtime environment are sandboxed to prevent
-    unauthorized data access.
-  - Summaries and metrics are generated using local templates and
-    natural language generation tools.
+  - No internet connection required.
+  - All analysis (OOP metrics, complexity, git history, etc.) runs
+    entirely on your device using Python AST parsers and static
+    analysis tools.
+  - No data transmission to external servers.
 
 Privacy Considerations:
-  - Your data never leaves your device.
+  - Your data never leaves your device during local analysis.
   - No external APIs or cloud-based services are contacted.
-  - The model and system logs remain local and are not shared or synced.
+  - All logs and results remain local.
 
 
 4. DATA STORAGE
@@ -60,50 +58,37 @@ Privacy Considerations:
 Stored locally on your device:
   - SQLite database containing project metadata, metrics, summaries,
     and your consent record.
-  - Extracted text snippets used for local analysis only.
+  - Extracted text snippets used for analysis only.
   - Timestamped consent log.
-
-You may disable local logging of prompts/responses at any time in:
-  Settings → Privacy
 
 
 5. DATA DELETION
 ---------------------------------------------------------------------
-You may delete all stored data through:
-  Settings → Privacy → Delete All Data
+You may delete stored data at any time using the 'mda' CLI:
+  Command: mda [delete/remove data options]
 
 This action removes:
   - All local databases, caches, summaries, and consent records.
   - Any temporary extracted files or logs generated during processing.
-
-Since no external data transmission occurs, deletion is immediate and
-complete.
 
 
 6. VOLUNTARY PARTICIPATION
 ---------------------------------------------------------------------
 Your participation and data submission are voluntary. You may withdraw
 consent at any time through:
-  Settings → Consent
+  Command: mda consent --update
 
 After withdrawal, the application will cease all data analysis and
 delete existing data if requested.
 
 
-7. RELATED PRIVACY POLICIES
----------------------------------------------------------------------
-  - Llama Stack (Meta): https://ai.meta.com/llama/
-  - Ollama Runtime:     https://ollama.ai/privacy
-
-
-8. CONSENT DECISION
+7. CONSENT DECISION
 ---------------------------------------------------------------------
 Please confirm the following:
 
-      I consent to the app analyzing my uploaded ZIP locally using the
-      Llama Stack. I understand that no data will be transmitted
-      externally, and all processing occurs on my device for maximum
-      privacy.
+      I consent to the app analyzing my uploaded ZIP files locally.
+      I understand that this consent covers LOCAL analysis only.
+      AI-enhanced analysis (Google Gemini) requires separate consent.
 
 =====================================================================
 
