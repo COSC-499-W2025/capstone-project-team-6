@@ -1,10 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Complete Analysis Script - Detailed Metadata Extraction and Deep Code Analysis
+Complete Analysis Script - Local Code Analysis (Privacy-Preserving)
+
+This script performs comprehensive LOCAL analysis without sending data externally.
+All analysis happens on your device using Python AST parsers and static analysis.
 
 Usage:
     python src/backend/analysis/analyze.py <zip_file_path>
+
+For AI-enhanced analysis (requires Google Gemini consent):
+    Use the CLI: mda analyze-llm <zip_file_path>
+
+Features (Local Analysis):
+    - OOP metrics (Python, Java, C++, C)
+    - Complexity analysis
+    - Git history and contributor analysis
+    - Framework and language detection
+    - Project quality scoring
+    - Resume item generation
 """
 
 import io
