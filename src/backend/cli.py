@@ -1029,7 +1029,7 @@ def main() -> int:
                     else:
                         display_date = e.analysis_timestamp
                         date_source = "analysis"
-                    
+
                     print(f"  {i}. {display_date} ({date_source}) — {e.project_name}")
                     if e.primary_language:
                         print(f"     Language: {e.primary_language}")

@@ -178,10 +178,10 @@ def init_db() -> None:
         cursor = conn.cursor()
         cursor.execute("PRAGMA table_info(projects)")
         existing_columns = {row[1] for row in cursor.fetchall()}
-        
+
         if "last_commit_date" not in existing_columns:
             conn.execute("ALTER TABLE projects ADD COLUMN last_commit_date TEXT")
-        
+
         if "last_modified_date" not in existing_columns:
             conn.execute("ALTER TABLE projects ADD COLUMN last_modified_date TEXT")
 

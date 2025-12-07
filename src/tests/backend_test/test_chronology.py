@@ -52,11 +52,11 @@ def make_payload(ts: str, projects):
 def test_projects_timeline_orders_by_commit_date():
     ts1 = iso(datetime(2024, 1, 10, 12, 0, 0))
     ts2 = iso(datetime(2024, 2, 5, 9, 30, 0))
-    
+
     # Commit dates are different from analysis timestamps
     commit1 = iso(datetime(2023, 12, 15, 10, 0, 0))  # Earlier commit
-    commit2 = iso(datetime(2024, 1, 20, 14, 0, 0))   # Later commit
-    
+    commit2 = iso(datetime(2024, 1, 20, 14, 0, 0))  # Later commit
+
     modified1 = iso(datetime(2023, 12, 16, 11, 0, 0))  # File modification times
     modified2 = iso(datetime(2024, 1, 21, 15, 0, 0))
 
@@ -100,7 +100,7 @@ def test_projects_timeline_orders_by_commit_date():
 def test_skills_timeline_collects_unique_per_analysis():
     ts1 = iso(datetime(2024, 3, 1, 8, 0, 0))
     ts2 = iso(datetime(2024, 3, 15, 18, 45, 0))
-    
+
     commit1 = iso(datetime(2024, 2, 20, 10, 0, 0))
     commit2 = iso(datetime(2024, 3, 10, 14, 0, 0))
 
@@ -178,7 +178,7 @@ def test_projects_timeline_mixed_commit_dates():
     """Test ordering when some projects have commit dates and others don't"""
     ts1 = iso(datetime(2024, 5, 1, 10, 0, 0))
     ts2 = iso(datetime(2024, 5, 15, 14, 0, 0))
-    
+
     commit1 = iso(datetime(2024, 4, 10, 12, 0, 0))  # Earlier than both analysis timestamps
     modified2 = iso(datetime(2024, 4, 20, 15, 0, 0))  # Between commit1 and ts1
 
@@ -217,7 +217,7 @@ def test_projects_timeline_fallback_to_modified_date():
     """Test that timeline uses modified_date when commit_date is not available"""
     ts1 = iso(datetime(2024, 6, 1, 10, 0, 0))
     ts2 = iso(datetime(2024, 6, 15, 14, 0, 0))
-    
+
     # Modified dates in different order than analysis dates
     modified1 = iso(datetime(2024, 5, 25, 12, 0, 0))  # Earlier
     modified2 = iso(datetime(2024, 5, 20, 10, 0, 0))  # Even earlier

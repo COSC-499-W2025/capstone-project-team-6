@@ -560,38 +560,38 @@ class MetadataExtractor:
         """
         Get the most recent file modification timestamp from ZIP file entries.
         This serves as a fallback when git commit date is not available.
-        
+
         Args:
             project_path: Path prefix for the project within the ZIP
-            
+
         Returns:
             ISO format timestamp of the most recently modified file, or None if no files found
         """
         from datetime import datetime
-        
+
         prefix = f"{project_path}/" if project_path else ""
         most_recent_time = None
-        
+
         for zip_info in self.zip_file.infolist():
             # Check if file belongs to this project
             if zip_info.filename.startswith(prefix):
                 # Skip directories
-                if zip_info.filename.endswith('/'):
+                if zip_info.filename.endswith("/"):
                     continue
-                    
+
                 # Get modification time (date_time is a tuple: (year, month, day, hour, minute, second))
                 try:
                     mod_time = datetime(*zip_info.date_time)
-                    
+
                     if most_recent_time is None or mod_time > most_recent_time:
                         most_recent_time = mod_time
                 except (ValueError, TypeError):
                     # Skip files with invalid timestamps
                     continue
-        
+
         if most_recent_time:
             return most_recent_time.isoformat()
-        
+
         return None
 
     def parse_git_log(self, project_path: str) -> tuple[Dict[str, ContributorInfo], int, Optional[str]]:
@@ -618,32 +618,33 @@ class MetadataExtractor:
         # Try to use GitAnalyzer if we have a real git repository extracted
         # For ZIP files, we need to extract and analyze temporarily
         try:
-            from .git_analysis import GitAnalyzer
-            import tempfile
             import shutil
-            
+            import tempfile
+
+            from .git_analysis import GitAnalyzer
+
             # Create temp directory and extract project
             with tempfile.TemporaryDirectory() as temp_dir:
                 # Extract the project to temp directory
                 temp_project_path = Path(temp_dir) / "project"
                 temp_project_path.mkdir()
-                
+
                 prefix = f"{project_path}/" if project_path else ""
                 for member in self.zip_file.namelist():
                     if member.startswith(prefix):
                         # Extract to temp location
                         self.zip_file.extract(member, temp_project_path)
-                
+
                 # Point to the extracted project directory
                 extracted_path = temp_project_path / project_path if project_path else temp_project_path
-                
+
                 if (extracted_path / ".git").exists():
                     analyzer = GitAnalyzer(str(extracted_path))
-                    
+
                     if analyzer.check_git_available() and analyzer.check_git_repo():
                         # Get total commits
                         total_commits = analyzer.get_total_commits()
-                        
+
                         # Get last commit date
                         last_commit_date = analyzer.get_repository_last_commit_date()
         except Exception:
@@ -714,7 +715,7 @@ class MetadataExtractor:
         metadata.total_commits = total_commits
         metadata.last_commit_date = last_commit_date
         metadata.contributors = [c.to_dict() for c in contributors.values()]
-        
+
         # Get last modified date from ZIP file metadata (fallback when git is not available)
         metadata.last_modified_date = self.get_last_modified_date(project_path)
 
