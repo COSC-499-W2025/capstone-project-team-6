@@ -130,6 +130,8 @@ December 1-December 7
 ## Weekly recap goals
 
 - Integrate git analysis into CLI workflow
+- Integrate complexity analyzer, resume, and portfolio features into mda analyze
+- Add feature selection and rich formatting to mda analyze-llm
 - Complete Milestone 1 presentation and deliverables
 - Review teammates' PRs and provide constructive feedback
 - Fix bugs and improve existing analysis pipeline components
@@ -140,7 +142,11 @@ December 1-December 7
 
 This week was highly productive in finalizing Milestone 1 deliverables and enhancing the analysis pipeline. I successfully integrated comprehensive git analysis capabilities into the CLI, enabling detailed repository metrics including commit history, contributor statistics, and collaboration patterns. The integration supports both directory-based and ZIP file repositories, with graceful handling when .git folders are absent.
 
-The implementation underwent thorough manual testing and successfully resolved merge conflicts and unit test failures during the review cycle. I ensured existing language analyzers (Python, Java, C++, C) continued functioning without issues. Additionally, I fixed critical bugs including ZIP path handling and Java field naming issues in the analysis pipeline, while removing duplicate analysis logic from analyze.py for cleaner code organization.
+Following the git integration, I completed a major CLI enhancement by integrating Python complexity analysis, resume generation, and portfolio generation into the `mda analyze` command. This integration automatically runs complexity analysis as Phase 4 of the pipeline, generates professional resume items, and creates detailed portfolio showcases - all with appropriate database storage and JSON export capabilities.
+
+I also significantly improved the `mda analyze-llm` command by adding feature selection flags (--architecture, --complexity, --security, --skills, --domain, --resume, --all) that allow users to choose which deep analysis features to run. Additionally, I replaced the plain text output with rich library formatting, providing a professional terminal experience with styled panels, tables, and markdown-formatted insights.
+
+The implementation underwent thorough manual testing and successfully resolved merge conflicts and unit test failures during the review cycle. I ensured existing language analyzers (Python, Java, C++, C) continued functioning without issues. Additionally, I fixed critical bugs including ZIP path handling, Java field naming issues, and import errors in the LLM pipeline, while removing duplicate analysis logic from analyze.py for cleaner code organization.
 
 Our Milestone 1 presentation went smoothly, and the team successfully communicated each subsystem and our collective progress. All milestone requirements were completed on time, and I actively participated in reviewing other teams' presentations and providing constructive feedback.
 
@@ -148,11 +154,14 @@ Our Milestone 1 presentation went smoothly, and the team successfully communicat
 
 The git analysis integration took longer than expected due to several merge conflicts that required careful resolution to align new logic with changes made by teammates. Handling both directory-based and ZIP file repository formats added complexity to the implementation, requiring additional testing iterations to ensure both workflows functioned correctly.
 
+The CLI analysis integration also required careful attention to data structure details. Initially, I attempted to access non-existent fields in the portfolio generator output, which required reading the source code to understand the actual return structure. Import errors surfaced when testing the LLM analysis command, requiring conversion from absolute to relative imports in llm_pipeline.py.
+
 Some bugs surfaced late during testing, particularly around ZIP path handling, which required quick patches during the review cycle. Coordinating the integration while other teammates were working on related features like portfolio generation and chronology required careful synchronization to avoid breaking existing functionality.
 
 ## PR's initiated
 
 - Git analysis CLI integration #203: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/203
+- CLI Analysis Integration - Complexity, Resume & Portfolio Features #220: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/220
 
 ## PR's reviewed
 
@@ -162,6 +171,9 @@ Some bugs surfaced late during testing, particularly around ZIP path handling, w
 - Retrieve previously generated résumé items #201: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/201
 - Project chronology #193: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/193
 - Mithish Week 14 logs #214: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/214
+- Integrated Optimization Scoring and Git Metadata into Portfolio Item Generator #218: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/218
+- Maddy logs week 14 #221: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/221
+- LLM Analysis Career Artifact Generation (Resume & Portfolio) #223: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/223
 
 ## Plan for next week
 
