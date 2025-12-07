@@ -881,6 +881,17 @@ def main() -> int:
             #    return 1
 
             has_consented = check_user_consent(username)
+            
+            llm_features_requested = (
+                args.all
+                or args.prompt
+                or args.architecture
+                or args.security
+                or args.skills
+                or args.domain
+                or args.resume
+            )
+
 
             path = Path(args.path)
             if not path.exists():
@@ -897,9 +908,6 @@ def main() -> int:
                 elif args.complexity:
                      print("\n❌ Traditional complexity analysis requires a ZIP file. Continuing with standard analysis...")
 
-            # Standard project detection analysis - validate path type
-            if not path.is_dir() and not (path.is_file() and path.suffix.lower() == ".zip"):
-                print(f"\n❌ Path must be a directory or ZIP file: {path}")
             # Validate path type
             if not path.is_dir() and not (path.is_file() and path.suffix.lower() == ".zip"):
                 print(f"\nPath must be a directory or ZIP file: {path}")
@@ -1119,7 +1127,7 @@ def main() -> int:
                     try:
                         output_path = Path(filename)
                         with open(output_path, "w", encoding="utf-8") as f:
-                            json.dump(results, f, indent=2, ensure_ascii=False)
+                            json.dump(final_results, f, indent=2, ensure_ascii=False)
                         print(f"✅ Analysis saved to: {output_path.absolute()}")
                     except Exception as e:
                         print(f"❌ Error saving JSON file: {e}")
