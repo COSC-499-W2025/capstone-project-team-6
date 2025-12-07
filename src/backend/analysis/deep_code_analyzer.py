@@ -461,6 +461,7 @@ def generate_comprehensive_report(zip_path: Path, output_path: Optional[Path] = 
     - Phase 1: File classification (FileClassifier)
     - Phase 2: Metadata extraction (MetadataExtractor)
     - Phase 3: Deep code analysis (DeepCodeAnalyzer)
+    - Phase 4: Complexity analysis (Python)
 
     Args:
         zip_path: Path to ZIP file
@@ -489,6 +490,35 @@ def generate_comprehensive_report(zip_path: Path, output_path: Optional[Path] = 
                 except Exception as e:
                     # If deep analysis fails, add error info
                     report["projects"][i]["oop_analysis"] = {"error": str(e), "total_classes": 0}
+
+                # Phase 4: Add Python complexity analysis
+                try:
+                    from .complexity_analyzer import analyze_python_project
+
+                    # Get Python files for this project
+                    python_files = []
+                    with zipfile.ZipFile(zip_path, "r") as zf:
+                        for file_info in zf.namelist():
+                            # Match files in this project path that end with .py
+                            if file_info.endswith(".py"):
+                                if not project_path or file_info.startswith(project_path):
+                                    try:
+                                        content = zf.read(file_info).decode("utf-8", errors="ignore")
+                                        python_files.append((file_info, content))
+                                    except Exception:
+                                        continue
+
+                    if python_files:
+                        complexity_report = analyze_python_project(python_files)
+                        report["projects"][i]["complexity_analysis"] = {
+                            "total_files_analyzed": complexity_report.total_files_analyzed,
+                            "optimization_score": complexity_report.optimization_score,
+                            "summary": complexity_report.summary,
+                            "insights_count": len(complexity_report.insights),
+                        }
+                except Exception as e:
+                    report["projects"][i]["complexity_analysis"] = {"error": str(e), "optimization_score": 0}
+
             if "java" in project.get("languages", {}):
                 try:
                     from .java_oop_analyzer import analyze_java_project
