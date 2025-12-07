@@ -9,7 +9,7 @@ import logging
 import os
 import tempfile
 import time
-from typing import Any, Callable, Dict, List, Optional
+from typing import Dict, List, Any, Callable, Optional
 
 # New SDK import
 from google import genai
@@ -113,7 +113,9 @@ class GeminiFileSearchClient:
                 # Poll until ready or failed
                 while current_file.state.name == "PROCESSING":
                     if progress_callback:
-                        progress_callback(current_step, total_steps, f"Processing {f.display_name}...")
+                        progress_callback(
+                            current_step, total_steps, f"Processing {f.display_name}..."
+                        )
                     time.sleep(1)
                     current_file = self.client.files.get(name=f.name)
 

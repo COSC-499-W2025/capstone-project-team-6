@@ -949,9 +949,10 @@ def main() -> int:
                                            TaskProgressColumn, TextColumn)
 
                 from .analysis.llm_pipeline import run_gemini_analysis
+                from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 
                 print(f"\n[*] Running AI-powered analysis on: {path}")
-
+                
                 results = {}
                 with Progress(
                     SpinnerColumn(),
@@ -961,12 +962,16 @@ def main() -> int:
                     transient=True,
                 ) as progress:
                     task = progress.add_task("Starting analysis...", total=100)
-
+                    
                     def cli_progress_callback(current, total, msg):
                         percent = (current / total) * 100 if total > 0 else 0
                         progress.update(task, completed=percent, description=msg)
 
-                    results = run_gemini_analysis(path, prompt_override=args.prompt, progress_callback=cli_progress_callback)
+                    results = run_gemini_analysis(
+                        path, 
+                        prompt_override=args.prompt,
+                        progress_callback=cli_progress_callback
+                    )
 
                 # Display standard analysis
                 display_analysis(results)
