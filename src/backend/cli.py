@@ -763,7 +763,6 @@ def main() -> int:
     )
     analyze_parser.add_argument("--verbose", "-v", action="store_true", help="Show detailed complexity findings")
 
-
     # LLM arguments merged into analyze
     analyze_parser.add_argument("--prompt", help="Custom analysis prompt for AI (requires consent)")
     analyze_parser.add_argument("--architecture", action="store_true", help="AI: Deep analysis of patterns and anti-patterns")
@@ -776,7 +775,6 @@ def main() -> int:
     # Analyze-essay command
     essay_parser = subparsers.add_parser("analyze-essay", help="Analyze an essay or document")
     essay_parser.add_argument("path", help="Path to the document file (.txt, .pdf, .docx, .md)")
-
 
     # Timeline command
     timeline_parser = subparsers.add_parser("timeline", help="Show chronological timelines from stored analyses")
@@ -818,7 +816,7 @@ def main() -> int:
                 return 1
 
             # Handle consent for first-time users
-            #if not handle_first_time_consent(args.username):
+            # if not handle_first_time_consent(args.username):
             #    # User is authenticated but denied consent
             #    print("\nDenied Consent.")
             #    print("You can update your consent later using 'mda consent --update'")
@@ -875,38 +873,31 @@ def main() -> int:
                 return 1
 
             username = session["username"]
-            #if not check_user_consent(username):
+            # if not check_user_consent(username):
             #    print("\nPlease provide consent before analyzing files")
             #    print("Run 'mda consent --update' to view and accept the consent form")
             #    return 1
 
             has_consented = check_user_consent(username)
-            
-            llm_features_requested = (
-                args.all
-                or args.prompt
-                or args.architecture
-                or args.security
-                or args.skills
-                or args.domain
-                or args.resume
-            )
 
+            llm_features_requested = (
+                args.all or args.prompt or args.architecture or args.security or args.skills or args.domain or args.resume
+            )
 
             path = Path(args.path)
             if not path.exists():
                 print(f"\nPath does not exist: {path}")
                 return 1
 
-            if args.complexity and not args.all: 
+            if args.complexity and not args.all:
                 # Note: If --all is passed, we assume LLM complexity analysis is desired unless specified otherwise,
-                # but standard complexity requires zip. 
+                # but standard complexity requires zip.
                 # For backward compatibility, strict --complexity uses the non-LLM tool if zip is provided.
                 if path.is_file() and path.suffix.lower() == ".zip":
                     print(f"\n[*] Analyzing Python code complexity in: {path.name}")
                     return analyze_complexity(path, args.verbose)
                 elif args.complexity:
-                     print("\n❌ Traditional complexity analysis requires a ZIP file. Continuing with standard analysis...")
+                    print("\n❌ Traditional complexity analysis requires a ZIP file. Continuing with standard analysis...")
 
             # Validate path type
             if not path.is_dir() and not (path.is_file() and path.suffix.lower() == ".zip"):
@@ -919,7 +910,6 @@ def main() -> int:
                 results = analyze_folder(path)
                 display_analysis(results)
 
-
                 # Store analysis in database
                 try:
                     from .analysis_database import record_analysis
@@ -930,14 +920,14 @@ def main() -> int:
                 except Exception as db_error:
                     print(f"\n⚠️  Warning: Could not save to database: {db_error}")
 
-                 # 2. Check Consent for LLM Analysis
+                # 2. Check Consent for LLM Analysis
                 if has_consented:
                     print("\n[+] Consent verified. Proceeding with AI-powered analysis...")
-                    
+
                     # Prepare ZIP for LLM if input was a directory
                     llm_target_path = path
                     temp_llm_zip = None
-                    
+
                     if path.is_dir():
                         print("    Creating temporary zip for AI processing...")
                         try:
@@ -945,7 +935,7 @@ def main() -> int:
                             llm_target_path = temp_llm_zip
                         except Exception as e:
                             print(f"❌ Failed to create zip for AI analysis: {e}")
-                            has_consented = False # Abort LLM part
+                            has_consented = False  # Abort LLM part
 
                     if has_consented:
                         # Collect active features
@@ -953,20 +943,30 @@ def main() -> int:
                         if args.all:
                             active_features = ["architecture", "complexity", "security", "skills", "domain", "resume"]
                         else:
-                            if args.architecture: active_features.append("architecture")
-                            if args.complexity: active_features.append("complexity")
-                            if args.security: active_features.append("security")
-                            if args.skills: active_features.append("skills")
-                            if args.domain: active_features.append("domain")
-                            if args.resume: active_features.append("resume")
+                            if args.architecture:
+                                active_features.append("architecture")
+                            if args.complexity:
+                                active_features.append("complexity")
+                            if args.security:
+                                active_features.append("security")
+                            if args.skills:
+                                active_features.append("skills")
+                            if args.domain:
+                                active_features.append("domain")
+                            if args.resume:
+                                active_features.append("resume")
 
                         try:
-                            from rich.progress import (BarColumn, Progress, SpinnerColumn,
-                                                       TaskProgressColumn, TextColumn)
-                            from .analysis.llm_pipeline import run_gemini_analysis
+                            from rich.progress import (BarColumn, Progress,
+                                                       SpinnerColumn,
+                                                       TaskProgressColumn,
+                                                       TextColumn)
+
+                            from .analysis.llm_pipeline import \
+                                run_gemini_analysis
 
                             print(f"[*] Running Gemini analysis on: {llm_target_path}")
-                            
+
                             llm_results = {}
                             with Progress(
                                 SpinnerColumn(),
@@ -987,29 +987,32 @@ def main() -> int:
                                     prompt_override=args.prompt,
                                     progress_callback=cli_progress_callback,
                                 )
-                            
+
                             # Display Rich Results
                             from rich import box
                             from rich.console import Console
                             from rich.markdown import Markdown
                             from rich.panel import Panel
-                            
+
                             console = Console()
                             console.print()
                             console.print(Panel.fit("[bold white]Gemini Deep Code Analysis[/bold white]", style="blue"))
-                            
+
                             llm_summary = llm_results.get("llm_summary")
                             llm_error = llm_results.get("llm_error")
-                            
+
                             if llm_error:
                                 console.print(Panel(f"[bold red]Error:[/bold red]\n{llm_error}", style="red"))
                             elif llm_summary:
                                 md = Markdown(llm_summary)
-                                console.print(Panel(md, title="[bold green]AI-Powered Insights[/bold green]", border_style="green"))
+                                console.print(
+                                    Panel(md, title="[bold green]AI-Powered Insights[/bold green]", border_style="green")
+                                )
 
                             # Store LLM analysis in database
                             try:
                                 from .analysis_database import record_analysis
+
                                 llm_analysis_id = record_analysis("llm", llm_results)
                                 print(f"\n📊 AI analysis saved to database (ID: {llm_analysis_id})")
                             except Exception as db_error:
@@ -1018,7 +1021,7 @@ def main() -> int:
                         except Exception as e:
                             print(f"\n❌ AI analysis failed: {e}")
                             # Don't fail the whole command, standard analysis succeeded
-                        
+
                         finally:
                             # Cleanup temp zip if we created one
                             if temp_llm_zip and temp_llm_zip.exists():
@@ -1028,7 +1031,6 @@ def main() -> int:
                     print("\n[i] AI-powered analysis skipped (No consent provided).")
                     print("    Run 'mda consent --update' to enable deep code insights.")
 
-
                 # Prompt to save JSON output
                 print("\n" + "=" * 70)
                 response = input("Would you like to save the full analysis as JSON? (y/N): ").strip().lower()
@@ -1036,12 +1038,12 @@ def main() -> int:
                     import json
                     from datetime import datetime
 
-                    #decide which dictionary to use
-                    final_results = llm_results if 'llm_results' in locals() and llm_features_requested else results
+                    # decide which dictionary to use
+                    final_results = llm_results if "llm_results" in locals() and llm_features_requested else results
 
                     # Generate filename based on project name and timestamp
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    is_llm = 'llm_results' in locals() and llm_features_requested
+                    is_llm = "llm_results" in locals() and llm_features_requested
                     default_filename = f"analysis_{timestamp}.json"
 
                     filename = input(f"Enter filename (default: {default_filename}): ").strip()
@@ -1190,7 +1192,7 @@ def main() -> int:
                 import traceback
 
                 traceback.print_exc()
-                return 1 
+                return 1
 
         elif args.command == "timeline":
             # No login/consent required to view previously stored aggregate timelines

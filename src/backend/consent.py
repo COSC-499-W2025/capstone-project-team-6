@@ -8,7 +8,9 @@ def ask_for_consent() -> bool:
         True  -> user consented, the program that called ask_for_consent will direct it to the file parsing page
         False -> user did not consent. The user will not be allowed to upload files.
     """
-    consent_text = consent_text = """=====================================================================
+    consent_text = (
+        consent_text
+    ) = """=====================================================================
             PROJECT CONSENT FORM: MINING DIGITAL WORK ARTIFACTS
 =====================================================================
 
