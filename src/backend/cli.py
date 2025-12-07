@@ -15,7 +15,7 @@ from . import (Folder_traversal_fs, MDAShell, UserAlreadyExistsError,
 from .analysis.deep_code_analyzer import generate_comprehensive_report
 from .analysis.document_analyzer import DocumentAnalysis, analyze_document
 from .analysis_database import init_db
-from .consent import ask_for_consent
+from .consent import ask_for_consent, ask_for_external_service_consent
 
 # Avoid importing heavy optional dependencies at module import time
 
@@ -702,7 +702,10 @@ def main() -> int:
     signup_parser.add_argument("password", help="Choose a password")
 
     # Analyze command
-    analyze_parser = subparsers.add_parser("analyze", help="Analyze a folder")
+    analyze_parser = subparsers.add_parser(
+        "analyze", 
+        help="Analyze a folder (LOCAL - privacy-preserving, no data upload)"
+    )
     analyze_parser.add_argument("path", help="Path to the folder to analyze")
     analyze_parser.add_argument(
         "--complexity",
@@ -716,7 +719,10 @@ def main() -> int:
     essay_parser.add_argument("path", help="Path to the document file (.txt, .pdf, .docx, .md)")
 
     # Analyze-llm command
-    llm_parser = subparsers.add_parser("analyze-llm", help="Analyze code using AI (Gemini)")
+    llm_parser = subparsers.add_parser(
+        "analyze-llm", 
+        help="AI-enhanced analysis using Google Gemini (EXTERNAL SERVICE - requires consent)"
+    )
     llm_parser.add_argument("path", help="Path to the ZIP file to analyze")
     llm_parser.add_argument("--prompt", help="Custom analysis prompt (optional)")
     # Timeline command
@@ -942,6 +948,15 @@ def main() -> int:
             if not path.is_file() or path.suffix.lower() != ".zip":
                 print(f"\nLLM analysis requires a ZIP file")
                 return 1
+
+            # Request explicit consent for external service (Google Gemini)
+            print("\n" + "="*70)
+            print("  AI-ENHANCED ANALYSIS: EXTERNAL SERVICE CONSENT REQUIRED")
+            print("="*70)
+            if not ask_for_external_service_consent("Google Gemini API"):
+                print("\n\u2717 Analysis cancelled. Your data was not uploaded.")
+                print("  Tip: Use 'mda analyze <project.zip>' for privacy-preserving local analysis.")
+                return 0
 
             # Run LLM analysis
             try:
