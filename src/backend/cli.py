@@ -763,23 +763,20 @@ def main() -> int:
     )
     analyze_parser.add_argument("--verbose", "-v", action="store_true", help="Show detailed complexity findings")
 
+
+    # LLM arguments merged into analyze
+    analyze_parser.add_argument("--prompt", help="Custom analysis prompt for AI (requires consent)")
+    analyze_parser.add_argument("--architecture", action="store_true", help="AI: Deep analysis of patterns and anti-patterns")
+    analyze_parser.add_argument("--security", action="store_true", help="AI: Logic-based security and defensive coding")
+    analyze_parser.add_argument("--skills", action="store_true", help="AI: Infer soft skills and testing maturity")
+    analyze_parser.add_argument("--domain", action="store_true", help="AI: Domain-specific best practices")
+    analyze_parser.add_argument("--resume", action="store_true", help="AI: Generate resume and portfolio artifacts")
+    analyze_parser.add_argument("--all", action="store_true", help="AI: Enable all deep analysis features")
+
     # Analyze-essay command
     essay_parser = subparsers.add_parser("analyze-essay", help="Analyze an essay or document")
     essay_parser.add_argument("path", help="Path to the document file (.txt, .pdf, .docx, .md)")
 
-    # Analyze-llm command
-    llm_parser = subparsers.add_parser("analyze-llm", help="Analyze code using AI (Gemini)")
-    llm_parser.add_argument("path", help="Path to the ZIP file to analyze")
-    llm_parser.add_argument("--prompt", help="Custom analysis prompt (optional)")
-
-    # Feature selection flags
-    llm_parser.add_argument("--architecture", action="store_true", help="Deep analysis of patterns and anti-patterns")
-    llm_parser.add_argument("--complexity", action="store_true", help="Algorithmic intent and Big O gap analysis")
-    llm_parser.add_argument("--security", action="store_true", help="Logic-based security and defensive coding")
-    llm_parser.add_argument("--skills", action="store_true", help="Infer soft skills and testing maturity")
-    llm_parser.add_argument("--domain", action="store_true", help="Domain-specific best practices")
-    llm_parser.add_argument("--resume", action="store_true", help="Generate resume and portfolio artifacts")
-    llm_parser.add_argument("--all", action="store_true", help="Enable all deep analysis features")
 
     # Timeline command
     timeline_parser = subparsers.add_parser("timeline", help="Show chronological timelines from stored analyses")
@@ -821,11 +818,11 @@ def main() -> int:
                 return 1
 
             # Handle consent for first-time users
-            if not handle_first_time_consent(args.username):
-                # User is authenticated but denied consent
-                print("\nDenied Consent.")
-                print("You can update your consent later using 'mda consent --update'")
-                return 1
+            #if not handle_first_time_consent(args.username):
+            #    # User is authenticated but denied consent
+            #    print("\nDenied Consent.")
+            #    print("You can update your consent later using 'mda consent --update'")
+            #    return 1
 
             # Save session for future commands
             save_session(args.username)
@@ -878,30 +875,39 @@ def main() -> int:
                 return 1
 
             username = session["username"]
-            if not check_user_consent(username):
-                print("\nPlease provide consent before analyzing files")
-                print("Run 'mda consent --update' to view and accept the consent form")
-                return 1
+            #if not check_user_consent(username):
+            #    print("\nPlease provide consent before analyzing files")
+            #    print("Run 'mda consent --update' to view and accept the consent form")
+            #    return 1
+
+            has_consented = check_user_consent(username)
+            
+            llm_features_requested = (
+                args.all
+                or args.prompt
+                or args.architecture
+                or args.security
+                or args.skills
+                or args.domain
+                or args.resume
+            )
+
 
             path = Path(args.path)
             if not path.exists():
                 print(f"\nPath does not exist: {path}")
                 return 1
 
-            # Run complexity analysis if requested
-            if args.complexity:
-                # Complexity analysis requires a ZIP file
-                if not (path.is_file() and path.suffix.lower() == ".zip"):
-                    print("\n❌ Complexity analysis requires a ZIP file")
-                    print(f"   Provided: {path}")
-                    return 1
+            if args.complexity and not args.all: 
+                # Note: If --all is passed, we assume LLM complexity analysis is desired unless specified otherwise,
+                # but standard complexity requires zip. 
+                # For backward compatibility, strict --complexity uses the non-LLM tool if zip is provided.
+                if path.is_file() and path.suffix.lower() == ".zip":
+                    print(f"\n[*] Analyzing Python code complexity in: {path.name}")
+                    return analyze_complexity(path, args.verbose)
+                elif args.complexity:
+                     print("\n❌ Traditional complexity analysis requires a ZIP file. Continuing with standard analysis...")
 
-                print(f"\n[*] Analyzing Python code complexity in: {path.name}")
-                return analyze_complexity(path, args.verbose)
-
-            # Standard project detection analysis - validate path type
-            if not path.is_dir() and not (path.is_file() and path.suffix.lower() == ".zip"):
-                print(f"\n❌ Path must be a directory or ZIP file: {path}")
             # Validate path type
             if not path.is_dir() and not (path.is_file() and path.suffix.lower() == ".zip"):
                 print(f"\nPath must be a directory or ZIP file: {path}")
@@ -913,78 +919,6 @@ def main() -> int:
                 results = analyze_folder(path)
                 display_analysis(results)
 
-                # Generate resume highlights
-                from .analysis.resume_generator import print_resume_items
-
-                print_resume_items(results)
-
-                # Generate portfolio items (separate from resume)
-                from .analysis.portfolio_item_generator import \
-                    generate_portfolio_item
-
-                print("\n" + "=" * 70)
-                print("  GENERATED PORTFOLIO ITEMS")
-                print("=" * 70)
-
-                for project in results.get("projects", []):
-                    try:
-                        portfolio_item = generate_portfolio_item(project)
-
-                        print(f"\n{'━' * 70}")
-                        print(f"PROJECT: {portfolio_item.get('project_name', 'Unknown')}")
-                        print(f"{'━' * 70}")
-
-                        # Project statistics
-                        stats = portfolio_item.get("project_statistics", {})
-                        quality_score = stats.get("quality_score", 0)
-                        sophistication = stats.get("sophistication_level", "basic")
-
-                        print(f"\nSophistication Level: {sophistication.title()}")
-                        print(f"Quality Score: {quality_score}/100")
-
-                        # Technology Stack
-                        tech_stack = portfolio_item.get("tech_stack", [])
-                        if tech_stack:
-                            print(f"\nTech Stack: {', '.join(tech_stack[:5])}")
-                            if len(tech_stack) > 5:
-                                print(f"   ... and {len(tech_stack) - 5} more")
-
-                        # Text Summary (main description)
-                        text_summary = portfolio_item.get("text_summary", "")
-                        if text_summary:
-                            print(f"\nSummary:")
-                            # Wrap text to 70 characters
-                            words = text_summary.split()
-                            line = "   "
-                            for word in words:
-                                if len(line) + len(word) + 1 > 73:
-                                    print(line)
-                                    line = "   " + word
-                                else:
-                                    line += (" " if line != "   " else "") + word
-                            if line.strip():
-                                print(line)
-
-                        # Skills exercised
-                        skills = portfolio_item.get("skills_exercised", [])
-                        if skills:
-                            print(f"\nSkills Demonstrated: {', '.join(skills[:5])}")
-
-                        # File statistics
-                        print(f"\nProject Metrics:")
-                        print(f"   Total Files: {stats.get('total_files', 0)}")
-                        print(f"   Source Files: {stats.get('code_files', 0)}")
-                        print(f"   Test Files: {stats.get('test_files', 0)}")
-
-                    except Exception as e:
-                        print(
-                            f"\n   Warning: Could not generate portfolio item for {project.get('project_name', 'project')}: {e}"
-                        )
-                        import traceback
-
-                        traceback.print_exc()
-
-                print("\n" + "=" * 70 + "\n")
 
                 # Store analysis in database
                 try:
@@ -996,6 +930,105 @@ def main() -> int:
                 except Exception as db_error:
                     print(f"\n⚠️  Warning: Could not save to database: {db_error}")
 
+                 # 2. Check Consent for LLM Analysis
+                if has_consented:
+                    print("\n[+] Consent verified. Proceeding with AI-powered analysis...")
+                    
+                    # Prepare ZIP for LLM if input was a directory
+                    llm_target_path = path
+                    temp_llm_zip = None
+                    
+                    if path.is_dir():
+                        print("    Creating temporary zip for AI processing...")
+                        try:
+                            temp_llm_zip = create_temp_zip(path)
+                            llm_target_path = temp_llm_zip
+                        except Exception as e:
+                            print(f"❌ Failed to create zip for AI analysis: {e}")
+                            has_consented = False # Abort LLM part
+
+                    if has_consented:
+                        # Collect active features
+                        active_features = []
+                        if args.all:
+                            active_features = ["architecture", "complexity", "security", "skills", "domain", "resume"]
+                        else:
+                            if args.architecture: active_features.append("architecture")
+                            if args.complexity: active_features.append("complexity")
+                            if args.security: active_features.append("security")
+                            if args.skills: active_features.append("skills")
+                            if args.domain: active_features.append("domain")
+                            if args.resume: active_features.append("resume")
+
+                        try:
+                            from rich.progress import (BarColumn, Progress, SpinnerColumn,
+                                                       TaskProgressColumn, TextColumn)
+                            from .analysis.llm_pipeline import run_gemini_analysis
+
+                            print(f"[*] Running Gemini analysis on: {llm_target_path}")
+                            
+                            llm_results = {}
+                            with Progress(
+                                SpinnerColumn(),
+                                TextColumn("[progress.description]{task.description}"),
+                                BarColumn(),
+                                TaskProgressColumn(),
+                                transient=True,
+                            ) as progress:
+                                task = progress.add_task("Analyzing with AI...", total=100)
+
+                                def cli_progress_callback(current, total, msg):
+                                    percent = (current / total) * 100 if total > 0 else 0
+                                    progress.update(task, completed=percent, description=msg)
+
+                                llm_results = run_gemini_analysis(
+                                    llm_target_path,
+                                    active_features=active_features,
+                                    prompt_override=args.prompt,
+                                    progress_callback=cli_progress_callback,
+                                )
+                            
+                            # Display Rich Results
+                            from rich import box
+                            from rich.console import Console
+                            from rich.markdown import Markdown
+                            from rich.panel import Panel
+                            
+                            console = Console()
+                            console.print()
+                            console.print(Panel.fit("[bold white]Gemini Deep Code Analysis[/bold white]", style="blue"))
+                            
+                            llm_summary = llm_results.get("llm_summary")
+                            llm_error = llm_results.get("llm_error")
+                            
+                            if llm_error:
+                                console.print(Panel(f"[bold red]Error:[/bold red]\n{llm_error}", style="red"))
+                            elif llm_summary:
+                                md = Markdown(llm_summary)
+                                console.print(Panel(md, title="[bold green]AI-Powered Insights[/bold green]", border_style="green"))
+
+                            # Store LLM analysis in database
+                            try:
+                                from .analysis_database import record_analysis
+                                llm_analysis_id = record_analysis("llm", llm_results)
+                                print(f"\n📊 AI analysis saved to database (ID: {llm_analysis_id})")
+                            except Exception as db_error:
+                                print(f"\n⚠️  Warning: Could not save AI results: {db_error}")
+
+                        except Exception as e:
+                            print(f"\n❌ AI analysis failed: {e}")
+                            # Don't fail the whole command, standard analysis succeeded
+                        
+                        finally:
+                            # Cleanup temp zip if we created one
+                            if temp_llm_zip and temp_llm_zip.exists():
+                                temp_llm_zip.unlink()
+
+                else:
+                    print("\n[i] AI-powered analysis skipped (No consent provided).")
+                    print("    Run 'mda consent --update' to enable deep code insights.")
+
+
                 # Prompt to save JSON output
                 print("\n" + "=" * 70)
                 response = input("Would you like to save the full analysis as JSON? (y/N): ").strip().lower()
@@ -1003,8 +1036,12 @@ def main() -> int:
                     import json
                     from datetime import datetime
 
+                    #decide which dictionary to use
+                    final_results = llm_results if 'llm_results' in locals() and llm_features_requested else results
+
                     # Generate filename based on project name and timestamp
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    is_llm = 'llm_results' in locals() and llm_features_requested
                     default_filename = f"analysis_{timestamp}.json"
 
                     filename = input(f"Enter filename (default: {default_filename}): ").strip()
@@ -1018,10 +1055,87 @@ def main() -> int:
                     try:
                         output_path = Path(filename)
                         with open(output_path, "w", encoding="utf-8") as f:
-                            json.dump(results, f, indent=2, ensure_ascii=False)
+                            json.dump(final_results, f, indent=2, ensure_ascii=False)
                         print(f"✅ Analysis saved to: {output_path.absolute()}")
                     except Exception as e:
                         print(f"❌ Error saving JSON file: {e}")
+
+                try:
+                    # Generate resume highlights
+                    from .analysis.resume_generator import print_resume_items
+
+                    print_resume_items(results)
+
+                    # Generate portfolio items (separate from resume)
+                    from .analysis.portfolio_item_generator import \
+                        generate_portfolio_item
+
+                    print("\n" + "=" * 70)
+                    print("  GENERATED PORTFOLIO ITEMS")
+                    print("=" * 70)
+
+                    for project in results.get("projects", []):
+                        try:
+                            portfolio_item = generate_portfolio_item(project)
+
+                            print(f"\n{'━' * 70}")
+                            print(f"PROJECT: {portfolio_item.get('project_name', 'Unknown')}")
+                            print(f"{'━' * 70}")
+
+                            # Project statistics
+                            stats = portfolio_item.get("project_statistics", {})
+                            quality_score = stats.get("quality_score", 0)
+                            sophistication = stats.get("sophistication_level", "basic")
+
+                            print(f"\nSophistication Level: {sophistication.title()}")
+                            print(f"Quality Score: {quality_score}/100")
+
+                            # Technology Stack
+                            tech_stack = portfolio_item.get("tech_stack", [])
+                            if tech_stack:
+                                print(f"\nTech Stack: {', '.join(tech_stack[:5])}")
+                                if len(tech_stack) > 5:
+                                    print(f"   ... and {len(tech_stack) - 5} more")
+
+                            # Text Summary (main description)
+                            text_summary = portfolio_item.get("text_summary", "")
+                            if text_summary:
+                                print(f"\nSummary:")
+                                # Wrap text to 70 characters
+                                words = text_summary.split()
+                                line = "   "
+                                for word in words:
+                                    if len(line) + len(word) + 1 > 73:
+                                        print(line)
+                                        line = "   " + word
+                                    else:
+                                        line += (" " if line != "   " else "") + word
+                                if line.strip():
+                                    print(line)
+
+                            # Skills exercised
+                            skills = portfolio_item.get("skills_exercised", [])
+                            if skills:
+                                print(f"\nSkills Demonstrated: {', '.join(skills[:5])}")
+
+                            # File statistics
+                            print(f"\nProject Metrics:")
+                            print(f"   Total Files: {stats.get('total_files', 0)}")
+                            print(f"   Source Files: {stats.get('code_files', 0)}")
+                            print(f"   Test Files: {stats.get('test_files', 0)}")
+
+                        except Exception as e:
+                            print(
+                                f"\n   Warning: Could not generate portfolio item for {project.get('project_name', 'project')}: {e}"
+                            )
+                            import traceback
+
+                            traceback.print_exc()
+
+                    print("\n" + "=" * 70 + "\n")
+                except Exception:
+                    print(f"\n❌ Output of resume or portfolio error: {path}")
+                    return 1
 
                 print("\n✅ Analysis complete!")
                 return 0
@@ -1076,178 +1190,8 @@ def main() -> int:
                 import traceback
 
                 traceback.print_exc()
-                return 1
+                return 1 
 
-        elif args.command == "analyze-llm":
-            session = get_session()
-            if not session["logged_in"]:
-                print("\nPlease login first")
-                return 1
-
-            username = session["username"]
-            if not check_user_consent(username):
-                print("\nPlease provide consent before analyzing files")
-                print("Run 'mda consent --update' to view and accept the consent form")
-                return 1
-
-            path = Path(args.path)
-            if not path.exists():
-                print(f"\nPath does not exist: {path}")
-                return 1
-
-            # Validate file type - must be ZIP
-            if not path.is_file() or path.suffix.lower() != ".zip":
-                print(f"\nLLM analysis requires a ZIP file")
-                return 1
-
-            # Collect active features
-            active_features = []
-            if args.all:
-                active_features = ["architecture", "complexity", "security", "skills", "domain", "resume"]
-            else:
-                if args.architecture:
-                    active_features.append("architecture")
-                if args.complexity:
-                    active_features.append("complexity")
-                if args.security:
-                    active_features.append("security")
-                if args.skills:
-                    active_features.append("skills")
-                if args.domain:
-                    active_features.append("domain")
-                if args.resume:
-                    active_features.append("resume")
-
-            # Run LLM analysis
-            try:
-                from rich.progress import (BarColumn, Progress, SpinnerColumn,
-                                           TaskProgressColumn, TextColumn)
-
-                from .analysis.llm_pipeline import run_gemini_analysis
-
-                print(f"\n[*] Running AI-powered analysis on: {path}")
-                if active_features:
-                    print(f"[*] Active features: {', '.join(active_features)}")
-
-                results = {}
-                with Progress(
-                    SpinnerColumn(),
-                    TextColumn("[progress.description]{task.description}"),
-                    BarColumn(),
-                    TaskProgressColumn(),
-                    transient=True,
-                ) as progress:
-                    task = progress.add_task("Starting analysis...", total=100)
-
-                    def cli_progress_callback(current, total, msg):
-                        percent = (current / total) * 100 if total > 0 else 0
-                        progress.update(task, completed=percent, description=msg)
-
-                    results = run_gemini_analysis(
-                        path,
-                        active_features=active_features,
-                        prompt_override=args.prompt,
-                        progress_callback=cli_progress_callback,
-                    )
-
-                # Display with rich formatting
-                from rich import box
-                from rich.console import Console
-                from rich.markdown import Markdown
-                from rich.panel import Panel
-                from rich.table import Table
-
-                console = Console()
-
-                # Display header
-                console.print()
-                console.print(Panel.fit("[bold white]Gemini Deep Code Analysis[/bold white]", style="blue"))
-                console.print()
-
-                # Display project statistics
-                meta = results.get("analysis_metadata", {})
-                summary = results.get("summary", {})
-                project_name = results.get("projects", [{}])[0].get("project_name", "Unknown")
-
-                stats_table = Table(box=box.SIMPLE, show_header=False)
-                stats_table.add_column("Key", style="cyan")
-                stats_table.add_column("Value", style="white")
-
-                stats_table.add_row("Project Name", project_name)
-                stats_table.add_row("Primary Language", ", ".join(summary.get("languages_used", ["N/A"])))
-                stats_table.add_row("Total Files", str(summary.get("total_files", 0)))
-                stats_table.add_row("Gemini Files", str(meta.get("gemini_file_count", 0)))
-                stats_table.add_row("Analysis Mode", results.get("analysis_mode", "Standard"))
-                if active_features:
-                    stats_table.add_row("Active Features", ", ".join(active_features))
-
-                console.print(Panel(stats_table, title="[bold]Project Statistics[/bold]", border_style="cyan"))
-
-                # Display LLM summary
-                llm_summary = results.get("llm_summary")
-                llm_error = results.get("llm_error")
-
-                if llm_error:
-                    console.print(
-                        Panel(
-                            f"[bold red]Error during analysis:[/bold red]\n{llm_error}",
-                            title="System Warnings",
-                            border_style="red",
-                        )
-                    )
-                elif llm_summary:
-                    md = Markdown(llm_summary)
-                    console.print(
-                        Panel(md, title="[bold green]AI-Powered Insights[/bold green]", border_style="green", padding=(1, 2))
-                    )
-
-                console.print()  # Add spacing before database message
-
-                # Store in database
-                try:
-                    from .analysis_database import record_analysis
-
-                    analysis_id = record_analysis("llm", results)
-                    analysis_uuid = results.get("analysis_metadata", {}).get("analysis_uuid", "unknown")
-                    print(f"\n📊 Analysis saved to database (ID: {analysis_id}, UUID: {analysis_uuid})")
-                except Exception as db_error:
-                    print(f"\n⚠️  Warning: Could not save to database: {db_error}")
-
-                # Prompt to save JSON output
-                print("\n" + "=" * 70)
-                response = input("Would you like to save the full analysis as JSON? (y/N): ").strip().lower()
-                if response in ["y", "yes"]:
-                    import json
-                    from datetime import datetime
-
-                    # Generate filename based on project name and timestamp
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    default_filename = f"analysis_llm_{timestamp}.json"
-
-                    filename = input(f"Enter filename (default: {default_filename}): ").strip()
-                    if not filename:
-                        filename = default_filename
-
-                    # Ensure .json extension
-                    if not filename.endswith(".json"):
-                        filename += ".json"
-
-                    try:
-                        output_path = Path(filename)
-                        with open(output_path, "w", encoding="utf-8") as f:
-                            json.dump(results, f, indent=2, ensure_ascii=False)
-                        print(f"✅ Analysis saved to: {output_path.absolute()}")
-                    except Exception as e:
-                        print(f"❌ Error saving JSON file: {e}")
-
-                print("\n✅ LLM analysis complete!")
-                return 0
-            except Exception as e:
-                print(f"\n❌ LLM analysis failed: {e}")
-                import traceback
-
-                traceback.print_exc()
-                return 1
         elif args.command == "timeline":
             # No login/consent required to view previously stored aggregate timelines
             from .analysis.chronology import (get_projects_timeline,
