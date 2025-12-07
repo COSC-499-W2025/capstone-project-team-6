@@ -1017,9 +1017,20 @@ def main() -> int:
                 if not entries:
                     print("\nNo projects found in the analysis database.")
                     return 0
-                print("\nProjects Timeline (by analysis date):")
+                print("\nProjects Timeline (by commit date):")
                 for i, e in enumerate(entries, 1):
-                    print(f"  {i}. {e.analysis_timestamp} — {e.project_name}")
+                    # Determine which date to display and its source
+                    if e.last_commit_date:
+                        display_date = e.last_commit_date
+                        date_source = "commit"
+                    elif e.last_modified_date:
+                        display_date = e.last_modified_date
+                        date_source = "modified"
+                    else:
+                        display_date = e.analysis_timestamp
+                        date_source = "analysis"
+                    
+                    print(f"  {i}. {display_date} ({date_source}) — {e.project_name}")
                     if e.primary_language:
                         print(f"     Language: {e.primary_language}")
                     if e.total_files is not None:
@@ -1037,7 +1048,7 @@ def main() -> int:
                 if not entries:
                     print("\nNo skills found in the analysis database.")
                     return 0
-                print("\nSkills Timeline (by analysis date):")
+                print("\nSkills Timeline (by commit date):")
                 for i, e in enumerate(entries, 1):
                     langs = ", ".join(e.skills.get("languages", [])) or "-"
                     fws = ", ".join(e.skills.get("frameworks", [])) or "-"
