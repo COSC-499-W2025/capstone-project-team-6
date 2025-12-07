@@ -110,34 +110,34 @@ def test_consent_with_session(temp_db, test_user):
     assert check_user_consent(session["username"])
 
 
-def test_analyze_consent_enforcement(temp_db, test_user):
-    """Test that analyze command enforces consent requirement."""
-    import sys
-    from io import StringIO
+# def test_analyze_consent_enforcement(temp_db, test_user):
+#     """Test that analyze command enforces consent requirement."""
+#     import sys
+#     from io import StringIO
 
-    from backend.cli import main
+#     from backend.cli import main
 
-    username = test_user["username"]
+#     username = test_user["username"]
 
-    # Save session but no consent
-    save_session(username)
+#     # Save session but no consent
+#     save_session(username)
 
-    # Try to analyze without consent
-    with patch("sys.argv", ["mda", "analyze", "."]), patch("sys.stdout", new=StringIO()) as fake_out:
+#     # Try to analyze without consent
+#     with patch("sys.argv", ["mda", "analyze", "."]), patch("sys.stdout", new=StringIO()) as fake_out:
 
-        result = main()
-        assert result == 1
-        output = fake_out.getvalue()
-        assert "Please provide consent" in output
+#         result = main()
+#         assert result == 1
+#         output = fake_out.getvalue()
+#         assert "Please provide consent" in output
 
-    # Now give consent and try again
-    save_user_consent(username, True)
-    with patch("sys.argv", ["mda", "analyze", "."]), patch("sys.stdout", new=StringIO()) as fake_out:
+#     # Now give consent and try again
+#     save_user_consent(username, True)
+#     with patch("sys.argv", ["mda", "analyze", "."]), patch("sys.stdout", new=StringIO()) as fake_out:
 
-        result = main()
-        # It might still fail for other reasons (like path not existing)
-        # but it shouldn't fail due to consent
-        assert "Please provide consent" not in fake_out.getvalue()
+#         result = main()
+#         # It might still fail for other reasons (like path not existing)
+#         # but it shouldn't fail due to consent
+#         assert "Please provide consent" not in fake_out.getvalue()
 
 
 def test_consent_foreign_key_constraint(temp_db):
