@@ -1,6 +1,55 @@
 # Mandira Samarasekara
 
----
+## Date Ranges
+December 1st - December 6th
+![Mandira Week 14](images/MandiraWeek14.png)
+
+
+## Weekly recap goals
+
+- Led and organized multiple team meetings
+- Presented our first project milestone in class
+- Reviewed and merged teammates’ PRs
+- Refactored the project and skill timelines for chronology
+- Added and validated unit tests for my changes
+- Documented detailed personal logs
+- Co-created the milestone 1 demo video with Aakash
+- Revisited and reaffirmed the team contract
+- Completed the milestone 1 self-reflection
+
+## What went well
+
+This was a heavy week, but I finished every commitment. I refactored the Project Chronology to use a three-tier date priority system and closed issue #212. Aakash and I completed the project milestone demo, and the team stayed ahead of tight deadlines.
+
+## What didn't go well
+
+The chronology output could still be formatted for better readability. In my PR, I initially missed adding the new `last_commit_date` and `last_modified_date` columns, but after Mithish flagged it, I patched it quickly. A previous merge also reintroduced a duplicate `resume_items` table definition; I corrected that regression as well.
+
+## PR's reviewed
+
+- Deep Semantic Analysis Documentation #208 (https://github.com/COSC-499-W2025/capstone-project-team-6/pull/208)
+- Delete previously generated insights #183 (https://github.com/COSC-499-W2025/capstone-project-team-6/pull/183)
+- Unit testing for top ranked projects #189 (https://github.com/COSC-499-W2025/capstone-project-team-6/pull/189)
+
+## PR's initiated
+
+Project chronology 2.0 #213 (https://github.com/COSC-499-W2025/capstone-project-team-6/pull/213)
+
+**Description of my PR (#213):**
+
+- Introduces a three-tier date priority to produce the most accurate work history: commit date (highest), file modified date (fallback), and analysis timestamp (last resort).
+- Adds database and migration support for `last_commit_date` and `last_modified_date` with safe initialization in `init_db()`.
+- Updates the CLI headers and appends date source indicators `(commit)`, `(modified)`, or `(analysis)` for clarity.
+- Cleans up the schema by removing duplicate `resume_items` table definitions.
+
+## Plan for next week
+
+We wrapped milestone 1 and have a short break ahead. I will scan the codebase for vulnerabilities, refactor rough spots, and fix small issues that slipped into recent PRs, even if their impact is not yet visible.
+
+
+
+
+
 
 # Aakash Tirithdas
 
