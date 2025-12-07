@@ -11,9 +11,9 @@ from typing import Any, Callable, Dict, List, Optional
 
 from dotenv import load_dotenv
 
-from backend.analysis.deep_code_analyzer import generate_comprehensive_report
-from backend.analysis.project_analyzer import FileClassifier
-from backend.gemini_file_search import GeminiFileSearchClient
+from ..analysis.deep_code_analyzer import generate_comprehensive_report
+from ..analysis.project_analyzer import FileClassifier
+from ..gemini_file_search import GeminiFileSearchClient
 
 # Load environment variables
 load_dotenv()

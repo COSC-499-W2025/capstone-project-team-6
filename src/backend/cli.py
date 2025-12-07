@@ -478,6 +478,51 @@ def display_analysis(results: dict) -> None:
                     percentage = contrib.get("percentage", 0)
                     print(f"      • {name}: {commits} commits ({percentage:.1f}%)")
 
+        # Complexity Analysis (Python)
+        complexity_analysis = project.get("complexity_analysis", {})
+        if complexity_analysis and "error" not in complexity_analysis:
+            print(f"\nComplexity Analysis (Python):")
+            opt_score = complexity_analysis.get("optimization_score", 0.0)
+            print(f"   Optimization Score: {opt_score:.1f}/100")
+
+            # Assessment
+            if opt_score >= 75:
+                assessment = "Strong optimization awareness ✓"
+            elif opt_score >= 50:
+                assessment = "Moderate optimization awareness"
+            elif opt_score >= 25:
+                assessment = "Basic optimization"
+            else:
+                assessment = "Limited optimization awareness"
+            print(f"   Assessment: {assessment}")
+
+            # Summary statistics
+            summary = complexity_analysis.get("summary", {})
+            if summary:
+                good_practices = []
+                issues = []
+
+                # Good practices
+                for key in ["efficient_data_structure", "set_operations", "dict_lookup",
+                           "list_comprehension", "generator_expression", "binary_search", "memoization"]:
+                    if summary.get(key, 0) > 0:
+                        good_practices.append(f"{key.replace('_', ' ').title()}: {summary[key]}")
+
+                # Issues
+                for key in ["nested_loops", "inefficient_lookup", "inefficient_membership_test"]:
+                    if summary.get(key, 0) > 0:
+                        issues.append(f"{key.replace('_', ' ').title()}: {summary[key]}")
+
+                if good_practices:
+                    print(f"   Good Practices Found:")
+                    for practice in good_practices[:3]:  # Show top 3
+                        print(f"      • {practice}")
+
+                if issues:
+                    print(f"   Optimization Opportunities:")
+                    for issue in issues:
+                        print(f"      • {issue}")
+
     print("\n" + "=" * 70)
 
 
@@ -719,6 +764,16 @@ def main() -> int:
     llm_parser = subparsers.add_parser("analyze-llm", help="Analyze code using AI (Gemini)")
     llm_parser.add_argument("path", help="Path to the ZIP file to analyze")
     llm_parser.add_argument("--prompt", help="Custom analysis prompt (optional)")
+
+    # Feature selection flags
+    llm_parser.add_argument("--architecture", action="store_true", help="Deep analysis of patterns and anti-patterns")
+    llm_parser.add_argument("--complexity", action="store_true", help="Algorithmic intent and Big O gap analysis")
+    llm_parser.add_argument("--security", action="store_true", help="Logic-based security and defensive coding")
+    llm_parser.add_argument("--skills", action="store_true", help="Infer soft skills and testing maturity")
+    llm_parser.add_argument("--domain", action="store_true", help="Domain-specific best practices")
+    llm_parser.add_argument("--resume", action="store_true", help="Generate resume and portfolio artifacts")
+    llm_parser.add_argument("--all", action="store_true", help="Enable all deep analysis features")
+
     # Timeline command
     timeline_parser = subparsers.add_parser("timeline", help="Show chronological timelines from stored analyses")
     timeline_parser.add_argument("type", choices=["projects", "skills"], help="Timeline type to display")
@@ -856,6 +911,70 @@ def main() -> int:
 
                 print_resume_items(results)
 
+                # Generate portfolio items (separate from resume)
+                from .analysis.portfolio_item_generator import generate_portfolio_item
+
+                print("\n" + "=" * 70)
+                print("  GENERATED PORTFOLIO ITEMS")
+                print("=" * 70)
+
+                for project in results.get("projects", []):
+                    try:
+                        portfolio_item = generate_portfolio_item(project)
+
+                        print(f"\n{'━' * 70}")
+                        print(f"PROJECT: {portfolio_item.get('project_name', 'Unknown')}")
+                        print(f"{'━' * 70}")
+
+                        # Project statistics
+                        stats = portfolio_item.get("project_statistics", {})
+                        quality_score = stats.get("quality_score", 0)
+                        sophistication = stats.get("sophistication_level", "basic")
+
+                        print(f"\nSophistication Level: {sophistication.title()}")
+                        print(f"Quality Score: {quality_score}/100")
+
+                        # Technology Stack
+                        tech_stack = portfolio_item.get("tech_stack", [])
+                        if tech_stack:
+                            print(f"\nTech Stack: {', '.join(tech_stack[:5])}")
+                            if len(tech_stack) > 5:
+                                print(f"   ... and {len(tech_stack) - 5} more")
+
+                        # Text Summary (main description)
+                        text_summary = portfolio_item.get("text_summary", "")
+                        if text_summary:
+                            print(f"\nSummary:")
+                            # Wrap text to 70 characters
+                            words = text_summary.split()
+                            line = "   "
+                            for word in words:
+                                if len(line) + len(word) + 1 > 73:
+                                    print(line)
+                                    line = "   " + word
+                                else:
+                                    line += (" " if line != "   " else "") + word
+                            if line.strip():
+                                print(line)
+
+                        # Skills exercised
+                        skills = portfolio_item.get("skills_exercised", [])
+                        if skills:
+                            print(f"\nSkills Demonstrated: {', '.join(skills[:5])}")
+
+                        # File statistics
+                        print(f"\nProject Metrics:")
+                        print(f"   Total Files: {stats.get('total_files', 0)}")
+                        print(f"   Source Files: {stats.get('code_files', 0)}")
+                        print(f"   Test Files: {stats.get('test_files', 0)}")
+
+                    except Exception as e:
+                        print(f"\n   Warning: Could not generate portfolio item for {project.get('project_name', 'project')}: {e}")
+                        import traceback
+                        traceback.print_exc()
+
+                print("\n" + "=" * 70 + "\n")
+
                 # Store analysis in database
                 try:
                     from .analysis_database import record_analysis
@@ -865,6 +984,33 @@ def main() -> int:
                     print(f"\n📊 Analysis saved to database (ID: {analysis_id}, UUID: {analysis_uuid})")
                 except Exception as db_error:
                     print(f"\n⚠️  Warning: Could not save to database: {db_error}")
+
+                # Prompt to save JSON output
+                print("\n" + "=" * 70)
+                response = input("Would you like to save the full analysis as JSON? (y/N): ").strip().lower()
+                if response in ['y', 'yes']:
+                    import json
+                    from datetime import datetime
+
+                    # Generate filename based on project name and timestamp
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    default_filename = f"analysis_{timestamp}.json"
+
+                    filename = input(f"Enter filename (default: {default_filename}): ").strip()
+                    if not filename:
+                        filename = default_filename
+
+                    # Ensure .json extension
+                    if not filename.endswith('.json'):
+                        filename += '.json'
+
+                    try:
+                        output_path = Path(filename)
+                        with open(output_path, 'w', encoding='utf-8') as f:
+                            json.dump(results, f, indent=2, ensure_ascii=False)
+                        print(f"✅ Analysis saved to: {output_path.absolute()}")
+                    except Exception as e:
+                        print(f"❌ Error saving JSON file: {e}")
 
                 print("\n✅ Analysis complete!")
                 return 0
@@ -943,6 +1089,24 @@ def main() -> int:
                 print(f"\nLLM analysis requires a ZIP file")
                 return 1
 
+            # Collect active features
+            active_features = []
+            if args.all:
+                active_features = ["architecture", "complexity", "security", "skills", "domain", "resume"]
+            else:
+                if args.architecture:
+                    active_features.append("architecture")
+                if args.complexity:
+                    active_features.append("complexity")
+                if args.security:
+                    active_features.append("security")
+                if args.skills:
+                    active_features.append("skills")
+                if args.domain:
+                    active_features.append("domain")
+                if args.resume:
+                    active_features.append("resume")
+
             # Run LLM analysis
             try:
                 from rich.progress import (BarColumn, Progress, SpinnerColumn,
@@ -951,6 +1115,8 @@ def main() -> int:
                 from .analysis.llm_pipeline import run_gemini_analysis
 
                 print(f"\n[*] Running AI-powered analysis on: {path}")
+                if active_features:
+                    print(f"[*] Active features: {', '.join(active_features)}")
 
                 results = {}
                 with Progress(
@@ -966,23 +1132,58 @@ def main() -> int:
                         percent = (current / total) * 100 if total > 0 else 0
                         progress.update(task, completed=percent, description=msg)
 
-                    results = run_gemini_analysis(path, prompt_override=args.prompt, progress_callback=cli_progress_callback)
+                    results = run_gemini_analysis(path, active_features=active_features, prompt_override=args.prompt, progress_callback=cli_progress_callback)
 
-                # Display standard analysis
-                display_analysis(results)
+                # Display with rich formatting
+                from rich.console import Console
+                from rich.panel import Panel
+                from rich.table import Table
+                from rich.markdown import Markdown
+                from rich import box
+
+                console = Console()
+
+                # Display header
+                console.print()
+                console.print(Panel.fit("[bold white]Gemini Deep Code Analysis[/bold white]", style="blue"))
+                console.print()
+
+                # Display project statistics
+                meta = results.get("analysis_metadata", {})
+                summary = results.get("summary", {})
+                project_name = results.get("projects", [{}])[0].get("project_name", "Unknown")
+
+                stats_table = Table(box=box.SIMPLE, show_header=False)
+                stats_table.add_column("Key", style="cyan")
+                stats_table.add_column("Value", style="white")
+
+                stats_table.add_row("Project Name", project_name)
+                stats_table.add_row("Primary Language", ", ".join(summary.get("languages_used", ["N/A"])))
+                stats_table.add_row("Total Files", str(summary.get("total_files", 0)))
+                stats_table.add_row("Gemini Files", str(meta.get("gemini_file_count", 0)))
+                stats_table.add_row("Analysis Mode", results.get("analysis_mode", "Standard"))
+                if active_features:
+                    stats_table.add_row("Active Features", ", ".join(active_features))
+
+                console.print(Panel(stats_table, title="[bold]Project Statistics[/bold]", border_style="cyan"))
 
                 # Display LLM summary
                 llm_summary = results.get("llm_summary")
                 llm_error = results.get("llm_error")
 
                 if llm_error:
-                    print(f"\n⚠️  LLM Analysis Error: {llm_error}")
+                    console.print(
+                        Panel(
+                            f"[bold red]Error during analysis:[/bold red]\n{llm_error}",
+                            title="System Warnings",
+                            border_style="red",
+                        )
+                    )
                 elif llm_summary:
-                    print("\n" + "=" * 70)
-                    print("  AI-POWERED ANALYSIS SUMMARY")
-                    print("=" * 70)
-                    print(f"\n{llm_summary}\n")
-                    print("=" * 70)
+                    md = Markdown(llm_summary)
+                    console.print(Panel(md, title="[bold green]AI-Powered Insights[/bold green]", border_style="green", padding=(1, 2)))
+
+                console.print()  # Add spacing before database message
 
                 # Store in database
                 try:
@@ -993,6 +1194,33 @@ def main() -> int:
                     print(f"\n📊 Analysis saved to database (ID: {analysis_id}, UUID: {analysis_uuid})")
                 except Exception as db_error:
                     print(f"\n⚠️  Warning: Could not save to database: {db_error}")
+
+                # Prompt to save JSON output
+                print("\n" + "=" * 70)
+                response = input("Would you like to save the full analysis as JSON? (y/N): ").strip().lower()
+                if response in ['y', 'yes']:
+                    import json
+                    from datetime import datetime
+
+                    # Generate filename based on project name and timestamp
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    default_filename = f"analysis_llm_{timestamp}.json"
+
+                    filename = input(f"Enter filename (default: {default_filename}): ").strip()
+                    if not filename:
+                        filename = default_filename
+
+                    # Ensure .json extension
+                    if not filename.endswith('.json'):
+                        filename += '.json'
+
+                    try:
+                        output_path = Path(filename)
+                        with open(output_path, 'w', encoding='utf-8') as f:
+                            json.dump(results, f, indent=2, ensure_ascii=False)
+                        print(f"✅ Analysis saved to: {output_path.absolute()}")
+                    except Exception as e:
+                        print(f"❌ Error saving JSON file: {e}")
 
                 print("\n✅ LLM analysis complete!")
                 return 0
