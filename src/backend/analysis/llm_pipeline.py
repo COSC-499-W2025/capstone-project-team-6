@@ -141,6 +141,33 @@ Act as a Technical Hiring Manager reviewing a candidate's code submission. Your 
   "deliverable": "Produce a concise report that cites concrete files/functions and explains how well the author demonstrates domain fluency for the detected frameworks."
 }"""
     ),
+    "resume": (
+        """### 7. Career Artifact Generation (Resume & Portfolio)
+
+Act as a **Senior Technical Career Coach** and **Resume Writer**. Your goal is to translate the technical analysis of this codebase into high-impact career artifacts. You have access to the code and the offline metrics (file counts, complexity scores).
+
+#### A. Resume Bullet Points (Impact-Driven)
+
+- **Synthesis:** Combine the *hard metrics* from the offline analysis (e.g., "15,000 lines of code", "90% test coverage") with *qualitative insights* from the code structure (e.g., "Implemented Thread-Safe Singleton pattern", "Refactored O(n^2) logic").
+
+- **STAR Method:** Generate 3-5 bullet points using the **Situation-Task-Action-Result** format.
+
+    - *Bad:* "Wrote Python code for a backend."
+
+    - *Good:* "Engineered a high-throughput Python backend using **FastAPI** and **AsyncIO**, reducing API latency by 40% through efficient non-blocking I/O operations."
+
+- **Skill Highlighting:** Explicitly mention specific libraries, patterns, or architectural styles found in the code (e.g., "Deployed Dockerized microservices," "Utilized PyTorch for neural net optimization").
+
+#### B. Portfolio Narrative (The "Case Study")
+
+Create a compelling narrative for a portfolio website or GitHub README.
+
+- **The Hook:** A 2-sentence "Elevator Pitch" describing what the project does and its business/technical value.
+
+- **Technical Challenges Solved:** Identify the most complex module in the codebase (e.g., a custom authentication flow, a complex graph algorithm). Describe the problem and your specific solution in technical detail.
+
+- **Key Learnings:** Infer 2-3 technical takeaways demonstrated by the project evolution (e.g., "Mastery of ACID compliance in distributed transactions")."""
+    ),
 }
 
 
@@ -409,6 +436,7 @@ if __name__ == "__main__":
     parser.add_argument("--security", action="store_true", help="Logic-based security and defensive coding")
     parser.add_argument("--skills", action="store_true", help="Infer soft skills and testing maturity")
     parser.add_argument("--domain", action="store_true", help="Domain-specific best practices")
+    parser.add_argument("--resume", action="store_true", help="Generate resume and portfolio artifacts")
     parser.add_argument("--all", action="store_true", help="Enable all deep analysis features")
 
     args = parser.parse_args()
@@ -416,7 +444,7 @@ if __name__ == "__main__":
     # Collect active features
     active_features = []
     if args.all:
-        active_features = ["architecture", "complexity", "security", "skills", "domain"]
+        active_features = ["architecture", "complexity", "security", "skills", "domain", "resume"]
     else:
         if args.architecture:
             active_features.append("architecture")
@@ -428,6 +456,8 @@ if __name__ == "__main__":
             active_features.append("skills")
         if args.domain:
             active_features.append("domain")
+        if args.resume:
+            active_features.append("resume")
 
     if not args.zip_path.exists():
         print(f"Error: File not found: {args.zip_path}", file=sys.stderr)

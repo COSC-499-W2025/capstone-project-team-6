@@ -27,6 +27,7 @@ def _calculate_project_quality_score(analysis: dict) -> dict:
     java_oop = analysis.get("java_oop_analysis", {})
     cpp_oop = analysis.get("cpp_oop_analysis", {})
     c_oop = analysis.get("c_oop_analysis", {})
+    complexity = analysis.get("complexity_analysis", {})
 
     # C++ OOP Analysis
     cpp_classes = cpp_oop.get("total_classes", 0)
@@ -38,14 +39,10 @@ def _calculate_project_quality_score(analysis: dict) -> dict:
     cpp_namespaces = cpp_oop.get("namespaces_used", 0)
 
     # C OOP Analysis
-    c_structs = c_oop.get("total_structs", 0)
-    c_functions = c_oop.get("total_functions", 0)
-    c_static = c_oop.get("static_functions", 0)
-    c_memory_pairs = c_oop.get("constructor_destructor_pairs", 0)
-    c_vtables = c_oop.get("vtable_structs", 0)
-    c_fp_fields = c_oop.get("function_pointer_fields", 0)
     c_patterns = c_oop.get("design_patterns", [])
-    c_opaque = c_oop.get("opaque_pointer_structs", 0)
+
+    # complexity Anlysis
+    optimization_score = complexity.get("optimization_score", 0)
 
     # Core OOP quantities (python/java)
     py_classes = python_oop.get("total_classes", 0)
@@ -112,6 +109,21 @@ def _calculate_project_quality_score(analysis: dict) -> dict:
         advanced_points += 2
     quality_score += min(advanced_points, 15)
 
+    is_git = analysis.get("is_git_repo", False)
+    total_commits = analysis.get("total_commits", 0)
+    branch_count = analysis.get("branch_count", 0)
+    commit_authors = analysis.get("commit_authors", [])
+
+    git_points = 0
+    if is_git:
+        git_points += 1
+    if total_commits >= 10:
+        git_points += 1
+    if branch_count >= 2:
+        git_points += 1
+    if isinstance(commit_authors, list) and len(commit_authors) >= 2:
+        git_points += 1
+
     # Engineering points
     eng_points = (
         coverage_score * 2
@@ -120,7 +132,21 @@ def _calculate_project_quality_score(analysis: dict) -> dict:
         + (1 if has_ci_cd else 0)
         + (1 if has_docker else 0)
     )
+    eng_points += min(git_points, 4)
     quality_score += min(eng_points, 10)
+
+    # Algorithmic Complexity / Optimization scoring
+    algo_points = 0
+    if optimization_score >= 75:
+        algo_points = 6
+    elif optimization_score >= 50:
+        algo_points = 4
+    elif optimization_score >= 25:
+        algo_points = 2
+    elif optimization_score > 0:
+        algo_points = 1
+
+    quality_score += algo_points
 
     # --------------------------
     # Sophistication tier
@@ -143,6 +169,8 @@ def _calculate_project_quality_score(analysis: dict) -> dict:
         "java_lambdas": java_lambdas,
         "py_properties": py_properties,
         "py_overloads": py_overloads,
+        "optimization_score": optimization_score,
+        "uses_optimization": optimization_score > 0,
     }
 
 
@@ -175,7 +203,7 @@ def _generate_architecture_description(analysis: dict, quality: dict) -> str:
     if not arch_parts:
         return "The project follows a modular structure with organized code files."
 
-    base = f"The project architecture includes {' and '.join(arch_parts)}"
+    base = f"The project architecture includes {', '.join(arch_parts)}"
 
     py_depth = python_oop.get("inheritance_depth", 0)
     java_depth = java_oop.get("inheritance_depth", 0)
@@ -188,6 +216,7 @@ def _generate_architecture_description(analysis: dict, quality: dict) -> str:
     c_fp_fields = c_oop.get("function_pointer_fields", 0)
     c_opaque = c_oop.get("opaque_pointer_structs", 0)
     c_memory_pairs = c_oop.get("constructor_destructor_pairs", 0)
+    optimization_score = quality.get("optimization_score", 0)
 
     # Advanced tier
     if quality["sophistication_level"] == "advanced":
@@ -215,6 +244,16 @@ def _generate_architecture_description(analysis: dict, quality: dict) -> str:
         if c_memory_pairs > 0:
             details.append(f"{c_memory_pairs} constructor/destructor pairs")
 
+        # Complexity / Optomization features
+        if optimization_score >= 75:
+            details.append("high-performance algorithmic optimizations")
+        elif optimization_score >= 50:
+            details.append("algorithmic improvements for efficiency")
+        elif optimization_score >= 25:
+            details.append("basic performance-oriented refactoring")
+        elif optimization_score > 0:
+            details.append("some optimization considerations")
+
         if quality["uses_abstraction"]:
             details.append(f"{quality['total_abstract']} abstract classes")
         if quality["uses_inheritance"]:
@@ -232,12 +271,12 @@ def _generate_architecture_description(analysis: dict, quality: dict) -> str:
             details.append(f"{quality['py_properties']} properties")
 
         if details:
-            return f"{base}, demonstrating advanced OOP with {', '.join(details)}."
-
-        return f"{base}, demonstrating advanced object-oriented architecture."
+            tier_text = f"{base}, demonstrating advanced OOP with {', '.join(details)}."
+        else:
+            tier_text = f"{base}, demonstrating advanced object-oriented architecture."
 
     # Intermediate tier
-    if quality["sophistication_level"] == "intermediate":
+    elif quality["sophistication_level"] == "intermediate":
         tags = []
         if quality["uses_inheritance"]:
             tags.append("inheritance")
@@ -259,14 +298,34 @@ def _generate_architecture_description(analysis: dict, quality: dict) -> str:
             tags.append("vtable-style structs")
         if c_fp_fields > 0:
             tags.append("function-pointer polymorphism")
+        if optimization_score >= 50:
+            tags.append("algorithmic optimizations")
+        elif optimization_score >= 25:
+            tags.append("performance considerations")
 
         if tags:
-            return f"{base}, demonstrating object-oriented principles including {', '.join(tags)}."
-
-        return f"{base}, demonstrating solid object-oriented design."
+            tier_text = f"{base}, demonstrating object-oriented principles including {', '.join(tags)}."
+        else:
+            tier_text = f"{base}, demonstrating solid object-oriented design."
 
     # Basic tier
-    return f"{base}, demonstrating foundational object-oriented design principles."
+    else:
+        tier_text = f"{base}, demonstrating foundational object-oriented design principles."
+
+    # Git metadata
+    is_git = analysis.get("is_git_repo", False)
+    total_commits = analysis.get("total_commits", 0)
+    branch_count = analysis.get("branch_count", 0)
+    authors = analysis.get("commit_authors", [])
+
+    git_sentence = ""
+    if is_git and (total_commits > 3 or branch_count > 1 or len(authors) > 1):
+        git_sentence = (
+            f" The project uses Git with {total_commits} commits "
+            f"across {branch_count} branches by {len(authors)} contributor(s)."
+        )
+
+    return tier_text + git_sentence
 
 
 # ---------------------------------------------------------------
@@ -281,6 +340,27 @@ def _generate_contributions_summary(analysis: dict, quality: dict) -> str:
     java_oop = analysis.get("java_oop_analysis", {})
     cpp_oop = analysis.get("cpp_oop_analysis", {})
     c_oop = analysis.get("c_oop_analysis", {})
+    # C++ contributions
+    cpp_virtual = cpp_oop.get("virtual_methods", 0)
+    cpp_templates = cpp_oop.get("template_classes", 0)
+    cpp_namespaces = cpp_oop.get("namespaces_used", 0)
+    cpp_overloads = cpp_oop.get("operator_overloads", 0)
+    cpp_depth = cpp_oop.get("inheritance_depth", 0)
+    cpp_abstract = len(cpp_oop.get("abstract_classes", []))
+    # C contributions
+    c_structs = c_oop.get("total_structs", 0)
+    c_vtables = c_oop.get("vtable_structs", 0)
+    c_fp_fields = c_oop.get("function_pointer_fields", 0)
+    c_opaque = c_oop.get("opaque_pointer_structs", 0)
+    c_memory_pairs = c_oop.get("constructor_destructor_pairs", 0)
+    c_patterns = c_oop.get("design_patterns", [])
+    # Git contributions
+    is_git = analysis.get("is_git_repo", False)
+    total_commits = analysis.get("total_commits", 0)
+    branch_count = analysis.get("branch_count", 0)
+    authors = analysis.get("commit_authors", [])
+    # Algorithmic complexity / optimization
+    optimization_score = quality.get("optimization_score", 0)
 
     # Python & Java contributions
     if quality["uses_abstraction"]:
@@ -297,14 +377,6 @@ def _generate_contributions_summary(analysis: dict, quality: dict) -> str:
 
     if quality["py_overloads"] > 0:
         contrib.append("implementing operator overloading")
-
-    # C++ contributions
-    cpp_virtual = cpp_oop.get("virtual_methods", 0)
-    cpp_templates = cpp_oop.get("template_classes", 0)
-    cpp_namespaces = cpp_oop.get("namespaces_used", 0)
-    cpp_overloads = cpp_oop.get("operator_overloads", 0)
-    cpp_depth = cpp_oop.get("inheritance_depth", 0)
-    cpp_abstract = len(cpp_oop.get("abstract_classes", []))
 
     if cpp_virtual > 0:
         contrib.append(f"building {cpp_virtual} virtual-method hierarchies")
@@ -324,14 +396,6 @@ def _generate_contributions_summary(analysis: dict, quality: dict) -> str:
     if cpp_abstract > 0:
         contrib.append(f"defining {cpp_abstract} abstract C++ classes")
 
-    # C contributions
-    c_structs = c_oop.get("total_structs", 0)
-    c_vtables = c_oop.get("vtable_structs", 0)
-    c_fp_fields = c_oop.get("function_pointer_fields", 0)
-    c_opaque = c_oop.get("opaque_pointer_structs", 0)
-    c_memory_pairs = c_oop.get("constructor_destructor_pairs", 0)
-    c_patterns = c_oop.get("design_patterns", [])
-
     if c_structs > 0:
         contrib.append(f"designing {c_structs} C data structures")
     if c_opaque > 0:
@@ -347,6 +411,16 @@ def _generate_contributions_summary(analysis: dict, quality: dict) -> str:
         plural = "pattern" if len(c_patterns) == 1 else "patterns"
         contrib.append(f"applying C-style {name} {plural}")
 
+    # Algorithmic Optimization Contributions
+    if optimization_score >= 75:
+        contrib.append("implementing high-performance algorithmic optimizations")
+    elif optimization_score >= 50:
+        contrib.append("improving runtime efficiency through algorithmic refinements")
+    elif optimization_score >= 25:
+        contrib.append("refactoring code with performance considerations in mind")
+    elif optimization_score > 0:
+        contrib.append("introducing basic optimization techniques")
+
     # Engineering contributions
     if analysis.get("has_tests"):
         test_files = analysis.get("test_files", 0)
@@ -361,6 +435,12 @@ def _generate_contributions_summary(analysis: dict, quality: dict) -> str:
 
     if analysis.get("has_readme"):
         contrib.append("writing documentation")
+
+    if is_git and (total_commits > 3 or len(authors) > 1 or branch_count > 1):
+        contrib.append(
+            f"maintaining a Git-based workflow with {total_commits} commits "
+            f"across {branch_count} branches by {len(authors)} contributor(s)"
+        )
 
     if contrib:
         return f"Key contributions include {', '.join(contrib)}."
@@ -378,6 +458,7 @@ def _generate_skills_list(analysis: dict, quality: dict) -> list[str]:
     java_oop = analysis.get("java_oop_analysis", {})
     cpp_oop = analysis.get("cpp_oop_analysis", {})
     c_oop = analysis.get("c_oop_analysis", {})
+    optimization_score = quality.get("optimization_score", 0)
     languages = analysis.get("languages", {})
     frameworks = analysis.get("frameworks", [])
     skills = []
@@ -437,7 +518,6 @@ def _generate_skills_list(analysis: dict, quality: dict) -> list[str]:
     c_fp_fields = c_oop.get("function_pointer_fields", 0)
     c_opaque = c_oop.get("opaque_pointer_structs", 0)
     c_memory_pairs = c_oop.get("constructor_destructor_pairs", 0)
-    c_patterns = c_oop.get("design_patterns", [])
 
     if c_opaque > 0:
         skills.append("Encapsulation using opaque pointers (C)")
@@ -447,6 +527,17 @@ def _generate_skills_list(analysis: dict, quality: dict) -> list[str]:
         skills.append("Function pointer–based modularity (C)")
     if c_memory_pairs > 0:
         skills.append("Manual memory management discipline (C)")
+
+    # Algorithmic Optimization Skills
+    if optimization_score >= 75:
+        skills.append("Advanced algorithmic optimization")
+        skills.append("Performance engineering")
+    elif optimization_score >= 50:
+        skills.append("Algorithmic optimization techniques")
+    elif optimization_score >= 25:
+        skills.append("Performance-aware development")
+    elif optimization_score > 0:
+        skills.append("Basic optimization practices")
 
     # Engineering skills
     if analysis.get("test_coverage_estimate") in ["high", "medium"]:
@@ -459,6 +550,19 @@ def _generate_skills_list(analysis: dict, quality: dict) -> list[str]:
         skills.append("Docker")
     if analysis.get("has_readme"):
         skills.append("Technical documentation")
+
+    # Git specifics
+    is_git = analysis.get("is_git_repo", False)
+    branch_count = analysis.get("branch_count", 0)
+    authors = analysis.get("commit_authors", [])
+
+    if is_git:
+        skills.append("Git workflow")
+        if branch_count >= 2:
+            skills.append("Branch-based version control")
+        if isinstance(authors, list) and len(authors) > 1:
+            skills.append("Collaborative development")
+
     return skills
 
 
@@ -493,6 +597,7 @@ def generate_portfolio_item(analysis: dict) -> dict:
     architecture = _generate_architecture_description(analysis, quality)
     contributions_summary = _generate_contributions_summary(analysis, quality)
     skills = _generate_skills_list(analysis, quality)
+    optimization_score = quality.get("optimization_score", 0)
 
     # Summary build
     langs_str = ", ".join(tech_stack[:3]) if tech_stack else "multiple languages"
@@ -504,6 +609,11 @@ def generate_portfolio_item(analysis: dict) -> dict:
     else:
         opening = f"{project_name} is a software project developed using {langs_str}."
 
+    if optimization_score >= 50:
+        opening += " It features algorithmic optimization to improve runtime performance."
+    elif optimization_score >= 25:
+        opening += " It incorporates performance-aware development practices."
+
     summary = [
         opening,
         f"It contains {file_stats['total_files']} total files, including "
@@ -512,6 +622,18 @@ def generate_portfolio_item(analysis: dict) -> dict:
         contributions_summary,
     ]
 
+    # Algorithmic optimization narrative
+    if optimization_score >= 75:
+        summary.append("The project demonstrates strong algorithmic optimization with a focus on high-performance execution.")
+    elif optimization_score >= 50:
+        summary.append("The codebase includes meaningful algorithmic refinements that improve computational efficiency.")
+    elif optimization_score >= 25:
+        summary.append(
+            "The implementation reflects basic performance-oriented improvements guided by algorithmic considerations."
+        )
+    elif optimization_score > 0:
+        summary.append("Some sections of the project incorporate minor optimization techniques.")
+
     if analysis.get("has_tests") and analysis.get("test_coverage_estimate") != "none":
         summary.append(f"Test coverage is estimated as {analysis.get('test_coverage_estimate')}.")
 
@@ -519,6 +641,17 @@ def generate_portfolio_item(analysis: dict) -> dict:
         summary.append(f"This project demonstrates {', '.join(skills[:5])}, among other skills.")
 
     text_summary = " ".join(summary)
+
+    # Append Git metadata to summary
+    commits = analysis.get("total_commits", 0)
+    branches = analysis.get("branch_count", 0)
+    authors = analysis.get("commit_authors", [])
+    if analysis.get("is_git_repo", False) and (commits > 0 or branches > 1 or len(authors) > 1):
+        text_summary += (
+            f" The repository includes {commits} commits across {branches} branches "
+            f"from {len(authors)} contributor(s), demonstrating active version-controlled development."
+        )
+
     overview = text_summary[:300] + ("..." if len(text_summary) > 300 else "")
 
     return {

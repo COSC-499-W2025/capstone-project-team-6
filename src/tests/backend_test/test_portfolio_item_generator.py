@@ -28,6 +28,10 @@ def basic_project():
         "has_ci_cd": False,
         "has_docker": False,
         "test_coverage_estimate": "none",
+        "is_git_repo": True,
+        "total_commits": 4,
+        "branch_count": 1,
+        "commit_authors": ["devA"],
         "oop_analysis": {
             "total_classes": 1,
             "classes_with_inheritance": 0,
@@ -37,6 +41,7 @@ def basic_project():
             "operator_overloads": 0,
         },
         "java_oop_analysis": {},
+        "complexity_analysis": {"optimization_score": 0},
     }
 
 
@@ -56,6 +61,10 @@ def intermediate_project():
         "has_ci_cd": False,
         "has_docker": False,
         "test_coverage_estimate": "medium",
+        "is_git_repo": True,
+        "total_commits": 12,
+        "branch_count": 2,
+        "commit_authors": ["devA"],
         "oop_analysis": {
             "total_classes": 5,
             "classes_with_inheritance": 2,
@@ -72,6 +81,7 @@ def intermediate_project():
             "design_patterns": ["Factory"],
             "lambda_count": 2,
         },
+        "complexity_analysis": {"optimization_score": 40},
     }
 
 
@@ -91,6 +101,10 @@ def advanced_project():
         "has_ci_cd": True,
         "has_docker": True,
         "test_coverage_estimate": "high",
+        "is_git_repo": True,
+        "total_commits": 30,
+        "branch_count": 4,
+        "commit_authors": ["devA", "devB"],
         "oop_analysis": {
             "total_classes": 9,
             "classes_with_inheritance": 4,
@@ -107,6 +121,7 @@ def advanced_project():
             "design_patterns": ["Factory", "Singleton"],
             "lambda_count": 5,
         },
+        "complexity_analysis": {"optimization_score": 85},
     }
 
 
@@ -126,6 +141,10 @@ def empty_project():
         "has_ci_cd": False,
         "has_docker": False,
         "test_coverage_estimate": "none",
+        "is_git_repo": False,
+        "total_commits": 0,
+        "branch_count": 0,
+        "commit_authors": [],
         "oop_analysis": {
             "total_classes": 0,
             "classes_with_inheritance": 0,
@@ -135,6 +154,7 @@ def empty_project():
             "operator_overloads": 0,
         },
         "java_oop_analysis": {},
+        "complexity_analysis": {"optimization_score": 0},
     }
 
 
@@ -393,6 +413,10 @@ def test_missing_oop_analysis():
         "has_ci_cd": False,
         "has_docker": False,
         "test_coverage_estimate": "none",
+        "is_git_repo": False,
+        "total_commits": 0,
+        "branch_count": 0,
+        "commit_authors": [],
     }
 
     item = generate_portfolio_item(project)
@@ -415,24 +439,32 @@ def test_boundary_exactly_30_points():
         "has_ci_cd": False,
         "has_docker": False,
         "test_coverage_estimate": "none",
+        "is_git_repo": True,
+        "total_commits": 4,
+        "branch_count": 1,
+        "commit_authors": ["devA"],
         "oop_analysis": {
-            "total_classes": 6,  # 18 points
+            "total_classes": 6,
             "classes_with_inheritance": 2,
-            "abstract_classes": ["Base"],  # 2 points
+            "abstract_classes": ["Base"],
             "inheritance_depth": 1,
             "properties_count": 5,
-            "operator_overloads": 3,  # 2 points
+            "operator_overloads": 3,
         },
         "java_oop_analysis": {
             "total_classes": 0,
-            "design_patterns": ["Factory"],  # 5 points
-            "lambda_count": 2,  # 3 points
+            "design_patterns": ["Factory"],
+            "lambda_count": 2,
         },
     }
 
     quality = _calculate_project_quality_score(project)
-    # 18 (classes) + 2+5+3+2 (advanced=12, capped at 10) + 1 (readme) = 29-30 points
     assert quality["sophistication_level"] == "intermediate"
+
+
+# ------------------------------------------------------------
+# C ANALYSIS TESTS
+# ------------------------------------------------------------
 
 
 def test_architecture_c_only():
@@ -449,6 +481,10 @@ def test_architecture_c_only():
         "has_ci_cd": False,
         "has_docker": False,
         "test_coverage_estimate": "none",
+        "is_git_repo": True,
+        "total_commits": 5,
+        "branch_count": 1,
+        "commit_authors": ["dev"],
         "oop_analysis": {},
         "java_oop_analysis": {},
         "cpp_oop_analysis": {},
@@ -486,6 +522,10 @@ def test_contributions_c_features():
         "has_ci_cd": False,
         "has_docker": False,
         "test_coverage_estimate": "none",
+        "is_git_repo": True,
+        "total_commits": 5,
+        "branch_count": 1,
+        "commit_authors": ["dev"],
         "oop_analysis": {},
         "java_oop_analysis": {},
         "cpp_oop_analysis": {},
@@ -523,6 +563,10 @@ def test_skills_c_features():
         "has_ci_cd": False,
         "has_docker": False,
         "test_coverage_estimate": "none",
+        "is_git_repo": True,
+        "total_commits": 5,
+        "branch_count": 1,
+        "commit_authors": ["dev"],
         "oop_analysis": {},
         "java_oop_analysis": {},
         "cpp_oop_analysis": {},
@@ -560,6 +604,10 @@ def test_generate_portfolio_c_project():
         "has_ci_cd": False,
         "has_docker": False,
         "test_coverage_estimate": "low",
+        "is_git_repo": True,
+        "total_commits": 5,
+        "branch_count": 1,
+        "commit_authors": ["dev"],
         "oop_analysis": {},
         "java_oop_analysis": {},
         "cpp_oop_analysis": {},
@@ -578,3 +626,176 @@ def test_generate_portfolio_c_project():
     assert "CProj" in item["project_name"]
     assert "C structs" in item["architecture"]
     assert any("C" in skill for skill in item["skills_exercised"])
+
+
+# ------------------------------------------------------------
+# GIT ANALYSIS TESTS
+# ------------------------------------------------------------
+def test_architecture_git_metadata():
+    """Ensure Git metadata appears in architecture when thresholds met."""
+    project = {
+        "project_name": "GitProj",
+        "languages": {"python": 2},
+        "frameworks": [],
+        "total_files": 5,
+        "code_files": 4,
+        "test_files": 1,
+        "doc_files": 0,
+        "has_tests": True,
+        "has_readme": True,
+        "has_ci_cd": False,
+        "has_docker": False,
+        "test_coverage_estimate": "low",
+        # Git values that trigger architecture Git sentence
+        "is_git_repo": True,
+        "total_commits": 14,
+        "branch_count": 3,
+        "commit_authors": ["devA", "devB"],
+        "oop_analysis": {"total_classes": 2},
+        "java_oop_analysis": {},
+        "cpp_oop_analysis": {},
+        "c_oop_analysis": {},
+    }
+
+    quality = _calculate_project_quality_score(project)
+    text = _generate_architecture_description(project, quality)
+
+    assert "Git" in text or "commits" in text
+
+
+def test_contributions_git_metadata():
+    """Ensure Git activity appears in contributions summary."""
+    project = {
+        "project_name": "GitProj",
+        "languages": {"python": 1},
+        "frameworks": [],
+        "total_files": 3,
+        "code_files": 2,
+        "test_files": 0,
+        "doc_files": 1,
+        "has_tests": False,
+        "has_readme": True,
+        "has_ci_cd": False,
+        "has_docker": False,
+        "test_coverage_estimate": "none",
+        "is_git_repo": True,
+        "total_commits": 10,
+        "branch_count": 2,
+        "commit_authors": ["devA", "devB"],
+        "oop_analysis": {},
+        "java_oop_analysis": {},
+        "cpp_oop_analysis": {},
+        "c_oop_analysis": {},
+    }
+
+    quality = _calculate_project_quality_score(project)
+    text = _generate_contributions_summary(project, quality)
+
+    assert "Git" in text or "commits" in text
+
+
+def test_skills_git_metadata():
+    """Ensures Git-related skills appear when appropriate."""
+    project = {
+        "project_name": "GitProj",
+        "languages": {"python": 1},
+        "frameworks": [],
+        "total_files": 3,
+        "code_files": 2,
+        "test_files": 0,
+        "doc_files": 0,
+        "has_tests": False,
+        "has_readme": False,
+        "has_ci_cd": False,
+        "has_docker": False,
+        "test_coverage_estimate": "none",
+        "is_git_repo": True,
+        "total_commits": 12,
+        "branch_count": 2,
+        "commit_authors": ["devA"],
+        "oop_analysis": {},
+        "java_oop_analysis": {},
+        "cpp_oop_analysis": {},
+        "c_oop_analysis": {},
+    }
+
+    quality = _calculate_project_quality_score(project)
+    skills = _generate_skills_list(project, quality)
+
+    assert "Git workflow" in skills
+    assert "Branch-based version control" in skills
+
+
+# ------------------------------------------------------------
+# OPTIMIZATION TESTS
+# ------------------------------------------------------------
+
+
+def test_quality_optimization_affects_score():
+    """Optimization score should increase quality score but not inflate sophistication incorrectly."""
+    project = {
+        "project_name": "OptProj",
+        "languages": {"python": 3},
+        "oop_analysis": {"total_classes": 3},
+        "java_oop_analysis": {},
+        "cpp_oop_analysis": {},
+        "c_oop_analysis": {},
+        "frameworks": [],
+        "total_files": 5,
+        "code_files": 4,
+        "test_files": 0,
+        "doc_files": 1,
+        "has_tests": False,
+        "has_readme": False,
+        "has_ci_cd": False,
+        "has_docker": False,
+        "test_coverage_estimate": "none",
+        "is_git_repo": False,
+        "complexity_analysis": {"optimization_score": 60},
+    }
+
+    q = _calculate_project_quality_score(project)
+
+    assert q["optimization_score"] == 60
+    assert q["quality_score"] > 0
+    assert q["sophistication_level"] in ["basic", "intermediate"]
+
+
+def test_architecture_includes_optimization_when_advanced(advanced_project):
+    """Architecture description should mention optimization for advanced projects."""
+    quality = _calculate_project_quality_score(advanced_project)
+    text = _generate_architecture_description(advanced_project, quality)
+
+    assert "optimization" in text.lower()
+
+
+def test_architecture_no_optimization_for_basic(basic_project):
+    """Basic project should not contain optimization text."""
+    quality = _calculate_project_quality_score(basic_project)
+    text = _generate_architecture_description(basic_project, quality)
+
+    assert "optimization" not in text.lower()
+
+
+def test_contributions_include_optimization(intermediate_project):
+    """Contributions summary should include optimization when score >= 25."""
+    quality = _calculate_project_quality_score(intermediate_project)
+    text = _generate_contributions_summary(intermediate_project, quality)
+
+    assert "optimization" in text.lower()
+
+
+def test_skills_include_optimization_for_high_score(advanced_project):
+    """Skills should include advanced optimization skills."""
+    quality = _calculate_project_quality_score(advanced_project)
+    skills = _generate_skills_list(advanced_project, quality)
+
+    assert any("optimization" in s.lower() for s in skills)
+
+
+def test_contributions_include_optimization(intermediate_project):
+    """Contributions summary should include optimization when score >= 25."""
+    quality = _calculate_project_quality_score(intermediate_project)
+    text = _generate_contributions_summary(intermediate_project, quality)
+    # For optimization_score = 40, expected phrase is the "performance considerations" tier
+    assert "performance" in text.lower() or "refactoring" in text.lower()
