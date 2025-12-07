@@ -1114,6 +1114,7 @@ def main() -> int:
                 print("\n\u2717 Analysis cancelled. Your data was not uploaded.")
                 print("  Tip: Use 'mda analyze <project.zip>' for privacy-preserving local analysis.")
                 return 0
+
             # Collect active features
             active_features = []
             if args.all:
