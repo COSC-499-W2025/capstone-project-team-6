@@ -31,6 +31,7 @@ from analysis.deep_code_analyzer import generate_comprehensive_report
 from analysis.resume_generator import (generate_formatted_resume_entry,
                                        print_resume_items)
 
+from backend.analysis.portfolio_item_generator import generate_portfolio_item
 from backend.analysis_database import (count_analyses_by_zip_file,
                                        delete_analyses_by_zip_file,
                                        get_all_analyses,
@@ -1238,7 +1239,12 @@ def main():
                 print(f"Coding Style: {'Object-Oriented C' if score >= 3 else 'Procedural C'}")
         else:
             print("\nNo C projects found for OOP-style analysis.")
-
+        for project in report["projects"]:
+            try:
+                portfolio_item = generate_portfolio_item(project)
+                project["portfolio_item"] = portfolio_item
+            except Exception as e:
+                print(f"[ERROR] Failed to generate portfolio item for {project.get('project_name', 'Unknown')} : {e}")
         # Store analysis in database if it's new
         if new_analysis_generated:
             print_separator("STORING ANALYSIS IN DATABASE")
@@ -1255,9 +1261,53 @@ def main():
         # Automatically summarize top-ranked projects from current zip file
         summarize_top_ranked_projects(limit=10, zip_file_path=zip_file_path)
 
+        print("\n" + "=" * 78)
+        print("  GENERATED PORTFOLIO ITEMS")
+        print("=" * 78 + "\n")
+
+        for project in report["projects"]:
+            if "portfolio_item" not in project:
+                continue
+            item = project["portfolio_item"]
+
+            print(f"Project: {project['project_name']}")
+            print("-" * 70)
+            print(item["text_summary"])
+            print("-" * 70 + "\n")
+
         # Ask user if they want to generate resume
         print_separator()
-        generate_resume = input("Generate resume? (y/n): ").lower().strip()
+
+        # Check if any resume items exist first
+        total_projects = len(report.get("projects", []))
+        existing_resume_count = sum(
+            1
+            for project in report.get("projects", [])
+            if get_resume_items_for_project(project.get("project_name", "Unknown Project"))
+        )
+
+        if existing_resume_count > 0:
+            print(f"Found {existing_resume_count}/{total_projects} résumé item(s) in database.")
+            print()
+            print("Options:")
+            print("  1. View existing résumé items (and generate missing ones)")
+            print("  2. Regenerate all résumé items (overwrite existing)")
+            print("  3. Skip résumé generation")
+            print()
+            resume_choice = None
+            while resume_choice not in ["1", "2", "3"]:
+                resume_choice = input("Enter your choice (1/2/3): ").strip()
+                if resume_choice not in ["1", "2", "3"]:
+                    print("  Invalid choice. Please enter 1, 2, or 3.")
+
+            if resume_choice == "3":
+                generate_resume = "n"
+            else:
+                generate_resume = "y"
+                regenerate_all = resume_choice == "2"
+        else:
+            generate_resume = input("Generate résumé items? (y/n): ").lower().strip()
+            regenerate_all = False
 
         if generate_resume == "y":
             print("\n" + "=" * 78)
@@ -1274,54 +1324,78 @@ def main():
                 project_name = project.get("project_name", "Unknown Project")
                 existing_resume_items = get_resume_items_for_project(project_name)
 
-                if existing_resume_items:
-                    resume_items_by_project[project_name] = existing_resume_items[0]["resume_text"]
+                if existing_resume_items and not regenerate_all:
+                    resume_items_by_project[project_name] = {"text": existing_resume_items[0]["resume_text"], "cached": True}
                 else:
                     projects_needing_resume.append(project)
 
             # Display existing resume items
-            if resume_items_by_project:
-                print("Found existing resume items in database. Using cached resumes.\n")
-                for project in report.get("projects", []):
+            if resume_items_by_project and not regenerate_all:
+                print(f"✓ Retrieved {len(resume_items_by_project)} cached résumé item(s) from database\n")
+
+                for i, project in enumerate(report.get("projects", []), 1):
                     project_name = project.get("project_name", "Unknown Project")
                     if project_name in resume_items_by_project:
-                        print(resume_items_by_project[project_name])
+                        print("=" * 78)
+                        print(f"RÉSUMÉ ITEM {i}/{total_projects}: {project_name}")
+                        print("=" * 78)
                         print()
+                        print(resume_items_by_project[project_name]["text"])
+                        print("\n")
 
             # Generate and store resumes for projects that don't have them
-            if projects_needing_resume:
-                if resume_items_by_project:
-                    print("Generating resumes for remaining projects...\n")
-                else:
-                    print("No existing resume items found. Generating new resumes.\n")
+            newly_generated = 0  # Initialize to avoid UnboundLocalError
 
-                for project in projects_needing_resume:
+            if projects_needing_resume:
+                if resume_items_by_project and not regenerate_all:
+                    print(f"\nGenerating {len(projects_needing_resume)} new résumé item(s)...\n")
+                elif regenerate_all:
+                    print(f"Regenerating all {len(projects_needing_resume)} résumé item(s)...\n")
+                else:
+                    print(f"Generating {len(projects_needing_resume)} résumé item(s)...\n")
+
+                cached_count = len(resume_items_by_project)
+
+                for idx, project in enumerate(projects_needing_resume, 1):
                     project_name = project.get("project_name", "Unknown Project")
                     resume_entry = generate_formatted_resume_entry(project)
-                    print(resume_entry)
+
+                    item_number = cached_count + idx if not regenerate_all else idx
+
+                    print("=" * 78)
+                    print(f"RÉSUMÉ ITEM {item_number}/{total_projects}- Project: {project_name}")
+                    print("=" * 78)
                     print()
+                    print(resume_entry)
+                    print("\n")
 
                     try:
+                        # Delete old resume item if regenerating
+                        if regenerate_all:
+                            with get_connection() as conn:
+                                conn.execute("DELETE FROM resume_items WHERE project_name = ?", (project_name,))
+                                conn.commit()
+
                         store_resume_item(project_name, resume_entry)
+                        newly_generated += 1
                     except Exception as e:
-                        print(f" Warning: Could not store resume item for {project_name}: {e}")
+                        print(f"⚠  Warning: Could not store résumé item for {project_name}: {e}")
                         import traceback
 
                         traceback.print_exc()
 
-                if projects_needing_resume:
-                    print("=" * 78 + "\n")
-                    print(f" Successfully stored {len(projects_needing_resume)} resume item(s) in the database")
-            elif resume_items_by_project:
+                print("=" * 78)
+                if regenerate_all:
+                    print(f"✓ Successfully regenerated {newly_generated}/{len(projects_needing_resume)} résumé item(s)")
+                elif newly_generated > 0:
+                    print(
+                        f"✓ Successfully generated and stored {newly_generated}/{len(projects_needing_resume)} new résumé item(s)"
+                    )
                 print("=" * 78 + "\n")
-                traceback.print_exc()
-
-                if projects_needing_resume:
-                    print("=" * 78 + "\n")
-                    print(f" Successfully stored {len(projects_needing_resume)} resume item(s) in the database")
             elif resume_items_by_project:
+                print("=" * 78)
+                print(f"✓ All {len(resume_items_by_project)} résumé item(s) retrieved from database")
                 print("=" * 78 + "\n")
-                print(f" All {len(resume_items_by_project)} resume item(s) retrieved from database")
 
         # Offer to save JSON
         print_separator()

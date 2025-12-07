@@ -394,6 +394,8 @@ if __name__ == "__main__":
     from rich.console import Console
     from rich.markdown import Markdown
     from rich.panel import Panel
+    from rich.progress import (BarColumn, Progress, SpinnerColumn,
+                               TaskProgressColumn, TextColumn)
     from rich.table import Table
     from rich import box
     from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn

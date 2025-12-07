@@ -406,11 +406,13 @@ class TestGitAnalysis:
 
     def test_parse_git_log_returns_tuple(self, extractor):
         """Test that git log parsing returns expected format."""
-        contributors, total_commits = extractor.parse_git_log("")
+        contributors, total_commits, last_commit_date = extractor.parse_git_log("")
 
         assert isinstance(contributors, dict)
         assert isinstance(total_commits, int)
         assert total_commits >= 0
+        # last_commit_date can be None or str (ISO format timestamp)
+        assert last_commit_date is None or isinstance(last_commit_date, str)
 
 
 class TestEdgeCases:
