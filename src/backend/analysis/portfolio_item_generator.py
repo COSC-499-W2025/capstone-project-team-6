@@ -123,7 +123,7 @@ def _calculate_project_quality_score(analysis: dict) -> dict:
         git_points += 1
     if isinstance(commit_authors, list) and len(commit_authors) >= 2:
         git_points += 1
-    
+
     # Engineering points
     eng_points = (
         coverage_score * 2
@@ -309,10 +309,10 @@ def _generate_architecture_description(analysis: dict, quality: dict) -> str:
             tier_text = f"{base}, demonstrating solid object-oriented design."
 
     # Basic tier
-    else: 
+    else:
         tier_text = f"{base}, demonstrating foundational object-oriented design principles."
 
-    # Git metadata 
+    # Git metadata
     is_git = analysis.get("is_git_repo", False)
     total_commits = analysis.get("total_commits", 0)
     branch_count = analysis.get("branch_count", 0)
@@ -410,7 +410,7 @@ def _generate_contributions_summary(analysis: dict, quality: dict) -> str:
         name = ", ".join(c_patterns)
         plural = "pattern" if len(c_patterns) == 1 else "patterns"
         contrib.append(f"applying C-style {name} {plural}")
-    
+
     # Algorithmic Optimization Contributions
     if optimization_score >= 75:
         contrib.append("implementing high-performance algorithmic optimizations")
@@ -550,7 +550,7 @@ def _generate_skills_list(analysis: dict, quality: dict) -> list[str]:
         skills.append("Docker")
     if analysis.get("has_readme"):
         skills.append("Technical documentation")
-    
+
     # Git specifics
     is_git = analysis.get("is_git_repo", False)
     branch_count = analysis.get("branch_count", 0)
@@ -562,7 +562,7 @@ def _generate_skills_list(analysis: dict, quality: dict) -> list[str]:
             skills.append("Branch-based version control")
         if isinstance(authors, list) and len(authors) > 1:
             skills.append("Collaborative development")
-    
+
     return skills
 
 
@@ -628,7 +628,9 @@ def generate_portfolio_item(analysis: dict) -> dict:
     elif optimization_score >= 50:
         summary.append("The codebase includes meaningful algorithmic refinements that improve computational efficiency.")
     elif optimization_score >= 25:
-        summary.append("The implementation reflects basic performance-oriented improvements guided by algorithmic considerations.")
+        summary.append(
+            "The implementation reflects basic performance-oriented improvements guided by algorithmic considerations."
+        )
     elif optimization_score > 0:
         summary.append("Some sections of the project incorporate minor optimization techniques.")
 

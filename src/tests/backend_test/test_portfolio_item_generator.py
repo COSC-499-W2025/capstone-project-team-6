@@ -11,6 +11,7 @@ from backend.analysis.portfolio_item_generator import (
 # FIXTURES
 # ------------------------------------------------------------
 
+
 @pytest.fixture
 def basic_project():
     """Basic project: 1 class, has readme, no tests."""
@@ -27,10 +28,10 @@ def basic_project():
         "has_ci_cd": False,
         "has_docker": False,
         "test_coverage_estimate": "none",
-        "is_git_repo": True,         
-        "total_commits": 4,           
-        "branch_count": 1,             
-        "commit_authors": ["devA"],     
+        "is_git_repo": True,
+        "total_commits": 4,
+        "branch_count": 1,
+        "commit_authors": ["devA"],
         "oop_analysis": {
             "total_classes": 1,
             "classes_with_inheritance": 0,
@@ -60,11 +61,10 @@ def intermediate_project():
         "has_ci_cd": False,
         "has_docker": False,
         "test_coverage_estimate": "medium",
-        "is_git_repo": True,          
-        "total_commits": 12,           
-        "branch_count": 2,             
-        "commit_authors": ["devA"],     
-
+        "is_git_repo": True,
+        "total_commits": 12,
+        "branch_count": 2,
+        "commit_authors": ["devA"],
         "oop_analysis": {
             "total_classes": 5,
             "classes_with_inheritance": 2,
@@ -101,11 +101,10 @@ def advanced_project():
         "has_ci_cd": True,
         "has_docker": True,
         "test_coverage_estimate": "high",
-        "is_git_repo": True,              
-        "total_commits": 30,             
-        "branch_count": 4,                
-        "commit_authors": ["devA", "devB"], 
-
+        "is_git_repo": True,
+        "total_commits": 30,
+        "branch_count": 4,
+        "commit_authors": ["devA", "devB"],
         "oop_analysis": {
             "total_classes": 9,
             "classes_with_inheritance": 4,
@@ -125,6 +124,7 @@ def advanced_project():
         "complexity_analysis": {"optimization_score": 85},
     }
 
+
 @pytest.fixture
 def empty_project():
     """Edge case: project with no OOP, no tests, minimal structure."""
@@ -141,10 +141,10 @@ def empty_project():
         "has_ci_cd": False,
         "has_docker": False,
         "test_coverage_estimate": "none",
-        "is_git_repo": False,  
-        "total_commits": 0,  
-        "branch_count": 0,    
-        "commit_authors": [], 
+        "is_git_repo": False,
+        "total_commits": 0,
+        "branch_count": 0,
+        "commit_authors": [],
         "oop_analysis": {
             "total_classes": 0,
             "classes_with_inheritance": 0,
@@ -156,6 +156,7 @@ def empty_project():
         "java_oop_analysis": {},
         "complexity_analysis": {"optimization_score": 0},
     }
+
 
 # ------------------------------------------------------------
 # TESTS: QUALITY SCORE CALCULATION
@@ -412,10 +413,10 @@ def test_missing_oop_analysis():
         "has_ci_cd": False,
         "has_docker": False,
         "test_coverage_estimate": "none",
-        "is_git_repo": False,  
-        "total_commits": 0,  
-        "branch_count": 0,    
-        "commit_authors": [], 
+        "is_git_repo": False,
+        "total_commits": 0,
+        "branch_count": 0,
+        "commit_authors": [],
     }
 
     item = generate_portfolio_item(project)
@@ -438,22 +439,22 @@ def test_boundary_exactly_30_points():
         "has_ci_cd": False,
         "has_docker": False,
         "test_coverage_estimate": "none",
-        "is_git_repo": True,      
-        "total_commits": 4,        
-        "branch_count": 1,         
+        "is_git_repo": True,
+        "total_commits": 4,
+        "branch_count": 1,
         "commit_authors": ["devA"],
         "oop_analysis": {
             "total_classes": 6,
             "classes_with_inheritance": 2,
-            "abstract_classes": ["Base"], 
+            "abstract_classes": ["Base"],
             "inheritance_depth": 1,
             "properties_count": 5,
-            "operator_overloads": 3,  
+            "operator_overloads": 3,
         },
         "java_oop_analysis": {
             "total_classes": 0,
-            "design_patterns": ["Factory"], 
-            "lambda_count": 2, 
+            "design_patterns": ["Factory"],
+            "lambda_count": 2,
         },
     }
 
@@ -480,10 +481,10 @@ def test_architecture_c_only():
         "has_ci_cd": False,
         "has_docker": False,
         "test_coverage_estimate": "none",
-        "is_git_repo": True,      
-        "total_commits": 5,       
-        "branch_count": 1,         
-        "commit_authors": ["dev"], 
+        "is_git_repo": True,
+        "total_commits": 5,
+        "branch_count": 1,
+        "commit_authors": ["dev"],
         "oop_analysis": {},
         "java_oop_analysis": {},
         "cpp_oop_analysis": {},
@@ -521,9 +522,9 @@ def test_contributions_c_features():
         "has_ci_cd": False,
         "has_docker": False,
         "test_coverage_estimate": "none",
-        "is_git_repo": True,      
-        "total_commits": 5,        
-        "branch_count": 1,         
+        "is_git_repo": True,
+        "total_commits": 5,
+        "branch_count": 1,
         "commit_authors": ["dev"],
         "oop_analysis": {},
         "java_oop_analysis": {},
@@ -562,10 +563,10 @@ def test_skills_c_features():
         "has_ci_cd": False,
         "has_docker": False,
         "test_coverage_estimate": "none",
-        "is_git_repo": True,      
-        "total_commits": 5,      
-        "branch_count": 1,         
-        "commit_authors": ["dev"], 
+        "is_git_repo": True,
+        "total_commits": 5,
+        "branch_count": 1,
+        "commit_authors": ["dev"],
         "oop_analysis": {},
         "java_oop_analysis": {},
         "cpp_oop_analysis": {},
@@ -603,9 +604,9 @@ def test_generate_portfolio_c_project():
         "has_ci_cd": False,
         "has_docker": False,
         "test_coverage_estimate": "low",
-        "is_git_repo": True,      
-        "total_commits": 5,       
-        "branch_count": 1,        
+        "is_git_repo": True,
+        "total_commits": 5,
+        "branch_count": 1,
         "commit_authors": ["dev"],
         "oop_analysis": {},
         "java_oop_analysis": {},
@@ -628,7 +629,7 @@ def test_generate_portfolio_c_project():
 
 
 # ------------------------------------------------------------
-# GIT ANALYSIS TESTS  
+# GIT ANALYSIS TESTS
 # ------------------------------------------------------------
 def test_architecture_git_metadata():
     """Ensure Git metadata appears in architecture when thresholds met."""
@@ -645,13 +646,11 @@ def test_architecture_git_metadata():
         "has_ci_cd": False,
         "has_docker": False,
         "test_coverage_estimate": "low",
-
         # Git values that trigger architecture Git sentence
         "is_git_repo": True,
         "total_commits": 14,
         "branch_count": 3,
         "commit_authors": ["devA", "devB"],
-
         "oop_analysis": {"total_classes": 2},
         "java_oop_analysis": {},
         "cpp_oop_analysis": {},
@@ -726,9 +725,11 @@ def test_skills_git_metadata():
     assert "Git workflow" in skills
     assert "Branch-based version control" in skills
 
+
 # ------------------------------------------------------------
-# OPTIMIZATION TESTS 
+# OPTIMIZATION TESTS
 # ------------------------------------------------------------
+
 
 def test_quality_optimization_affects_score():
     """Optimization score should increase quality score but not inflate sophistication incorrectly."""
