@@ -7,7 +7,7 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Dict, Optional, List, Callable
+from typing import Any, Callable, Dict, List, Optional
 
 from dotenv import load_dotenv
 
@@ -326,7 +326,7 @@ def run_gemini_analysis(
                 logger.info("Generating analysis with Gemini...")
             update_progress(60, 100, "Generating analysis with Gemini (this may take a minute)...")
             response_text = client.generate_content(uploaded_files_refs, full_prompt)
-            
+
             update_progress(95, 100, "Analysis generation complete. Finalizing...")
             report["llm_summary"] = response_text
             report["analysis_metadata"]["gemini_file_count"] = len(uploaded_files_refs)
@@ -397,8 +397,6 @@ if __name__ == "__main__":
     from rich.progress import (BarColumn, Progress, SpinnerColumn,
                                TaskProgressColumn, TextColumn)
     from rich.table import Table
-    from rich import box
-    from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 
     parser = argparse.ArgumentParser(description="Run Gemini Analysis on a ZIP file.")
     parser.add_argument("zip_path", type=Path, help="Path to the ZIP file to analyze")
@@ -438,7 +436,7 @@ if __name__ == "__main__":
     try:
         # Run the analysis with selected features
         report = {}
-        
+
         # Use rich progress bar
         with Progress(
             SpinnerColumn(),
@@ -448,7 +446,7 @@ if __name__ == "__main__":
             transient=True,
         ) as progress:
             task = progress.add_task("Starting analysis...", total=100)
-            
+
             def cli_progress_callback(current: int, total: int, msg: str):
                 # Normalize to 0-100
                 percent = (current / total) * 100 if total > 0 else 0
@@ -458,7 +456,7 @@ if __name__ == "__main__":
                 args.zip_path,
                 active_features=active_features,
                 prompt_override=args.prompt,
-                progress_callback=cli_progress_callback
+                progress_callback=cli_progress_callback,
             )
 
         if args.json:
