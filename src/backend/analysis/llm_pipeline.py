@@ -441,6 +441,18 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    # CRITICAL: Request external service consent before proceeding
+    # This prevents direct execution without consent
+    from ..consent import ask_for_external_service_consent
+    
+    print("\n" + "="*70)
+    print("  DIRECT EXECUTION: EXTERNAL SERVICE CONSENT REQUIRED")
+    print("="*70)
+    if not ask_for_external_service_consent("Google Gemini API"):
+        print("\n✗ Analysis cancelled. Your data was not uploaded.")
+        print("  Tip: Use 'mda analyze <project.zip>' for privacy-preserving local analysis.")
+        sys.exit(0)
+
     # Collect active features
     active_features = []
     if args.all:
