@@ -503,8 +503,15 @@ def display_analysis(results: dict) -> None:
                 issues = []
 
                 # Good practices
-                for key in ["efficient_data_structure", "set_operations", "dict_lookup",
-                           "list_comprehension", "generator_expression", "binary_search", "memoization"]:
+                for key in [
+                    "efficient_data_structure",
+                    "set_operations",
+                    "dict_lookup",
+                    "list_comprehension",
+                    "generator_expression",
+                    "binary_search",
+                    "memoization",
+                ]:
                     if summary.get(key, 0) > 0:
                         good_practices.append(f"{key.replace('_', ' ').title()}: {summary[key]}")
 
@@ -912,7 +919,8 @@ def main() -> int:
                 print_resume_items(results)
 
                 # Generate portfolio items (separate from resume)
-                from .analysis.portfolio_item_generator import generate_portfolio_item
+                from .analysis.portfolio_item_generator import \
+                    generate_portfolio_item
 
                 print("\n" + "=" * 70)
                 print("  GENERATED PORTFOLIO ITEMS")
@@ -969,8 +977,11 @@ def main() -> int:
                         print(f"   Test Files: {stats.get('test_files', 0)}")
 
                     except Exception as e:
-                        print(f"\n   Warning: Could not generate portfolio item for {project.get('project_name', 'project')}: {e}")
+                        print(
+                            f"\n   Warning: Could not generate portfolio item for {project.get('project_name', 'project')}: {e}"
+                        )
                         import traceback
+
                         traceback.print_exc()
 
                 print("\n" + "=" * 70 + "\n")
@@ -988,7 +999,7 @@ def main() -> int:
                 # Prompt to save JSON output
                 print("\n" + "=" * 70)
                 response = input("Would you like to save the full analysis as JSON? (y/N): ").strip().lower()
-                if response in ['y', 'yes']:
+                if response in ["y", "yes"]:
                     import json
                     from datetime import datetime
 
@@ -1001,12 +1012,12 @@ def main() -> int:
                         filename = default_filename
 
                     # Ensure .json extension
-                    if not filename.endswith('.json'):
-                        filename += '.json'
+                    if not filename.endswith(".json"):
+                        filename += ".json"
 
                     try:
                         output_path = Path(filename)
-                        with open(output_path, 'w', encoding='utf-8') as f:
+                        with open(output_path, "w", encoding="utf-8") as f:
                             json.dump(results, f, indent=2, ensure_ascii=False)
                         print(f"✅ Analysis saved to: {output_path.absolute()}")
                     except Exception as e:
@@ -1132,14 +1143,19 @@ def main() -> int:
                         percent = (current / total) * 100 if total > 0 else 0
                         progress.update(task, completed=percent, description=msg)
 
-                    results = run_gemini_analysis(path, active_features=active_features, prompt_override=args.prompt, progress_callback=cli_progress_callback)
+                    results = run_gemini_analysis(
+                        path,
+                        active_features=active_features,
+                        prompt_override=args.prompt,
+                        progress_callback=cli_progress_callback,
+                    )
 
                 # Display with rich formatting
+                from rich import box
                 from rich.console import Console
+                from rich.markdown import Markdown
                 from rich.panel import Panel
                 from rich.table import Table
-                from rich.markdown import Markdown
-                from rich import box
 
                 console = Console()
 
@@ -1181,7 +1197,9 @@ def main() -> int:
                     )
                 elif llm_summary:
                     md = Markdown(llm_summary)
-                    console.print(Panel(md, title="[bold green]AI-Powered Insights[/bold green]", border_style="green", padding=(1, 2)))
+                    console.print(
+                        Panel(md, title="[bold green]AI-Powered Insights[/bold green]", border_style="green", padding=(1, 2))
+                    )
 
                 console.print()  # Add spacing before database message
 
@@ -1198,7 +1216,7 @@ def main() -> int:
                 # Prompt to save JSON output
                 print("\n" + "=" * 70)
                 response = input("Would you like to save the full analysis as JSON? (y/N): ").strip().lower()
-                if response in ['y', 'yes']:
+                if response in ["y", "yes"]:
                     import json
                     from datetime import datetime
 
@@ -1211,12 +1229,12 @@ def main() -> int:
                         filename = default_filename
 
                     # Ensure .json extension
-                    if not filename.endswith('.json'):
-                        filename += '.json'
+                    if not filename.endswith(".json"):
+                        filename += ".json"
 
                     try:
                         output_path = Path(filename)
-                        with open(output_path, 'w', encoding='utf-8') as f:
+                        with open(output_path, "w", encoding="utf-8") as f:
                             json.dump(results, f, indent=2, ensure_ascii=False)
                         print(f"✅ Analysis saved to: {output_path.absolute()}")
                     except Exception as e:

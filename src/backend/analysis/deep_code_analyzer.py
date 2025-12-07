@@ -497,13 +497,13 @@ def generate_comprehensive_report(zip_path: Path, output_path: Optional[Path] = 
 
                     # Get Python files for this project
                     python_files = []
-                    with zipfile.ZipFile(zip_path, 'r') as zf:
+                    with zipfile.ZipFile(zip_path, "r") as zf:
                         for file_info in zf.namelist():
                             # Match files in this project path that end with .py
-                            if file_info.endswith('.py'):
+                            if file_info.endswith(".py"):
                                 if not project_path or file_info.startswith(project_path):
                                     try:
-                                        content = zf.read(file_info).decode('utf-8', errors='ignore')
+                                        content = zf.read(file_info).decode("utf-8", errors="ignore")
                                         python_files.append((file_info, content))
                                     except Exception:
                                         continue
@@ -514,7 +514,7 @@ def generate_comprehensive_report(zip_path: Path, output_path: Optional[Path] = 
                             "total_files_analyzed": complexity_report.total_files_analyzed,
                             "optimization_score": complexity_report.optimization_score,
                             "summary": complexity_report.summary,
-                            "insights_count": len(complexity_report.insights)
+                            "insights_count": len(complexity_report.insights),
                         }
                 except Exception as e:
                     report["projects"][i]["complexity_analysis"] = {"error": str(e), "optimization_score": 0}
