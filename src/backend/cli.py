@@ -901,6 +901,60 @@ def main() -> int:
 
                 print_resume_items(results)
 
+                # Generate portfolio items (separate from resume)
+                from .analysis.portfolio_item_generator import generate_portfolio_item
+
+                print("\n" + "=" * 70)
+                print("  GENERATED PORTFOLIO ITEMS")
+                print("=" * 70)
+
+                for project in results.get("projects", []):
+                    try:
+                        portfolio_item = generate_portfolio_item(project)
+
+                        print(f"\n{'━' * 70}")
+                        print(f"PROJECT: {portfolio_item.get('project_name', 'Unknown')}")
+                        print(f"{'━' * 70}")
+
+                        # Project Overview
+                        print(f"\nOverview:")
+                        print(f"   Type: {portfolio_item.get('project_type', 'N/A')}")
+                        print(f"   Quality Score: {portfolio_item.get('quality_score', 0)}/100")
+
+                        # Technology Stack
+                        tech_stack = portfolio_item.get("tech_stack", [])
+                        if tech_stack:
+                            print(f"\nTech Stack:")
+                            print(f"   {', '.join(tech_stack)}")
+
+                        # Key Highlights
+                        highlights = portfolio_item.get("highlights", [])
+                        if highlights:
+                            print(f"\nKey Highlights:")
+                            for highlight in highlights:
+                                print(f"   • {highlight}")
+
+                        # Detailed Description
+                        description = portfolio_item.get("detailed_description", "")
+                        if description:
+                            print(f"\nDescription:")
+                            for line in description.split('\n'):
+                                if line.strip():
+                                    print(f"   {line}")
+
+                        # Metrics
+                        metrics = portfolio_item.get("metrics", {})
+                        if metrics:
+                            print(f"\nMetrics:")
+                            for key, value in metrics.items():
+                                if value:
+                                    print(f"   {key}: {value}")
+
+                    except Exception as e:
+                        print(f"\n   Warning: Could not generate portfolio item for {project.get('project_name', 'project')}: {e}")
+
+                print("\n" + "=" * 70 + "\n")
+
                 # Store analysis in database
                 try:
                     from .analysis_database import record_analysis
@@ -1055,6 +1109,65 @@ def main() -> int:
                     print("=" * 70)
                     print(f"\n{llm_summary}\n")
                     print("=" * 70)
+
+                # Generate resume highlights
+                from .analysis.resume_generator import print_resume_items
+
+                print_resume_items(results)
+
+                # Generate portfolio items (separate from resume)
+                from .analysis.portfolio_item_generator import generate_portfolio_item
+
+                print("\n" + "=" * 70)
+                print("  GENERATED PORTFOLIO ITEMS")
+                print("=" * 70)
+
+                for project in results.get("projects", []):
+                    try:
+                        portfolio_item = generate_portfolio_item(project)
+
+                        print(f"\n{'━' * 70}")
+                        print(f"PROJECT: {portfolio_item.get('project_name', 'Unknown')}")
+                        print(f"{'━' * 70}")
+
+                        # Project Overview
+                        print(f"\nOverview:")
+                        print(f"   Type: {portfolio_item.get('project_type', 'N/A')}")
+                        print(f"   Quality Score: {portfolio_item.get('quality_score', 0)}/100")
+
+                        # Technology Stack
+                        tech_stack = portfolio_item.get("tech_stack", [])
+                        if tech_stack:
+                            print(f"\nTech Stack:")
+                            print(f"   {', '.join(tech_stack)}")
+
+                        # Key Highlights
+                        highlights = portfolio_item.get("highlights", [])
+                        if highlights:
+                            print(f"\nKey Highlights:")
+                            for highlight in highlights:
+                                print(f"   • {highlight}")
+
+                        # Detailed Description
+                        description = portfolio_item.get("detailed_description", "")
+                        if description:
+                            print(f"\nDescription:")
+                            for line in description.split('\n'):
+                                if line.strip():
+                                    print(f"   {line}")
+
+                        # Metrics
+                        metrics = portfolio_item.get("metrics", {})
+                        if metrics:
+                            print(f"\nMetrics:")
+                            for key, value in metrics.items():
+                                if value:
+                                    print(f"   {key}: {value}")
+
+                    except Exception as e:
+                        print(f"\n   Warning: Could not generate portfolio item for {project.get('project_name', 'project')}: {e}")
+
+                print("\n" + "=" * 70 + "\n")
 
                 # Store in database
                 try:
