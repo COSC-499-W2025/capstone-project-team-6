@@ -919,78 +919,6 @@ def main() -> int:
                 results = analyze_folder(path)
                 display_analysis(results)
 
-                # Generate resume highlights
-                from .analysis.resume_generator import print_resume_items
-
-                print_resume_items(results)
-
-                # Generate portfolio items (separate from resume)
-                from .analysis.portfolio_item_generator import \
-                    generate_portfolio_item
-
-                print("\n" + "=" * 70)
-                print("  GENERATED PORTFOLIO ITEMS")
-                print("=" * 70)
-
-                for project in results.get("projects", []):
-                    try:
-                        portfolio_item = generate_portfolio_item(project)
-
-                        print(f"\n{'━' * 70}")
-                        print(f"PROJECT: {portfolio_item.get('project_name', 'Unknown')}")
-                        print(f"{'━' * 70}")
-
-                        # Project statistics
-                        stats = portfolio_item.get("project_statistics", {})
-                        quality_score = stats.get("quality_score", 0)
-                        sophistication = stats.get("sophistication_level", "basic")
-
-                        print(f"\nSophistication Level: {sophistication.title()}")
-                        print(f"Quality Score: {quality_score}/100")
-
-                        # Technology Stack
-                        tech_stack = portfolio_item.get("tech_stack", [])
-                        if tech_stack:
-                            print(f"\nTech Stack: {', '.join(tech_stack[:5])}")
-                            if len(tech_stack) > 5:
-                                print(f"   ... and {len(tech_stack) - 5} more")
-
-                        # Text Summary (main description)
-                        text_summary = portfolio_item.get("text_summary", "")
-                        if text_summary:
-                            print(f"\nSummary:")
-                            # Wrap text to 70 characters
-                            words = text_summary.split()
-                            line = "   "
-                            for word in words:
-                                if len(line) + len(word) + 1 > 73:
-                                    print(line)
-                                    line = "   " + word
-                                else:
-                                    line += (" " if line != "   " else "") + word
-                            if line.strip():
-                                print(line)
-
-                        # Skills exercised
-                        skills = portfolio_item.get("skills_exercised", [])
-                        if skills:
-                            print(f"\nSkills Demonstrated: {', '.join(skills[:5])}")
-
-                        # File statistics
-                        print(f"\nProject Metrics:")
-                        print(f"   Total Files: {stats.get('total_files', 0)}")
-                        print(f"   Source Files: {stats.get('code_files', 0)}")
-                        print(f"   Test Files: {stats.get('test_files', 0)}")
-
-                    except Exception as e:
-                        print(
-                            f"\n   Warning: Could not generate portfolio item for {project.get('project_name', 'project')}: {e}"
-                        )
-                        import traceback
-
-                        traceback.print_exc()
-
-                print("\n" + "=" * 70 + "\n")
 
                 # Store analysis in database
                 try:
@@ -1131,6 +1059,83 @@ def main() -> int:
                         print(f"✅ Analysis saved to: {output_path.absolute()}")
                     except Exception as e:
                         print(f"❌ Error saving JSON file: {e}")
+
+                try:
+                    # Generate resume highlights
+                    from .analysis.resume_generator import print_resume_items
+
+                    print_resume_items(results)
+
+                    # Generate portfolio items (separate from resume)
+                    from .analysis.portfolio_item_generator import \
+                        generate_portfolio_item
+
+                    print("\n" + "=" * 70)
+                    print("  GENERATED PORTFOLIO ITEMS")
+                    print("=" * 70)
+
+                    for project in results.get("projects", []):
+                        try:
+                            portfolio_item = generate_portfolio_item(project)
+
+                            print(f"\n{'━' * 70}")
+                            print(f"PROJECT: {portfolio_item.get('project_name', 'Unknown')}")
+                            print(f"{'━' * 70}")
+
+                            # Project statistics
+                            stats = portfolio_item.get("project_statistics", {})
+                            quality_score = stats.get("quality_score", 0)
+                            sophistication = stats.get("sophistication_level", "basic")
+
+                            print(f"\nSophistication Level: {sophistication.title()}")
+                            print(f"Quality Score: {quality_score}/100")
+
+                            # Technology Stack
+                            tech_stack = portfolio_item.get("tech_stack", [])
+                            if tech_stack:
+                                print(f"\nTech Stack: {', '.join(tech_stack[:5])}")
+                                if len(tech_stack) > 5:
+                                    print(f"   ... and {len(tech_stack) - 5} more")
+
+                            # Text Summary (main description)
+                            text_summary = portfolio_item.get("text_summary", "")
+                            if text_summary:
+                                print(f"\nSummary:")
+                                # Wrap text to 70 characters
+                                words = text_summary.split()
+                                line = "   "
+                                for word in words:
+                                    if len(line) + len(word) + 1 > 73:
+                                        print(line)
+                                        line = "   " + word
+                                    else:
+                                        line += (" " if line != "   " else "") + word
+                                if line.strip():
+                                    print(line)
+
+                            # Skills exercised
+                            skills = portfolio_item.get("skills_exercised", [])
+                            if skills:
+                                print(f"\nSkills Demonstrated: {', '.join(skills[:5])}")
+
+                            # File statistics
+                            print(f"\nProject Metrics:")
+                            print(f"   Total Files: {stats.get('total_files', 0)}")
+                            print(f"   Source Files: {stats.get('code_files', 0)}")
+                            print(f"   Test Files: {stats.get('test_files', 0)}")
+
+                        except Exception as e:
+                            print(
+                                f"\n   Warning: Could not generate portfolio item for {project.get('project_name', 'project')}: {e}"
+                            )
+                            import traceback
+
+                            traceback.print_exc()
+
+                    print("\n" + "=" * 70 + "\n")
+                except Exception:
+                    print(f"\n❌ Output of resume or portfolio error: {path}")
+                    return 1
 
                 print("\n✅ Analysis complete!")
                 return 0
