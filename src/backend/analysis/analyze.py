@@ -1261,6 +1261,7 @@ def main():
         # Automatically summarize top-ranked projects from current zip file
         summarize_top_ranked_projects(limit=10, zip_file_path=zip_file_path)
 
+        # Portfolio Generation
         print("\n" + "=" * 78)
         print("  GENERATED PORTFOLIO ITEMS")
         print("=" * 78 + "\n")
