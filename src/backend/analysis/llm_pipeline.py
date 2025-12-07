@@ -7,13 +7,13 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Dict, Optional, List
+from typing import Any, Callable, Dict, List, Optional
+
+from dotenv import load_dotenv
 
 from backend.analysis.deep_code_analyzer import generate_comprehensive_report
 from backend.analysis.project_analyzer import FileClassifier
 from backend.gemini_file_search import GeminiFileSearchClient
-
-from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
@@ -145,165 +145,208 @@ Act as a Technical Hiring Manager reviewing a candidate's code submission. Your 
 
 
 def run_gemini_analysis(
-    zip_path: Path, active_features: List[str] = None, prompt_override: Optional[str] = None
+    zip_path: Path,
+    active_features: List[str] = None,
+    prompt_override: Optional[str] = None,
+    progress_callback: Optional[Callable[[int, int, str], None]] = None,
 ) -> Dict[str, Any]:
     """Run the full analysis pipeline using Gemini."""
     from datetime import datetime
 
-    # 1. Run the complete offline analysis pipeline (Python/Java)
-    logger.info(f"Starting offline analysis for {zip_path}")
-    report = generate_comprehensive_report(zip_path)
-    report.setdefault("analysis_metadata", {})
+    def update_progress(current: int, total: int, msg: str):
+        if progress_callback:
+            progress_callback(current, total, msg)
+        else:
+            logger.info(msg)
 
-    # Add C++ and C analysis to match non-LLM pipeline
-    for i, project in enumerate(report["projects"]):
-        project_path = project.get("project_path", "")
-
-        # C++ Analysis
-        if "cpp" in project.get("languages", {}):
-            try:
-                from .cpp_oop_analyzer import analyze_cpp_project
-                cpp_analysis = analyze_cpp_project(zip_path, project_path)
-                report["projects"][i]["cpp_oop_analysis"] = cpp_analysis["cpp_oop_analysis"]
-            except ImportError:
-                report["projects"][i]["cpp_oop_analysis"] = {
-                    "error": "C++ analyzer not available (libclang not installed)",
-                    "total_classes": 0,
-                }
-            except Exception as e:
-                report["projects"][i]["cpp_oop_analysis"] = {"error": str(e), "total_classes": 0}
-
-        # C Analysis (note: .c files are classified as cpp in project_analyzer)
-        if "cpp" in project.get("languages", {}) or "c" in project.get("languages", {}):
-            try:
-                from .c_oop_analyzer import analyze_c_project
-                c_analysis = analyze_c_project(zip_path, project_path)
-                # Only add if we found C-style code
-                if c_analysis["c_oop_analysis"].get("total_structs", 0) > 0:
-                    report["projects"][i]["c_oop_analysis"] = c_analysis["c_oop_analysis"]
-            except ImportError:
-                pass  # C analyzer optional
-            except Exception as e:
-                pass  # Silently skip if no C code found
-
-    # Update metadata with timestamp
-    report["analysis_metadata"].update({
-        "zip_file": str(zip_path.absolute()),
-        "analysis_timestamp": datetime.now().isoformat(),
-        "total_projects": len(report["projects"]),
-    })
-
-    # Check if Gemini client is available
-    if GeminiFileSearchClient is None:
-        error_msg = "Google Cloud AI Platform libraries not installed. Install with: pip install google-cloud-aiplatform google-auth google-generativeai"
-        logger.error(error_msg)
-        report["llm_error"] = error_msg
-        return report
-
-    # 2. Initialize Gemini Client
-    try:
-        client = GeminiFileSearchClient()
-    except Exception as e:
-        logger.error(f"Failed to initialize Gemini Client: {e}")
-        report["llm_error"] = f"Client Initialization Error: {str(e)}"
-        return report
-
-    uploaded_files_refs = []
+    # Temporarily silence INFO logging if using progress bar to avoid interfering with it
+    # This prevents the "bar per log" issue where logs break the progress bar display
+    original_log_level = logging.getLogger().getEffectiveLevel()
+    if progress_callback:
+        logging.getLogger().setLevel(logging.ERROR)
 
     try:
-        # 3. Prepare Files for Ingestion
-        files_to_ingest = []
+        # 1. Run the complete offline analysis pipeline (Python/Java)
+        update_progress(0, 100, f"Starting offline analysis for {zip_path.name}")
+        report = generate_comprehensive_report(zip_path)
+        report.setdefault("analysis_metadata", {})
 
-        with FileClassifier(zip_path) as classifier:
-            classification = classifier.classify_project("")
-            files_section = classification.get("files", {})
+        update_progress(10, 100, "Offline analysis complete. Analyzing C/C++...")
+        # Add C++ and C analysis to match non-LLM pipeline
+        for i, project in enumerate(report["projects"]):
+            project_path = project.get("project_path", "")
 
-            all_file_infos = []
-            for category in ["configs", "docs", "tests", "other"]:
-                all_file_infos.extend(files_section.get(category, []))
-            for files in files_section.get("code", {}).values():
-                all_file_infos.extend(files)
+            # C++ Analysis
+            if "cpp" in project.get("languages", {}):
+                try:
+                    from .cpp_oop_analyzer import analyze_cpp_project
 
-            with classifier.zip_file as zf:
-                for file_info in all_file_infos:
-                    path = file_info["path"]
-                    if _should_ignore_path(path):
-                        continue
+                    cpp_analysis = analyze_cpp_project(zip_path, project_path)
+                    report["projects"][i]["cpp_oop_analysis"] = cpp_analysis["cpp_oop_analysis"]
+                except ImportError:
+                    report["projects"][i]["cpp_oop_analysis"] = {
+                        "error": "C++ analyzer not available (libclang not installed)",
+                        "total_classes": 0,
+                    }
+                except Exception as e:
+                    report["projects"][i]["cpp_oop_analysis"] = {"error": str(e), "total_classes": 0}
 
-                    try:
-                        content_bytes = zf.read(path)
-                        if len(content_bytes) > DEFAULT_MAX_FILE_SIZE_BYTES:
-                            logger.warning(f"Skipping large file {path} ({len(content_bytes)} bytes)")
-                            continue
+            # C Analysis (note: .c files are classified as cpp in project_analyzer)
+            if "cpp" in project.get("languages", {}) or "c" in project.get("languages", {}):
+                try:
+                    from .c_oop_analyzer import analyze_c_project
 
-                        content = content_bytes.decode("utf-8", errors="ignore")
-                        if not content.strip():
-                            continue
+                    c_analysis = analyze_c_project(zip_path, project_path)
+                    # Only add if we found C-style code
+                    if c_analysis["c_oop_analysis"].get("total_structs", 0) > 0:
+                        report["projects"][i]["c_oop_analysis"] = c_analysis["c_oop_analysis"]
+                except ImportError:
+                    pass  # C analyzer optional
+                except Exception as e:
+                    pass  # Silently skip if no C code found
 
-                        files_to_ingest.append({"path": path, "content": content})
-                    except Exception as e:
-                        logger.warning(f"Failed to read {path}: {e}")
-
-        # Add offline analysis
-        offline_doc = _build_offline_analysis_document(report)
-        files_to_ingest.append(offline_doc)
-
-        logger.info(f"Prepared {len(files_to_ingest)} files for Gemini ingestion.")
-
-        # 4. Upload Files
-        uploaded_files_refs = client.upload_batch(files_to_ingest)
-        logger.info(f"Successfully uploaded {len(uploaded_files_refs)} files to Gemini.")
-
-        # 5. Generate Prompt (Base + Features)
-        offline_summary = _summarize_offline_report(report)
-
-        # Base Prompt (Always runs)
-        base_prompt = (
-            "You are a Senior Principal Software Architect.\n"
-            "You have access to the source code of a project and a pre-computed offline analysis report.\n"
-            "Analyze the uploaded files to answer the following requirements:\n\n"
-            "### 1. General Validation\n"
-            "- Validate the findings in the offline analysis report.\n"
-            "- Provide a high-level summary of the codebase.\n"
-            "Suggest concrete code improvements.\n"
-            "In your report, do not mention that you are a senior principal software architect.\n"
+        # Update metadata with timestamp
+        report["analysis_metadata"].update(
+            {
+                "zip_file": str(zip_path.absolute()),
+                "analysis_timestamp": datetime.now().isoformat(),
+                "total_projects": len(report["projects"]),
+            }
         )
 
-        # Append Requested Modules
-        additional_instructions = []
-        if active_features:
-            for feature in active_features:
-                if feature in PROMPT_MODULES:
-                    additional_instructions.append(PROMPT_MODULES[feature])
+        # Check if Gemini client is available
+        if GeminiFileSearchClient is None:
+            error_msg = "Google Cloud AI Platform libraries not installed. Install with: pip install google-cloud-aiplatform google-auth google-generativeai"
+            if not progress_callback:
+                logger.error(error_msg)
+            report["llm_error"] = error_msg
+            return report
 
-        # If no specific features requested, add a generic deep dive instruction
-        if not additional_instructions and not prompt_override:
-            additional_instructions.append(
-                "### 2. General Deep Dive\nIdentify architectural patterns, security risks, and code quality issues."
+        # 2. Initialize Gemini Client
+        try:
+            client = GeminiFileSearchClient()
+        except Exception as e:
+            if not progress_callback:
+                logger.error(f"Failed to initialize Gemini Client: {e}")
+            report["llm_error"] = f"Client Initialization Error: {str(e)}"
+            return report
+
+        uploaded_files_refs = []
+
+        try:
+            # 3. Prepare Files for Ingestion
+            update_progress(15, 100, "Preparing files for Gemini ingestion...")
+            files_to_ingest = []
+
+            with FileClassifier(zip_path) as classifier:
+                classification = classifier.classify_project("")
+                files_section = classification.get("files", {})
+
+                all_file_infos = []
+                for category in ["configs", "docs", "tests", "other"]:
+                    all_file_infos.extend(files_section.get(category, []))
+                for files in files_section.get("code", {}).values():
+                    all_file_infos.extend(files)
+
+                with classifier.zip_file as zf:
+                    for file_info in all_file_infos:
+                        path = file_info["path"]
+                        if _should_ignore_path(path):
+                            continue
+
+                        try:
+                            content_bytes = zf.read(path)
+                            if len(content_bytes) > DEFAULT_MAX_FILE_SIZE_BYTES:
+                                if not progress_callback:
+                                    logger.warning(f"Skipping large file {path} ({len(content_bytes)} bytes)")
+                                continue
+
+                            content = content_bytes.decode("utf-8", errors="ignore")
+                            if not content.strip():
+                                continue
+
+                            files_to_ingest.append({"path": path, "content": content})
+                        except Exception as e:
+                            if not progress_callback:
+                                logger.warning(f"Failed to read {path}: {e}")
+
+            # Add offline analysis
+            offline_doc = _build_offline_analysis_document(report)
+            files_to_ingest.append(offline_doc)
+
+            if not progress_callback:
+                logger.info(f"Prepared {len(files_to_ingest)} files for Gemini ingestion.")
+
+            # 4. Upload Files
+            def upload_progress_adapter(current: int, total: int, msg: str):
+                # Map upload progress (0-100%) to pipeline progress (15-50%)
+                fraction = current / total if total > 0 else 0
+                pipeline_current = 15 + int(fraction * 35)
+                update_progress(pipeline_current, 100, msg)
+
+            uploaded_files_refs = client.upload_batch(files_to_ingest, progress_callback=upload_progress_adapter)
+            update_progress(50, 100, f"Successfully uploaded {len(uploaded_files_refs)} files to Gemini.")
+
+            # 5. Generate Prompt (Base + Features)
+            offline_summary = _summarize_offline_report(report)
+
+            # Base Prompt (Always runs)
+            base_prompt = (
+                "You are a Senior Principal Software Architect.\n"
+                "You have access to the source code of a project and a pre-computed offline analysis report.\n"
+                "Analyze the uploaded files to answer the following requirements:\n\n"
+                "### 1. General Validation\n"
+                "- Validate the findings in the offline analysis report.\n"
+                "- Provide a high-level summary of the codebase.\n"
+                "Suggest concrete code improvements.\n"
+                "In your report, do not mention that you are a senior principal software architect.\n"
             )
 
-        # Final Prompt Construction
-        full_prompt = prompt_override or (
-            f"{base_prompt}\n" + "\n".join(additional_instructions) + "\n\n### Output Format\n"
-            "Structure your response with clear headings corresponding to the sections above. Use Markdown.\n"
-            f"\nOffline Analysis Context:\n{offline_summary}"
-        )
+            # Append Requested Modules
+            additional_instructions = []
+            if active_features:
+                for feature in active_features:
+                    if feature in PROMPT_MODULES:
+                        additional_instructions.append(PROMPT_MODULES[feature])
 
-        logger.info("Generating analysis with Gemini...")
-        response_text = client.generate_content(uploaded_files_refs, full_prompt)
+            # If no specific features requested, add a generic deep dive instruction
+            if not additional_instructions and not prompt_override:
+                additional_instructions.append(
+                    "### 2. General Deep Dive\nIdentify architectural patterns, security risks, and code quality issues."
+                )
 
-        report["llm_summary"] = response_text
-        report["analysis_metadata"]["gemini_file_count"] = len(uploaded_files_refs)
-        report["analysis_mode"] = f"Base + {', '.join(active_features)}" if active_features else "Standard"
+            # Final Prompt Construction
+            full_prompt = prompt_override or (
+                f"{base_prompt}\n" + "\n".join(additional_instructions) + "\n\n### Output Format\n"
+                "Structure your response with clear headings corresponding to the sections above. Use Markdown.\n"
+                f"\nOffline Analysis Context:\n{offline_summary}"
+            )
 
-    except Exception as e:
-        logger.error(f"Error during Gemini analysis: {e}")
-        report["llm_error"] = str(e)
+            if not progress_callback:
+                logger.info("Generating analysis with Gemini...")
+            update_progress(60, 100, "Generating analysis with Gemini (this may take a minute)...")
+            response_text = client.generate_content(uploaded_files_refs, full_prompt)
+
+            update_progress(95, 100, "Analysis generation complete. Finalizing...")
+            report["llm_summary"] = response_text
+            report["analysis_metadata"]["gemini_file_count"] = len(uploaded_files_refs)
+            report["analysis_mode"] = f"Base + {', '.join(active_features)}" if active_features else "Standard"
+
+        except Exception as e:
+            if not progress_callback:
+                logger.error(f"Error during Gemini analysis: {e}")
+            report["llm_error"] = str(e)
+
+        finally:
+            if uploaded_files_refs:
+                update_progress(98, 100, "Cleaning up remote files...")
+                client.cleanup_files(uploaded_files_refs)
+                update_progress(100, 100, "Cleanup complete.")
 
     finally:
-        if uploaded_files_refs:
-            logger.info("Cleaning up remote files...")
-            client.cleanup_files(uploaded_files_refs)
+        # Restore logging level
+        if progress_callback:
+            logging.getLogger().setLevel(original_log_level)
 
     return report
 
@@ -346,11 +389,14 @@ def _should_ignore_path(path: str) -> bool:
 if __name__ == "__main__":
     import argparse
     import sys
+
+    from rich import box
     from rich.console import Console
     from rich.markdown import Markdown
     from rich.panel import Panel
+    from rich.progress import (BarColumn, Progress, SpinnerColumn,
+                               TaskProgressColumn, TextColumn)
     from rich.table import Table
-    from rich import box
 
     parser = argparse.ArgumentParser(description="Run Gemini Analysis on a ZIP file.")
     parser.add_argument("zip_path", type=Path, help="Path to the ZIP file to analyze")
@@ -389,7 +435,29 @@ if __name__ == "__main__":
 
     try:
         # Run the analysis with selected features
-        report = run_gemini_analysis(args.zip_path, active_features=active_features, prompt_override=args.prompt)
+        report = {}
+
+        # Use rich progress bar
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            transient=True,
+        ) as progress:
+            task = progress.add_task("Starting analysis...", total=100)
+
+            def cli_progress_callback(current: int, total: int, msg: str):
+                # Normalize to 0-100
+                percent = (current / total) * 100 if total > 0 else 0
+                progress.update(task, completed=percent, description=msg)
+
+            report = run_gemini_analysis(
+                args.zip_path,
+                active_features=active_features,
+                prompt_override=args.prompt,
+                progress_callback=cli_progress_callback,
+            )
 
         if args.json:
             print(json.dumps(report, indent=2, default=str))

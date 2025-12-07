@@ -60,3 +60,5 @@ libclang
 tenacity>=8.2.3
 #Gemini
 google-genai
+# CLI
+rich

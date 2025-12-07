@@ -10,7 +10,8 @@ import zipfile
 from pathlib import Path
 from typing import Optional
 
-from . import Folder_traversal_fs, MDAShell, UserAlreadyExistsError, authenticate_user, create_user, initialize
+from . import (Folder_traversal_fs, MDAShell, UserAlreadyExistsError,
+               authenticate_user, create_user, initialize)
 from .analysis.deep_code_analyzer import generate_comprehensive_report
 from .analysis.document_analyzer import DocumentAnalysis, analyze_document
 from .analysis_database import init_db
@@ -135,9 +136,9 @@ def analyze_folder(path: Path) -> dict:
         ValueError: If path is neither a directory nor a ZIP file
         zipfile.BadZipFile: If ZIP file is corrupted
     """
-    from datetime import datetime
     import tempfile
     import zipfile as zipfile_module
+    from datetime import datetime
 
     temp_zip = None
     temp_extract_dir = None
@@ -201,6 +202,7 @@ def analyze_folder(path: Path) -> dict:
             # Direct directory with .git
             try:
                 from .analysis.git_analysis import analyze_project
+
                 git_result = analyze_project(analysis_dir, export_to_file=False)
                 # Add git analysis to first project (assuming single project)
                 if report["projects"]:
@@ -210,8 +212,8 @@ def analyze_folder(path: Path) -> dict:
         elif not analysis_dir:
             # ZIP file - check if it contains .git
             try:
-                with zipfile_module.ZipFile(zip_path, 'r') as zf:
-                    git_files = [f for f in zf.namelist() if '.git/' in f]
+                with zipfile_module.ZipFile(zip_path, "r") as zf:
+                    git_files = [f for f in zf.namelist() if ".git/" in f]
                     if git_files:
                         # Extract to temp directory
                         temp_extract_dir = tempfile.mkdtemp()
@@ -219,13 +221,14 @@ def analyze_folder(path: Path) -> dict:
 
                         # Find the project root (where .git is)
                         git_root = Path(temp_extract_dir)
-                        for item in git_root.rglob('.git'):
+                        for item in git_root.rglob(".git"):
                             if item.is_dir():
                                 git_root = item.parent
                                 break
 
                         # Run git analysis
                         from .analysis.git_analysis import analyze_project
+
                         git_result = analyze_project(git_root, export_to_file=False)
                         if report["projects"]:
                             report["projects"][0]["git_analysis"] = git_result.to_dict()
@@ -247,6 +250,7 @@ def analyze_folder(path: Path) -> dict:
             temp_zip.unlink()
         if temp_extract_dir:
             import shutil
+
             try:
                 shutil.rmtree(temp_extract_dir)
             except Exception:
@@ -1013,11 +1017,28 @@ def main() -> int:
 
             # Run LLM analysis
             try:
+                from rich.progress import (BarColumn, Progress, SpinnerColumn,
+                                           TaskProgressColumn, TextColumn)
+
                 from .analysis.llm_pipeline import run_gemini_analysis
 
                 print(f"\n[*] Running AI-powered analysis on: {path}")
-                print("This may take a few moments...")
-                results = run_gemini_analysis(path, args.prompt)
+
+                results = {}
+                with Progress(
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    BarColumn(),
+                    TaskProgressColumn(),
+                    transient=True,
+                ) as progress:
+                    task = progress.add_task("Starting analysis...", total=100)
+
+                    def cli_progress_callback(current, total, msg):
+                        percent = (current / total) * 100 if total > 0 else 0
+                        progress.update(task, completed=percent, description=msg)
+
+                    results = run_gemini_analysis(path, prompt_override=args.prompt, progress_callback=cli_progress_callback)
 
                 # Display standard analysis
                 display_analysis(results)
@@ -1082,7 +1103,8 @@ def main() -> int:
                 return 1
         elif args.command == "timeline":
             # No login/consent required to view previously stored aggregate timelines
-            from .analysis.chronology import get_projects_timeline, get_skills_timeline
+            from .analysis.chronology import (get_projects_timeline,
+                                              get_skills_timeline)
 
             try:
                 init_db()

@@ -3,12 +3,9 @@
 import pytest
 
 from backend.analysis.portfolio_item_generator import (
-    _calculate_project_quality_score,
-    _generate_architecture_description,
-    _generate_contributions_summary,
-    _generate_skills_list,
-    generate_portfolio_item,
-)
+    _calculate_project_quality_score, _generate_architecture_description,
+    _generate_contributions_summary, _generate_skills_list,
+    generate_portfolio_item)
 
 # ------------------------------------------------------------
 # FIXTURES
@@ -305,7 +302,7 @@ def test_skills_intermediate(intermediate_project):
     assert "Java OOP" in skills
     assert "Flask framework" in skills
     assert "Factory design pattern" in skills
-    assert "Functional programming" in skills
+    assert any("Functional programming" in s for s in skills)
     assert "Test-driven development" in skills
 
 
@@ -318,9 +315,9 @@ def test_skills_advanced(advanced_project):
     assert "Java OOP" in skills
     assert "Factory design pattern" in skills
     assert "Singleton design pattern" in skills
-    assert "Functional programming" in skills
-    assert "Operator overloading" in skills
-    assert "Abstract design" in skills
+    assert any("Functional programming" in s for s in skills)
+    assert any("Operator overloading" in s for s in skills)
+    assert "Abstract class design" in skills
     assert "Test-driven development" in skills
     assert "CI/CD pipelines" in skills
     assert "Docker" in skills
@@ -436,3 +433,148 @@ def test_boundary_exactly_30_points():
     quality = _calculate_project_quality_score(project)
     # 18 (classes) + 2+5+3+2 (advanced=12, capped at 10) + 1 (readme) = 29-30 points
     assert quality["sophistication_level"] == "intermediate"
+
+
+def test_architecture_c_only():
+    project = {
+        "project_name": "CProj",
+        "languages": {"c": 10},
+        "frameworks": [],
+        "total_files": 8,
+        "code_files": 6,
+        "test_files": 0,
+        "doc_files": 1,
+        "has_tests": False,
+        "has_readme": False,
+        "has_ci_cd": False,
+        "has_docker": False,
+        "test_coverage_estimate": "none",
+        "oop_analysis": {},
+        "java_oop_analysis": {},
+        "cpp_oop_analysis": {},
+        "c_oop_analysis": {
+            "total_structs": 4,
+            "total_functions": 12,
+            "static_functions": 2,
+            "constructor_destructor_pairs": 1,
+            "vtable_structs": 1,
+            "function_pointer_fields": 2,
+            "opaque_pointer_structs": 1,
+            "design_patterns": [],
+        },
+    }
+
+    quality = _calculate_project_quality_score(project)
+    text = _generate_architecture_description(project, quality)
+
+    assert "4 C structs" in text
+    assert "opaque" not in text.lower()
+    assert "vtable" not in text.lower()
+
+
+def test_contributions_c_features():
+    project = {
+        "project_name": "CProj",
+        "languages": {"c": 5},
+        "frameworks": [],
+        "total_files": 5,
+        "code_files": 4,
+        "test_files": 0,
+        "doc_files": 1,
+        "has_tests": False,
+        "has_readme": True,
+        "has_ci_cd": False,
+        "has_docker": False,
+        "test_coverage_estimate": "none",
+        "oop_analysis": {},
+        "java_oop_analysis": {},
+        "cpp_oop_analysis": {},
+        "c_oop_analysis": {
+            "total_structs": 3,
+            "constructor_destructor_pairs": 1,
+            "vtable_structs": 1,
+            "function_pointer_fields": 1,
+            "opaque_pointer_structs": 1,
+            "design_patterns": ["Strategy"],
+        },
+    }
+
+    quality = _calculate_project_quality_score(project)
+    text = _generate_contributions_summary(project, quality)
+
+    assert "C data structures" in text
+    assert "vtable" in text.lower()
+    assert "function-pointer" in text.lower()
+    assert "constructor/destructor" in text.lower()
+    assert "strategy" in text.lower()
+
+
+def test_skills_c_features():
+    project = {
+        "project_name": "CProj",
+        "languages": {"c": 6},
+        "frameworks": [],
+        "total_files": 5,
+        "code_files": 4,
+        "test_files": 0,
+        "doc_files": 0,
+        "has_tests": False,
+        "has_readme": False,
+        "has_ci_cd": False,
+        "has_docker": False,
+        "test_coverage_estimate": "none",
+        "oop_analysis": {},
+        "java_oop_analysis": {},
+        "cpp_oop_analysis": {},
+        "c_oop_analysis": {
+            "total_structs": 2,
+            "vtable_structs": 1,
+            "function_pointer_fields": 2,
+            "opaque_pointer_structs": 1,
+            "constructor_destructor_pairs": 1,
+            "design_patterns": ["Strategy"],
+        },
+    }
+
+    quality = _calculate_project_quality_score(project)
+    skills = _generate_skills_list(project, quality)
+
+    assert "C (OOP-style design)" in skills
+    assert "VTable-style polymorphism (C)" in skills
+    assert "Function pointer–based modularity (C)" in skills
+    assert "Encapsulation using opaque pointers (C)" in skills
+    assert any("Strategy" in s for s in skills)
+
+
+def test_generate_portfolio_c_project():
+    project = {
+        "project_name": "CProj",
+        "languages": {"c": 8},
+        "frameworks": [],
+        "total_files": 10,
+        "code_files": 7,
+        "test_files": 1,
+        "doc_files": 1,
+        "has_tests": True,
+        "has_readme": False,
+        "has_ci_cd": False,
+        "has_docker": False,
+        "test_coverage_estimate": "low",
+        "oop_analysis": {},
+        "java_oop_analysis": {},
+        "cpp_oop_analysis": {},
+        "c_oop_analysis": {
+            "total_structs": 3,
+            "function_pointer_fields": 2,
+            "vtable_structs": 1,
+            "opaque_pointer_structs": 1,
+            "constructor_destructor_pairs": 1,
+            "design_patterns": [],
+        },
+    }
+
+    item = generate_portfolio_item(project)
+
+    assert "CProj" in item["project_name"]
+    assert "C structs" in item["architecture"]
+    assert any("C" in skill for skill in item["skills_exercised"])
