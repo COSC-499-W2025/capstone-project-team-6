@@ -260,3 +260,47 @@ All milestone 1 requirements are met, and the term is complete. Milestone 2 requ
 ---
 
 # Mohamed Sakr
+
+## Date Ranges
+
+December 1-December 7
+![Mohamed Week 14](images/mohamedW14.png)
+
+## Weekly recap goals
+
+- Implement visual progress tracking for LLM analysis
+- Create comprehensive documentation for the AI analysis engine
+- Develop career artifact generation features (resume/portfolio)
+- Work on the milestone 1 presentation and present it
+- Watch other teams presenting and review them
+- Complete the Team contract
+- Finalize all milestone 1 requirements
+- Attend the team meetings
+- Complete the milestone 1 self reflection
+
+## What went well
+
+I successfully implemented a visual progress bar for the LLM-powered code analysis using `rich.progress` in both the standalone pipeline and the CLI. This significantly improved the user experience by replacing verbose scrolling command-line logs with a clean, real-time loading bar that tracks offline analysis, file preparation, uploading, and generation phases. To ensure a seamless UI, I modified the pipeline to temporarily suppress INFO-level logs when the progress bar is active, effectively fixing the "bar per log" issue.
+
+I also authored comprehensive documentation in `docs/DeepSemanticAnalysis.md`, which details the AI analysis engine's architecture, workflow, and features (Architecture, Complexity, Security, Skills, Domain). Furthermore, I introduced the Career Artifact Generation feature with a new `--resume` flag. This allows the LLM to act as a "Senior Technical Career Coach," analyzing the codebase to generate STAR-formatted resume bullet points and portfolio narratives, bridging the gap between code metrics and career assets.
+
+## What didn't go well
+
+Integrating the progress bar with the existing logging infrastructure was challenging. The "bar per log" issue, where every log message would interrupt and reprint the progress bar, required a careful refactor to temporarily suppress specific log levels during the active progress phase. Additionally, plumbing the progress callbacks deep into the `GeminiFileSearchClient` and `run_gemini_analysis` functions to provide accurate real-time updates from within the upload and analysis processes required touching multiple layers of the pipeline, which increased the testing scope to ensure no regressions.
+
+
+## PR's initiated
+- PR #223 LLM Analysis Career Artifact Generation (Resume & Portfolio): https://github.com/COSC-499-W2025/capstone-project-team-6/pull/223
+- PR #208 Deep Semantic Analysis Documentation: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/208
+- PR #206 Progress Bar for LLM Analysis: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/206
+
+
+## PR's reviewed
+- Unit tests for deletion workflow #184: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/184
+- Integrated Optimization Scoring and Git Metadata into Portfolio Item Generator #218: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/218
+- CLI Analysis Integration - Complexity, Resume & Portfolio Features #220: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/220
+
+## Plan for next week
+
+All milestone 1 requirements are met, and the term is complete.
+Milestone 2 requirements will be discussed on the first week of classes in January.
