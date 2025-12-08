@@ -1,8 +1,9 @@
 # Team Contract
-Team Contract can be found at: https://docs.google.com/document/d/1QnISyjm78uy_NUFr6qpKbF3jwdyAV0nqgGjOC47GHT8/edit?usp=sharing
+Team Contract can be found at [here](docs/Capstone Team 6 Contract.pdf). 
+Google Docs link to the team contract: https://docs.google.com/document/d/1QnISyjm78uy_NUFr6qpKbF3jwdyAV0nqgGjOC47GHT8/edit?usp=sharing
 
 
-# Project Work Breakdown Structure
+# Project Work Breakdown Structure 
 
 ## Level-1 Overview
 - **Project Management**
