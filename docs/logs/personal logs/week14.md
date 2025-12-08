@@ -52,6 +52,35 @@ We wrapped milestone 1 and have a short break ahead. I will scan the codebase fo
 
 
 # Aakash Tirithdas
+December 1st - December 6th
+![aakash Week 14](images/aakash-logw14.png)
+
+## Weekly recap goals
+- c analysis integration
+- DFD diagram update
+- system architecture update
+- git analysis integration
+
+## what went well
+- teammate integrated c and git analysis
+- Completed DFD and system archeitecture diagrams
+- refactored part of CLI implementation
+- recorded the video demo
+
+## What didnt go well
+- took a lot of time to get the CLI working ass expected which delayed the video demo
+
+## PR initiated
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/228
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/229
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/227
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/204
+- 
+
+## PR reviewed
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/200
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/206
+
 
 ---
 
