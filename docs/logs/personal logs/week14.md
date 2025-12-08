@@ -212,6 +212,51 @@ All Milestone 1 requirements are met, and the term is complete. Milestone 2 requ
 
 # Harjot Sahota
 
+<img width="1081" height="637" alt="Screenshot 2025-12-07 at 7 03 39 PM" src="https://github.com/user-attachments/assets/f5fae536-8e01-4dc9-8b62-f63ade6e590d" />
+
+## Date Ranges
+December 1 - December 7
+
+## Weekly recap goals
+- Fully integrated C++ OOP analysis into the portfolio generator, including metrics, design features, and narrative generation.
+- Added complete C OOP analysis, detecting structs, function pointers, manual polymorphism, and memory management patterns.
+- Updated portfolio architecture, contributions, skills, and summaries to support mixed language projects (C, C++, Python, Java (before it was just Python/Java)).
+- Expanded the test suite with new C/C++ test cases and updated existing tests, ensured all tests pass.
+- Restored and reintegrated portfolio item generation into the main analysis pipeline.
+- Implemented optimization scoring (basic to advanced tiers) into the project quality scoring system.
+- Added optimization awareness to architecture descriptions, contribution summaries, skills lists, and full portfolio summaries.
+- Integrated Git metadata (commits, branches, contributors) into portfolio generation when project activity meets thresholds.
+
+## What went well
+The integration of the C and C++ analyzers blended smoothly into the existing portfolio generation pipeline, and importantly, nothing broke during the transition. The portfolio outputs became noticeably richer and more accurate, especially for projects that mix multiple languages. The new optimization scoring system worked exactly as intended, it provided meaningful differentiation between basic and advanced projects without artificially inflating weaker ones.
+
+Adding Git metadata was also a strong improvement, as it made the portfolio descriptions feel more realistic and resume ready by capturing real workflow activity. The expanded test suite performed well and caught compatibility issues early, and with all tests passing, the system’s stability is clear. Manual testing further confirmed that the analyzers and optimization features behave correctly end-to-end.
+
+my project reviewers specifically highlighted that the output text is now clearer, more detailed, and better structured. Overall, the collaboration went smoothly, and the changes strengthened both the accuracy and professionalism of the portfolio generator. 
+
+## What didn't go well
+A previous pull request unintentionally deleted a portion of my code, the part of the `analyze.py` flow responsible for triggering portfolio generation. As a result, the script continued to generate resumes but no longer produced portfolio items, which caused a lot of confusion when I tested the pipeline. After investigating, I traced the issue back to an earlier PR and restored the missing logic by re-adding my original code. I also brought this to the group’s attention so we could establish a clearer practice of thoroughly reviewing PRs before merging to prevent accidental removals in the future. Although this was not planned it was a great learning expirience because mistakes can happen, but we as a group can learn from them!
+
+## PR's initiated
+<img width="1219" height="139" alt="Screenshot 2025-12-07 at 7 07 40 PM" src="https://github.com/user-attachments/assets/8169e996-61c6-4953-84a9-c6bfa25676f0" />
+
+- Extended Portfolio Item Generator with Full C++ & C OOP-Style Integration https://github.com/COSC-499-W2025/capstone-project-team-6/pull/211
+- Integrated Optimization Scoring and Git Metadata into Portfolio Item Generator https://github.com/COSC-499-W2025/capstone-project-team-6/pull/218
+
+## PR's reviewed
+<img width="1229" height="520" alt="Screenshot 2025-12-07 at 7 11 28 PM" src="https://github.com/user-attachments/assets/cf1d4227-54a2-4cf2-a958-2a269f417166" />
+
+- Retrieve previously generated résumé items https://github.com/COSC-499-W2025/capstone-project-team-6/pull/201
+- Git analysis CLI integration https://github.com/COSC-499-W2025/capstone-project-team-6/pull/203
+- Progress Bar for LLM Analysis https://github.com/COSC-499-W2025/capstone-project-team-6/pull/206
+- Project chronology 2.0 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/213
+- CLI Analysis Integration - Complexity, Resume & Portfolio Features https://github.com/COSC-499-W2025/capstone-project-team-6/pull/220
+- LLM Analysis Career Artifact Generation (Resume & Portfolio) https://github.com/COSC-499-W2025/capstone-project-team-6/pull/223
+- updated logs for w14 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/230
+
+## Plan for next week
+All milestone 1 requirements are met, and the term is complete. Milestone 2 requirements will be discussed on the first week of classes in January.
+
 ---
 
 # Mohamed Sakr
