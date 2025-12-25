@@ -9,6 +9,7 @@ This module provides functionality to:
 """
 
 import json
+import os
 import re
 import subprocess
 from dataclasses import asdict, dataclass, field
@@ -37,6 +38,32 @@ class ContributorStats:
     percentage: float
     first_commit_date: Optional[str] = None
     last_commit_date: Optional[str] = None
+
+
+@dataclass
+class FileOwnership:
+    """
+    Ownership information for a single file based on git blame.
+    """
+
+    path: str
+    dominant_author: str
+    dominant_email: str
+    ownership_percentage: float
+    total_lines: int
+
+
+@dataclass
+class ContributorSemanticStats:
+    """
+    Semantic contribution stats for a contributor.
+    """
+
+    name: str
+    email: str
+    trivial_commits: int = 0
+    substantial_commits: int = 0
+    total_lines_changed: int = 0
 
 
 @dataclass
@@ -82,6 +109,11 @@ class GitAnalysisResult:
     remote_urls: List[str] = field(default_factory=list)
     error_message: Optional[str] = None
     api_data: Optional[Dict] = None
+    code_ownership: List[Dict] = field(default_factory=list)
+    blame_summary: Dict[str, int] = field(default_factory=dict)
+    language_breakdown: Dict[str, Dict[str, int]] = field(default_factory=dict)
+    semantic_summary: Dict[str, Dict[str, Union[int, str]]] = field(default_factory=dict)
+    contribution_volume: Dict[str, int] = field(default_factory=dict)
 
     def to_dict(self) -> Dict:
         """
@@ -94,8 +126,16 @@ class GitAnalysisResult:
             result["contributors"] = [asdict(c) if not isinstance(c, dict) else c for c in self.contributors]
         if self.target_user_stats:
             result["target_user_stats"] = (
-                asdict(self.target_user_stats) if not isinstance(self.target_user_stats, dict) else self.target_user_stats
+                asdict(self.target_user_stats)
+                if not isinstance(self.target_user_stats, dict)
+                else self.target_user_stats
             )
+        if self.code_ownership:
+            result["code_ownership"] = [asdict(c) if not isinstance(c, dict) else c for c in self.code_ownership]
+        if self.semantic_summary:
+            result["semantic_summary"] = {
+                k: (asdict(v) if not isinstance(v, dict) else v) for k, v in self.semantic_summary.items()
+            }
         return result
 
 
@@ -160,6 +200,22 @@ class GitAnalyzer:
             result.error_message = f"Error getting contributor stats: {str(e)}"
             return result
 
+        # language and semantic contribution breakdown
+        try:
+            (
+                result.language_breakdown,
+                result.semantic_summary,
+                result.contribution_volume,
+            ) = self.get_language_and_semantic_stats()
+        except Exception as e:
+            print(f"Warning: Could not get language/semantic stats: {e}")
+
+        # code ownership and blame-based surviving lines
+        try:
+            result.code_ownership, result.blame_summary = self.get_code_ownership()
+        except Exception as e:
+            print(f"Warning: Could not get code ownership stats: {e}")
+
         # solo or collaborative project
         result.is_solo_project = result.total_contributors == 1
         result.is_collaborative = result.total_contributors > 1
@@ -217,6 +273,9 @@ class GitAnalyzer:
             Command output as string, or None if command failed
         """
         try:
+            env = os.environ.copy()
+            env["GIT_DIR"] = str(self.git_dir)
+            env["GIT_WORK_TREE"] = str(self.project_path)
             result = subprocess.run(
                 ["git"] + args,
                 cwd=self.project_path,
@@ -225,6 +284,7 @@ class GitAnalyzer:
                 encoding="utf-8",
                 errors="replace",
                 timeout=timeout,
+                env=env,
             )
 
             if result.returncode == 0:
@@ -286,6 +346,8 @@ class GitAnalyzer:
 
                 # normalize email
                 normalized_email = self.normalize_email(email)
+                if self.is_noreply_email(normalized_email):
+                    continue
 
                 if normalized_email not in email_to_data:
                     email_to_data[normalized_email] = {"names": [], "commit_count": 0, "original_email": email}
@@ -394,9 +456,19 @@ class GitAnalyzer:
         """
         email = email.lower().strip()
 
-        # GitHub noreply emails: "12345+username@users.noreply.github.com"
+        # GitHub noreply emails can appear as "12345+username@users.noreply.github.com"
+        # Normalize by removing numeric prefix so aliases collapse.
+        match = re.match(r"^(\d+\+)([^@]+@users\.noreply\.github\.com)$", email)
+        if match:
+            return match.group(2)
 
         return email
+
+    def is_noreply_email(self, email: str) -> bool:
+        """
+        Identify GitHub noreply addresses that should be excluded from contributor stats.
+        """
+        return email.endswith("@users.noreply.github.com")
 
     def choose_best_name(self, names: List[str]) -> str:
         """
@@ -417,6 +489,9 @@ class GitAnalyzer:
 
         most_common = name_counts.most_common()
 
+        if len(most_common) == 1:
+            return most_common[0][0]
+
         if most_common[0][1] > most_common[1][1]:
             return most_common[0][0]
 
@@ -427,6 +502,175 @@ class GitAnalyzer:
             return max(capitalized, key=len)
 
         return max(top_names, key=len)
+
+    def get_language_from_filename(self, filename: str) -> str:
+        """
+        Infer language/category from file extension for contribution breakdown.
+        """
+        ext = Path(filename).suffix.lower()
+        mapping = {
+            ".py": "Python",
+            ".sql": "SQL",
+            ".ts": "TypeScript",
+            ".tsx": "TypeScript",
+            ".js": "JavaScript",
+            ".jsx": "JavaScript",
+            ".css": "CSS",
+            ".scss": "CSS",
+            ".md": "Markdown",
+            ".rst": "ReStructuredText",
+            ".java": "Java",
+            ".go": "Go",
+            ".rb": "Ruby",
+        }
+        return mapping.get(ext, "Other")
+
+    def get_language_and_semantic_stats(self) -> tuple[Dict, Dict, Dict]:
+        """
+        Calculate language breakdown, semantic contribution, and volume by contributor.
+
+        Returns:
+            language_breakdown: {email: {language: lines_changed}}
+            semantic_summary: {email: ContributorSemanticStats}
+            contribution_volume: {email: total_lines_changed}
+        """
+        output = self.run_git_command(["log", "--all", "--numstat", "--format=%H|%an|%ae|%s"])
+        if not output:
+            return {}, {}, {}
+
+        language_breakdown: Dict[str, Dict[str, int]] = {}
+        semantic_summary: Dict[str, ContributorSemanticStats] = {}
+        contribution_volume: Dict[str, int] = {}
+
+        current_author = None
+        current_email = None
+        current_message = ""
+        lines_changed_this_commit = 0
+
+        def commit_complete():
+            if current_email is None:
+                return
+            # classify semantic weight
+            normalized_email = self.normalize_email(current_email)
+            if self.is_noreply_email(normalized_email):
+                return
+            stats = semantic_summary.setdefault(
+                normalized_email,
+                ContributorSemanticStats(
+                    name=current_author if current_author else "Unknown",
+                    email=current_email,
+                ),
+            )
+            is_trivial_keyword = any(k in current_message.lower() for k in ["typo", "docs", "readme", "comment", "fmt"])
+            if lines_changed_this_commit <= 5 or is_trivial_keyword:
+                stats.trivial_commits += 1
+            else:
+                stats.substantial_commits += 1
+            stats.total_lines_changed += lines_changed_this_commit
+            contribution_volume[normalized_email] = contribution_volume.get(normalized_email, 0) + lines_changed_this_commit
+
+        for line in output.splitlines():
+            if "|" in line and line.count("|") >= 3 and not line.startswith(" "):
+                # finish previous commit
+                commit_complete()
+                parts = line.split("|", 3)
+                current_author = parts[1]
+                current_email = parts[2]
+                current_message = parts[3]
+                lines_changed_this_commit = 0
+                continue
+
+            if not line.strip():
+                continue
+
+            numstat_parts = line.split("\t")
+            if len(numstat_parts) != 3:
+                continue
+            added, deleted, filename = numstat_parts
+            if added == "-" or deleted == "-":
+                continue  # binary file
+            try:
+                added_int = int(added)
+                deleted_int = int(deleted)
+            except ValueError:
+                continue
+
+            lines_changed = added_int + deleted_int
+            lines_changed_this_commit += lines_changed
+
+            language = self.get_language_from_filename(filename)
+            normalized_email = self.normalize_email(current_email) if current_email else "unknown"
+            if self.is_noreply_email(normalized_email):
+                continue
+            author_langs = language_breakdown.setdefault(normalized_email, {})
+            author_langs[language] = author_langs.get(language, 0) + lines_changed
+
+        # final commit
+        commit_complete()
+
+        semantic_summary_output = {email: asdict(stats) for email, stats in semantic_summary.items()}
+
+        return language_breakdown, semantic_summary_output, contribution_volume
+
+    def get_code_ownership(self) -> tuple[List[FileOwnership], Dict[str, int]]:
+        """
+        Determine file-level code ownership and surviving lines by author using git blame.
+
+        Returns:
+            (ownership_list, blame_summary)
+        """
+        file_list_output = self.run_git_command(["ls-tree", "-r", "--name-only", "HEAD"])
+        if not file_list_output:
+            return [], {}
+
+        ownership: List[FileOwnership] = []
+        blame_summary: Dict[str, int] = {}
+
+        for filename in file_list_output.splitlines():
+            blame_output = self.run_git_command(["blame", "--line-porcelain", filename])
+            if not blame_output:
+                continue
+
+            author_counts: Dict[str, int] = {}
+            author_names: Dict[str, str] = {}
+            current_author_name = "Unknown"
+
+            for line in blame_output.splitlines():
+                if line.startswith("author-mail"):
+                    email = line.split("<")[-1].rstrip(">")
+                    normalized_email = self.normalize_email(email)
+                    if self.is_noreply_email(normalized_email):
+                        continue
+                    author_counts[normalized_email] = author_counts.get(normalized_email, 0) + 1
+                    if current_author_name:
+                        author_names[normalized_email] = current_author_name
+                elif line.startswith("author "):
+                    current_author_name = line.split(" ", 1)[1]
+
+            total_lines = sum(author_counts.values())
+            if not total_lines:
+                continue
+
+            dominant_email = max(author_counts, key=author_counts.get)
+            dominant_lines = author_counts[dominant_email]
+            ownership_percentage = round((dominant_lines / total_lines) * 100, 2)
+
+            dominant_name = author_names.get(dominant_email, "Unknown")
+
+            ownership.append(
+                FileOwnership(
+                    path=filename,
+                    dominant_author=dominant_name,
+                    dominant_email=dominant_email,
+                    ownership_percentage=ownership_percentage,
+                    total_lines=total_lines,
+                )
+            )
+
+            for email, count in author_counts.items():
+                blame_summary[email] = blame_summary.get(email, 0) + count
+
+        return ownership, blame_summary
 
     def get_primary_branch(self) -> Optional[str]:
         """
