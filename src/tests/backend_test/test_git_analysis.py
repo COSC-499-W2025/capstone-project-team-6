@@ -439,6 +439,27 @@ def semantic_repo(temp_dir):
 
 
 @pytest.fixture
+def multi_language_repo(temp_dir):
+    """
+    Repository containing various language/file types to validate language mapping.
+    """
+    repo_path = temp_dir / "multi_language_repo"
+    repo_path.mkdir()
+    init_git_repo(repo_path)
+
+    create_commit(repo_path, "Poly Dev", "poly@dev.com", "Add python", "script.py", content="print('hi')\nprint('bye')\n")
+    create_commit(repo_path, "Poly Dev", "poly@dev.com", "Add typescript", "ui.tsx", content="export const X = 1;\n")
+    create_commit(repo_path, "Poly Dev", "poly@dev.com", "Add css", "styles.css", content="body { color: red; }\n")
+    create_commit(repo_path, "Poly Dev", "poly@dev.com", "Add go", "main.go", content="package main\nfunc main() {}\n")
+    create_commit(repo_path, "Poly Dev", "poly@dev.com", "Add rust", "lib.rs", content="fn main() {}\n")
+    create_commit(repo_path, "Poly Dev", "poly@dev.com", "Add yaml", "cfg.yaml", content="a: 1\nb: 2\n")
+    create_commit(repo_path, "Poly Dev", "poly@dev.com", "Add json", "data.json", content='{"a":1}\n')
+    create_commit(repo_path, "Poly Dev", "poly@dev.com", "Add dockerfile", "Dockerfile", content="FROM scratch\n")
+
+    return repo_path
+
+
+@pytest.fixture
 def temp_output_dir(temp_dir):
     """
     Create a temporary output directory for JSON exports.
@@ -1006,6 +1027,18 @@ def test_contribution_volume_counts(language_mix_repo):
     assert result.contribution_volume.get("alice@backend.com", 0) > 0
     assert result.contribution_volume.get("bob@frontend.com", 0) > 0
     assert result.contribution_volume["alice@backend.com"] != result.contribution_volume["bob@frontend.com"]
+
+
+def test_language_mapping_multi_language_repo(multi_language_repo):
+    """Language mapping should classify common extensions instead of Other."""
+    analyzer = GitAnalyzer(multi_language_repo)
+    result = analyzer.analyze()
+
+    langs = result.language_breakdown.get("poly@dev.com", {})
+    expected = ["Python", "TypeScript", "CSS", "Go", "Rust", "YAML", "JSON", "Dockerfile"]
+
+    for lang in expected:
+        assert lang in langs, f"Missing language bucket: {lang}"
 
 
 # =============================================================================

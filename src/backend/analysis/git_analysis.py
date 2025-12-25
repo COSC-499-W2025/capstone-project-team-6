@@ -507,21 +507,65 @@ class GitAnalyzer:
         """
         Infer language/category from file extension for contribution breakdown.
         """
-        ext = Path(filename).suffix.lower()
+        path = Path(filename)
+        ext = path.suffix.lower()
+        name = path.name.lower()
+
+        if name == "dockerfile":
+            return "Dockerfile"
+        if name == "makefile":
+            return "Makefile"
+
         mapping = {
             ".py": "Python",
+            ".ipynb": "Python",
             ".sql": "SQL",
             ".ts": "TypeScript",
             ".tsx": "TypeScript",
             ".js": "JavaScript",
             ".jsx": "JavaScript",
+            ".mjs": "JavaScript",
+            ".cjs": "JavaScript",
             ".css": "CSS",
             ".scss": "CSS",
+            ".sass": "CSS",
+            ".less": "CSS",
             ".md": "Markdown",
-            ".rst": "ReStructuredText",
+            ".rst": "Markdown",
             ".java": "Java",
+            ".kt": "Kotlin",
+            ".kts": "Kotlin",
             ".go": "Go",
             ".rb": "Ruby",
+            ".php": "PHP",
+            ".swift": "Swift",
+            ".rs": "Rust",
+            ".c": "C",
+            ".h": "C",
+            ".cpp": "C++",
+            ".cc": "C++",
+            ".cxx": "C++",
+            ".hpp": "C++",
+            ".hh": "C++",
+            ".m": "Objective-C",
+            ".mm": "Objective-C++",
+            ".cs": "C#",
+            ".sh": "Shell",
+            ".bash": "Shell",
+            ".zsh": "Shell",
+            ".fish": "Shell",
+            ".json": "JSON",
+            ".yml": "YAML",
+            ".yaml": "YAML",
+            ".toml": "TOML",
+            ".ini": "INI",
+            ".cfg": "INI",
+            ".env": "Config",
+            ".gradle": "Groovy",
+            ".groovy": "Groovy",
+            ".lua": "Lua",
+            ".dart": "Dart",
+            ".scala": "Scala",
         }
         return mapping.get(ext, "Other")
 
