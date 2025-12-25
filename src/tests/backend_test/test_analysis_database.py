@@ -8,10 +8,12 @@ from pathlib import Path
 
 import pytest
 
-# Add src directory to path for imports
+# Add src directory (and project root) to path for imports
 SRC_DIR = Path(__file__).resolve().parent.parent.parent
-if str(SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(SRC_DIR))
+PROJECT_ROOT = SRC_DIR.parent
+for p in (SRC_DIR, PROJECT_ROOT):
+    if str(p) not in sys.path:
+        sys.path.insert(0, str(p))
 
 from src.backend import analysis_database as adb
 
@@ -276,6 +278,135 @@ def test_project_analysis_stored_in_db(temp_analysis_db):
         assert {row["dependency"] for row in backend_deps} == {"flask", "sqlalchemy", "pytest", "black"}
 
 
+def test_git_extended_fields_persisted(temp_analysis_db):
+    payload = {
+        "analysis_metadata": {
+            "zip_file": "git.zip",
+            "analysis_timestamp": "2025-12-25T15:00:00",
+            "total_projects": 1,
+        },
+        "projects": [
+            {
+                "project_name": "gitproj",
+                "project_path": "/gitproj",
+                "primary_language": "python",
+                "languages": {"python": 5},
+                "total_files": 5,
+                "total_size": 1024,
+                "code_files": 5,
+                "test_files": 0,
+                "doc_files": 0,
+                "config_files": 0,
+                "frameworks": [],
+                "dependencies": {},
+                "has_tests": False,
+                "has_readme": True,
+                "has_ci_cd": False,
+                "has_docker": False,
+                "is_git_repo": True,
+                "total_commits": 10,
+                "primary_branch": "main",
+                "total_branches": 3,
+                "has_remote": True,
+                "remote_urls": ["https://example.com/repo.git"],
+                "code_ownership": [
+                    {
+                        "path": "a.py",
+                        "dominant_author": "Alice",
+                        "dominant_email": "alice@example.com",
+                        "ownership_percentage": 75.0,
+                        "total_lines": 40,
+                    }
+                ],
+                "blame_summary": {"alice@example.com": 40, "bob@example.com": 10},
+                "language_breakdown": {
+                    "alice@example.com": {"Python": 50},
+                    "bob@example.com": {"Python": 10},
+                },
+                "semantic_summary": {
+                    "alice@example.com": {
+                        "name": "Alice",
+                        "trivial_commits": 1,
+                        "substantial_commits": 2,
+                        "total_lines_changed": 50,
+                    }
+                },
+                "contribution_volume": {"alice@example.com": 50, "bob@example.com": 10},
+                "directory_depth": 2,
+            }
+        ],
+    }
+
+    analysis_id = adb.record_analysis("non_llm", payload)
+    projects = adb.get_projects_for_analysis(analysis_id)
+    assert len(projects) == 1
+    project = projects[0]
+    assert project["primary_branch"] == "main"
+    assert project["total_branches"] == 3
+    assert project["has_remote"] == 1
+
+    with adb.get_connection() as conn:
+        remotes = conn.execute(
+            "SELECT url FROM project_remote_urls WHERE project_id = ?", (project["id"],)
+        ).fetchall()
+        assert {row["url"] for row in remotes} == {"https://example.com/repo.git"}
+
+        ownership = conn.execute(
+            """
+            SELECT path, dominant_author, dominant_email, ownership_percentage, total_lines
+            FROM project_code_ownership WHERE project_id = ?
+            """,
+            (project["id"],),
+        ).fetchall()
+        assert len(ownership) == 1
+        assert ownership[0]["path"] == "a.py"
+        assert ownership[0]["dominant_email"] == "alice@example.com"
+        assert ownership[0]["ownership_percentage"] == pytest.approx(75.0)
+        assert ownership[0]["total_lines"] == 40
+
+        blame = conn.execute(
+            "SELECT email, surviving_lines FROM project_blame_summary WHERE project_id = ?",
+            (project["id"],),
+        ).fetchall()
+        assert {(row["email"], row["surviving_lines"]) for row in blame} == {
+            ("alice@example.com", 40),
+            ("bob@example.com", 10),
+        }
+
+        lang_bd = conn.execute(
+            """
+            SELECT email, language, lines_changed
+            FROM project_language_breakdown WHERE project_id = ?
+            """,
+            (project["id"],),
+        ).fetchall()
+        assert {(row["email"], row["language"], row["lines_changed"]) for row in lang_bd} == {
+            ("alice@example.com", "Python", 50),
+            ("bob@example.com", "Python", 10),
+        }
+
+        semantic = conn.execute(
+            """
+            SELECT email, name, trivial_commits, substantial_commits, total_lines_changed
+            FROM project_semantic_summary WHERE project_id = ?
+            """,
+            (project["id"],),
+        ).fetchall()
+        assert len(semantic) == 1
+        row = semantic[0]
+        assert row["email"] == "alice@example.com"
+        assert row["trivial_commits"] == 1
+        assert row["substantial_commits"] == 2
+        assert row["total_lines_changed"] == 50
+
+        volume = conn.execute(
+            "SELECT email, lines_changed FROM project_contribution_volume WHERE project_id = ?",
+            (project["id"],),
+        ).fetchall()
+        assert {(row["email"], row["lines_changed"]) for row in volume} == {
+            ("alice@example.com", 50),
+            ("bob@example.com", 10),
+        }
 def test_get_analysis_by_zip_file(temp_analysis_db):
     """Test retrieving analysis by zip file path."""
     zip_file_path = "/path/to/test_project.zip"
