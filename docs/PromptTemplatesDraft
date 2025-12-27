@@ -1,0 +1,382 @@
+
+# Mining Digital Work Artifacts: RAG-Driven LLM Prompts for Project Analysis  
+*Academic Overview and Prompt Templates for Milestone 1 Implementation*
+
+---
+
+## 1. Introduction
+
+This document outlines the core analysis tasks required by the **Mining Digital Work Artifacts** project, as defined in Milestone 1. Each task is accompanied by an example prompt template suitable for integration into a **Retrieval-Augmented Generation (RAG)** pipeline using a local or cloud-based Large Language Model (LLM). The goal is to ensure accurate, structured, and privacy-aware extraction of insights from archived project files.
+
+This workflow assumes the following:
+
+- A zipped folder containing nested project files (code, documents, assets) is submitted by the user.
+- Consent must be secured before processing.
+- Project data may be retrieved and chunked locally before being processed by an LLM.
+- Where cloud services are involved, the user must explicitly grant permission for external data transmission.
+
+---
+
+## 2. Core Tasks, Descriptions, and Prompt Templates
+
+---
+
+### Task 1: User Consent and Configuration
+
+#### Description
+The system must request explicit user consent before accessing or analyzing any project data. Consent must include privacy-related disclosures, particularly where external processing or transmission to cloud services is involved. The system must also store user preferences for later use.
+
+#### Prompt Template
+```plaintext
+SYSTEM PROMPT:
+You are a privacy-aware assistant guiding users through consent and configuration for local project analysis. Ensure that users are fully informed of data access implications.
+
+USER INPUT:
+{user_message}
+
+ASSISTANT RESPONSE TEMPLATE:
+Before I can analyze the contents of your local project files, I need your explicit consent to proceed.
+Please confirm:
+1. That I may access and process the files in the specified folder or zip.
+2. Whether I am allowed to send any data excerpts to a cloud-based AI service for deeper analysis (yes/no).
+
+Reply with "YES" to proceed or "NO" to cancel.
+
+Once consent is given, I will ask for your:
+- Preferred storage format for analysis results (JSON, CSV, local DB)
+- Preference for local vs. external LLM processing
+```
+
+----------
+
+### **Task 2: Parsing and Validating Uploaded Files**
+
+  
+
+#### **Description**
+
+Validate that the uploaded artifact is a  .zip  file. Recursively extract and scan directories, collecting high-level file metadata such as names, paths, types, timestamps, and sizes.
+
+  
+
+#### **Prompt Template**
+
+```
+SYSTEM PROMPT:
+You are a file analysis assistant. Given a list of file paths and related metadata from a zip archive, return a JSON structure summarizing file type, size, timestamp, and namespace.
+
+INPUT:
+{file_list_with_paths_and_sizes}
+
+ASSISTANT RESPONSE TEMPLATE:
+Parse the following file list and return a valid JSON array with fields:
+- file_name
+- full_path
+- file_type (code, document, test, config, asset, other)
+- file_size
+- created_or_modified_timestamp
+
+Only return JSON. Do not include explanations.
+```
+
+----------
+
+### **Task 3: Project Identification**
+
+  
+
+#### **Description**
+
+Group artifacts into distinct projects based on folder structure and content. Identify whether each project is individual or collaborative based on metadata (e.g., commit authorship, number of contributors, or evident project structure).
+
+  
+
+#### **Prompt Template**
+
+```
+SYSTEM PROMPT:
+You are a system that infers project boundaries and structure in a directory tree.
+
+INPUT:
+{nested_directory_structure}
+
+ASSISTANT RESPONSE TEMPLATE:
+Analyze the directory structure and group files into projects. For each project, return:
+- project_name
+- root_directory
+- file_count
+- probable_project_type (e.g., monorepo, web app, machine learning model)
+- collaboration_type (individual or collaborative)
+
+Output as structured JSON only.
+```
+
+----------
+
+### **Task 4: Programming Language and Framework Detection**
+
+  
+
+#### **Description**
+
+Analyze code, file extensions, manifest files (package.json,  requirements.txt, etc.) to determine project languages and frameworks.
+
+  
+
+#### **Prompt Template**
+
+```
+SYSTEM PROMPT:
+You are a language and framework detection assistant.
+
+INPUT:
+{sample_file_contents_and_dependent_manifests}
+
+ASSISTANT RESPONSE TEMPLATE:
+From the input, detect:
+- Main programming languages
+- Primary frameworks or libraries in use
+- Relevant version or package files
+
+Structure your response as:
+{
+  "languages": [...],
+  "frameworks": [...],
+  "libraries": [...],
+  "detected_from": {
+    "file": "path/to/file",
+    "line_number": ...
+  }
+}
+```
+
+----------
+
+### **Task 5: Contribution Analysis**
+
+  
+
+#### **Description**
+
+For collaborative projects, estimate individual contributions by parsing git logs, commit metadata, or code ownership heuristics. Categorize contributions (code, tests, documentation, etc.) and calculate summary metrics such as commit count or lines changed.
+
+  
+
+#### **Prompt Template**
+
+```
+SYSTEM PROMPT:
+You are an LLM for collaborative code analysis based on commit logs.
+
+INPUT:
+{git_logs_and_commit_statistics}
+
+ASSISTANT RESPONSE TEMPLATE:
+Estimate contribution per user by calculating:
+- Commit count
+- File ownership percentage
+- Total lines added/removed
+- Activity categories (code, tests, docs, assets)
+
+Output as:
+{
+  "contributors": [
+    {
+      "name": "...",
+      "commits": ...,
+      "lines_changed": ...,
+      "primary_contribution_type": "...",
+      "contribution_summary": "..."
+    }
+  ]
+}
+```
+
+----------
+
+### **Task 6: Extracting Skills and Technologies**
+
+  
+
+#### **Description**
+
+Identify skills, coding styles, and tools demonstrated in the project. Skills may be inferred from dependency imports, code patterns, comments, or metadata.
+
+  
+
+#### **Prompt Template**
+
+```
+SYSTEM PROMPT:
+You are a skills extraction assistant.
+
+INPUT:
+{code_snippets_and_dependency_metadata}
+
+ASSISTANT RESPONSE TEMPLATE:
+Identify technical skills and knowledge areas demonstrated in the provided content.
+Return the output in JSON:
+{
+  "skills": ["Python", "Docker", "REST API design", ...],
+  "evidence": [
+    {
+      "skill": "Docker",
+      "source": "path/to/Dockerfile",
+      "line": 1
+    },
+    ...
+  ]
+}
+```
+
+----------
+
+### **Task 7: Activity and Timeline Analysis**
+
+  
+
+#### **Description**
+
+Compute overall project duration and extract meaningful timestamps to determine active periods and inactivity phases. Organize activity by content type (e.g., code, tests, design).
+
+  
+
+#### **Prompt Template**
+
+```
+SYSTEM PROMPT:
+You are an assistant performing timestamp and activity pattern analysis.
+
+INPUT:
+{timestamps_for_files_and_commits}
+
+ASSISTANT RESPONSE TEMPLATE:
+Based on timestamps, determine:
+- Project start date
+- Latest edit date
+- Active duration
+- Activity frequency (code/test/docs)
+
+Return JSON with duration fields and a histogram-like structure.
+```
+
+----------
+
+### **Task 8: Summarizing and Ranking Projects**
+
+  
+
+#### **Description**
+
+Rank user projects based on contribution, complexity, or recency. Generate short summaries for top-ranked items suitable for portfolio pages or résumé insertion.
+
+  
+
+#### **Prompt Template**
+
+```
+SYSTEM PROMPT:
+You are an assistant ranking projects based on extracted metadata.
+
+INPUT:
+{project_metrics_and_contribution_data}
+
+ASSISTANT RESPONSE TEMPLATE:
+Rank the projects using a 0-100 score based on complexity, contribution, and recency.
+Return top results in JSON:
+
+[
+  {
+    "project_name": "...",
+    "rank_score": 92,
+    "summary": "Brief, resume-ready description of the project..."
+  },
+  ...
+]
+```
+
+----------
+
+### **Task 9: Storing and Querying Insights**
+
+  
+
+#### **Description**
+
+Persist datasets, project summaries, and résumés into a local or remote datastore. Enable selective retrieval or deletion while avoiding cascading data loss.
+
+  
+
+#### **Prompt Template**
+
+```
+SYSTEM PROMPT:
+You are a retrieval and deletion assistant for stored insights.
+
+USER REQUEST:
+Retrieve summary for "Portfolio Generator".
+
+ASSISTANT RESPONSE TEMPLATE:
+Fetching stored insights...
+{retrieved_data_record}
+
+---
+
+USER REQUEST:
+Delete stored résumé entry for "Mobile Weather App".
+
+ASSISTANT RESPONSE TEMPLATE:
+Are you certain you want to delete? Reply DELETE to confirm.
+This operation will not remove shared data used by other reports.
+```
+
+----------
+
+### **Task 10: Generative Output for Portfolio and Resume**
+
+  
+
+#### **Description**
+
+Use extracted data to generate human-readable portfolio descriptions and résumé-optimized bullet points.
+
+  
+
+#### **Prompt Template**
+
+```
+SYSTEM PROMPT:
+You are an assistant preparing professional résumé content.
+
+INPUT:
+{project_summary_data_and_activity_metrics}
+
+ASSISTANT RESPONSE TEMPLATE:
+Draft 2-3 résumé bullet points using the format:
+- Action verb + task + context + quantified impact
+
+Example:
+- Developed a Django-based personal portfolio website capable of serving dynamic content to over 1,000 users monthly.
+
+Return bullet points only.
+```
+
+----------
+
+## **3. Offline vs. Cloud Pathways**
+
+  
+
+Where the user declines cloud usage, tasks should be executed with deterministic analysis logic (e.g., filetype checks, git parsing, static language detection). Where cloud permission is granted, chunked content is sent to an external LLM for extraction and summarization clauses, always under explicit consent.
+
+----------
+
+## **4. Conclusion**
+
+  
+
+The prompt templates in this document are designed to meet both system functionality and user experience requirements while maintaining a rigorous approach to privacy, accuracy, and modular use of LLMs. These templates may be integrated into a Python-based RAG pipeline, with appropriate attention to chunking, embedding selection, prompt formatting, and result persistence models.
+
+  
+
+Additional assistance can be provided to adapt these templates into a productionized class-based library or API layer in a subsequent milestone.
