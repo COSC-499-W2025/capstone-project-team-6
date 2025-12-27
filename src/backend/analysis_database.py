@@ -105,7 +105,10 @@ def init_db() -> None:
                 has_remote INTEGER CHECK(has_remote IN (0, 1)),
                 last_commit_date TEXT,
                 last_modified_date TEXT,
-                directory_depth INTEGER
+                directory_depth INTEGER,
+                project_start_date TEXT,
+                project_end_date TEXT,
+                project_active_days INTEGER
             );
             """
         )
@@ -269,6 +272,15 @@ def init_db() -> None:
         if "has_remote" not in existing_columns:
             conn.execute("ALTER TABLE projects ADD COLUMN has_remote INTEGER CHECK(has_remote IN (0, 1))")
 
+        if "project_start_date" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN project_start_date TEXT")
+
+        if "project_end_date" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN project_end_date TEXT")
+
+        if "project_active_days" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN project_active_days INTEGER")
+
         conn.commit()
 
 
@@ -394,8 +406,11 @@ def record_analysis(
                     has_remote,
                     last_commit_date,
                     last_modified_date,
-                    directory_depth
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                directory_depth,
+                project_start_date,
+                project_end_date,
+                project_active_days
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     analysis_id,
@@ -421,6 +436,9 @@ def record_analysis(
                     project.get("last_commit_date"),
                     project.get("last_modified_date"),
                     project.get("directory_depth"),
+                    project.get("project_start_date"),
+                    project.get("project_end_date"),
+                    project.get("project_active_days"),
                 ),
             )
             project_id = project_cursor.lastrowid

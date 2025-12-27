@@ -308,6 +308,9 @@ def test_git_extended_fields_persisted(temp_analysis_db):
                 "primary_branch": "main",
                 "total_branches": 3,
                 "has_remote": True,
+                "project_start_date": "2024-01-10T12:00:00+00:00",
+                "project_end_date": "2024-02-15T12:00:00+00:00",
+                "project_active_days": 37,
                 "remote_urls": ["https://example.com/repo.git"],
                 "code_ownership": [
                     {
@@ -344,6 +347,9 @@ def test_git_extended_fields_persisted(temp_analysis_db):
     assert project["primary_branch"] == "main"
     assert project["total_branches"] == 3
     assert project["has_remote"] == 1
+    assert project["project_start_date"] == "2024-01-10T12:00:00+00:00"
+    assert project["project_end_date"] == "2024-02-15T12:00:00+00:00"
+    assert project["project_active_days"] == 37
 
     with adb.get_connection() as conn:
         remotes = conn.execute(

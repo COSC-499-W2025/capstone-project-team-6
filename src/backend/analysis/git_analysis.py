@@ -114,6 +114,9 @@ class GitAnalysisResult:
     language_breakdown: Dict[str, Dict[str, int]] = field(default_factory=dict)
     semantic_summary: Dict[str, Dict[str, Union[int, str]]] = field(default_factory=dict)
     contribution_volume: Dict[str, int] = field(default_factory=dict)
+    project_start_date: Optional[str] = None
+    project_end_date: Optional[str] = None
+    project_active_days: Optional[int] = None
 
     def to_dict(self) -> Dict:
         """
@@ -199,6 +202,19 @@ class GitAnalyzer:
         except Exception as e:
             result.error_message = f"Error getting contributor stats: {str(e)}"
             return result
+
+        # project duration (start/end/active days)
+        try:
+            start_date, end_date = self.get_project_dates()
+            result.project_start_date = start_date
+            result.project_end_date = end_date
+            if start_date and end_date:
+                start_dt = datetime.fromisoformat(start_date)
+                end_dt = datetime.fromisoformat(end_date)
+                if end_dt >= start_dt:
+                    result.project_active_days = (end_dt - start_dt).days + 1
+        except Exception as e:
+            print(f"Warning: Could not get project dates: {e}")
 
         # language and semantic contribution breakdown
         try:
@@ -423,6 +439,27 @@ class GitAnalyzer:
         last_date = dates[-1]
 
         return first_date, last_date
+
+    def get_project_dates(self) -> tuple[Optional[str], Optional[str]]:
+        """
+        Get overall project first and last commit dates across all authors.
+        """
+        output = self.run_git_command(
+            [
+                "log",
+                "--all",
+                "--format=%aI",
+                "--reverse",
+            ]
+        )
+        if not output:
+            return None, None
+
+        dates = [d for d in output.strip().split("\n") if d]
+        if not dates:
+            return None, None
+
+        return dates[0], dates[-1]
 
     def get_repository_last_commit_date(self) -> Optional[str]:
         """
