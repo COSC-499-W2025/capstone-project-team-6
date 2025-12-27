@@ -493,6 +493,11 @@ def format_report(report: ComplexityReport, verbose: bool = False) -> str:
     lines.append("\n" + "=" * 70)
     return "\n".join(lines)
 
+# Java analysis for complexity
+
+class JavaComplexityAnalyzer:
+    """Analyzes Java code for complexity patterns using regex-based detection."""
+
     def __init__(self, file_path: str, source_code: str):
         self.file_path = file_path
         self.source_lines = source_code.splitlines()
