@@ -491,25 +491,25 @@ def generate_comprehensive_report(zip_path: Path, output_path: Optional[Path] = 
                     # If deep analysis fails, add error info
                     report["projects"][i]["oop_analysis"] = {"error": str(e), "total_classes": 0}
 
-                # Phase 4: Add Python complexity analysis
+                # Phase 4: Add complexity analysis (Python & Java)
                 try:
-                    from .complexity_analyzer import analyze_python_project
+                    from .complexity_analyzer import analyze_project as analyze_complexity
 
-                    # Get Python files for this project
-                    python_files = []
+                    # Get Python and Java files for this project
+                    code_files = []
                     with zipfile.ZipFile(zip_path, "r") as zf:
                         for file_info in zf.namelist():
-                            # Match files in this project path that end with .py
-                            if file_info.endswith(".py"):
+                            # Match Python and Java files in this project path
+                            if file_info.endswith((".py", ".java")):
                                 if not project_path or file_info.startswith(project_path):
                                     try:
                                         content = zf.read(file_info).decode("utf-8", errors="ignore")
-                                        python_files.append((file_info, content))
+                                        code_files.append((file_info, content))
                                     except Exception:
                                         continue
 
-                    if python_files:
-                        complexity_report = analyze_python_project(python_files)
+                    if code_files:
+                        complexity_report = analyze_complexity(code_files, language="auto")
                         report["projects"][i]["complexity_analysis"] = {
                             "total_files_analyzed": complexity_report.total_files_analyzed,
                             "optimization_score": complexity_report.optimization_score,

@@ -330,9 +330,8 @@ def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
     score_breakdown["project_maturity"] = min(maturity_score, 25) * 0.25
 
     # algorithmic quality, 20 points total. metrics: Complexity, Optimization
-    # currently only python is supported for this metric.
+    # Supports Python and Java complexity analysis.
     # the score is calculated based on the optimization score from the complexity analysis.
-    # we will add support for other languages in the future probably during the winter break
     algorithmic_score = 0.0
     algorithmic_details = []
 
@@ -558,7 +557,7 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
             complexity = project["complexity_analysis"]
             opt_score = complexity.get("optimization_score", 0.0)
             print(f"\n⚡ Complexity/Optimization Score: {opt_score:.1f}/100")
-            print(f"\n Currently, only python is supported for this metric.")
+            print(f"   Supported languages: Python, Java")
             if opt_score >= 75:
                 print(f"   Assessment: Strong algorithmic optimization awareness")
             elif opt_score >= 50:
