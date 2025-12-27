@@ -230,6 +230,18 @@ def init_db() -> None:
 
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS project_activity_breakdown (
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                email TEXT NOT NULL,
+                activity_type TEXT NOT NULL,
+                lines_changed INTEGER,
+                PRIMARY KEY (project_id, email, activity_type)
+            );
+            """
+        )
+
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS project_contributors (
                 project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
                 name TEXT,
@@ -280,6 +292,19 @@ def init_db() -> None:
 
         if "project_active_days" not in existing_columns:
             conn.execute("ALTER TABLE projects ADD COLUMN project_active_days INTEGER")
+
+        # Ensure activity breakdown table exists in migrations as well
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS project_activity_breakdown (
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                email TEXT NOT NULL,
+                activity_type TEXT NOT NULL,
+                lines_changed INTEGER,
+                PRIMARY KEY (project_id, email, activity_type)
+            );
+            """
+        )
 
         conn.commit()
 
@@ -597,6 +622,19 @@ def record_analysis(
                     """,
                     (project_id, email, lines),
                 )
+
+            activity_breakdown = project.get("activity_breakdown") or {}
+            for email, activities in activity_breakdown.items():
+                for activity_type, lines in (activities or {}).items():
+                    if lines is None or lines == 0:
+                        continue
+                    conn.execute(
+                        """
+                        INSERT INTO project_activity_breakdown (project_id, email, activity_type, lines_changed)
+                        VALUES (?, ?, ?, ?)
+                        """,
+                        (project_id, email, activity_type, lines),
+                    )
 
         conn.commit()
 

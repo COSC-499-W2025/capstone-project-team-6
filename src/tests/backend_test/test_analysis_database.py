@@ -335,6 +335,10 @@ def test_git_extended_fields_persisted(temp_analysis_db):
                     }
                 },
                 "contribution_volume": {"alice@example.com": 50, "bob@example.com": 10},
+                "activity_breakdown": {
+                    "alice@example.com": {"code": 40, "test": 5, "docs": 5, "design": 1},
+                    "bob@example.com": {"code": 10},
+                },
                 "directory_depth": 2,
             }
         ],
@@ -412,6 +416,24 @@ def test_git_extended_fields_persisted(temp_analysis_db):
         assert {(row["email"], row["lines_changed"]) for row in volume} == {
             ("alice@example.com", 50),
             ("bob@example.com", 10),
+        }
+
+        activity = conn.execute(
+            """
+            SELECT email, activity_type, lines_changed
+            FROM project_activity_breakdown
+            WHERE project_id = ?
+            """,
+            (project["id"],),
+        ).fetchall()
+        assert {
+            (row["email"], row["activity_type"], row["lines_changed"]) for row in activity
+        } == {
+            ("alice@example.com", "code", 40),
+            ("alice@example.com", "test", 5),
+            ("alice@example.com", "docs", 5),
+            ("alice@example.com", "design", 1),
+            ("bob@example.com", "code", 10),
         }
 def test_get_analysis_by_zip_file(temp_analysis_db):
     """Test retrieving analysis by zip file path."""
