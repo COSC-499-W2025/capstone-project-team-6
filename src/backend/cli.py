@@ -10,6 +10,8 @@ import zipfile
 from pathlib import Path
 from typing import Optional
 
+from .analysis.analyze import calculate_composite_score
+
 from . import (Folder_traversal_fs, MDAShell, UserAlreadyExistsError,
                authenticate_user, create_user, initialize)
 from .analysis.deep_code_analyzer import generate_comprehensive_report
@@ -927,21 +929,69 @@ def main() -> int:
                 print(f"\nPath must be a directory or ZIP file: {path}")
                 return 1
 
+            # Build targets: if directory contains zip children, analyze each zip; otherwise analyze the path itself
+            targets: list[Path] = []
+            if path.is_dir():
+                # Only consider top-level zips (no recursion) to avoid treating nested archives as projects
+                zip_children = sorted(path.glob("*.zip"))
+                if zip_children:
+                    targets.extend(zip_children)
+                else:
+                    targets.append(path)
+            else:
+                targets.append(path)
+
+            batch_results = []
+
             # Run analysis with error handling
             try:
-                print(f"\n[*] Analyzing: {path}")
-                results = analyze_folder(path, target_user_email=args.user_email)
-                display_analysis(results)
+                for target_path in targets:
+                    print(f"\n[*] Analyzing: {target_path}")
+                    results = analyze_folder(target_path, target_user_email=args.user_email)
+                    display_analysis(results)
+                    batch_results.append(results)
 
-                # Store analysis in database
-                try:
-                    from .analysis_database import record_analysis
+                    # Store analysis in database
+                    try:
+                        from .analysis_database import record_analysis
 
-                    analysis_id = record_analysis("non_llm", results)
-                    analysis_uuid = results.get("analysis_metadata", {}).get("analysis_uuid", "unknown")
-                    print(f"\n📊 Analysis saved to database (ID: {analysis_id}, UUID: {analysis_uuid})")
-                except Exception as db_error:
-                    print(f"\n⚠️  Warning: Could not save to database: {db_error}")
+                        analysis_id = record_analysis("non_llm", results)
+                        analysis_uuid = results.get("analysis_metadata", {}).get("analysis_uuid", "unknown")
+                        print(f"\n📊 Analysis saved to database (ID: {analysis_id}, UUID: {analysis_uuid})")
+                    except Exception as db_error:
+                        print(f"\n⚠️  Warning: Could not save to database: {db_error}")
+
+                # Contribution-aware ranking across all processed projects
+                if args.user_email and batch_results:
+                    aggregated_projects = []
+                    for report in batch_results:
+                        meta = report.get("analysis_metadata", {}) or {}
+                        ts = meta.get("analysis_timestamp", "Unknown")
+                        zip_file = meta.get("zip_file", "Unknown")
+                        for proj in report.get("projects", []):
+                            score_data = calculate_composite_score(proj)
+                            aggregated_projects.append(
+                                {"project": proj, "score_data": score_data, "analysis_timestamp": ts, "zip_file": zip_file}
+                            )
+                    if aggregated_projects:
+                        aggregated_projects.sort(
+                            key=lambda x: x["score_data"].get(
+                                "adjusted_score", x["score_data"]["composite_score"]
+                            ),
+                            reverse=True,
+                        )
+                        print("\n" + "=" * 78)
+                        print(f"  CONTRIBUTION-AWARE RANKING (target: {args.user_email})")
+                        print("=" * 78)
+                        for idx, item in enumerate(aggregated_projects, 1):
+                            proj = item["project"]
+                            score = item["score_data"]
+                            adjusted = score.get("adjusted_score", score["composite_score"])
+                            user_score = score.get("user_contribution_score", 0.0)
+                            print(f"\nRANK #{idx}: {proj.get('project_name', 'Unknown Project')}")
+                            print(f"  Source: {item['zip_file']}")
+                            print(f"  Adjusted Score: {adjusted:.2f} (User boost: {user_score:.2f})")
+                            print(f"  Composite Score: {score['composite_score']:.2f}")
 
                 # 2. Check Consent for LLM Analysis
                 if has_consented:
