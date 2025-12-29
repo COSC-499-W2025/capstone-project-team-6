@@ -108,7 +108,14 @@ def init_db() -> None:
                 directory_depth INTEGER,
                 project_start_date TEXT,
                 project_end_date TEXT,
-                project_active_days INTEGER
+                project_active_days INTEGER,
+                target_user_email TEXT,
+                target_user_name TEXT,
+                target_user_commits INTEGER,
+                target_user_commit_pct REAL,
+                target_user_lines_changed INTEGER,
+                target_user_surviving_lines INTEGER,
+                target_user_last_commit TEXT
             );
             """
         )
@@ -293,6 +300,27 @@ def init_db() -> None:
         if "project_active_days" not in existing_columns:
             conn.execute("ALTER TABLE projects ADD COLUMN project_active_days INTEGER")
 
+        if "target_user_email" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN target_user_email TEXT")
+
+        if "target_user_name" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN target_user_name TEXT")
+
+        if "target_user_commits" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN target_user_commits INTEGER")
+
+        if "target_user_commit_pct" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN target_user_commit_pct REAL")
+
+        if "target_user_lines_changed" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN target_user_lines_changed INTEGER")
+
+        if "target_user_surviving_lines" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN target_user_surviving_lines INTEGER")
+
+        if "target_user_last_commit" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN target_user_last_commit TEXT")
+
         # Ensure activity breakdown table exists in migrations as well
         cursor.execute(
             """
@@ -406,6 +434,17 @@ def record_analysis(
         analysis_id = cursor.lastrowid
 
         for project in projects:
+            target_user_stats = project.get("target_user_stats") or {}
+            target_user_email = project.get("target_user_email") or target_user_stats.get("email")
+            target_user_name = target_user_stats.get("name")
+            target_user_commits = target_user_stats.get("commit_count") or target_user_stats.get("commits")
+            target_user_commit_pct = target_user_stats.get("percentage")
+            contribution_volume = project.get("contribution_volume") or {}
+            blame_summary = project.get("blame_summary") or {}
+            target_user_lines_changed = contribution_volume.get(target_user_email) if target_user_email else None
+            target_user_surviving_lines = blame_summary.get(target_user_email) if target_user_email else None
+            target_user_last_commit = target_user_stats.get("last_commit_date") or project.get("last_commit_date")
+
             project_cursor = conn.execute(
                 """
                 INSERT INTO projects (
@@ -431,11 +470,20 @@ def record_analysis(
                     has_remote,
                     last_commit_date,
                     last_modified_date,
-                directory_depth,
-                project_start_date,
-                project_end_date,
-                project_active_days
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    directory_depth,
+                    project_start_date,
+                    project_end_date,
+                    project_active_days,
+                    target_user_email,
+                    target_user_name,
+                    target_user_commits,
+                    target_user_commit_pct,
+                    target_user_lines_changed,
+                    target_user_surviving_lines,
+                    target_user_last_commit
+                ) VALUES (
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                )
                 """,
                 (
                     analysis_id,
@@ -464,6 +512,13 @@ def record_analysis(
                     project.get("project_start_date"),
                     project.get("project_end_date"),
                     project.get("project_active_days"),
+                    target_user_email,
+                    target_user_name,
+                    target_user_commits,
+                    target_user_commit_pct,
+                    target_user_lines_changed,
+                    target_user_surviving_lines,
+                    target_user_last_commit,
                 ),
             )
             project_id = project_cursor.lastrowid

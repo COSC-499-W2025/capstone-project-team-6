@@ -123,7 +123,7 @@ def create_temp_zip(directory: Path) -> Path:
     return temp_zip
 
 
-def analyze_folder(path: Path) -> dict:
+def analyze_folder(path: Path, target_user_email: Optional[str] = None) -> dict:
     """Analyze a folder or ZIP file using the comprehensive analysis pipeline.
 
     Args:
@@ -160,7 +160,7 @@ def analyze_folder(path: Path) -> dict:
 
         # Run comprehensive analysis (Python/Java)
         print(f"Running analysis pipeline...")
-        report = generate_comprehensive_report(zip_path)
+        report = generate_comprehensive_report(zip_path, target_user_email=target_user_email)
 
         # Add C++ and C analysis to the report
         for i, project in enumerate(report["projects"]):
@@ -203,7 +203,7 @@ def analyze_folder(path: Path) -> dict:
             try:
                 from .analysis.git_analysis import analyze_project
 
-                git_result = analyze_project(analysis_dir, export_to_file=False)
+                git_result = analyze_project(analysis_dir, target_user_email=target_user_email, export_to_file=False)
                 # Add git analysis to first project (assuming single project)
                 if report["projects"]:
                     report["projects"][0]["git_analysis"] = git_result.to_dict()
@@ -229,7 +229,7 @@ def analyze_folder(path: Path) -> dict:
                         # Run git analysis
                         from .analysis.git_analysis import analyze_project
 
-                        git_result = analyze_project(git_root, export_to_file=False)
+                        git_result = analyze_project(git_root, target_user_email=target_user_email, export_to_file=False)
                         if report["projects"]:
                             report["projects"][0]["git_analysis"] = git_result.to_dict()
             except Exception as e:
@@ -351,6 +351,24 @@ def display_analysis(results: dict) -> None:
         if project.get("is_git_repo"):
             total_commits = project.get("total_commits", 0)
             print(f"   [x] Git repository ({total_commits} commits)")
+
+        target_user_stats = project.get("target_user_stats") or {}
+        target_user_email = project.get("target_user_email")
+        if target_user_stats:
+            contribution_volume = project.get("contribution_volume") or {}
+            blame_summary = project.get("blame_summary") or {}
+            lines_changed = contribution_volume.get(target_user_email)
+            surviving_lines = blame_summary.get(target_user_email)
+            commit_count = target_user_stats.get("commit_count") or target_user_stats.get("commits") or 0
+            commit_share = target_user_stats.get("percentage") or 0
+
+            print("\nTarget User Contribution:")
+            print(f"   Email: {target_user_stats.get('email', target_user_email)}")
+            print(f"   Commits: {commit_count} ({commit_share:.1f}% share)")
+            if lines_changed is not None:
+                print(f"   Lines changed: {lines_changed}")
+            if surviving_lines is not None:
+                print(f"   Surviving lines: {surviving_lines}")
 
         # OOP Analysis (for Python projects)
         oop = project.get("oop_analysis", {})
@@ -761,6 +779,11 @@ def main() -> int:
         action="store_true",
         help="Analyze Python code for time complexity patterns (requires ZIP file)",
     )
+    analyze_parser.add_argument(
+        "--user-email",
+        dest="user_email",
+        help="Git email used to attribute and rank contributions for the requesting user",
+    )
     analyze_parser.add_argument("--verbose", "-v", action="store_true", help="Show detailed complexity findings")
 
     # LLM arguments merged into analyze
@@ -907,7 +930,7 @@ def main() -> int:
             # Run analysis with error handling
             try:
                 print(f"\n[*] Analyzing: {path}")
-                results = analyze_folder(path)
+                results = analyze_folder(path, target_user_email=args.user_email)
                 display_analysis(results)
 
                 # Store analysis in database

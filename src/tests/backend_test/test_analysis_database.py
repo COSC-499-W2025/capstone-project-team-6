@@ -46,6 +46,16 @@ SAMPLE_PAYLOAD = {
             "has_docker": True,
             "test_coverage_estimate": "medium",
             "is_git_repo": True,
+            "target_user_email": "john@example.com",
+            "target_user_stats": {
+                "email": "john@example.com",
+                "name": "John Doe",
+                "commit_count": 45,
+                "percentage": 37.5,
+                "last_commit_date": "2025-10-01T00:00:00",
+            },
+            "contribution_volume": {"john@example.com": 120},
+            "blame_summary": {"john@example.com": 100},
             "contributors": [
                 {
                     "name": "John Doe",
@@ -101,6 +111,13 @@ def test_record_analysis_persists_all_entities(temp_analysis_db):
     assert project["total_files"] == 25
     assert project["has_tests"] == 1
     assert project["is_git_repo"] == 1
+    assert project["target_user_email"] == "john@example.com"
+    assert project["target_user_name"] == "John Doe"
+    assert project["target_user_commits"] == 45
+    assert project["target_user_commit_pct"] == pytest.approx(37.5)
+    assert project["target_user_lines_changed"] == 120
+    assert project["target_user_surviving_lines"] == 100
+    assert project["target_user_last_commit"] == "2025-10-01T00:00:00"
 
     with adb.get_connection() as conn:
         languages = conn.execute(
@@ -311,6 +328,14 @@ def test_git_extended_fields_persisted(temp_analysis_db):
                 "project_start_date": "2024-01-10T12:00:00+00:00",
                 "project_end_date": "2024-02-15T12:00:00+00:00",
                 "project_active_days": 37,
+                "target_user_email": "alice@example.com",
+                "target_user_stats": {
+                    "email": "alice@example.com",
+                    "name": "Alice",
+                    "commit_count": 3,
+                    "percentage": 75.0,
+                    "last_commit_date": "2024-02-14T12:00:00+00:00",
+                },
                 "remote_urls": ["https://example.com/repo.git"],
                 "code_ownership": [
                     {
@@ -354,6 +379,13 @@ def test_git_extended_fields_persisted(temp_analysis_db):
     assert project["project_start_date"] == "2024-01-10T12:00:00+00:00"
     assert project["project_end_date"] == "2024-02-15T12:00:00+00:00"
     assert project["project_active_days"] == 37
+    assert project["target_user_email"] == "alice@example.com"
+    assert project["target_user_name"] == "Alice"
+    assert project["target_user_commits"] == 3
+    assert project["target_user_commit_pct"] == pytest.approx(75.0)
+    assert project["target_user_lines_changed"] == 50
+    assert project["target_user_surviving_lines"] == 40
+    assert project["target_user_last_commit"] == "2024-02-14T12:00:00+00:00"
 
     with adb.get_connection() as conn:
         remotes = conn.execute(
