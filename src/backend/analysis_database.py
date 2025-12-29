@@ -545,7 +545,11 @@ def record_analysis(
 
             dependencies = project.get("dependencies") or {}
             for ecosystem, deps in dependencies.items():
+                seen_deps = set()
                 for dependency in deps or []:
+                    if dependency in seen_deps:
+                        continue
+                    seen_deps.add(dependency)
                     conn.execute(
                         """
                         INSERT INTO project_dependencies (project_id, ecosystem, dependency)
