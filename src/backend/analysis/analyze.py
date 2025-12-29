@@ -381,6 +381,8 @@ def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
             if total_surviving and target_user_email in blame_summary:
                 lines_component = max(0.0, min(1.0, blame_summary[target_user_email] / total_surviving))
                 user_justification.append(f"{lines_component * 100:.1f}% of surviving lines")
+            else:
+                user_justification.append("No matching contributions found for target user")
 
         # Commit share
         commit_percentage = target_user_stats.get("percentage")

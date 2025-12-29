@@ -992,6 +992,8 @@ def main() -> int:
                             print(f"  Source: {item['zip_file']}")
                             print(f"  Adjusted Score: {adjusted:.2f} (User boost: {user_score:.2f})")
                             print(f"  Composite Score: {score['composite_score']:.2f}")
+                            if user_score == 0.0:
+                                print("  Target user contribution: none detected for this project")
 
                 # 2. Check Consent for LLM Analysis
                 if has_consented:
