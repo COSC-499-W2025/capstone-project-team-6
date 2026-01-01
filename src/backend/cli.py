@@ -359,6 +359,8 @@ def display_analysis(results: dict) -> None:
         if target_user_stats:
             contribution_volume = project.get("contribution_volume") or {}
             blame_summary = project.get("blame_summary") or {}
+            semantic_summary = project.get("semantic_summary", {})
+            activity_breakdown = project.get("activity_breakdown", {})
             lines_changed = contribution_volume.get(target_user_email)
             surviving_lines = blame_summary.get(target_user_email)
             commit_count = target_user_stats.get("commit_count") or target_user_stats.get("commits") or 0
@@ -370,7 +372,39 @@ def display_analysis(results: dict) -> None:
             if lines_changed is not None:
                 print(f"   Lines changed: {lines_changed}")
             if surviving_lines is not None:
-                print(f"   Surviving lines: {surviving_lines}")
+                total_surviving = sum(v for v in blame_summary.values() if isinstance(v, (int, float)))
+                if total_surviving > 0:
+                    percentage = (surviving_lines / total_surviving) * 100
+                    print(f"   Surviving lines: {surviving_lines} ({percentage:.1f}% of codebase)")
+                else:
+                    print(f"   Surviving lines: {surviving_lines}")
+            
+            # Semantic summary (trivial vs substantial commits)
+            user_semantic = semantic_summary.get(target_user_email, {})
+            if user_semantic:
+                trivial = user_semantic.get("trivial_commits", 0)
+                substantial = user_semantic.get("substantial_commits", 0)
+                total_lines_semantic = user_semantic.get("total_lines_changed", 0)
+                if trivial > 0 or substantial > 0:
+                    print(f"   Commit breakdown: {substantial} substantial, {trivial} trivial commits")
+                if total_lines_semantic > 0:
+                    print(f"   Total lines changed (semantic): {total_lines_semantic}")
+            
+            # Activity breakdown (code/test/docs/design)
+            user_activity = activity_breakdown.get(target_user_email, {})
+            if user_activity:
+                activity_parts = []
+                if user_activity.get("code", 0) > 0:
+                    activity_parts.append(f"code: {user_activity['code']} lines")
+                if user_activity.get("test", 0) > 0:
+                    activity_parts.append(f"tests: {user_activity['test']} lines")
+                if user_activity.get("docs", 0) > 0:
+                    activity_parts.append(f"docs: {user_activity['docs']} lines")
+                if user_activity.get("design", 0) > 0:
+                    activity_parts.append(f"design: {user_activity['design']} lines")
+                
+                if activity_parts:
+                    print(f"   Activity breakdown: {', '.join(activity_parts)}")
 
         # OOP Analysis (for Python projects)
         oop = project.get("oop_analysis", {})
@@ -497,6 +531,128 @@ def display_analysis(results: dict) -> None:
                     commits = contrib.get("commit_count", 0)
                     percentage = contrib.get("percentage", 0)
                     print(f"      • {name}: {commits} commits ({percentage:.1f}%)")
+        
+        # Additional Git Contribution Details (if available)
+        semantic_summary = project.get("semantic_summary", {})
+        activity_breakdown = project.get("activity_breakdown", {})
+        contribution_volume = project.get("contribution_volume", {})
+        blame_summary = project.get("blame_summary", {})
+        
+        if semantic_summary or activity_breakdown or contribution_volume or blame_summary:
+            print(f"\nDetailed Contribution Analysis:")
+            
+            # Show overall contribution volume
+            if contribution_volume:
+                total_lines = sum(v for v in contribution_volume.values() if isinstance(v, (int, float)))
+                print(f"   Total lines changed: {total_lines}")
+                if len(contribution_volume) > 1:
+                    print(f"   Contributors with changes: {len(contribution_volume)}")
+                    # Show top contributors by lines changed
+                    sorted_contributors = sorted(
+                        contribution_volume.items(), 
+                        key=lambda x: x[1] if isinstance(x[1], (int, float)) else 0, 
+                        reverse=True
+                    )[:3]
+                    print(f"   Top contributors by lines:")
+                    for email, lines in sorted_contributors:
+                        if isinstance(lines, (int, float)) and lines > 0:
+                            percentage = (lines / total_lines * 100) if total_lines > 0 else 0
+                            print(f"      • {email}: {lines} lines ({percentage:.1f}%)")
+            
+            # Show semantic summary (trivial vs substantial)
+            if semantic_summary:
+                total_substantial = sum(
+                    stats.get("substantial_commits", 0) 
+                    for stats in semantic_summary.values() 
+                    if isinstance(stats, dict)
+                )
+                total_trivial = sum(
+                    stats.get("trivial_commits", 0) 
+                    for stats in semantic_summary.values() 
+                    if isinstance(stats, dict)
+                )
+                if total_substantial > 0 or total_trivial > 0:
+                    print(f"   Commit quality: {total_substantial} substantial, {total_trivial} trivial commits")
+            
+            # Show activity breakdown summary
+            if activity_breakdown:
+                total_code = sum(
+                    act.get("code", 0) 
+                    for act in activity_breakdown.values() 
+                    if isinstance(act, dict)
+                )
+                total_test = sum(
+                    act.get("test", 0) 
+                    for act in activity_breakdown.values() 
+                    if isinstance(act, dict)
+                )
+                total_docs = sum(
+                    act.get("docs", 0) 
+                    for act in activity_breakdown.values() 
+                    if isinstance(act, dict)
+                )
+                total_design = sum(
+                    act.get("design", 0) 
+                    for act in activity_breakdown.values() 
+                    if isinstance(act, dict)
+                )
+                
+                activity_parts = []
+                if total_code > 0:
+                    activity_parts.append(f"code: {total_code}")
+                if total_test > 0:
+                    activity_parts.append(f"tests: {total_test}")
+                if total_docs > 0:
+                    activity_parts.append(f"docs: {total_docs}")
+                if total_design > 0:
+                    activity_parts.append(f"design: {total_design}")
+                
+                if activity_parts:
+                    print(f"   Activity breakdown: {', '.join(activity_parts)} lines")
+            
+            # Show blame summary (surviving lines)
+            if blame_summary:
+                total_surviving = sum(v for v in blame_summary.values() if isinstance(v, (int, float)))
+                if total_surviving > 0:
+                    print(f"   Total surviving lines: {total_surviving}")
+                    if len(blame_summary) > 1:
+                        sorted_blame = sorted(
+                            blame_summary.items(),
+                            key=lambda x: x[1] if isinstance(x[1], (int, float)) else 0,
+                            reverse=True
+                        )[:3]
+                        print(f"   Top code owners:")
+                        for email, lines in sorted_blame:
+                            if isinstance(lines, (int, float)) and lines > 0:
+                                percentage = (lines / total_surviving * 100) if total_surviving > 0 else 0
+                                print(f"      • {email}: {lines} lines ({percentage:.1f}%)")
+        
+        # Contribution Ranking Scores (if calculated)
+        # Note: These scores are typically calculated in analyze.py's summarize_top_ranked_projects
+        # but we can calculate them here if needed for display
+        if project.get("target_user_email"):
+            try:
+                from analysis.analyze import calculate_composite_score
+                score_data = calculate_composite_score(project)
+                if score_data:
+                    print(f"\nContribution Ranking Scores:")
+                    print(f"   Composite Score: {score_data.get('composite_score', 0):.2f}/100.0")
+                    user_score = score_data.get("user_contribution_score", 0.0)
+                    if user_score > 0:
+                        print(f"   User Contribution Boost: {user_score:.2f}/20.0")
+                        print(f"   Adjusted Score: {score_data.get('adjusted_score', 0):.2f}")
+                    breakdown = score_data.get("breakdown", {})
+                    justification = score_data.get("justification", {})
+                    if breakdown:
+                        print(f"   Score Breakdown:")
+                        print(f"      • Code Architecture: {breakdown.get('code_architecture', 0):.2f}/30.0")
+                        print(f"      • Code Quality: {breakdown.get('code_quality', 0):.2f}/25.0")
+                        print(f"      • Project Maturity: {breakdown.get('project_maturity', 0):.2f}/25.0")
+                        print(f"      • Algorithmic Quality: {breakdown.get('algorithmic_quality', 0):.2f}/20.0")
+                    if justification.get("target_user"):
+                        print(f"   Contribution Justification: {justification['target_user']}")
+            except Exception:
+                pass  # Silently fail if calculation is not available
 
         # Complexity Analysis (Python)
         complexity_analysis = project.get("complexity_analysis", {})
