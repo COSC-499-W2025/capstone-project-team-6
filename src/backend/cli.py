@@ -1475,9 +1475,24 @@ def main() -> int:
                 for i, e in enumerate(entries, 1):
                     langs = ", ".join(e.skills.get("languages", [])) or "-"
                     fws = ", ".join(e.skills.get("frameworks", [])) or "-"
+                    detailed_skills = e.skills.get("detailed_skills", [])
                     print(f"  {i}. {e.date}")
                     print(f"     Languages: {langs}")
                     print(f"     Frameworks: {fws}")
+                    if detailed_skills:
+                        print(f"     Detailed Skills ({len(detailed_skills)}):")
+                        # Display skills in a wrapped format
+                        skills_text = ", ".join(detailed_skills)
+                        words = skills_text.split(", ")
+                        line = "        "
+                        for word in words:
+                            if len(line) + len(word) + 2 > 73:
+                                print(line.rstrip())
+                                line = "        " + word
+                            else:
+                                line += (", " if line != "        " else "") + word
+                        if line.strip():
+                            print(line.rstrip())
                 return 0
 
     except KeyboardInterrupt:

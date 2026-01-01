@@ -253,3 +253,69 @@ def test_projects_timeline_fallback_to_modified_date():
     assert timeline[1].last_modified_date == modified1
     assert timeline[0].last_commit_date is None
     assert timeline[1].last_commit_date is None
+
+
+def test_skills_timeline_includes_detailed_skills():
+    """Test that detailed skills from portfolio items are included in the timeline"""
+    ts1 = iso(datetime(2024, 7, 1, 10, 0, 0))
+    commit1 = iso(datetime(2024, 6, 15, 12, 0, 0))
+
+    # Create a project with OOP analysis that should generate detailed skills
+    p1 = {
+        "project_name": "OOPProject",
+        "primary_language": "Python",
+        "total_files": 10,
+        "code_files": 8,
+        "test_files": 2,
+        "doc_files": 0,
+        "has_tests": True,
+        "has_readme": True,
+        "has_ci_cd": False,
+        "has_docker": False,
+        "test_coverage_estimate": "medium",
+        "is_git_repo": True,
+        "total_commits": 10,
+        "branch_count": 2,
+        "commit_authors": ["dev1", "dev2"],
+        "last_commit_date": commit1,
+        "languages": {"Python": 8},
+        "frameworks": ["Django"],
+        "oop_analysis": {
+            "total_classes": 5,
+            "classes_with_inheritance": 2,
+            "abstract_classes": ["BaseClass"],
+            "inheritance_depth": 2,
+            "properties_count": 3,
+            "operator_overloads": 1,
+        },
+        "java_oop_analysis": {},
+        "cpp_oop_analysis": {},
+        "c_oop_analysis": {},
+        "complexity_analysis": {"optimization_score": 0},
+    }
+
+    seed_analysis(make_payload(ts1, [p1]))
+
+    skills = get_skills_timeline()
+    assert len(skills) == 1
+    assert skills[0].date == commit1
+    
+    # Verify languages and frameworks are still present
+    assert "Python" in skills[0].skills["languages"]
+    assert "Django" in skills[0].skills["frameworks"]
+    
+    # Verify detailed skills are included
+    detailed_skills = skills[0].skills.get("detailed_skills", [])
+    assert len(detailed_skills) > 0
+    
+    # Should include framework skill
+    assert any("Django" in skill for skill in detailed_skills)
+    
+    # Should include testing skills (TDD or Unit testing)
+    assert any("test" in skill.lower() or "Test" in skill for skill in detailed_skills)
+    
+    # Should include Git workflow skill
+    assert any("Git" in skill for skill in detailed_skills)
+    
+    # Should include Python-specific skills (properties, operator overloading, or abstract classes)
+    assert any("Python" in skill or "Abstract" in skill or "Operator" in skill for skill in detailed_skills)

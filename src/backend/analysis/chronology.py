@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from .. import analysis_database as db
+from .portfolio_item_generator import generate_portfolio_item
 
 
 @dataclass
@@ -72,14 +74,14 @@ def get_projects_timeline() -> List[ProjectEntry]:
 @dataclass
 class SkillEntry:
     date: str
-    skills: Dict[str, List[str]]  # {"languages": [...], "frameworks": [...]}
+    skills: Dict[str, List[str]]  # {"languages": [...], "frameworks": [...], "detailed_skills": [...]}
 
 
 def get_skills_timeline() -> List[SkillEntry]:
-    """Aggregate languages and frameworks over time based on commit/modified date.
+    """Aggregate languages, frameworks, and detailed skills over time based on commit/modified date.
 
     Each entry represents a project's commit date (or file modified date, or analysis date as fallback)
-    with unique languages/frameworks discovered across its projects.
+    with unique languages/frameworks and detailed skills (from portfolio items) discovered across its projects.
     """
     with db.get_connection() as conn:
         conn.execute("PRAGMA foreign_keys = ON;")
@@ -87,6 +89,7 @@ def get_skills_timeline() -> List[SkillEntry]:
         analyses = conn.execute(
             """
             SELECT a.id,
+                   a.raw_json,
                    COALESCE(
                        (SELECT p.last_commit_date
                         FROM projects p
@@ -112,7 +115,9 @@ def get_skills_timeline() -> List[SkillEntry]:
         for arow in analyses:
             aid = arow["id"]
             ts = arow["date_key"]
+            raw_json_str = arow["raw_json"]
 
+            # Get languages and frameworks from database
             langs = conn.execute(
                 """
                 SELECT DISTINCT language
@@ -135,12 +140,33 @@ def get_skills_timeline() -> List[SkillEntry]:
                 (aid,),
             ).fetchall()
 
+            # Extract detailed skills from portfolio items
+            detailed_skills_set = set()
+            try:
+                if raw_json_str:
+                    analysis_data = json.loads(raw_json_str)
+                    projects = analysis_data.get("projects", [])
+                    
+                    for project in projects:
+                        try:
+                            portfolio_item = generate_portfolio_item(project)
+                            skills_exercised = portfolio_item.get("skills_exercised", [])
+                            detailed_skills_set.update(skills_exercised)
+                        except Exception:
+                            # If portfolio item generation fails for a project, skip it
+                            # but continue with other projects
+                            continue
+            except (json.JSONDecodeError, KeyError, TypeError):
+                # If JSON parsing fails, continue without detailed skills
+                pass
+
             timeline.append(
                 SkillEntry(
                     date=ts,
                     skills={
                         "languages": [r["language"] for r in langs],
                         "frameworks": [r["framework"] for r in frameworks],
+                        "detailed_skills": sorted(list(detailed_skills_set)),
                     },
                 )
             )
