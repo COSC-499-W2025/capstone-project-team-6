@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from .. import analysis_database as db
-from .portfolio_item_generator import generate_portfolio_item
 
 
 @dataclass
@@ -149,25 +148,19 @@ def get_skills_timeline() -> List[SkillEntry]:
                 (aid,),
             ).fetchall()
 
-            # Extract detailed skills from portfolio items
-            detailed_skills_set = set()
-            try:
-                if raw_json_str:
-                    analysis_data = json.loads(raw_json_str)
-                    projects = analysis_data.get("projects", [])
-                    
-                    for project in projects:
-                        try:
-                            portfolio_item = generate_portfolio_item(project)
-                            skills_exercised = portfolio_item.get("skills_exercised", [])
-                            detailed_skills_set.update(skills_exercised)
-                        except Exception:
-                            # If portfolio item generation fails for a project, skip it
-                            # but continue with other projects
-                            continue
-            except (json.JSONDecodeError, KeyError, TypeError):
-                # If JSON parsing fails, continue without detailed skills
-                pass
+            # Get detailed skills from database
+            detailed_skills = conn.execute(
+                """
+                SELECT DISTINCT ps.skill
+                FROM project_skills ps
+                JOIN projects p ON p.id = ps.project_id
+                WHERE p.analysis_id = ?
+                ORDER BY ps.skill ASC
+                """,
+                (aid,),
+            ).fetchall()
+            
+            detailed_skills_set = {r["skill"] for r in detailed_skills}
 
             timeline.append(
                 SkillEntry(
@@ -268,39 +261,27 @@ def get_all_skills_chronological() -> List[ChronologicalSkill]:
                         project_name=project_name,
                     )
             
-            # Extract detailed skills from portfolio items
-            try:
-                if raw_json_str:
-                    analysis_data = json.loads(raw_json_str)
-                    projects_data = analysis_data.get("projects", [])
-                    
-                    # Find the project in the analysis data
-                    project_data = None
-                    for p in projects_data:
-                        if p.get("project_name") == project_name:
-                            project_data = p
-                            break
-                    
-                    if project_data:
-                        try:
-                            portfolio_item = generate_portfolio_item(project_data)
-                            skills_exercised = portfolio_item.get("skills_exercised", [])
-                            
-                            for skill in skills_exercised:
-                                skill_key = f"detailed_skill:{skill}"
-                                if skill_key not in skills_seen:
-                                    skills_seen[skill_key] = ChronologicalSkill(
-                                        skill=skill,
-                                        skill_type="detailed_skill",
-                                        first_exercised_date=project_date,
-                                        project_name=project_name,
-                                    )
-                        except Exception:
-                            # If portfolio item generation fails, skip it
-                            continue
-            except (json.JSONDecodeError, KeyError, TypeError):
-                # If JSON parsing fails, continue without detailed skills
-                pass
+            # Get detailed skills from database (stored during analysis)
+            detailed_skills = conn.execute(
+                """
+                SELECT DISTINCT skill
+                FROM project_skills ps
+                WHERE ps.project_id = ?
+                ORDER BY skill ASC
+                """,
+                (project_id,),
+            ).fetchall()
+            
+            for skill_row in detailed_skills:
+                skill = skill_row["skill"]
+                skill_key = f"detailed_skill:{skill}"
+                if skill_key not in skills_seen:
+                    skills_seen[skill_key] = ChronologicalSkill(
+                        skill=skill,
+                        skill_type="detailed_skill",
+                        first_exercised_date=project_date,
+                        project_name=project_name,
+                    )
         
         # Convert to list and sort by date
         chronological_skills = list(skills_seen.values())

@@ -414,3 +414,24 @@ def test_get_all_skills_chronological():
     
     # Should have project names
     assert all(s.project_name for s in chronological_skills)
+    
+    # Verify skills are stored in database
+    from backend import analysis_database as db
+    with db.get_connection() as conn:
+        # Get project IDs
+        p1_id = conn.execute(
+            "SELECT id FROM projects WHERE project_name = ?",
+            ("PythonWebApp",)
+        ).fetchone()
+        p2_id = conn.execute(
+            "SELECT id FROM projects WHERE project_name = ?",
+            ("ReactFrontend",)
+        ).fetchone()
+        
+        if p1_id:
+            stored_skills = conn.execute(
+                "SELECT skill FROM project_skills WHERE project_id = ?",
+                (p1_id["id"],)
+            ).fetchall()
+            # Should have stored some skills for the Python project
+            assert len(stored_skills) > 0
