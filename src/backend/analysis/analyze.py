@@ -145,12 +145,20 @@ def calculate_contribution_score(project: Dict[str, Any], user_email: Optional[s
 
     # Collaborative project
     user_percentage = 0
-    if user_email and git_analysis.get("target_user_stats"):
-        user_stats = git_analysis["target_user_stats"]
-        user_percentage = user_stats.get("percentage", 0)
-    elif git_analysis.get("contributors"):
+    contributors = git_analysis.get("contributors", [])
+
+    if user_email:
+        # Try to find user in target_user_stats first
+        if git_analysis.get("target_user_stats"):
+            user_stats = git_analysis["target_user_stats"]
+            user_percentage = user_stats.get("percentage", 0)
+        # If not found, look in contributors list
+        elif contributors:
+            user_contrib = next((c for c in contributors if c.get("email") == user_email), None)
+            if user_contrib:
+                user_percentage = user_contrib.get("percentage", 0)
+    else:
         # If no user_email provided, assume they're the top contributor
-        contributors = git_analysis["contributors"]
         if contributors:
             user_percentage = max(c.get("percentage", 0) for c in contributors)
 
