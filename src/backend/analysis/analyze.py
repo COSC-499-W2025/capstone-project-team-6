@@ -404,17 +404,31 @@ def calculate_duration_score(project: Dict[str, Any], user_email: Optional[str] 
     }
 
 
-def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
+def calculate_composite_score(project: Dict[str, Any], user_email: Optional[str] = None,
+                            use_enhanced_ranking: bool = True) -> Dict[str, Any]:
     """
     Calculate a comprehensive composite score for a project using a balanced multi-factor approach.
 
-    New Scoring System (total: 100 points):
+    Base Scoring System (45% of total when enhanced ranking enabled):
     - Code Architecture (30 points): OOP principles, SOLID design, design patterns
     - Code Quality (25 points): Test coverage, code organization, documentation
     - Project Maturity (25 points): CI/CD, Docker, Git activity, project structure
     - Algorithmic Quality (20 points): Complexity awareness, optimization patterns
 
-    This system balances theoretical code quality with practical project health indicators.
+    Enhanced Ranking Factors (55% of total when enabled):
+    - Individual Contribution (30 points): Solo vs collaborative contribution weight
+    - Recency (15 points): Recent activity bonus
+    - Project Scale (10 points): Size and complexity
+    - Collaboration (10 points): Team diversity experience
+    - Activity Duration (10 points): Long-term commitment
+
+    Args:
+        project: Project data dictionary
+        user_email: Optional email to identify user's specific contribution
+        use_enhanced_ranking: Whether to use enhanced ranking (default: True)
+
+    Returns:
+        Dictionary with composite_score, breakdown, justification, and category
     """
     score_breakdown = {
         "code_architecture": 0.0,
@@ -708,8 +722,8 @@ def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
 
     score_breakdown["algorithmic_quality"] = algorithmic_score * 0.20
 
-    # total
-    total_score = sum(score_breakdown.values())
+    # total base score (out of 100)
+    base_score = sum(score_breakdown.values())
 
     # justifications for the architecture score
     arch_justification = []
@@ -722,17 +736,83 @@ def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
     if not arch_justification:
         arch_justification.append("No architecture analysis")
 
-    return {
-        "composite_score": total_score,
-        "breakdown": score_breakdown,
-        "justification": {
+    # Enhanced ranking system (if enabled)
+    if use_enhanced_ranking:
+        # Calculate the 5 new factors
+        contribution_data = calculate_contribution_score(project, user_email)
+        recency_data = calculate_recency_score(project)
+        scale_data = calculate_scale_score(project)
+        collaboration_data = calculate_collaboration_score(project)
+        duration_data = calculate_duration_score(project, user_email)
+
+        # Default weights (can be customized via config in future)
+        weights = {
+            "base_score": 0.45,
+            "contribution": 0.25,
+            "recency": 0.10,
+            "scale": 0.08,
+            "collaboration": 0.07,
+            "duration": 0.05
+        }
+
+        # Calculate weighted final score
+        final_score = (
+            base_score * weights["base_score"] +
+            contribution_data["score"] * weights["contribution"] +
+            recency_data["score"] * weights["recency"] +
+            scale_data["score"] * weights["scale"] +
+            collaboration_data["score"] * weights["collaboration"] +
+            duration_data["score"] * weights["duration"]
+        )
+
+        # Ensure score is within 0-100
+        final_score = min(max(final_score, 0), 100)
+
+        # Enhanced breakdown includes all factors
+        enhanced_breakdown = {
+            **score_breakdown,
+            "individual_contribution": contribution_data["score"],
+            "recency": recency_data["score"],
+            "project_scale": scale_data["score"],
+            "collaboration_diversity": collaboration_data["score"],
+            "activity_duration": duration_data["score"]
+        }
+
+        # Enhanced justification
+        enhanced_justification = {
             "code_architecture": "; ".join(arch_justification)
             + (" | " + "; ".join(architecture_details) if architecture_details else ""),
             "code_quality": "; ".join(quality_details) if quality_details else "No quality metrics",
             "project_maturity": "; ".join(maturity_details) if maturity_details else "No maturity indicators",
             "algorithmic_quality": "; ".join(algorithmic_details) if algorithmic_details else "No algorithmic analysis",
-        },
-    }
+            "individual_contribution": f"{contribution_data['level']} - {contribution_data['justification']}",
+            "recency": recency_data["justification"],
+            "project_scale": f"{scale_data['scale']} - {scale_data['justification']}",
+            "collaboration_diversity": f"{collaboration_data['level']} - {collaboration_data['justification']}",
+            "activity_duration": f"{duration_data['period']} - {duration_data['justification']}"
+        }
+
+        return {
+            "composite_score": final_score,
+            "base_score": base_score,
+            "breakdown": enhanced_breakdown,
+            "justification": enhanced_justification,
+            "category": categorize_score(final_score),
+            "weights": weights
+        }
+    else:
+        # Legacy mode - just return base score
+        return {
+            "composite_score": base_score,
+            "breakdown": score_breakdown,
+            "justification": {
+                "code_architecture": "; ".join(arch_justification)
+                + (" | " + "; ".join(architecture_details) if architecture_details else ""),
+                "code_quality": "; ".join(quality_details) if quality_details else "No quality metrics",
+                "project_maturity": "; ".join(maturity_details) if maturity_details else "No maturity indicators",
+                "algorithmic_quality": "; ".join(algorithmic_details) if algorithmic_details else "No algorithmic analysis",
+            },
+        }
 
 
 def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] = None) -> None:
