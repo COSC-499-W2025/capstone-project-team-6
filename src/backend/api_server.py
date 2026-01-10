@@ -34,6 +34,7 @@ init_user_db()
 # init_analysis_db()
 
 app = FastAPI(
+
     description="API for Portfolio and Resume generation with incremental uploads",
     version="2.0.0",
 )
@@ -214,9 +215,7 @@ async def upload_new_portfolio(
     username: str = Depends(verify_token),
 ):
     """Upload a new portfolio (create new analysis).
-    
-    This is the original functionality from Milestone 1.
-    Returns immediately with task ID - processing happens in background.
+        Returns immediately with task ID.
     """
     # Verify user consent
     if not check_user_consent(username):
@@ -276,12 +275,10 @@ async def add_to_existing_portfolio(
     file: UploadFile = File(..., description="ZIP file with additional projects"),
     username: str = Depends(verify_token),
 ):
-    """Add incremental data to an existing portfolio (Requirement 21).
-    
-    This uploads a new ZIP file and merges it with an existing portfolio.
+    """Add incremental data to an existing portfolio
     """
     # Verify portfolio exists and belongs to user
-    existing = get_analysis_by_uuid(portfolio_id, username)
+    existing = get_analysis_by_uuid(portfolio_id, username) #to be implemented
     if not existing:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -338,7 +335,7 @@ async def delete_portfolio(portfolio_id: str, username: str = Depends(verify_tok
     from .analysis_database import delete_analysis
     
     # Verify ownership
-    existing = get_analysis_by_uuid(portfolio_id, username)
+    existing = get_analysis_by_uuid(portfolio_id, username) #to be implemented
     if not existing:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -352,9 +349,7 @@ async def delete_portfolio(portfolio_id: str, username: str = Depends(verify_tok
     )
 
 
-# ============================================================================
-# Health Check
-# ============================================================================
+
 
 
 @app.get("/api/health")
