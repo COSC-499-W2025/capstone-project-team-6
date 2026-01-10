@@ -91,6 +91,97 @@ def calculate_duration_days(start_date_str: str, end_date_str: str) -> int:
         return 0
 
 
+def categorize_score(score: float) -> str:
+    """
+    Categorize a project based on its final score.
+
+    Args:
+        score: Final composite score (0-100)
+
+    Returns:
+        Category string
+    """
+    if score >= 80:
+        return "Flagship Project"
+    elif score >= 65:
+        return "Major Project"
+    elif score >= 50:
+        return "Significant Project"
+    elif score >= 35:
+        return "Supporting Project"
+    else:
+        return "Minor Contribution"
+
+
+def calculate_contribution_score(project: Dict[str, Any], user_email: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Calculate individual contribution score (0-30 points).
+
+    For solo projects, user gets full credit (30 points).
+    For collaborative projects, score is weighted by commit percentage:
+    - 70%+ commits: 30 pts (Dominant contributor)
+    - 50-70%: 25 pts (Major contributor)
+    - 30-50%: 20 pts (Moderate contributor)
+    - 15-30%: 10 pts (Supporting contributor)
+    - <15%: 5 pts (Minor contributor)
+
+    Args:
+        project: Project data dictionary
+        user_email: Optional user email to identify contribution percentage
+
+    Returns:
+        Dictionary with score and justification
+    """
+    git_analysis = project.get("git_analysis", {})
+    is_collaborative = git_analysis.get("is_collaborative", False)
+
+    if not is_collaborative:
+        # Solo project - full credit
+        return {
+            "score": 30.0,
+            "level": "Solo Project",
+            "justification": "100% individual contribution"
+        }
+
+    # Collaborative project
+    user_percentage = 0
+    if user_email and git_analysis.get("target_user_stats"):
+        user_stats = git_analysis["target_user_stats"]
+        user_percentage = user_stats.get("percentage", 0)
+    elif git_analysis.get("contributors"):
+        # If no user_email provided, assume they're the top contributor
+        contributors = git_analysis["contributors"]
+        if contributors:
+            user_percentage = max(c.get("percentage", 0) for c in contributors)
+
+    # Score based on contribution percentage
+    if user_percentage >= 70:
+        score = 30.0
+        level = "Dominant Contributor"
+    elif user_percentage >= 50:
+        score = 25.0
+        level = "Major Contributor"
+    elif user_percentage >= 30:
+        score = 20.0
+        level = "Moderate Contributor"
+    elif user_percentage >= 15:
+        score = 10.0
+        level = "Supporting Contributor"
+    elif user_percentage > 0:
+        score = 5.0
+        level = "Minor Contributor"
+    else:
+        # Unknown contribution in collaborative project
+        score = 15.0
+        level = "Collaborative (Unknown %)"
+
+    return {
+        "score": score,
+        "level": level,
+        "justification": f"{user_percentage:.1f}% of commits" if user_percentage > 0 else "Contribution percentage unknown"
+    }
+
+
 def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
     """
     Calculate a comprehensive composite score for a project using a balanced multi-factor approach.
