@@ -52,6 +52,45 @@ def print_separator(title=""):
         print("=" * 78)
 
 
+def calculate_days_since(date_str: str) -> int:
+    """
+    Calculate number of days since a given date string.
+
+    Args:
+        date_str: Date string in ISO format (e.g., "2024-01-15")
+
+    Returns:
+        Number of days since the date, or 999999 if parsing fails
+    """
+    try:
+        date_obj = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+        now = datetime.now()
+        delta = now - date_obj
+        return delta.days
+    except (ValueError, AttributeError):
+        return 999999  # Very old if we can't parse
+
+
+def calculate_duration_days(start_date_str: str, end_date_str: str) -> int:
+    """
+    Calculate duration in days between two dates.
+
+    Args:
+        start_date_str: Start date in ISO format
+        end_date_str: End date in ISO format
+
+    Returns:
+        Number of days between dates, or 0 if parsing fails
+    """
+    try:
+        start = datetime.fromisoformat(start_date_str.replace('Z', '+00:00'))
+        end = datetime.fromisoformat(end_date_str.replace('Z', '+00:00'))
+        delta = end - start
+        return max(delta.days, 0)
+    except (ValueError, AttributeError):
+        return 0
+
+
 def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
     """
     Calculate a comprehensive composite score for a project using a balanced multi-factor approach.
