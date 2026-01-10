@@ -182,6 +182,228 @@ def calculate_contribution_score(project: Dict[str, Any], user_email: Optional[s
     }
 
 
+def calculate_recency_score(project: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Calculate recency bonus (0-15 points).
+
+    Recent projects score higher to reflect current skills:
+    - Last 30 days: 15 pts
+    - Last 90 days: 12 pts
+    - Last 180 days: 9 pts
+    - Last 365 days: 6 pts
+    - Older: 3 pts
+
+    Args:
+        project: Project data dictionary
+
+    Returns:
+        Dictionary with score and justification
+    """
+    git_analysis = project.get("git_analysis", {})
+    last_commit = git_analysis.get("last_commit_date")
+
+    if not last_commit:
+        # Fallback to last_modified_date if no git data
+        last_commit = project.get("last_modified_date")
+
+    if not last_commit:
+        return {
+            "score": 3.0,
+            "period": "Unknown",
+            "justification": "No date information available"
+        }
+
+    days_ago = calculate_days_since(last_commit)
+
+    if days_ago < 30:
+        score = 15.0
+        period = "Last 30 days"
+    elif days_ago < 90:
+        score = 12.0
+        period = "Last 90 days"
+    elif days_ago < 180:
+        score = 9.0
+        period = "Last 180 days"
+    elif days_ago < 365:
+        score = 6.0
+        period = "Last year"
+    else:
+        score = 3.0
+        period = f"{days_ago // 365} year(s) ago"
+
+    return {
+        "score": score,
+        "period": period,
+        "justification": f"Last activity: {period}"
+    }
+
+
+def calculate_scale_score(project: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Calculate project scale score (0-10 points).
+
+    Larger projects demonstrate more experience:
+    - 500+ commits OR 100+ files: 10 pts (Large project)
+    - 100+ commits OR 50+ files: 7 pts (Medium-large project)
+    - 50+ commits OR 20+ files: 5 pts (Medium project)
+    - Smaller: 3 pts (Small project)
+
+    Args:
+        project: Project data dictionary
+
+    Returns:
+        Dictionary with score and justification
+    """
+    total_commits = project.get("total_commits", 0)
+    total_files = project.get("total_files", 0)
+
+    if total_commits >= 500 or total_files >= 100:
+        score = 10.0
+        scale = "Large"
+        details = []
+        if total_commits >= 500:
+            details.append(f"{total_commits} commits")
+        if total_files >= 100:
+            details.append(f"{total_files} files")
+        justification = ", ".join(details)
+    elif total_commits >= 100 or total_files >= 50:
+        score = 7.0
+        scale = "Medium-Large"
+        justification = f"{total_commits} commits, {total_files} files"
+    elif total_commits >= 50 or total_files >= 20:
+        score = 5.0
+        scale = "Medium"
+        justification = f"{total_commits} commits, {total_files} files"
+    else:
+        score = 3.0
+        scale = "Small"
+        justification = f"{total_commits} commits, {total_files} files"
+
+    return {
+        "score": score,
+        "scale": scale,
+        "justification": justification
+    }
+
+
+def calculate_collaboration_score(project: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Calculate collaboration diversity score (0-10 points).
+
+    Team experience is valuable:
+    - 5+ contributors: 10 pts (Large team)
+    - 3-4 contributors: 7 pts (Small team)
+    - 2 contributors: 4 pts (Pair)
+    - Solo: 0 pts (already rewarded in contribution_score)
+
+    Args:
+        project: Project data dictionary
+
+    Returns:
+        Dictionary with score and justification
+    """
+    git_analysis = project.get("git_analysis", {})
+    total_contributors = git_analysis.get("total_contributors", 1)
+
+    if total_contributors >= 5:
+        score = 10.0
+        level = "Large Team"
+        justification = f"{total_contributors} contributors"
+    elif total_contributors >= 3:
+        score = 7.0
+        level = "Small Team"
+        justification = f"{total_contributors} contributors"
+    elif total_contributors >= 2:
+        score = 4.0
+        level = "Pair"
+        justification = f"{total_contributors} contributors"
+    else:
+        score = 0.0
+        level = "Solo"
+        justification = "Solo project"
+
+    return {
+        "score": score,
+        "level": level,
+        "justification": justification
+    }
+
+
+def calculate_duration_score(project: Dict[str, Any], user_email: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Calculate activity duration score (0-10 points).
+
+    Long-term commitment demonstrates dedication:
+    - 180+ days: 10 pts (Long-term)
+    - 90-180 days: 8 pts (Extended)
+    - 30-90 days: 6 pts (Moderate)
+    - 7-30 days: 4 pts (Short)
+    - <7 days: 2 pts (Sprint/Hackathon)
+
+    Args:
+        project: Project data dictionary
+        user_email: Optional user email to find their specific contribution period
+
+    Returns:
+        Dictionary with score and justification
+    """
+    git_analysis = project.get("git_analysis", {})
+    contributors = git_analysis.get("contributors", [])
+
+    # Try to find user's specific duration
+    duration_days = 0
+    if user_email and contributors:
+        user_contrib = next((c for c in contributors if c.get("email") == user_email), None)
+        if user_contrib:
+            first = user_contrib.get("first_commit_date")
+            last = user_contrib.get("last_commit_date")
+            if first and last:
+                duration_days = calculate_duration_days(first, last)
+
+    # Fallback to overall project duration if user not found
+    if duration_days == 0 and contributors:
+        # Use the primary/top contributor's duration
+        top_contrib = max(contributors, key=lambda c: c.get("commits", 0), default=None)
+        if top_contrib:
+            first = top_contrib.get("first_commit_date")
+            last = top_contrib.get("last_commit_date")
+            if first and last:
+                duration_days = calculate_duration_days(first, last)
+
+    if duration_days >= 180:
+        score = 10.0
+        period = "Long-term"
+        months = duration_days // 30
+        justification = f"{months} months active"
+    elif duration_days >= 90:
+        score = 8.0
+        period = "Extended"
+        months = duration_days // 30
+        justification = f"{months} months active"
+    elif duration_days >= 30:
+        score = 6.0
+        period = "Moderate"
+        justification = f"{duration_days} days active"
+    elif duration_days >= 7:
+        score = 4.0
+        period = "Short"
+        justification = f"{duration_days} days active"
+    elif duration_days > 0:
+        score = 2.0
+        period = "Sprint/Hackathon"
+        justification = f"{duration_days} days active"
+    else:
+        score = 2.0
+        period = "Unknown"
+        justification = "Duration unknown"
+
+    return {
+        "score": score,
+        "period": period,
+        "justification": justification
+    }
+
+
 def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
     """
     Calculate a comprehensive composite score for a project using a balanced multi-factor approach.
