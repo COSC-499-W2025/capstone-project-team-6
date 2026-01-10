@@ -815,9 +815,15 @@ def calculate_composite_score(project: Dict[str, Any], user_email: Optional[str]
         }
 
 
-def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] = None) -> None:
+def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] = None,
+                                 user_email: Optional[str] = None) -> None:
     """
-    Retrieve projects from the database, calculate composite scores,
+    Retrieve projects from the database, calculate composite scores, and display top-ranked projects.
+
+    Args:
+        limit: Maximum number of projects to display (default: 10)
+        zip_file_path: Optional path to filter by specific ZIP file
+        user_email: Optional email to personalize ranking based on individual contributions
     """
     if zip_file_path:
         print_separator(f"TOP RANKED PROJECTS SUMMARY - {Path(zip_file_path).name}")
@@ -846,7 +852,7 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
             projects = report.get("projects", [])
 
             for project in projects:
-                score_data = calculate_composite_score(project)
+                score_data = calculate_composite_score(project, user_email=user_email)
 
                 try:
                     analysis_timestamp = analysis["analysis_timestamp"]
@@ -919,19 +925,73 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
 
         print(f"Analysis Date: {item['analysis_timestamp']}")
         print(f"\nCOMPOSITE SCORE: {score_data['composite_score']:.2f}/100.0")
-        print(f"\nScore Breakdown:")
-        print(
-            f"  • Code Architecture:  {score_data['breakdown']['code_architecture']:.2f}/30.0  ({score_data['justification']['code_architecture']})"
-        )
-        print(
-            f"  • Code Quality:       {score_data['breakdown']['code_quality']:.2f}/25.0  ({score_data['justification']['code_quality']})"
-        )
-        print(
-            f"  • Project Maturity:  {score_data['breakdown']['project_maturity']:.2f}/25.0  ({score_data['justification']['project_maturity']})"
-        )
-        print(
-            f"  • Algorithmic Quality: {score_data['breakdown']['algorithmic_quality']:.2f}/20.0  ({score_data['justification']['algorithmic_quality']})"
-        )
+
+        # Show category if available (enhanced ranking)
+        if 'category' in score_data:
+            print(f"Category: {score_data['category']}")
+
+        # Check if enhanced ranking is being used
+        has_enhanced = 'individual_contribution' in score_data['breakdown']
+
+        if has_enhanced:
+            # Enhanced ranking output
+            print(f"\n📊 ENHANCED RANKING BREAKDOWN:")
+            print(f"\nBase Technical Score: {score_data.get('base_score', 0):.2f}/100.0 (Weight: 45%)")
+            print(
+                f"  • Code Architecture:   {score_data['breakdown']['code_architecture']:.2f}/30.0"
+            )
+            print(
+                f"  • Code Quality:        {score_data['breakdown']['code_quality']:.2f}/25.0"
+            )
+            print(
+                f"  • Project Maturity:    {score_data['breakdown']['project_maturity']:.2f}/25.0"
+            )
+            print(
+                f"  • Algorithmic Quality: {score_data['breakdown']['algorithmic_quality']:.2f}/20.0"
+            )
+
+            print(f"\nContribution & Context Factors:")
+            print(
+                f"  • Individual Contribution: {score_data['breakdown']['individual_contribution']:.2f}/30.0 (Weight: 25%)"
+            )
+            print(f"    └─ {score_data['justification']['individual_contribution']}")
+            print(
+                f"  • Recency:                 {score_data['breakdown']['recency']:.2f}/15.0 (Weight: 10%)"
+            )
+            print(f"    └─ {score_data['justification']['recency']}")
+            print(
+                f"  • Project Scale:           {score_data['breakdown']['project_scale']:.2f}/10.0 (Weight: 8%)"
+            )
+            print(f"    └─ {score_data['justification']['project_scale']}")
+            print(
+                f"  • Collaboration:           {score_data['breakdown']['collaboration_diversity']:.2f}/10.0 (Weight: 7%)"
+            )
+            print(f"    └─ {score_data['justification']['collaboration_diversity']}")
+            print(
+                f"  • Activity Duration:       {score_data['breakdown']['activity_duration']:.2f}/10.0 (Weight: 5%)"
+            )
+            print(f"    └─ {score_data['justification']['activity_duration']}")
+
+            print(f"\nDetailed Justifications:")
+            print(f"  Architecture: {score_data['justification']['code_architecture']}")
+            print(f"  Quality:      {score_data['justification']['code_quality']}")
+            print(f"  Maturity:     {score_data['justification']['project_maturity']}")
+            print(f"  Algorithms:   {score_data['justification']['algorithmic_quality']}")
+        else:
+            # Legacy output (base score only)
+            print(f"\nScore Breakdown:")
+            print(
+                f"  • Code Architecture:  {score_data['breakdown']['code_architecture']:.2f}/30.0  ({score_data['justification']['code_architecture']})"
+            )
+            print(
+                f"  • Code Quality:       {score_data['breakdown']['code_quality']:.2f}/25.0  ({score_data['justification']['code_quality']})"
+            )
+            print(
+                f"  • Project Maturity:  {score_data['breakdown']['project_maturity']:.2f}/25.0  ({score_data['justification']['project_maturity']})"
+            )
+            print(
+                f"  • Algorithmic Quality: {score_data['breakdown']['algorithmic_quality']:.2f}/20.0  ({score_data['justification']['algorithmic_quality']})"
+            )
         print(f"\nProject Overview:")
         print(f"  • Primary Language: {project.get('primary_language', 'N/A')}")
         print(f"  • Total Files: {project.get('total_files', 0)}")
