@@ -6,7 +6,7 @@
 
 ## Date Ranges
 January 5-January 11
- ![Mithish Week 1](images/Mithishweek1term2.png)
+ ![Mithish Week 1](../images/Mithishweek1term2.png)
 
 ## Weekly recap goals
 - Create API endpoints structure for milestone 2 requirements
