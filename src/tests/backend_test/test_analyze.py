@@ -644,7 +644,8 @@ class TestSummarizeTopRankedProjects:
 
         captured = capsys.readouterr()
         output = captured.out
-        assert "Score Breakdown" in output
+        # Enhanced ranking is now the default, so check for enhanced format
+        assert "ENHANCED RANKING BREAKDOWN" in output or "Score Breakdown" in output
         assert "Code Architecture" in output
         assert "Code Quality" in output
         assert "Project Maturity" in output
