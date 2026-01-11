@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from .. import analysis_database as db
-from .portfolio_item_generator import generate_portfolio_item
 
 
 @dataclass
@@ -77,6 +76,15 @@ class SkillEntry:
     skills: Dict[str, List[str]]  # {"languages": [...], "frameworks": [...], "detailed_skills": [...]}
 
 
+@dataclass
+class ChronologicalSkill:
+    """Represents when a skill was first exercised."""
+    skill: str
+    skill_type: str  # "language", "framework", or "detailed_skill"
+    first_exercised_date: str
+    project_name: str
+
+
 def get_skills_timeline() -> List[SkillEntry]:
     """Aggregate languages, frameworks, and detailed skills over time based on commit/modified date.
 
@@ -140,25 +148,19 @@ def get_skills_timeline() -> List[SkillEntry]:
                 (aid,),
             ).fetchall()
 
-            # Extract detailed skills from portfolio items
-            detailed_skills_set = set()
-            try:
-                if raw_json_str:
-                    analysis_data = json.loads(raw_json_str)
-                    projects = analysis_data.get("projects", [])
-                    
-                    for project in projects:
-                        try:
-                            portfolio_item = generate_portfolio_item(project)
-                            skills_exercised = portfolio_item.get("skills_exercised", [])
-                            detailed_skills_set.update(skills_exercised)
-                        except Exception:
-                            # If portfolio item generation fails for a project, skip it
-                            # but continue with other projects
-                            continue
-            except (json.JSONDecodeError, KeyError, TypeError):
-                # If JSON parsing fails, continue without detailed skills
-                pass
+            # Get detailed skills from database
+            detailed_skills = conn.execute(
+                """
+                SELECT DISTINCT ps.skill
+                FROM project_skills ps
+                JOIN projects p ON p.id = ps.project_id
+                WHERE p.analysis_id = ?
+                ORDER BY ps.skill ASC
+                """,
+                (aid,),
+            ).fetchall()
+            
+            detailed_skills_set = {r["skill"] for r in detailed_skills}
 
             timeline.append(
                 SkillEntry(
@@ -172,3 +174,117 @@ def get_skills_timeline() -> List[SkillEntry]:
             )
 
     return timeline
+
+
+def get_all_skills_chronological() -> List[ChronologicalSkill]:
+    """Build a chronological list of all unique skills exercised across all projects.
+    
+    Returns a list of skills ordered by when they were first exercised, showing
+    the progression of skills over time. Each skill appears only once (at its
+    first occurrence).
+    
+    Returns:
+        List of ChronologicalSkill objects, ordered by first_exercised_date.
+    """
+    with db.get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+        
+        # Get all projects ordered chronologically
+        projects = conn.execute(
+            """
+            SELECT p.id,
+                   p.project_name,
+                   a.raw_json,
+                   a.id as analysis_id,
+                   COALESCE(
+                       p.last_commit_date,
+                       p.last_modified_date,
+                       a.analysis_timestamp
+                   ) as project_date
+            FROM projects p
+            JOIN analyses a ON a.id = p.analysis_id
+            ORDER BY COALESCE(p.last_commit_date, p.last_modified_date, a.analysis_timestamp) ASC, p.id ASC
+            """
+        ).fetchall()
+        
+        # Track skills we've seen and when they were first exercised
+        skills_seen: Dict[str, ChronologicalSkill] = {}
+        
+        for proj_row in projects:
+            project_name = proj_row["project_name"]
+            project_date = proj_row["project_date"]
+            raw_json_str = proj_row["raw_json"]
+            project_id = proj_row["id"]
+            analysis_id = proj_row["analysis_id"]
+            
+            # Get languages for this project
+            langs = conn.execute(
+                """
+                SELECT DISTINCT language
+                FROM project_languages pl
+                WHERE pl.project_id = ?
+                ORDER BY language ASC
+                """,
+                (project_id,),
+            ).fetchall()
+            
+            for lang_row in langs:
+                lang = lang_row["language"]
+                skill_key = f"language:{lang}"
+                if skill_key not in skills_seen:
+                    skills_seen[skill_key] = ChronologicalSkill(
+                        skill=lang,
+                        skill_type="language",
+                        first_exercised_date=project_date,
+                        project_name=project_name,
+                    )
+            
+            # Get frameworks for this project
+            frameworks = conn.execute(
+                """
+                SELECT DISTINCT framework
+                FROM project_frameworks pf
+                WHERE pf.project_id = ?
+                ORDER BY framework ASC
+                """,
+                (project_id,),
+            ).fetchall()
+            
+            for fw_row in frameworks:
+                fw = fw_row["framework"]
+                skill_key = f"framework:{fw}"
+                if skill_key not in skills_seen:
+                    skills_seen[skill_key] = ChronologicalSkill(
+                        skill=fw,
+                        skill_type="framework",
+                        first_exercised_date=project_date,
+                        project_name=project_name,
+                    )
+            
+            # Get detailed skills from database (stored during analysis)
+            detailed_skills = conn.execute(
+                """
+                SELECT DISTINCT skill
+                FROM project_skills ps
+                WHERE ps.project_id = ?
+                ORDER BY skill ASC
+                """,
+                (project_id,),
+            ).fetchall()
+            
+            for skill_row in detailed_skills:
+                skill = skill_row["skill"]
+                skill_key = f"detailed_skill:{skill}"
+                if skill_key not in skills_seen:
+                    skills_seen[skill_key] = ChronologicalSkill(
+                        skill=skill,
+                        skill_type="detailed_skill",
+                        first_exercised_date=project_date,
+                        project_name=project_name,
+                    )
+        
+        # Convert to list and sort by date
+        chronological_skills = list(skills_seen.values())
+        chronological_skills.sort(key=lambda x: (x.first_exercised_date, x.skill))
+        
+        return chronological_skills
