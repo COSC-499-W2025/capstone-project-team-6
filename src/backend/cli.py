@@ -957,9 +957,9 @@ def main() -> int:
 
                         analysis_id = record_analysis("non_llm", results)
                         analysis_uuid = results.get("analysis_metadata", {}).get("analysis_uuid", "unknown")
-                        print(f"\n📊 Analysis saved to database (ID: {analysis_id}, UUID: {analysis_uuid})")
+                        print(f"\nAnalysis saved to database (ID: {analysis_id}, UUID: {analysis_uuid})")
                     except Exception as db_error:
-                        print(f"\n⚠️  Warning: Could not save to database: {db_error}")
+                        print(f"\nWarning: Could not save to database: {db_error}")
 
                 # Contribution-aware ranking across all processed projects
                 if args.user_email and batch_results:
