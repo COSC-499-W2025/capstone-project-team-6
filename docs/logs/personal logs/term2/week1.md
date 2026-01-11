@@ -59,8 +59,8 @@ Created during week 1:
 
 # Mohamed Sakr
 ## Date Ranges
-January 5-January 11
- ![Mithish Week 1](../term2/mohamedw1.png)
+December 22 - January 11
+ ![Mohamed Week 1](../term2/mohamedw1.png)
 
 ## Weekly recap goals
 - Attend the team meetings
@@ -109,11 +109,11 @@ Created during the winter break
 -  #257: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/257
 -  #259: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/259
 -  #261: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/261
+
 ## PR's reviewed
 -  #262: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/262
 -  #269: https://github.com/COSC-499-W2025/capstone-project-team-6/pull/269
 
 ## Plan for next week
 - Discuss milestone 2 requirements with the team
-- Complete requirement 21 (Allow incremental information by adding another zipped folder of files for the same portfolio or résumé)
-- Clean up API endpoints structure if anything is missing 
+- Complete requirement 23 allowing users to choose which information is represented
