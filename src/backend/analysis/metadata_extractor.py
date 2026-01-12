@@ -80,6 +80,8 @@ class ProjectMetadata:
     # Git information (if available)
     is_git_repo: bool = False
     contributors: List[Dict[str, Any]] = field(default_factory=list)
+    commit_authors: List[str] = field(default_factory=list)  # List of contributor email addresses
+    branch_count: int = 0  # Number of branches in the repository
     total_commits: int = 0
     last_commit_date: Optional[str] = None
     last_modified_date: Optional[str] = None  # Most recent file modification timestamp from ZIP
@@ -754,8 +756,28 @@ class MetadataExtractor:
         metadata.total_commits = total_commits
         metadata.last_commit_date = last_commit_date
         metadata.contributors = [c.to_dict() for c in contributors.values()]
+        # Extract commit_authors from contributors (list of email addresses)
+        metadata.commit_authors = [c.email for c in contributors.values()] if contributors else []
 
         if git_details:
+            # Extract branch count from git analysis
+            metadata.branch_count = git_details.get("total_branches", 0)
+            
+            # Populate commit_authors from git_result.contributors if available (more complete than local contributors)
+            git_result_contributors = git_details.get("contributors", [])
+            if git_result_contributors:
+                # Extract emails from git_result contributors (prefer this over local contributors)
+                commit_authors_set = set(metadata.commit_authors)  # Start with existing
+                for contrib in git_result_contributors:
+                    if isinstance(contrib, dict):
+                        email = contrib.get("email")
+                    else:
+                        # If it's a ContributorStats object converted to dict
+                        email = contrib.email if hasattr(contrib, "email") else None
+                    if email:
+                        commit_authors_set.add(email)
+                metadata.commit_authors = list(commit_authors_set)
+            
             metadata.project_start_date = git_details.get("project_start_date")
             metadata.project_end_date = git_details.get("project_end_date")
             metadata.project_active_days = git_details.get("project_active_days")
