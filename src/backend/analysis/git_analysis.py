@@ -114,6 +114,10 @@ class GitAnalysisResult:
     language_breakdown: Dict[str, Dict[str, int]] = field(default_factory=dict)
     semantic_summary: Dict[str, Dict[str, Union[int, str]]] = field(default_factory=dict)
     contribution_volume: Dict[str, int] = field(default_factory=dict)
+    activity_breakdown: Dict[str, Dict[str, int]] = field(default_factory=dict)
+    project_start_date: Optional[str] = None
+    project_end_date: Optional[str] = None
+    project_active_days: Optional[int] = None
 
     def to_dict(self) -> Dict:
         """
@@ -200,12 +204,26 @@ class GitAnalyzer:
             result.error_message = f"Error getting contributor stats: {str(e)}"
             return result
 
+        # project duration (start/end/active days)
+        try:
+            start_date, end_date = self.get_project_dates()
+            result.project_start_date = start_date
+            result.project_end_date = end_date
+            if start_date and end_date:
+                start_dt = datetime.fromisoformat(start_date)
+                end_dt = datetime.fromisoformat(end_date)
+                if end_dt >= start_dt:
+                    result.project_active_days = (end_dt - start_dt).days + 1
+        except Exception as e:
+            print(f"Warning: Could not get project dates: {e}")
+
         # language and semantic contribution breakdown
         try:
             (
                 result.language_breakdown,
                 result.semantic_summary,
                 result.contribution_volume,
+                result.activity_breakdown,
             ) = self.get_language_and_semantic_stats()
         except Exception as e:
             print(f"Warning: Could not get language/semantic stats: {e}")
@@ -424,6 +442,27 @@ class GitAnalyzer:
 
         return first_date, last_date
 
+    def get_project_dates(self) -> tuple[Optional[str], Optional[str]]:
+        """
+        Get overall project first and last commit dates across all authors.
+        """
+        output = self.run_git_command(
+            [
+                "log",
+                "--all",
+                "--format=%aI",
+                "--reverse",
+            ]
+        )
+        if not output:
+            return None, None
+
+        dates = [d for d in output.strip().split("\n") if d]
+        if not dates:
+            return None, None
+
+        return dates[0], dates[-1]
+
     def get_repository_last_commit_date(self) -> Optional[str]:
         """
         Get the date of the most recent commit in the entire repository.
@@ -569,22 +608,56 @@ class GitAnalyzer:
         }
         return mapping.get(ext, "Other")
 
-    def get_language_and_semantic_stats(self) -> tuple[Dict, Dict, Dict]:
+    def classify_activity(self, filename: str) -> str:
         """
-        Calculate language breakdown, semantic contribution, and volume by contributor.
+        Classify a file change into activity buckets: code, test, docs, design.
+        """
+        lower = filename.replace("\\", "/").lower()
+        path = Path(lower)
+        ext = path.suffix.lstrip(".")
+        name = path.name
+
+        # Tests: directory or filename signals
+        if any(part in {"test", "tests", "__tests__"} for part in path.parts[:-1]):
+            return "test"
+        if name.startswith(("test", "spec")):
+            return "test"
+        if re.search(r"(?:^|[._-])(test|spec)(?:\.|$)", name):
+            return "test"
+        if name == "conftest.py":
+            return "test"
+
+        # Docs
+        doc_exts = {"md", "rst", "adoc", "txt"}
+        if ext in doc_exts or "/docs/" in lower or "readme" in lower:
+            return "docs"
+
+        # Design assets
+        design_exts = {"drawio", "png", "jpg", "jpeg", "svg", "fig", "pptx", "key", "psd"}
+        if ext in design_exts or any(token in lower for token in ["/design/", "/ux/"]):
+            return "design"
+
+        return "code"
+
+    def get_language_and_semantic_stats(self) -> tuple[Dict, Dict, Dict, Dict]:
+        """
+        Calculate language breakdown, semantic contribution, contribution volume,
+        and activity-type breakdown by contributor.
 
         Returns:
             language_breakdown: {email: {language: lines_changed}}
             semantic_summary: {email: ContributorSemanticStats}
             contribution_volume: {email: total_lines_changed}
+            activity_breakdown: {email: {"code": int, "test": int, "docs": int, "design": int}}
         """
         output = self.run_git_command(["log", "--all", "--numstat", "--format=%H|%an|%ae|%s"])
         if not output:
-            return {}, {}, {}
+            return {}, {}, {}, {}
 
         language_breakdown: Dict[str, Dict[str, int]] = {}
         semantic_summary: Dict[str, ContributorSemanticStats] = {}
         contribution_volume: Dict[str, int] = {}
+        activity_breakdown: Dict[str, Dict[str, int]] = {}
 
         current_author = None
         current_email = None
@@ -649,12 +722,18 @@ class GitAnalyzer:
             author_langs = language_breakdown.setdefault(normalized_email, {})
             author_langs[language] = author_langs.get(language, 0) + lines_changed
 
+            activity = self.classify_activity(filename)
+            author_activity = activity_breakdown.setdefault(
+                normalized_email, {"code": 0, "test": 0, "docs": 0, "design": 0}
+            )
+            author_activity[activity] = author_activity.get(activity, 0) + lines_changed
+
         # final commit
         commit_complete()
 
         semantic_summary_output = {email: asdict(stats) for email, stats in semantic_summary.items()}
 
-        return language_breakdown, semantic_summary_output, contribution_volume
+        return language_breakdown, semantic_summary_output, contribution_volume, activity_breakdown
 
     def get_code_ownership(self) -> tuple[List[FileOwnership], Dict[str, int]]:
         """
