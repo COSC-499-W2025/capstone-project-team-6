@@ -235,4 +235,4 @@
 
 ## Project Burnup Chart
 
-- 
+<img width="1465" height="770" alt="image" src="https://github.com/user-attachments/assets/c1be2a37-5600-4ba6-a4a2-d8ac610a6efc" />
