@@ -154,6 +154,16 @@ def init_db() -> None:
 
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS project_skills (
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                skill TEXT NOT NULL,
+                PRIMARY KEY (project_id, skill)
+            );
+            """
+        )
+
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS project_dependencies (
                 project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
                 ecosystem TEXT NOT NULL,
@@ -542,6 +552,25 @@ def record_analysis(
                     """,
                     (project_id, framework),
                 )
+
+            # Generate portfolio item and store skills_exercised
+            try:
+                from .analysis.portfolio_item_generator import generate_portfolio_item
+                portfolio_item = generate_portfolio_item(project)
+                skills_exercised = portfolio_item.get("skills_exercised", [])
+                
+                for skill in skills_exercised:
+                    conn.execute(
+                        """
+                        INSERT INTO project_skills (project_id, skill)
+                        VALUES (?, ?)
+                        """,
+                        (project_id, skill),
+                    )
+            except Exception:
+                # If portfolio item generation fails, continue without storing skills
+                # This ensures analysis can still be stored even if skills generation fails
+                pass
 
             dependencies = project.get("dependencies") or {}
             for ecosystem, deps in dependencies.items():
