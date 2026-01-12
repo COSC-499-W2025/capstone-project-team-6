@@ -197,6 +197,43 @@ Additionally, the enhanced ranking output format change (`"ENHANCED RANKING BREA
 
 # Harjot Sahota
 
+## Date Ranges
+
+January 5-January 11
+<img width="820" height="550" alt="Screenshot 2026-01-11 at 11 57 51 PM" src="https://github.com/user-attachments/assets/743c3cf8-0925-4e46-a6ef-c82d0bdebfbe" />
+
+
+## Weekly Recap Goals
+- Review current pull requests in the repository  
+- Re-familiarize myself with the codebase  
+- Learn and understand Milestone 2 requirements  
+
+## What Went Well
+I reviewed all current pull requests in the repository, which helped me re-learn the project structure, recent changes, and overall direction of the codebase. This was a good way to “jump-start” my understanding after the break and get mentally back into the project.
+
+Going through the PRs in detail also gave me a clearer picture of how different components (analysis, ranking, database updates, CLI output) fit together, which will be useful moving into Milestone 2 development.
+
+## What Didn’t Go Well
+I was ill for most of the week, which limited how much new development work I could take on. As a result, I focused mainly on reviews and understanding existing work rather than implementing new features.
+
+## PRs Initiated
+- None this week
+
+## PRs Reviewed
+- **Java complexity analysis** https://github.com/COSC-499-W2025/capstone-project-team-6/pull/245)  
+- **Updated Analysis Database Projects Table to Reflect Skill Analysis Updates** (https://github.com/COSC-499-W2025/capstone-project-team-6/pull/255)  
+- **Add User-Aware Contribution Ranking and Storage** (https://github.com/COSC-499-W2025/capstone-project-team-6/pull/247)  
+- **Fixed DB Duplication Bug** (https://github.com/COSC-499-W2025/capstone-project-team-6/pull/253)  
+- **Updated Summary Output To Reflect On Analysis Updates** (https://github.com/COSC-499-W2025/capstone-project-team-6/pull/255)  
+- **Enhanced Contribution Ranking** (https://github.com/COSC-499-W2025/capstone-project-team-6/pull/268)
+- **Activity-type contribution frequency** https://github.com/COSC-499-W2025/capstone-project-team-6/pull/243
+- **Improved Gaps in Git Analysis Extrapolation** https://github.com/COSC-499-W2025/capstone-project-team-6/pull/235
+
+## Plan for Next Week
+- Discuss Milestone 2 requirements with the team  
+- Begin work on Milestone 2 implementation tasks  
+- Transition from review-focused work to active development
+  
 # Mohamed Sakr
 ## Date Ranges
 December 22 - January 11
