@@ -12,8 +12,9 @@ Test Categories:
 5. Branch and Remote Information (4 tests)
 6. Edge Cases and Error Handling (5 tests)
 7. Export Functionality (3 tests)
+8. Advanced Contribution Insights (5 tests)
 
-Total: 34 tests
+Total: 38 tests
 
 Requirements:
 - pytest
@@ -34,6 +35,7 @@ from pathlib import Path
 
 import pytest
 
+
 # Import the module to test
 # Adjust import based on your project structure
 # Structure: src/backend/analysis/git_analysis.py
@@ -41,10 +43,13 @@ import pytest
 
 try:
     # Try direct import first (if running from project root)
-    from backend.analysis.git_analysis import (ContributorStats,
-                                               GitAnalysisExporter,
-                                               GitAnalysisResult, GitAnalyzer,
-                                               analyze_project)
+    from backend.analysis.git_analysis import (
+        ContributorStats,
+        GitAnalysisExporter,
+        GitAnalysisResult,
+        GitAnalyzer,
+        analyze_project,
+    )
 except ImportError:
     # Add src directory to path and try again
     # Get the project root (go up from tests/backend_test to src, then to project root)
@@ -55,11 +60,13 @@ except ImportError:
     sys.path.insert(0, str(src_dir))
 
     try:
-        from src.backend.analysis.git_analysis import (ContributorStats,
-                                                       GitAnalysisExporter,
-                                                       GitAnalysisResult,
-                                                       GitAnalyzer,
-                                                       analyze_project)
+        from src.backend.analysis.git_analysis import (
+            ContributorStats,
+            GitAnalysisExporter,
+            GitAnalysisResult,
+            GitAnalyzer,
+            analyze_project,
+        )
     except ImportError as e:
         print(f"Error importing git_analysis module: {e}")
         print(f"Test directory: {test_dir}")
@@ -114,7 +121,7 @@ def init_git_repo(repo_path):
     run_git_command(repo_path, "config", "user.email", "test@example.com")
 
 
-def create_commit(repo_path, author_name, author_email, message, filename=None):
+def create_commit(repo_path, author_name, author_email, message, filename=None, content=None):
     """
     Create a commit with specified author.
 
@@ -124,6 +131,7 @@ def create_commit(repo_path, author_name, author_email, message, filename=None):
         author_email: Author's email
         message: Commit message
         filename: Optional filename to create (auto-generated if None)
+        content: Optional content to write to the file
 
     Returns:
         Commit hash or None if failed
@@ -134,7 +142,7 @@ def create_commit(repo_path, author_name, author_email, message, filename=None):
         filename = f"file_{datetime.now().strftime('%Y%m%d%H%M%S%f')}.txt"
 
     file_path = Path(repo_path) / filename
-    file_path.write_text(f"Content for {message}\n")
+    file_path.write_text(content if content is not None else f"Content for {message}\n")
 
     # Add and commit
     run_git_command(repo_path, "add", filename)
@@ -148,7 +156,12 @@ def create_commit(repo_path, author_name, author_email, message, filename=None):
 
     try:
         result = subprocess.run(
-            ["git", "commit", "-m", message], cwd=repo_path, capture_output=True, text=True, env=env, timeout=10
+            ["git", "commit", "-m", message],
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=10,
         )
         if result.returncode == 0:
             # Get the commit hash
@@ -157,6 +170,34 @@ def create_commit(repo_path, author_name, author_email, message, filename=None):
     except Exception as e:
         print(f"Commit failed: {e}")
         return None
+
+
+def append_commit(repo_path, author_name, author_email, message, filename, new_lines):
+    """
+    Append content to an existing file (or create it) and commit with specified author.
+    """
+    file_path = Path(repo_path) / filename
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    mode = "a" if file_path.exists() else "w"
+    with open(file_path, mode, encoding="utf-8") as f:
+        f.write(new_lines)
+
+    run_git_command(repo_path, "add", filename)
+
+    env = os.environ.copy()
+    env["GIT_AUTHOR_NAME"] = author_name
+    env["GIT_AUTHOR_EMAIL"] = author_email
+    env["GIT_COMMITTER_NAME"] = author_name
+    env["GIT_COMMITTER_EMAIL"] = author_email
+
+    subprocess.run(
+        ["git", "commit", "-m", message],
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=10,
+    )
 
 
 def setup_git_remote(repo_path, remote_name, remote_url):
@@ -192,9 +233,11 @@ def temp_dir():
     """
     Create a temporary directory that gets cleaned up after the test.
     """
-    temp_path = tempfile.mkdtemp()
+    # Constrain temp dirs to workspace to avoid sandbox write restrictions
+    project_root = Path(__file__).resolve().parents[3]
+    project_root.mkdir(parents=True, exist_ok=True)
+    temp_path = tempfile.mkdtemp(dir=project_root)
     yield Path(temp_path)
-    # Cleanup
     shutil.rmtree(temp_path, ignore_errors=True)
 
 
@@ -290,6 +333,130 @@ def remote_repo(temp_dir):
     setup_git_remote(repo_path, "origin", "https://github.com/user/repo.git")
 
     yield repo_path
+
+
+@pytest.fixture
+def language_mix_repo(temp_dir):
+    """
+    Repository with clear backend/frontend/documentation split for role inference.
+    """
+    repo_path = temp_dir / "language_mix"
+    repo_path.mkdir()
+    init_git_repo(repo_path)
+
+    create_commit(
+        repo_path,
+        "Alice Backend",
+        "alice@backend.com",
+        "Add API",
+        "api.py",
+        content="def handler():\n    return 1\n" * 3,
+    )
+    create_commit(
+        repo_path,
+        "Alice Backend",
+        "alice@backend.com",
+        "Add queries",
+        "schema.sql",
+        content="SELECT 1;\nSELECT 2;\n",
+    )
+    create_commit(
+        repo_path,
+        "Bob Frontend",
+        "bob@frontend.com",
+        "Add UI",
+        "ui.tsx",
+        content="export const UI = () => <div>Hi</div>;\n" * 4,
+    )
+    create_commit(
+        repo_path,
+        "Cara Docs",
+        "cara@docs.com",
+        "Add docs",
+        "README.md",
+        content="# Title\nSome docs\nMore docs\n",
+    )
+
+    return repo_path
+
+
+@pytest.fixture
+def ownership_repo(temp_dir):
+    """
+    Repository with mixed ownership in a single file.
+    """
+    repo_path = temp_dir / "ownership_repo"
+    repo_path.mkdir()
+    init_git_repo(repo_path)
+
+    append_commit(
+        repo_path,
+        "Alice Owner",
+        "alice@owner.com",
+        "Initial backend file",
+        "service.py",
+        "line1\nline2\nline3\n",
+    )
+    append_commit(
+        repo_path,
+        "Bob Owner",
+        "bob@owner.com",
+        "Extend backend file",
+        "service.py",
+        "line4 by Bob\nline5 by Bob\n",
+    )
+
+    return repo_path
+
+
+@pytest.fixture
+def semantic_repo(temp_dir):
+    """
+    Repository to exercise semantic classification.
+    """
+    repo_path = temp_dir / "semantic_repo"
+    repo_path.mkdir()
+    init_git_repo(repo_path)
+
+    create_commit(
+        repo_path,
+        "Tiny Typer",
+        "tiny@typo.com",
+        "Fix typo",
+        "typo.md",
+        content="typo\n",
+    )
+    create_commit(
+        repo_path,
+        "Feature Builder",
+        "feature@builder.com",
+        "Implement core algorithm",
+        "algo.py",
+        content="print('line1')\nprint('line2')\nprint('line3')\nprint('line4')\nprint('line5')\nprint('line6')\n",
+    )
+
+    return repo_path
+
+
+@pytest.fixture
+def multi_language_repo(temp_dir):
+    """
+    Repository containing various language/file types to validate language mapping.
+    """
+    repo_path = temp_dir / "multi_language_repo"
+    repo_path.mkdir()
+    init_git_repo(repo_path)
+
+    create_commit(repo_path, "Poly Dev", "poly@dev.com", "Add python", "script.py", content="print('hi')\nprint('bye')\n")
+    create_commit(repo_path, "Poly Dev", "poly@dev.com", "Add typescript", "ui.tsx", content="export const X = 1;\n")
+    create_commit(repo_path, "Poly Dev", "poly@dev.com", "Add css", "styles.css", content="body { color: red; }\n")
+    create_commit(repo_path, "Poly Dev", "poly@dev.com", "Add go", "main.go", content="package main\nfunc main() {}\n")
+    create_commit(repo_path, "Poly Dev", "poly@dev.com", "Add rust", "lib.rs", content="fn main() {}\n")
+    create_commit(repo_path, "Poly Dev", "poly@dev.com", "Add yaml", "cfg.yaml", content="a: 1\nb: 2\n")
+    create_commit(repo_path, "Poly Dev", "poly@dev.com", "Add json", "data.json", content='{"a":1}\n')
+    create_commit(repo_path, "Poly Dev", "poly@dev.com", "Add dockerfile", "Dockerfile", content="FROM scratch\n")
+
+    return repo_path
 
 
 @pytest.fixture
@@ -424,11 +591,23 @@ def test_two_contributors(temp_git_repo):
     """Test analysis with two contributors."""
     # Alice: 3 commits
     for i in range(3):
-        create_commit(temp_git_repo, "Alice Developer", "alice@example.com", f"Alice commit {i+1}", f"alice_file{i+1}.txt")
+        create_commit(
+            temp_git_repo,
+            "Alice Developer",
+            "alice@example.com",
+            f"Alice commit {i+1}",
+            f"alice_file{i+1}.txt",
+        )
 
     # Bob: 2 commits
     for i in range(2):
-        create_commit(temp_git_repo, "Bob Contributor", "bob@example.com", f"Bob commit {i+1}", f"bob_file{i+1}.txt")
+        create_commit(
+            temp_git_repo,
+            "Bob Contributor",
+            "bob@example.com",
+            f"Bob commit {i+1}",
+            f"bob_file{i+1}.txt",
+        )
 
     analyzer = GitAnalyzer(temp_git_repo)
     result = analyzer.analyze()
@@ -678,6 +857,30 @@ def test_multiple_emails_same_author(temp_git_repo):
     assert result.total_contributors == 2
 
 
+def test_github_noreply_email_normalization(temp_git_repo):
+    """GitHub noreply aliases with numeric prefixes should be collapsed."""
+    # canonical and numeric-prefixed noreply for same user
+    create_commit(temp_git_repo, "Noreply User", "35599203+mgjim101@users.noreply.github.com", "Commit 1", "a.txt")
+    create_commit(temp_git_repo, "Noreply User", "mgjim101@users.noreply.github.com", "Commit 2", "b.txt")
+
+    analyzer = GitAnalyzer(temp_git_repo)
+    result = analyzer.analyze()
+
+    # noreply contributors are excluded; both commits should be ignored
+    assert result.total_contributors == 0
+    assert len(result.contributors) == 0
+
+
+def test_noreply_emails_excluded(temp_git_repo):
+    """Pure noreply contributors should be excluded from stats."""
+    create_commit(temp_git_repo, "Noreply User", "12345+bot@users.noreply.github.com", "Commit 1", "a.txt")
+    analyzer = GitAnalyzer(temp_git_repo)
+    result = analyzer.analyze()
+
+    assert result.total_contributors == 0
+    assert len(result.contributors) == 0
+
+
 # =============================================================================
 # CATEGORY 7: EXPORT FUNCTIONALITY (3 tests)
 # =============================================================================
@@ -760,6 +963,85 @@ def test_json_export_complete_data(collab_project_repo, temp_output_dir):
 
 
 # =============================================================================
+# CATEGORY 8: ADVANCED CONTRIBUTION INSIGHTS (5 tests)
+# =============================================================================
+
+
+def test_language_breakdown_roles(language_mix_repo):
+    """Language breakdown should reflect dominant stacks per contributor."""
+    analyzer = GitAnalyzer(language_mix_repo)
+    result = analyzer.analyze()
+
+    backend_langs = result.language_breakdown.get("alice@backend.com", {})
+    frontend_langs = result.language_breakdown.get("bob@frontend.com", {})
+    docs_langs = result.language_breakdown.get("cara@docs.com", {})
+
+    assert backend_langs.get("Python", 0) > 0
+    assert backend_langs.get("SQL", 0) > 0
+    assert frontend_langs.get("TypeScript", 0) > 0
+    assert docs_langs.get("Markdown", 0) > 0
+
+
+def test_semantic_contribution_split(semantic_repo):
+    """Semantic stats should distinguish trivial vs substantial commits."""
+    analyzer = GitAnalyzer(semantic_repo)
+    result = analyzer.analyze()
+
+    trivial = result.semantic_summary.get("tiny@typo.com")
+    substantial = result.semantic_summary.get("feature@builder.com")
+
+    assert trivial is not None
+    assert substantial is not None
+    assert trivial["trivial_commits"] >= 1
+    assert substantial["substantial_commits"] >= 1
+    assert substantial["total_lines_changed"] > trivial["total_lines_changed"]
+
+
+def test_code_ownership_dominant_author(ownership_repo):
+    """Dominant author per file determined from git blame."""
+    analyzer = GitAnalyzer(ownership_repo)
+    result = analyzer.analyze()
+
+    ownership = {entry.path: entry for entry in result.code_ownership}
+    assert "service.py" in ownership
+    service_owner = ownership["service.py"]
+    assert service_owner.dominant_email in {"alice@owner.com", "bob@owner.com"}
+    assert service_owner.ownership_percentage >= 40.0  # dominant lines should be majority
+
+
+def test_blame_summary_matches_total_lines(ownership_repo):
+    """Blame summary should aggregate surviving lines across files."""
+    analyzer = GitAnalyzer(ownership_repo)
+    result = analyzer.analyze()
+
+    total_owned_lines = sum(result.blame_summary.values())
+    # file has 5 lines total from fixture
+    assert total_owned_lines == 5
+
+
+def test_contribution_volume_counts(language_mix_repo):
+    """Contribution volume tracks total changed lines by contributor."""
+    analyzer = GitAnalyzer(language_mix_repo)
+    result = analyzer.analyze()
+
+    assert result.contribution_volume.get("alice@backend.com", 0) > 0
+    assert result.contribution_volume.get("bob@frontend.com", 0) > 0
+    assert result.contribution_volume["alice@backend.com"] != result.contribution_volume["bob@frontend.com"]
+
+
+def test_language_mapping_multi_language_repo(multi_language_repo):
+    """Language mapping should classify common extensions instead of Other."""
+    analyzer = GitAnalyzer(multi_language_repo)
+    result = analyzer.analyze()
+
+    langs = result.language_breakdown.get("poly@dev.com", {})
+    expected = ["Python", "TypeScript", "CSS", "Go", "Rust", "YAML", "JSON", "Dockerfile"]
+
+    for lang in expected:
+        assert lang in langs, f"Missing language bucket: {lang}"
+
+
+# =============================================================================
 # CONVENIENCE FUNCTION TESTS
 # =============================================================================
 
@@ -804,9 +1086,10 @@ def test_summary_check():
     print("Category 5: Branch and Remote Information - 4 tests")
     print("Category 6: Edge Cases and Error Handling - 5 tests")
     print("Category 7: Export Functionality - 3 tests")
+    print("Category 8: Advanced Contribution Insights - 5 tests")
     print("Convenience Function Tests - 1 test")
     print("=" * 70)
-    print("Total: 33 tests")
+    print("Total: 38 tests")
     print("=" * 70)
     assert True
 
