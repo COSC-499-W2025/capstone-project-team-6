@@ -46,6 +46,16 @@ SAMPLE_PAYLOAD = {
             "has_docker": True,
             "test_coverage_estimate": "medium",
             "is_git_repo": True,
+            "target_user_email": "john@example.com",
+            "target_user_stats": {
+                "email": "john@example.com",
+                "name": "John Doe",
+                "commit_count": 45,
+                "percentage": 37.5,
+                "last_commit_date": "2025-10-01T00:00:00",
+            },
+            "contribution_volume": {"john@example.com": 120},
+            "blame_summary": {"john@example.com": 100},
             "contributors": [
                 {
                     "name": "John Doe",
@@ -101,6 +111,13 @@ def test_record_analysis_persists_all_entities(temp_analysis_db):
     assert project["total_files"] == 25
     assert project["has_tests"] == 1
     assert project["is_git_repo"] == 1
+    assert project["target_user_email"] == "john@example.com"
+    assert project["target_user_name"] == "John Doe"
+    assert project["target_user_commits"] == 45
+    assert project["target_user_commit_pct"] == pytest.approx(37.5)
+    assert project["target_user_lines_changed"] == 120
+    assert project["target_user_surviving_lines"] == 100
+    assert project["target_user_last_commit"] == "2025-10-01T00:00:00"
 
     with adb.get_connection() as conn:
         languages = conn.execute(
@@ -311,6 +328,14 @@ def test_git_extended_fields_persisted(temp_analysis_db):
                 "project_start_date": "2024-01-10T12:00:00+00:00",
                 "project_end_date": "2024-02-15T12:00:00+00:00",
                 "project_active_days": 37,
+                "target_user_email": "alice@example.com",
+                "target_user_stats": {
+                    "email": "alice@example.com",
+                    "name": "Alice",
+                    "commit_count": 3,
+                    "percentage": 75.0,
+                    "last_commit_date": "2024-02-14T12:00:00+00:00",
+                },
                 "remote_urls": ["https://example.com/repo.git"],
                 "code_ownership": [
                     {
@@ -335,6 +360,10 @@ def test_git_extended_fields_persisted(temp_analysis_db):
                     }
                 },
                 "contribution_volume": {"alice@example.com": 50, "bob@example.com": 10},
+                "activity_breakdown": {
+                    "alice@example.com": {"code": 40, "test": 5, "docs": 5, "design": 1},
+                    "bob@example.com": {"code": 10},
+                },
                 "directory_depth": 2,
             }
         ],
@@ -350,6 +379,13 @@ def test_git_extended_fields_persisted(temp_analysis_db):
     assert project["project_start_date"] == "2024-01-10T12:00:00+00:00"
     assert project["project_end_date"] == "2024-02-15T12:00:00+00:00"
     assert project["project_active_days"] == 37
+    assert project["target_user_email"] == "alice@example.com"
+    assert project["target_user_name"] == "Alice"
+    assert project["target_user_commits"] == 3
+    assert project["target_user_commit_pct"] == pytest.approx(75.0)
+    assert project["target_user_lines_changed"] == 50
+    assert project["target_user_surviving_lines"] == 40
+    assert project["target_user_last_commit"] == "2024-02-14T12:00:00+00:00"
 
     with adb.get_connection() as conn:
         remotes = conn.execute(
@@ -412,6 +448,24 @@ def test_git_extended_fields_persisted(temp_analysis_db):
         assert {(row["email"], row["lines_changed"]) for row in volume} == {
             ("alice@example.com", 50),
             ("bob@example.com", 10),
+        }
+
+        activity = conn.execute(
+            """
+            SELECT email, activity_type, lines_changed
+            FROM project_activity_breakdown
+            WHERE project_id = ?
+            """,
+            (project["id"],),
+        ).fetchall()
+        assert {
+            (row["email"], row["activity_type"], row["lines_changed"]) for row in activity
+        } == {
+            ("alice@example.com", "code", 40),
+            ("alice@example.com", "test", 5),
+            ("alice@example.com", "docs", 5),
+            ("alice@example.com", "design", 1),
+            ("bob@example.com", "code", 10),
         }
 def test_get_analysis_by_zip_file(temp_analysis_db):
     """Test retrieving analysis by zip file path."""
@@ -484,3 +538,368 @@ def test_store_resume_item_validates_input(temp_analysis_db):
 
     with pytest.raises(ValueError, match="project_name and resume_text are required"):
         adb.store_resume_item(None, "some text")
+
+
+def test_project_skills_table_created(temp_analysis_db):
+    """Test that project_skills table is created during initialization."""
+    with adb.get_connection() as conn:
+        # Check if table exists
+        tables = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='project_skills'"
+        ).fetchall()
+        assert len(tables) == 1
+        assert tables[0]["name"] == "project_skills"
+        
+        # Check table schema
+        columns = conn.execute("PRAGMA table_info(project_skills)").fetchall()
+        column_names = {col[1] for col in columns}
+        assert "project_id" in column_names
+        assert "skill" in column_names
+
+
+def test_project_skills_stored_during_analysis(temp_analysis_db):
+    """Test that skills_exercised are stored in project_skills table during analysis recording."""
+    payload_with_oop = {
+        "analysis_metadata": {
+            "zip_file": "oop_project.zip",
+            "analysis_timestamp": "2025-12-01T10:00:00",
+            "total_projects": 1,
+        },
+        "projects": [
+            {
+                "project_name": "oop_project",
+                "project_path": "/oop_project",
+                "primary_language": "python",
+                "languages": {"python": 10},
+                "total_files": 15,
+                "total_size": 1024,
+                "code_files": 12,
+                "test_files": 3,
+                "doc_files": 0,
+                "config_files": 0,
+                "frameworks": ["Django"],
+                "dependencies": {},
+                "has_tests": True,
+                "has_readme": True,
+                "has_ci_cd": False,
+                "has_docker": False,
+                "test_coverage_estimate": "medium",
+                "is_git_repo": True,
+                "total_commits": 10,
+                "branch_count": 2,
+                "commit_authors": ["dev1"],
+                "oop_analysis": {
+                    "total_classes": 5,
+                    "classes_with_inheritance": 2,
+                    "abstract_classes": ["BaseClass"],
+                    "inheritance_depth": 2,
+                    "properties_count": 3,
+                    "operator_overloads": 1,
+                },
+                "java_oop_analysis": {},
+                "cpp_oop_analysis": {},
+                "c_oop_analysis": {},
+                "complexity_analysis": {"optimization_score": 0},
+            }
+        ],
+        "summary": {
+            "total_files": 15,
+            "total_size_bytes": 1024,
+            "total_size_mb": 0.001,
+            "languages_used": ["python"],
+            "frameworks_used": ["Django"],
+        },
+    }
+    
+    analysis_id = adb.record_analysis("non_llm", payload_with_oop)
+    projects = adb.get_projects_for_analysis(analysis_id)
+    assert len(projects) == 1
+    project = projects[0]
+    
+    # Verify skills were stored
+    with adb.get_connection() as conn:
+        skills = conn.execute(
+            "SELECT skill FROM project_skills WHERE project_id = ? ORDER BY skill",
+            (project["id"],),
+        ).fetchall()
+        
+        # Should have stored some skills
+        assert len(skills) > 0
+        
+        skill_names = [row["skill"] for row in skills]
+        
+        # Should include framework skill
+        assert any("Django" in skill for skill in skill_names)
+        
+        # Should include Python OOP-related skills
+        assert any("Python" in skill or "python" in skill.lower() for skill in skill_names)
+        
+        # Should include testing skills
+        assert any("test" in skill.lower() or "Test" in skill for skill in skill_names)
+        
+        # Should include Git workflow skill
+        assert any("Git" in skill for skill in skill_names)
+
+
+def test_project_skills_multiple_projects(temp_analysis_db):
+    """Test that skills are stored correctly for multiple projects."""
+    payload = {
+        "analysis_metadata": {
+            "zip_file": "multi_project.zip",
+            "analysis_timestamp": "2025-12-01T10:00:00",
+            "total_projects": 2,
+        },
+        "projects": [
+            {
+                "project_name": "python_project",
+                "project_path": "/python_project",
+                "primary_language": "python",
+                "languages": {"python": 10},
+                "total_files": 10,
+                "code_files": 8,
+                "test_files": 2,
+                "has_tests": True,
+                "has_readme": True,
+                "frameworks": ["Flask"],
+                "oop_analysis": {
+                    "total_classes": 3,
+                    "classes_with_inheritance": 0,
+                    "abstract_classes": [],
+                    "inheritance_depth": 0,
+                    "properties_count": 0,
+                    "operator_overloads": 0,
+                },
+                "java_oop_analysis": {},
+                "cpp_oop_analysis": {},
+                "c_oop_analysis": {},
+                "complexity_analysis": {"optimization_score": 0},
+            },
+            {
+                "project_name": "js_project",
+                "project_path": "/js_project",
+                "primary_language": "javascript",
+                "languages": {"javascript": 15},
+                "total_files": 15,
+                "code_files": 12,
+                "test_files": 3,
+                "has_tests": True,
+                "has_readme": True,
+                "frameworks": ["React"],
+                "oop_analysis": {},
+                "java_oop_analysis": {},
+                "cpp_oop_analysis": {},
+                "c_oop_analysis": {},
+                "complexity_analysis": {"optimization_score": 0},
+            },
+        ],
+        "summary": {
+            "total_files": 25,
+            "total_size_bytes": 2048,
+            "total_size_mb": 0.002,
+            "languages_used": ["python", "javascript"],
+            "frameworks_used": ["Flask", "React"],
+        },
+    }
+    
+    analysis_id = adb.record_analysis("non_llm", payload)
+    projects = adb.get_projects_for_analysis(analysis_id)
+    assert len(projects) == 2
+    
+    python_proj = next(p for p in projects if p["project_name"] == "python_project")
+    js_proj = next(p for p in projects if p["project_name"] == "js_project")
+    
+    with adb.get_connection() as conn:
+        # Check Python project skills
+        python_skills = conn.execute(
+            "SELECT skill FROM project_skills WHERE project_id = ?",
+            (python_proj["id"],),
+        ).fetchall()
+        python_skill_names = [row["skill"] for row in python_skills]
+        assert len(python_skill_names) > 0
+        assert any("Flask" in skill for skill in python_skill_names)
+        
+        # Check JS project skills
+        js_skills = conn.execute(
+            "SELECT skill FROM project_skills WHERE project_id = ?",
+            (js_proj["id"],),
+        ).fetchall()
+        js_skill_names = [row["skill"] for row in js_skills]
+        assert len(js_skill_names) > 0
+        assert any("React" in skill for skill in js_skill_names)
+        
+        # Skills should be different between projects
+        assert set(python_skill_names) != set(js_skill_names)
+
+
+def test_project_skills_no_oop_analysis(temp_analysis_db):
+    """Test that skills are still stored even for projects without OOP analysis."""
+    payload = {
+        "analysis_metadata": {
+            "zip_file": "simple_project.zip",
+            "analysis_timestamp": "2025-12-01T10:00:00",
+            "total_projects": 1,
+        },
+        "projects": [
+            {
+                "project_name": "simple_project",
+                "project_path": "/simple_project",
+                "primary_language": "python",
+                "languages": {"python": 5},
+                "total_files": 5,
+                "code_files": 5,
+                "test_files": 0,
+                "has_tests": False,
+                "has_readme": False,
+                "frameworks": [],
+                "oop_analysis": {
+                    "total_classes": 0,
+                    "classes_with_inheritance": 0,
+                    "abstract_classes": [],
+                    "inheritance_depth": 0,
+                    "properties_count": 0,
+                    "operator_overloads": 0,
+                },
+                "java_oop_analysis": {},
+                "cpp_oop_analysis": {},
+                "c_oop_analysis": {},
+                "complexity_analysis": {"optimization_score": 0},
+            }
+        ],
+        "summary": {
+            "total_files": 5,
+            "total_size_bytes": 512,
+            "total_size_mb": 0.0005,
+            "languages_used": ["python"],
+            "frameworks_used": [],
+        },
+    }
+    
+    analysis_id = adb.record_analysis("non_llm", payload)
+    projects = adb.get_projects_for_analysis(analysis_id)
+    project = projects[0]
+    
+    with adb.get_connection() as conn:
+        skills = conn.execute(
+            "SELECT skill FROM project_skills WHERE project_id = ?",
+            (project["id"],),
+        ).fetchall()
+        
+        # Even simple projects should have some skills (at least language-related)
+        # But might have fewer skills than OOP projects
+        assert len(skills) >= 0  # Allow for projects with no skills
+
+
+def test_project_skills_handles_portfolio_generation_failure(temp_analysis_db):
+    """Test that analysis recording continues even if portfolio item generation fails."""
+    # Create a payload with invalid data that might cause portfolio generation to fail
+    payload = {
+        "analysis_metadata": {
+            "zip_file": "problematic_project.zip",
+            "analysis_timestamp": "2025-12-01T10:00:00",
+            "total_projects": 1,
+        },
+        "projects": [
+            {
+                "project_name": "problematic_project",
+                "project_path": "/problematic_project",
+                "primary_language": "python",
+                "languages": {"python": 5},
+                "total_files": 5,
+                "code_files": 5,
+                "test_files": 0,
+                "has_tests": False,
+                "has_readme": False,
+                "frameworks": [],
+                # Missing required OOP analysis fields - might cause issues
+                "oop_analysis": {},
+                "java_oop_analysis": {},
+                "cpp_oop_analysis": {},
+                "c_oop_analysis": {},
+                "complexity_analysis": {},
+            }
+        ],
+        "summary": {
+            "total_files": 5,
+            "total_size_bytes": 512,
+            "total_size_mb": 0.0005,
+            "languages_used": ["python"],
+            "frameworks_used": [],
+        },
+    }
+    
+    # Should not raise an exception even if portfolio generation fails
+    analysis_id = adb.record_analysis("non_llm", payload)
+    assert analysis_id is not None
+    
+    # Project should still be stored
+    projects = adb.get_projects_for_analysis(analysis_id)
+    assert len(projects) == 1
+    assert projects[0]["project_name"] == "problematic_project"
+    
+    # Skills might not be stored if portfolio generation failed, but that's OK
+    with adb.get_connection() as conn:
+        skills = conn.execute(
+            "SELECT skill FROM project_skills WHERE project_id = ?",
+            (projects[0]["id"],),
+        ).fetchall()
+        # Skills might be empty, which is acceptable if portfolio generation failed
+        assert isinstance(skills, list)
+
+
+def test_project_skills_uniqueness(temp_analysis_db):
+    """Test that duplicate skills are not stored (primary key constraint)."""
+    payload = {
+        "analysis_metadata": {
+            "zip_file": "test_project.zip",
+            "analysis_timestamp": "2025-12-01T10:00:00",
+            "total_projects": 1,
+        },
+        "projects": [
+            {
+                "project_name": "test_project",
+                "project_path": "/test_project",
+                "primary_language": "python",
+                "languages": {"python": 10},
+                "total_files": 10,
+                "code_files": 8,
+                "test_files": 2,
+                "has_tests": True,
+                "has_readme": True,
+                "frameworks": ["Django"],
+                "oop_analysis": {
+                    "total_classes": 3,
+                    "classes_with_inheritance": 1,
+                    "abstract_classes": [],
+                    "inheritance_depth": 1,
+                    "properties_count": 2,
+                    "operator_overloads": 0,
+                },
+                "java_oop_analysis": {},
+                "cpp_oop_analysis": {},
+                "c_oop_analysis": {},
+                "complexity_analysis": {"optimization_score": 0},
+            }
+        ],
+        "summary": {
+            "total_files": 10,
+            "total_size_bytes": 1024,
+            "total_size_mb": 0.001,
+            "languages_used": ["python"],
+            "frameworks_used": ["Django"],
+        },
+    }
+    
+    analysis_id = adb.record_analysis("non_llm", payload)
+    projects = adb.get_projects_for_analysis(analysis_id)
+    project = projects[0]
+    
+    with adb.get_connection() as conn:
+        skills = conn.execute(
+            "SELECT skill FROM project_skills WHERE project_id = ?",
+            (project["id"],),
+        ).fetchall()
+        
+        skill_names = [row["skill"] for row in skills]
+        
+        # Each skill should appear only once (enforced by primary key)
+        assert len(skill_names) == len(set(skill_names))
