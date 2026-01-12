@@ -330,9 +330,8 @@ def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
     score_breakdown["project_maturity"] = min(maturity_score, 25) * 0.25
 
     # algorithmic quality, 20 points total. metrics: Complexity, Optimization
-    # currently only python is supported for this metric.
+    # Supports Python and Java complexity analysis.
     # the score is calculated based on the optimization score from the complexity analysis.
-    # we will add support for other languages in the future probably during the winter break
     algorithmic_score = 0.0
     algorithmic_details = []
 
@@ -629,13 +628,62 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
             complexity = project["complexity_analysis"]
             opt_score = complexity.get("optimization_score", 0.0)
             print(f"\n⚡ Complexity/Optimization Score: {opt_score:.1f}/100")
-            print(f"\n Currently, only python is supported for this metric.")
+            print(f"   Supported languages: Python, Java")
             if opt_score >= 75:
                 print(f"   Assessment: Strong algorithmic optimization awareness")
             elif opt_score >= 50:
                 print(f"   Assessment: Moderate optimization awareness")
             else:
                 print(f"   Assessment: Limited optimization awareness")
+            
+            # Show breakdown of patterns detected
+            summary = complexity.get("summary", {})
+            if summary:
+                print(f"\n   Pattern Breakdown:")
+                
+                # Good practices
+                good_patterns = {
+                    "efficient_data_structure": "Efficient data structures",
+                    "sorting_with_key": "Sorting with key functions",
+                    "set_operations": "Set operations",
+                    "dict_lookup": "Dict lookups",
+                    "list_comprehension": "List comprehensions",
+                    "generator_expression": "Generator expressions",
+                    "binary_search": "Binary search",
+                    "memoization": "Memoization",
+                    "stream_operations": "Stream operations (Java)",
+                    "sorting_with_comparator": "Sorting with comparators (Java)",
+                    "concurrent_collection": "Concurrent collections (Java)",
+                    "string_builder": "StringBuilder usage (Java)",
+                }
+                
+                good_found = []
+                for key, label in good_patterns.items():
+                    if key in summary and summary[key] > 0:
+                        good_found.append(f"{label}: {summary[key]}")
+                
+                if good_found:
+                    print(f"     [+] Good practices: {', '.join(good_found)}")
+                
+                # Issues
+                issue_patterns = {
+                    "nested_loops": "Nested loops",
+                    "inefficient_lookup": "Inefficient lookups",
+                    "inefficient_membership_test": "Inefficient membership tests",
+                    "inefficient_string_concat": "String concat in loops",
+                }
+                
+                issues_found = []
+                for key, label in issue_patterns.items():
+                    if key in summary and summary[key] > 0:
+                        issues_found.append(f"{label}: {summary[key]}")
+                
+                if issues_found:
+                    print(f"     [!] Optimization opportunities: {', '.join(issues_found)}")
+                
+                if not good_found and not issues_found:
+                    print(f"     No significant patterns detected")
+        
         print(f"\nProject Health Indicators:")
         health_items = []
         if project.get("has_tests"):
