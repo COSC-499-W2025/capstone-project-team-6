@@ -105,7 +105,17 @@ def init_db() -> None:
                 has_remote INTEGER CHECK(has_remote IN (0, 1)),
                 last_commit_date TEXT,
                 last_modified_date TEXT,
-                directory_depth INTEGER
+                directory_depth INTEGER,
+                project_start_date TEXT,
+                project_end_date TEXT,
+                project_active_days INTEGER,
+                target_user_email TEXT,
+                target_user_name TEXT,
+                target_user_commits INTEGER,
+                target_user_commit_pct REAL,
+                target_user_lines_changed INTEGER,
+                target_user_surviving_lines INTEGER,
+                target_user_last_commit TEXT
             );
             """
         )
@@ -138,6 +148,16 @@ def init_db() -> None:
                 project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
                 framework TEXT NOT NULL,
                 PRIMARY KEY (project_id, framework)
+            );
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS project_skills (
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                skill TEXT NOT NULL,
+                PRIMARY KEY (project_id, skill)
             );
             """
         )
@@ -227,6 +247,18 @@ def init_db() -> None:
 
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS project_activity_breakdown (
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                email TEXT NOT NULL,
+                activity_type TEXT NOT NULL,
+                lines_changed INTEGER,
+                PRIMARY KEY (project_id, email, activity_type)
+            );
+            """
+        )
+
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS project_contributors (
                 project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
                 name TEXT,
@@ -268,6 +300,49 @@ def init_db() -> None:
 
         if "has_remote" not in existing_columns:
             conn.execute("ALTER TABLE projects ADD COLUMN has_remote INTEGER CHECK(has_remote IN (0, 1))")
+
+        if "project_start_date" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN project_start_date TEXT")
+
+        if "project_end_date" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN project_end_date TEXT")
+
+        if "project_active_days" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN project_active_days INTEGER")
+
+        if "target_user_email" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN target_user_email TEXT")
+
+        if "target_user_name" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN target_user_name TEXT")
+
+        if "target_user_commits" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN target_user_commits INTEGER")
+
+        if "target_user_commit_pct" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN target_user_commit_pct REAL")
+
+        if "target_user_lines_changed" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN target_user_lines_changed INTEGER")
+
+        if "target_user_surviving_lines" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN target_user_surviving_lines INTEGER")
+
+        if "target_user_last_commit" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN target_user_last_commit TEXT")
+
+        # Ensure activity breakdown table exists in migrations as well
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS project_activity_breakdown (
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                email TEXT NOT NULL,
+                activity_type TEXT NOT NULL,
+                lines_changed INTEGER,
+                PRIMARY KEY (project_id, email, activity_type)
+            );
+            """
+        )
 
         conn.commit()
 
@@ -369,6 +444,17 @@ def record_analysis(
         analysis_id = cursor.lastrowid
 
         for project in projects:
+            target_user_stats = project.get("target_user_stats") or {}
+            target_user_email = project.get("target_user_email") or target_user_stats.get("email")
+            target_user_name = target_user_stats.get("name")
+            target_user_commits = target_user_stats.get("commit_count") or target_user_stats.get("commits")
+            target_user_commit_pct = target_user_stats.get("percentage")
+            contribution_volume = project.get("contribution_volume") or {}
+            blame_summary = project.get("blame_summary") or {}
+            target_user_lines_changed = contribution_volume.get(target_user_email) if target_user_email else None
+            target_user_surviving_lines = blame_summary.get(target_user_email) if target_user_email else None
+            target_user_last_commit = target_user_stats.get("last_commit_date") or project.get("last_commit_date")
+
             project_cursor = conn.execute(
                 """
                 INSERT INTO projects (
@@ -394,8 +480,20 @@ def record_analysis(
                     has_remote,
                     last_commit_date,
                     last_modified_date,
-                    directory_depth
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    directory_depth,
+                    project_start_date,
+                    project_end_date,
+                    project_active_days,
+                    target_user_email,
+                    target_user_name,
+                    target_user_commits,
+                    target_user_commit_pct,
+                    target_user_lines_changed,
+                    target_user_surviving_lines,
+                    target_user_last_commit
+                ) VALUES (
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                )
                 """,
                 (
                     analysis_id,
@@ -421,6 +519,16 @@ def record_analysis(
                     project.get("last_commit_date"),
                     project.get("last_modified_date"),
                     project.get("directory_depth"),
+                    project.get("project_start_date"),
+                    project.get("project_end_date"),
+                    project.get("project_active_days"),
+                    target_user_email,
+                    target_user_name,
+                    target_user_commits,
+                    target_user_commit_pct,
+                    target_user_lines_changed,
+                    target_user_surviving_lines,
+                    target_user_last_commit,
                 ),
             )
             project_id = project_cursor.lastrowid
@@ -445,9 +553,32 @@ def record_analysis(
                     (project_id, framework),
                 )
 
+            # Generate portfolio item and store skills_exercised
+            try:
+                from .analysis.portfolio_item_generator import generate_portfolio_item
+                portfolio_item = generate_portfolio_item(project)
+                skills_exercised = portfolio_item.get("skills_exercised", [])
+                
+                for skill in skills_exercised:
+                    conn.execute(
+                        """
+                        INSERT INTO project_skills (project_id, skill)
+                        VALUES (?, ?)
+                        """,
+                        (project_id, skill),
+                    )
+            except Exception:
+                # If portfolio item generation fails, continue without storing skills
+                # This ensures analysis can still be stored even if skills generation fails
+                pass
+
             dependencies = project.get("dependencies") or {}
             for ecosystem, deps in dependencies.items():
+                seen_deps = set()
                 for dependency in deps or []:
+                    if dependency in seen_deps:
+                        continue
+                    seen_deps.add(dependency)
                     conn.execute(
                         """
                         INSERT INTO project_dependencies (project_id, ecosystem, dependency)
@@ -579,6 +710,19 @@ def record_analysis(
                     """,
                     (project_id, email, lines),
                 )
+
+            activity_breakdown = project.get("activity_breakdown") or {}
+            for email, activities in activity_breakdown.items():
+                for activity_type, lines in (activities or {}).items():
+                    if lines is None or lines == 0:
+                        continue
+                    conn.execute(
+                        """
+                        INSERT INTO project_activity_breakdown (project_id, email, activity_type, lines_changed)
+                        VALUES (?, ?, ?, ?)
+                        """,
+                        (project_id, email, activity_type, lines),
+                    )
 
         conn.commit()
 

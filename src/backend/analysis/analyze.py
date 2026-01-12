@@ -359,6 +359,65 @@ def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
     # total
     total_score = sum(score_breakdown.values())
 
+    # Target-user contribution signal (hybrid: lines/ownership, commits, recency)
+    user_contribution_score = 0.0
+    user_justification = []
+    target_user_stats = project.get("target_user_stats") or {}
+    target_user_email = project.get("target_user_email")
+
+    if target_user_email or target_user_stats:
+        contribution_volume = project.get("contribution_volume") or {}
+        blame_summary = project.get("blame_summary") or {}
+
+        # Ownership / lines changed
+        total_lines_changed = sum(v for v in contribution_volume.values() if isinstance(v, (int, float)))
+        user_lines_changed = contribution_volume.get(target_user_email) if target_user_email else None
+        lines_component = 0.0
+        if total_lines_changed and user_lines_changed is not None:
+            lines_component = max(0.0, min(1.0, user_lines_changed / total_lines_changed))
+            user_justification.append(f"{lines_component * 100:.1f}% of changed lines")
+        else:
+            total_surviving = sum(v for v in blame_summary.values() if isinstance(v, (int, float)))
+            if total_surviving and target_user_email in blame_summary:
+                lines_component = max(0.0, min(1.0, blame_summary[target_user_email] / total_surviving))
+                user_justification.append(f"{lines_component * 100:.1f}% of surviving lines")
+            else:
+                user_justification.append("No matching contributions found for target user")
+
+        # Commit share
+        commit_percentage = target_user_stats.get("percentage")
+        commit_component = 0.0
+        if commit_percentage is not None:
+            commit_component = max(0.0, min(1.0, commit_percentage / 100.0))
+            user_justification.append(f"{commit_percentage:.1f}% of commits")
+
+        # Recency (favor recent activity)
+        recency_component = 0.0
+        last_commit_str = target_user_stats.get("last_commit_date") or project.get("last_commit_date")
+        if last_commit_str:
+            try:
+                last_commit_dt = datetime.fromisoformat(last_commit_str)
+                days_ago = (datetime.now() - last_commit_dt).days
+                if days_ago <= 30:
+                    recency_component = 1.0
+                elif days_ago <= 90:
+                    recency_component = 0.66
+                elif days_ago <= 180:
+                    recency_component = 0.33
+                user_justification.append(f"Last commit {days_ago} days ago")
+            except Exception:
+                pass
+
+        # Weighted blend (default weights: 50% lines, 30% commits, 20% recency)
+        lines_weight = 0.5
+        commits_weight = 0.3
+        recency_weight = 0.2
+        max_user_points = 20.0
+        blended = (lines_component * lines_weight) + (commit_component * commits_weight) + (recency_component * recency_weight)
+        user_contribution_score = max_user_points * blended
+    else:
+        user_justification.append("No target user email provided")
+
     # justifications for the architecture score
     arch_justification = []
     if oop_scores:
@@ -372,6 +431,8 @@ def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
 
     return {
         "composite_score": total_score,
+        "user_contribution_score": user_contribution_score,
+        "adjusted_score": total_score + user_contribution_score,
         "breakdown": score_breakdown,
         "justification": {
             "code_architecture": "; ".join(arch_justification)
@@ -379,6 +440,7 @@ def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
             "code_quality": "; ".join(quality_details) if quality_details else "No quality metrics",
             "project_maturity": "; ".join(maturity_details) if maturity_details else "No maturity indicators",
             "algorithmic_quality": "; ".join(algorithmic_details) if algorithmic_details else "No algorithmic analysis",
+            "target_user": "; ".join(user_justification) if user_justification else "No user contribution data",
         },
     }
 
@@ -458,8 +520,10 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
             unique_projects[unique_key] = item
         else:
             existing = unique_projects[unique_key]
-            existing_score = existing["score_data"]["composite_score"]
-            new_score = item["score_data"]["composite_score"]
+            existing_score = existing["score_data"].get(
+                "adjusted_score", existing["score_data"]["composite_score"]
+            )
+            new_score = item["score_data"].get("adjusted_score", item["score_data"]["composite_score"])
 
             if new_score > existing_score:
                 unique_projects[unique_key] = item
@@ -469,7 +533,9 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
 
     # Convert back to list and sort by composite score (descending)
     projects_with_scores = list(unique_projects.values())
-    projects_with_scores.sort(key=lambda x: x["score_data"]["composite_score"], reverse=True)
+    projects_with_scores.sort(
+        key=lambda x: x["score_data"].get("adjusted_score", x["score_data"]["composite_score"]), reverse=True
+    )
 
     # Display top projects
     top_projects = projects_with_scores[:limit]
@@ -480,13 +546,20 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
     for rank, item in enumerate(top_projects, 1):
         project = item["project"]
         score_data = item["score_data"]
+        adjusted_score = score_data.get("adjusted_score", score_data["composite_score"])
+        user_score = score_data.get("user_contribution_score", 0.0)
 
         print(f"{'=' * 78}")
         print(f"RANK #{rank}: {project.get('project_name', 'Unknown Project')}")
         print(f"{'=' * 78}")
 
         print(f"Analysis Date: {item['analysis_timestamp']}")
+        if project.get("target_user_email"):
+            print(f"Target User Email: {project.get('target_user_email')}")
         print(f"\nCOMPOSITE SCORE: {score_data['composite_score']:.2f}/100.0")
+        if user_score:
+            print(f"USER CONTRIBUTION BOOST: {user_score:.2f}/20.0")
+        print(f"ADJUSTED RANK SCORE: {adjusted_score:.2f}")
         print(f"\nScore Breakdown:")
         print(
             f"  • Code Architecture:  {score_data['breakdown']['code_architecture']:.2f}/30.0  ({score_data['justification']['code_architecture']})"
@@ -585,6 +658,103 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
 
         if project.get("test_coverage_estimate"):
             print(f"   Test Coverage: {project['test_coverage_estimate']}")
+
+        # Detailed Git Contribution Information
+        semantic_summary = project.get("semantic_summary", {})
+        activity_breakdown = project.get("activity_breakdown", {})
+        contribution_volume = project.get("contribution_volume", {})
+        blame_summary = project.get("blame_summary", {})
+        target_user_email = project.get("target_user_email")
+        
+        if semantic_summary or activity_breakdown or contribution_volume or blame_summary:
+            print(f"\nGit Contribution Details:")
+            
+            # Target user contribution details
+            if target_user_email:
+                user_semantic = semantic_summary.get(target_user_email, {})
+                user_activity = activity_breakdown.get(target_user_email, {})
+                user_lines_changed = contribution_volume.get(target_user_email)
+                user_surviving_lines = blame_summary.get(target_user_email)
+                
+                if user_semantic or user_activity or user_lines_changed is not None or user_surviving_lines is not None:
+                    print(f"   Target User ({target_user_email}):")
+                    
+                    if user_semantic:
+                        trivial = user_semantic.get("trivial_commits", 0)
+                        substantial = user_semantic.get("substantial_commits", 0)
+                        total_lines_semantic = user_semantic.get("total_lines_changed", 0)
+                        if trivial > 0 or substantial > 0:
+                            print(f"      Commits: {substantial} substantial, {trivial} trivial")
+                        if total_lines_semantic > 0:
+                            print(f"      Total lines changed: {total_lines_semantic}")
+                    
+                    if user_activity:
+                        activity_parts = []
+                        if user_activity.get("code", 0) > 0:
+                            activity_parts.append(f"code: {user_activity['code']}")
+                        if user_activity.get("test", 0) > 0:
+                            activity_parts.append(f"tests: {user_activity['test']}")
+                        if user_activity.get("docs", 0) > 0:
+                            activity_parts.append(f"docs: {user_activity['docs']}")
+                        if user_activity.get("design", 0) > 0:
+                            activity_parts.append(f"design: {user_activity['design']}")
+                        if activity_parts:
+                            print(f"      Activity: {', '.join(activity_parts)} lines")
+                    
+                    if user_lines_changed is not None:
+                        print(f"      Lines changed: {user_lines_changed}")
+                    
+                    if user_surviving_lines is not None:
+                        total_surviving = sum(v for v in blame_summary.values() if isinstance(v, (int, float)))
+                        if total_surviving > 0:
+                            percentage = (user_surviving_lines / total_surviving) * 100
+                            print(f"      Surviving lines: {user_surviving_lines} ({percentage:.1f}% of codebase)")
+                        else:
+                            print(f"      Surviving lines: {user_surviving_lines}")
+            
+            # Overall project contribution statistics
+            if contribution_volume:
+                total_lines = sum(v for v in contribution_volume.values() if isinstance(v, (int, float)))
+                if total_lines > 0:
+                    print(f"   Total project lines changed: {total_lines}")
+            
+            if semantic_summary:
+                total_substantial = sum(
+                    stats.get("substantial_commits", 0) 
+                    for stats in semantic_summary.values() 
+                    if isinstance(stats, dict)
+                )
+                total_trivial = sum(
+                    stats.get("trivial_commits", 0) 
+                    for stats in semantic_summary.values() 
+                    if isinstance(stats, dict)
+                )
+                if total_substantial > 0 or total_trivial > 0:
+                    print(f"   Project commit quality: {total_substantial} substantial, {total_trivial} trivial")
+            
+            if activity_breakdown:
+                total_code = sum(act.get("code", 0) for act in activity_breakdown.values() if isinstance(act, dict))
+                total_test = sum(act.get("test", 0) for act in activity_breakdown.values() if isinstance(act, dict))
+                total_docs = sum(act.get("docs", 0) for act in activity_breakdown.values() if isinstance(act, dict))
+                total_design = sum(act.get("design", 0) for act in activity_breakdown.values() if isinstance(act, dict))
+                
+                activity_parts = []
+                if total_code > 0:
+                    activity_parts.append(f"code: {total_code}")
+                if total_test > 0:
+                    activity_parts.append(f"tests: {total_test}")
+                if total_docs > 0:
+                    activity_parts.append(f"docs: {total_docs}")
+                if total_design > 0:
+                    activity_parts.append(f"design: {total_design}")
+                
+                if activity_parts:
+                    print(f"   Project activity breakdown: {', '.join(activity_parts)} lines")
+            
+            if blame_summary:
+                total_surviving = sum(v for v in blame_summary.values() if isinstance(v, (int, float)))
+                if total_surviving > 0:
+                    print(f"   Total surviving lines in codebase: {total_surviving}")
 
         print()
 
