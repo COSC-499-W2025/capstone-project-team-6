@@ -612,13 +612,19 @@ class GitAnalyzer:
         """
         Classify a file change into activity buckets: code, test, docs, design.
         """
-        lower = filename.lower()
-        ext = Path(lower).suffix.lstrip(".")
+        lower = filename.replace("\\", "/").lower()
+        path = Path(lower)
+        ext = path.suffix.lstrip(".")
+        name = path.name
 
-        # Tests: path-based or filename-based signals
-        if any(token in lower for token in ["/test/", "/tests/", "__tests__/"]):
+        # Tests: directory or filename signals
+        if any(part in {"test", "tests", "__tests__"} for part in path.parts[:-1]):
             return "test"
-        if re.search(r"(?:^|/)(test_|.+[._]test|.+[._]spec)\.", lower):
+        if name.startswith(("test", "spec")):
+            return "test"
+        if re.search(r"(?:^|[._-])(test|spec)(?:\.|$)", name):
+            return "test"
+        if name == "conftest.py":
             return "test"
 
         # Docs

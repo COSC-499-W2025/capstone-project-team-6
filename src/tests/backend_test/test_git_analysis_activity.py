@@ -1,10 +1,15 @@
 import subprocess
 import tempfile
 from pathlib import Path
+import sys
 
 import pytest
 
-from src.backend.analysis.git_analysis import GitAnalyzer
+# Make project src directory importable
+SRC = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(SRC))
+
+from backend.analysis.git_analysis import GitAnalyzer
 
 
 def _init_repo_with_commits(tmpdir: Path):
@@ -19,7 +24,8 @@ def _init_repo_with_commits(tmpdir: Path):
 
     # code commit
     (tmpdir / "src").mkdir(parents=True, exist_ok=True)
-    (tmpdir / "src" / "app.py").write_text("print('code')\n")
+    # two lines to ensure at least 2 code lines are counted
+    (tmpdir / "src" / "app.py").write_text("print('code')\nprint('more code')\n")
     subprocess.run(["git", "add", "."], cwd=tmpdir, check=True)
     subprocess.run(["git", "commit", "-m", "code commit"], cwd=tmpdir, check=True)
 
