@@ -514,6 +514,8 @@ def mixed():
         # Should handle gracefully (either parse or return empty)
         insights = analyze_python_file("mixed.py", code)
         assert isinstance(insights, list)
+
+
 class TestJavaComplexityAnalyzer:
     """Test suite for Java complexity analysis."""
 
@@ -615,7 +617,6 @@ public class Test {
         parallel_insights = [i for i in insights if "parallel" in i.description.lower()]
         assert len(parallel_insights) >= 1
         assert "efficient" in parallel_insights[0].description.lower()
-
 
     def test_binary_search_java(self):
         """Test detection of binary search in Java."""
@@ -879,7 +880,8 @@ class TestJavaScoreCalculation:
 
     def test_score_with_java_good_practices(self):
         """Test score increases with Java good practices."""
-        from backend.analysis.complexity_analyzer import ComplexityReport, ComplexityInsight
+        from backend.analysis.complexity_analyzer import (ComplexityInsight,
+                                                          ComplexityReport)
 
         report = ComplexityReport(total_files_analyzed=1)
 
@@ -900,7 +902,8 @@ class TestJavaScoreCalculation:
 
     def test_score_with_java_bad_practices(self):
         """Test score decreases with Java inefficiencies."""
-        from backend.analysis.complexity_analyzer import ComplexityReport, ComplexityInsight
+        from backend.analysis.complexity_analyzer import (ComplexityInsight,
+                                                          ComplexityReport)
 
         report = ComplexityReport(total_files_analyzed=1)
 

@@ -635,12 +635,12 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
                 print(f"   Assessment: Moderate optimization awareness")
             else:
                 print(f"   Assessment: Limited optimization awareness")
-            
+
             # Show breakdown of patterns detected
             summary = complexity.get("summary", {})
             if summary:
                 print(f"\n   Pattern Breakdown:")
-                
+
                 # Good practices
                 good_patterns = {
                     "efficient_data_structure": "Efficient data structures",
@@ -656,15 +656,15 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
                     "concurrent_collection": "Concurrent collections (Java)",
                     "string_builder": "StringBuilder usage (Java)",
                 }
-                
+
                 good_found = []
                 for key, label in good_patterns.items():
                     if key in summary and summary[key] > 0:
                         good_found.append(f"{label}: {summary[key]}")
-                
+
                 if good_found:
                     print(f"     [+] Good practices: {', '.join(good_found)}")
-                
+
                 # Issues
                 issue_patterns = {
                     "nested_loops": "Nested loops",
@@ -672,18 +672,18 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
                     "inefficient_membership_test": "Inefficient membership tests",
                     "inefficient_string_concat": "String concat in loops",
                 }
-                
+
                 issues_found = []
                 for key, label in issue_patterns.items():
                     if key in summary and summary[key] > 0:
                         issues_found.append(f"{label}: {summary[key]}")
-                
+
                 if issues_found:
                     print(f"     [!] Optimization opportunities: {', '.join(issues_found)}")
-                
+
                 if not good_found and not issues_found:
                     print(f"     No significant patterns detected")
-        
+
         print(f"\nProject Health Indicators:")
         health_items = []
         if project.get("has_tests"):

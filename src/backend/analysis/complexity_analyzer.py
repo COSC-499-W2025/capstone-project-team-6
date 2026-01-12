@@ -69,7 +69,7 @@ class ComplexityReport:
         good_practices += self.summary.get("generator_expression", 0)
         good_practices += self.summary.get("binary_search", 0)
         good_practices += self.summary.get("memoization", 0)
-        
+
         # Java-specific good patterns
         good_practices += self.summary.get("stream_operations", 0)
         good_practices += self.summary.get("sorting_with_comparator", 0)
@@ -493,7 +493,9 @@ def format_report(report: ComplexityReport, verbose: bool = False) -> str:
     lines.append("\n" + "=" * 70)
     return "\n".join(lines)
 
+
 # Java analysis for complexity
+
 
 class JavaComplexityAnalyzer:
     """Analyzes Java code for complexity patterns using regex-based detection."""
@@ -524,21 +526,21 @@ class JavaComplexityAnalyzer:
     def check_nested_loops(self) -> None:
         """Detect nested loops in Java code."""
         # Pattern to detect for/while loops
-        loop_pattern = re.compile(r'^\s*(for|while)\s*\(')
-        
+        loop_pattern = re.compile(r"^\s*(for|while)\s*\(")
+
         # Track loop depth
         loop_stack = []
-        
+
         for line_no, line in enumerate(self.source_lines, start=1):
             # Count opening braces
-            open_braces = line.count('{')
-            close_braces = line.count('}')
-            
+            open_braces = line.count("{")
+            close_braces = line.count("}")
+
             # Check if this line starts a loop
             if loop_pattern.match(line):
                 current_depth = len(loop_stack) + 1
                 loop_stack.append(line_no)
-                
+
                 # If we're already in a loop, this is nested
                 if current_depth >= 2:
                     complexity = "O(n²)" if current_depth == 2 else f"O(n^{current_depth})"
@@ -553,7 +555,7 @@ class JavaComplexityAnalyzer:
                             code_snippet=self.get_line(line_no),
                         )
                     )
-            
+
             # Track brace depth to know when loops end
             # Simple heuristic: more closing than opening braces means we're exiting scopes
             if close_braces > open_braces and loop_stack:
@@ -564,18 +566,18 @@ class JavaComplexityAnalyzer:
     def check_efficient_data_structures(self) -> None:
         """Detect use of efficient data structures like HashSet, HashMap, etc."""
         efficient_structures = {
-            'HashSet': 'HashSet used for O(1) membership tests (efficient choice)',
-            'HashMap': 'HashMap used for O(1) lookups (efficient choice)',
-            'TreeSet': 'TreeSet used for O(log n) sorted operations',
-            'TreeMap': 'TreeMap used for O(log n) sorted key-value operations',
-            'LinkedHashSet': 'LinkedHashSet used for O(1) operations with insertion order',
-            'LinkedHashMap': 'LinkedHashMap used for O(1) operations with insertion order',
+            "HashSet": "HashSet used for O(1) membership tests (efficient choice)",
+            "HashMap": "HashMap used for O(1) lookups (efficient choice)",
+            "TreeSet": "TreeSet used for O(log n) sorted operations",
+            "TreeMap": "TreeMap used for O(log n) sorted key-value operations",
+            "LinkedHashSet": "LinkedHashSet used for O(1) operations with insertion order",
+            "LinkedHashMap": "LinkedHashMap used for O(1) operations with insertion order",
         }
-        
+
         for line_no, line in enumerate(self.source_lines, start=1):
             for structure, description in efficient_structures.items():
                 # Match patterns like: new HashSet<>(), HashSet<String>, etc.
-                pattern = rf'\bnew\s+{structure}\s*[<(]'
+                pattern = rf"\bnew\s+{structure}\s*[<(]"
                 if re.search(pattern, line):
                     self.insights.append(
                         ComplexityInsight(
@@ -591,14 +593,14 @@ class JavaComplexityAnalyzer:
     def check_streams(self) -> None:
         """Detect use of Java Streams API (modern, functional approach)."""
         stream_patterns = [
-            (r'\.stream\(\)', 'Stream API used (modern, functional programming approach)'),
-            (r'\.parallelStream\(\)', 'Parallel stream used (efficient for large datasets)'),
-            (r'\.filter\(', 'Stream filter operation (declarative data processing)'),
-            (r'\.map\(', 'Stream map operation (functional transformation)'),
-            (r'\.reduce\(', 'Stream reduce operation (efficient aggregation)'),
-            (r'\.collect\(Collectors\.', 'Stream collectors used (efficient collection building)'),
+            (r"\.stream\(\)", "Stream API used (modern, functional programming approach)"),
+            (r"\.parallelStream\(\)", "Parallel stream used (efficient for large datasets)"),
+            (r"\.filter\(", "Stream filter operation (declarative data processing)"),
+            (r"\.map\(", "Stream map operation (functional transformation)"),
+            (r"\.reduce\(", "Stream reduce operation (efficient aggregation)"),
+            (r"\.collect\(Collectors\.", "Stream collectors used (efficient collection building)"),
         ]
-        
+
         for line_no, line in enumerate(self.source_lines, start=1):
             for pattern, description in stream_patterns:
                 if re.search(pattern, line):
@@ -617,17 +619,17 @@ class JavaComplexityAnalyzer:
     def check_sorting(self) -> None:
         """Detect sorting operations."""
         sorting_patterns = [
-            (r'Collections\.sort\s*\(', 'Collections.sort used'),
-            (r'Arrays\.sort\s*\(', 'Arrays.sort used'),
-            (r'\.sorted\s*\(', 'Stream sorted operation used'),
-            (r'Comparator\.\w+', 'Custom Comparator used (demonstrates sort optimization awareness)'),
+            (r"Collections\.sort\s*\(", "Collections.sort used"),
+            (r"Arrays\.sort\s*\(", "Arrays.sort used"),
+            (r"\.sorted\s*\(", "Stream sorted operation used"),
+            (r"Comparator\.\w+", "Custom Comparator used (demonstrates sort optimization awareness)"),
         ]
-        
+
         for line_no, line in enumerate(self.source_lines, start=1):
             for pattern, description in sorting_patterns:
                 if re.search(pattern, line):
                     # Check if using custom comparator (good practice)
-                    if 'Comparator' in line or 'comparing' in line:
+                    if "Comparator" in line or "comparing" in line:
                         self.insights.append(
                             ComplexityInsight(
                                 file_path=self.file_path,
@@ -642,8 +644,8 @@ class JavaComplexityAnalyzer:
 
     def check_binary_search(self) -> None:
         """Detect binary search usage."""
-        binary_search_pattern = r'(Collections\.binarySearch|Arrays\.binarySearch)\s*\('
-        
+        binary_search_pattern = r"(Collections\.binarySearch|Arrays\.binarySearch)\s*\("
+
         for line_no, line in enumerate(self.source_lines, start=1):
             if re.search(binary_search_pattern, line):
                 self.insights.append(
@@ -660,15 +662,15 @@ class JavaComplexityAnalyzer:
     def check_concurrent_collections(self) -> None:
         """Detect use of concurrent collections for thread-safe operations."""
         concurrent_collections = {
-            'ConcurrentHashMap': 'Thread-safe map with O(1) operations',
-            'CopyOnWriteArrayList': 'Thread-safe list optimized for reads',
-            'ConcurrentSkipListMap': 'Thread-safe sorted map with O(log n) operations',
-            'BlockingQueue': 'Thread-safe queue for producer-consumer patterns',
+            "ConcurrentHashMap": "Thread-safe map with O(1) operations",
+            "CopyOnWriteArrayList": "Thread-safe list optimized for reads",
+            "ConcurrentSkipListMap": "Thread-safe sorted map with O(log n) operations",
+            "BlockingQueue": "Thread-safe queue for producer-consumer patterns",
         }
-        
+
         for line_no, line in enumerate(self.source_lines, start=1):
             for collection, description in concurrent_collections.items():
-                pattern = rf'\bnew\s+{collection}\s*[<(]'
+                pattern = rf"\bnew\s+{collection}\s*[<(]"
                 if re.search(pattern, line):
                     self.insights.append(
                         ComplexityInsight(
@@ -684,9 +686,9 @@ class JavaComplexityAnalyzer:
     def check_string_builder(self) -> None:
         """Detect StringBuilder usage for efficient string concatenation."""
         # Check for StringBuilder (good)
-        if re.search(r'\bnew\s+StringBuilder\s*\(', self.source_code):
+        if re.search(r"\bnew\s+StringBuilder\s*\(", self.source_code):
             for line_no, line in enumerate(self.source_lines, start=1):
-                if re.search(r'\bnew\s+StringBuilder\s*\(', line):
+                if re.search(r"\bnew\s+StringBuilder\s*\(", line):
                     self.insights.append(
                         ComplexityInsight(
                             file_path=self.file_path,
@@ -697,11 +699,11 @@ class JavaComplexityAnalyzer:
                             code_snippet=self.get_line(line_no),
                         )
                     )
-        
+
         # Check for string concatenation in loops (inefficient)
         loop_started = False
         for line_no, line in enumerate(self.source_lines, start=1):
-            if re.match(r'^\s*(for|while)\s*\(', line):
+            if re.match(r"^\s*(for|while)\s*\(", line):
                 loop_started = True
             elif loop_started and re.search(r'\+\s*=.*["\']', line):
                 # String concatenation with += in a loop
@@ -715,7 +717,7 @@ class JavaComplexityAnalyzer:
                         code_snippet=self.get_line(line_no),
                     )
                 )
-            elif re.search(r'\}', line):
+            elif re.search(r"\}", line):
                 loop_started = False
 
 
@@ -752,29 +754,29 @@ def analyze_project(files: List[Tuple[str, str]], language: str = "auto") -> Com
     """
     if language == "auto":
         # Group files by extension
-        python_files = [(path, code) for path, code in files if path.endswith('.py')]
-        java_files = [(path, code) for path, code in files if path.endswith('.java')]
-        
+        python_files = [(path, code) for path, code in files if path.endswith(".py")]
+        java_files = [(path, code) for path, code in files if path.endswith(".java")]
+
         # Analyze both if present
         report = ComplexityReport()
-        
+
         if python_files:
             py_report = analyze_python_project(python_files)
             report.total_files_analyzed += py_report.total_files_analyzed
             report.insights.extend(py_report.insights)
             for key, value in py_report.summary.items():
                 report.summary[key] = report.summary.get(key, 0) + value
-        
+
         if java_files:
             java_report = analyze_java_project(java_files)
             report.total_files_analyzed += java_report.total_files_analyzed
             report.insights.extend(java_report.insights)
             for key, value in java_report.summary.items():
                 report.summary[key] = report.summary.get(key, 0) + value
-        
+
         report.calculate_score()
         return report
-    
+
     elif language == "python":
         return analyze_python_project(files)
     elif language == "java":
