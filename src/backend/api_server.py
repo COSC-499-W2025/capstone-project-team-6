@@ -8,16 +8,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import bcrypt
-from fastapi import (
-    Depends,
-    FastAPI,
-    File,
-    Form,
-    HTTPException,
-    Security,
-    UploadFile,
-    status,
-)
+from fastapi import (Depends, FastAPI, File, Form, HTTPException, Security,
+                     UploadFile, status)
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
@@ -37,7 +29,6 @@ init_user_db()
 init_analysis_db()
 
 app = FastAPI(
-
     description="API for Portfolio and Resume generation with incremental uploads",
     version="2.0.0",
 )
@@ -112,22 +103,22 @@ def create_access_token(username: str) -> str:
 def verify_token(credentials: HTTPAuthorizationCredentials = Security(security)) -> str:
     """Verify token and return username."""
     token = credentials.credentials
-    
+
     if token not in active_tokens:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
         )
-    
+
     token_data = active_tokens[token]
-    
+
     if datetime.now() > token_data["expires_at"]:
         del active_tokens[token]
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token expired",
         )
-    
+
     return token_data["username"]
 
 
@@ -139,7 +130,7 @@ async def signup(credentials: UserCredentials):
         
         create_user(credentials.username, credentials.password)
         token = create_access_token(credentials.username)
-        
+
         return TokenResponse(
             access_token=token,
             username=credentials.username,
@@ -171,23 +162,18 @@ async def login(credentials: UserCredentials):
 async def logout(username: str = Depends(verify_token)):
     """Logout and invalidate token."""
     # Remove all tokens for this user
-    tokens_to_remove = [
-        token for token, data in active_tokens.items()
-        if data["username"] == username
-    ]
+    tokens_to_remove = [token for token, data in active_tokens.items() if data["username"] == username]
     for token in tokens_to_remove:
         del active_tokens[token]
-    
+
     return MessageResponse(message="Successfully logged out")
-
-
 
 
 @app.get("/api/portfolios", response_model=List[PortfolioListItem])
 async def list_portfolios(username: str = Depends(verify_token)):
     """List all portfolios for the authenticated user."""
     analyses = get_all_analyses_for_user(username)
-    
+
     return [
         PortfolioListItem(
             analysis_uuid=a["analysis_uuid"],
@@ -204,13 +190,13 @@ async def list_portfolios(username: str = Depends(verify_token)):
 async def get_portfolio(portfolio_id: str, username: str = Depends(verify_token)):
     """Get detailed information about a specific portfolio."""
     analysis = get_analysis_by_uuid(portfolio_id, username)
-    
+
     if not analysis:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Portfolio {portfolio_id} not found",
         )
-    
+
     return PortfolioDetail(
         analysis_uuid=analysis["analysis_uuid"],
         analysis_type=analysis["analysis_type"],
@@ -230,7 +216,7 @@ async def upload_new_portfolio(
     username: str = Depends(verify_token),
 ):
     """Upload a new portfolio (create new analysis).
-        Returns immediately with task ID.
+    Returns immediately with task ID.
     """
     # Verify user consent
     if not check_user_consent(username):
@@ -238,28 +224,28 @@ async def upload_new_portfolio(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User consent required. Please provide consent before uploading.",
         )
-    
+
     # Validate file type
-    if not file.filename or not file.filename.endswith('.zip'):
+    if not file.filename or not file.filename.endswith(".zip"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="File must be a ZIP file",
         )
-    
+
     # Validate analysis type
     if analysis_type not in ["llm", "non_llm"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="analysis_type must be 'llm' or 'non_llm'",
         )
-    
+
     # Save uploaded file temporarily
     task_id = str(uuid.uuid4())
     temp_dir = Path(tempfile.gettempdir()) / f"mda_upload_{task_id}"
     temp_dir.mkdir(exist_ok=True)
-    
+
     zip_path = temp_dir / file.filename
-    
+
     try:
         content = await file.read()
         zip_path.write_bytes(content)
@@ -297,8 +283,7 @@ async def add_to_existing_portfolio(
     file: UploadFile = File(..., description="ZIP file with additional projects"),
     username: str = Depends(verify_token),
 ):
-    """Add incremental data to an existing portfolio
-    """
+    """Add incremental data to an existing portfolio"""
     # Verify portfolio exists and belongs to user
     existing = get_analysis_by_uuid(portfolio_id, username)
     if not existing:
@@ -306,28 +291,28 @@ async def add_to_existing_portfolio(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Portfolio {portfolio_id} not found or access denied",
         )
-    
+
     # Verify user consent
     if not check_user_consent(username):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User consent required",
         )
-    
+
     # Validate file type
-    if not file.filename or not file.filename.endswith('.zip'):
+    if not file.filename or not file.filename.endswith(".zip"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="File must be a ZIP file",
         )
-    
+
     # Save uploaded file temporarily
     task_id = str(uuid.uuid4())
     temp_dir = Path(tempfile.gettempdir()) / f"mda_incremental_{task_id}"
     temp_dir.mkdir(exist_ok=True)
-    
+
     zip_path = temp_dir / file.filename
-    
+
     try:
         content = await file.read()
         zip_path.write_bytes(content)
@@ -484,5 +469,5 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
