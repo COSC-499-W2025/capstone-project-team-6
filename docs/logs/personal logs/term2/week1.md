@@ -76,7 +76,7 @@ Authentication, endpoint design, and validation are implemented cleanly, with cl
 
 ## Issue board
 
-- **Issue #271**: https://github.com/COSC-499-W2025/capstone-project-team-6/blob/Term2Week1/docs/logs/personal%20logs/images/MandiraPeerEvalT2W1.png
+- **Issue #271**: ![Mandira Issue Board](../images/MandiraIssueT2W1.png)
 
 ## Plan for next week
 
