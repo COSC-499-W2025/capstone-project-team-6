@@ -3,7 +3,7 @@
 ## Date Ranges
 
 January 5 – January 11  
-![Mandira Week 1](../images/Mandiraweek1term2.png)
+![Mandira Week 1](../images/MandiraPeerEvalT2W1.png)
 
 ## Weekly recap goals
 
