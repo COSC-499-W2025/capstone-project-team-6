@@ -150,7 +150,24 @@
 
 ### Harjot Sahota (**HarjotSahota**)
 
-- 
+- **Task:** Repository PR reviews + Milestone 2 requirement familiarization  
+  **Description:** Reviewed current PRs to re-familiarize with the codebase after the break and build a clearer understanding of how analysis, ranking, database updates, and CLI output integrate. Focused on staying aligned with Milestone 2 requirements while recovering from illness.  
+
+- **Task:** PRs initiated  
+  **Links:**  
+  - None this week
+
+- **Task:** Reviewed PRs  
+  **Links:**  
+  - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/245  
+  - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/255  
+  - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/247  
+  - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/253  
+  - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/268  
+  - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/243  
+  - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/235  
+
+<img width="820" height="550" alt="HarjotWeek1" src="https://github.com/user-attachments/assets/743c3cf8-0925-4e46-a6ef-c82d0bdebfbe" />
 
 ---
 
