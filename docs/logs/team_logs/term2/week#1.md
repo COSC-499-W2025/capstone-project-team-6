@@ -88,11 +88,16 @@
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/241
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/237
 
+<img width="544" height="87" alt="MaddyIssueWeek1" src="https://github.com/user-attachments/assets/73c21432-bfaf-4291-81de-0a992ad2812b" />
+
+
 ---
 
 ### Aakash Tirithdas (**aakash-tir**)
 
-- 
+
+<img width="408" height="84" alt="AakashIssueWeek1" src="https://github.com/user-attachments/assets/77bcf7d8-1808-47f8-8776-47bd022e3f6b" />
+
 
 ---
 
@@ -116,6 +121,9 @@
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/259
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/261
 
+<img width="796" height="197" alt="MithishIssueWeek1" src="https://github.com/user-attachments/assets/0b314668-96bf-47ef-bde3-b345f272e081" />
+
+
 ---
 
 ### Ansh Rastogi (**anshr18**)
@@ -134,6 +142,9 @@
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/247
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/253
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/257
+
+<img width="476" height="87" alt="AnshIssueWeek1" src="https://github.com/user-attachments/assets/b9be6177-d760-4296-8b1f-36a59f3ce39d" />
+
 
 ---
 
@@ -168,6 +179,9 @@
   **Links:**
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/262
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/269
+
+<img width="467" height="957" alt="MoIssueWeek1" src="https://github.com/user-attachments/assets/26064600-8c7b-492d-ab4f-c73dd216cd27" />
+
 
 ---
 
