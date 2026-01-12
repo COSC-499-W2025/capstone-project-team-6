@@ -453,7 +453,9 @@ def analyze_project_deep(zip_path: Path, project_path: str = "") -> Dict:
     return result
 
 
-def generate_comprehensive_report(zip_path: Path, output_path: Optional[Path] = None) -> Dict:
+def generate_comprehensive_report(
+    zip_path: Path, output_path: Optional[Path] = None, target_user_email: Optional[str] = None
+) -> Dict:
     """
     Generate a comprehensive analysis report combining all analysis phases.
 
@@ -476,7 +478,7 @@ def generate_comprehensive_report(zip_path: Path, output_path: Optional[Path] = 
     if MetadataExtractor is None:
         raise ImportError("MetadataExtractor is required for comprehensive report")
 
-    with MetadataExtractor(zip_path) as extractor:
+    with MetadataExtractor(zip_path, target_user_email=target_user_email) as extractor:
         # Generate base report (Phases 1 & 2)
         report = extractor.generate_report()
         # Add Phase 3: Deep OOP analysis for each Python project
