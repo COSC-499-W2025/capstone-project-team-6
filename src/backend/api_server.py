@@ -21,16 +21,16 @@ from fastapi import (
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
-from . import authenticate_user, create_user
-from .analysis_database import (
+from backend.database import authenticate_user, create_user
+from backend.analysis_database import (
     get_all_analyses_for_user,
     get_analysis_by_uuid,
     init_db as init_analysis_db,
     record_analysis,
     delete_analysis,
 )
-from .task_manager import get_task_manager, TaskType, cleanup_background_tasks
-from .database import check_user_consent, init_db as init_user_db
+from backend.task_manager import get_task_manager, TaskType, cleanup_background_tasks
+from backend.database import check_user_consent, init_db as init_user_db
 
 # Initialize databases
 init_user_db()
@@ -135,7 +135,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
 async def signup(credentials: UserCredentials):
     """Register a new user and return access token."""
     try:
-        from .database import UserAlreadyExistsError
+        from backend.database import UserAlreadyExistsError
         
         create_user(credentials.username, credentials.password)
         token = create_access_token(credentials.username)
