@@ -645,6 +645,17 @@ class MetadataExtractor:
                         # Get total commits
                         total_commits = analyzer.get_total_commits()
 
+                        # Get contributors and convert to ContributorInfo
+                        contributor_stats = analyzer.get_contributor_stats()
+                        for stats in contributor_stats:
+                            contributors[stats.email] = ContributorInfo(
+                                name=stats.name,
+                                email=stats.email,
+                                commits=stats.commit_count,
+                                first_commit=stats.first_commit_date,
+                                last_commit=stats.last_commit_date,
+                            )
+
                         # Get last commit date
                         last_commit_date = analyzer.get_repository_last_commit_date()
         except Exception:
