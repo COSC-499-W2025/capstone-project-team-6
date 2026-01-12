@@ -100,9 +100,22 @@ def init_db() -> None:
                 test_coverage_estimate TEXT,
                 is_git_repo INTEGER CHECK(is_git_repo IN (0, 1)),
                 total_commits INTEGER,
+                primary_branch TEXT,
+                total_branches INTEGER,
+                has_remote INTEGER CHECK(has_remote IN (0, 1)),
                 last_commit_date TEXT,
                 last_modified_date TEXT,
-                directory_depth INTEGER
+                directory_depth INTEGER,
+                project_start_date TEXT,
+                project_end_date TEXT,
+                project_active_days INTEGER,
+                target_user_email TEXT,
+                target_user_name TEXT,
+                target_user_commits INTEGER,
+                target_user_commit_pct REAL,
+                target_user_lines_changed INTEGER,
+                target_user_surviving_lines INTEGER,
+                target_user_last_commit TEXT
             );
             """
         )
@@ -141,11 +154,105 @@ def init_db() -> None:
 
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS project_skills (
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                skill TEXT NOT NULL,
+                PRIMARY KEY (project_id, skill)
+            );
+            """
+        )
+
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS project_dependencies (
                 project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
                 ecosystem TEXT NOT NULL,
                 dependency TEXT NOT NULL,
                 PRIMARY KEY (project_id, ecosystem, dependency)
+            );
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS project_remote_urls (
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                url TEXT NOT NULL,
+                PRIMARY KEY (project_id, url)
+            );
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS project_code_ownership (
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                path TEXT NOT NULL,
+                dominant_author TEXT,
+                dominant_email TEXT,
+                ownership_percentage REAL,
+                total_lines INTEGER,
+                PRIMARY KEY (project_id, path)
+            );
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS project_blame_summary (
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                email TEXT NOT NULL,
+                surviving_lines INTEGER,
+                PRIMARY KEY (project_id, email)
+            );
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS project_language_breakdown (
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                email TEXT NOT NULL,
+                language TEXT NOT NULL,
+                lines_changed INTEGER,
+                PRIMARY KEY (project_id, email, language)
+            );
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS project_semantic_summary (
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                email TEXT NOT NULL,
+                name TEXT,
+                trivial_commits INTEGER,
+                substantial_commits INTEGER,
+                total_lines_changed INTEGER,
+                PRIMARY KEY (project_id, email)
+            );
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS project_contribution_volume (
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                email TEXT NOT NULL,
+                lines_changed INTEGER,
+                PRIMARY KEY (project_id, email)
+            );
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS project_activity_breakdown (
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                email TEXT NOT NULL,
+                activity_type TEXT NOT NULL,
+                lines_changed INTEGER,
+                PRIMARY KEY (project_id, email, activity_type)
             );
             """
         )
@@ -184,6 +291,58 @@ def init_db() -> None:
 
         if "last_modified_date" not in existing_columns:
             conn.execute("ALTER TABLE projects ADD COLUMN last_modified_date TEXT")
+
+        if "primary_branch" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN primary_branch TEXT")
+
+        if "total_branches" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN total_branches INTEGER")
+
+        if "has_remote" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN has_remote INTEGER CHECK(has_remote IN (0, 1))")
+
+        if "project_start_date" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN project_start_date TEXT")
+
+        if "project_end_date" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN project_end_date TEXT")
+
+        if "project_active_days" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN project_active_days INTEGER")
+
+        if "target_user_email" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN target_user_email TEXT")
+
+        if "target_user_name" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN target_user_name TEXT")
+
+        if "target_user_commits" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN target_user_commits INTEGER")
+
+        if "target_user_commit_pct" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN target_user_commit_pct REAL")
+
+        if "target_user_lines_changed" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN target_user_lines_changed INTEGER")
+
+        if "target_user_surviving_lines" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN target_user_surviving_lines INTEGER")
+
+        if "target_user_last_commit" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN target_user_last_commit TEXT")
+
+        # Ensure activity breakdown table exists in migrations as well
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS project_activity_breakdown (
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                email TEXT NOT NULL,
+                activity_type TEXT NOT NULL,
+                lines_changed INTEGER,
+                PRIMARY KEY (project_id, email, activity_type)
+            );
+            """
+        )
 
         conn.commit()
 
@@ -285,6 +444,17 @@ def record_analysis(
         analysis_id = cursor.lastrowid
 
         for project in projects:
+            target_user_stats = project.get("target_user_stats") or {}
+            target_user_email = project.get("target_user_email") or target_user_stats.get("email")
+            target_user_name = target_user_stats.get("name")
+            target_user_commits = target_user_stats.get("commit_count") or target_user_stats.get("commits")
+            target_user_commit_pct = target_user_stats.get("percentage")
+            contribution_volume = project.get("contribution_volume") or {}
+            blame_summary = project.get("blame_summary") or {}
+            target_user_lines_changed = contribution_volume.get(target_user_email) if target_user_email else None
+            target_user_surviving_lines = blame_summary.get(target_user_email) if target_user_email else None
+            target_user_last_commit = target_user_stats.get("last_commit_date") or project.get("last_commit_date")
+
             project_cursor = conn.execute(
                 """
                 INSERT INTO projects (
@@ -305,10 +475,25 @@ def record_analysis(
                     test_coverage_estimate,
                     is_git_repo,
                     total_commits,
+                    primary_branch,
+                    total_branches,
+                    has_remote,
                     last_commit_date,
                     last_modified_date,
-                    directory_depth
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    directory_depth,
+                    project_start_date,
+                    project_end_date,
+                    project_active_days,
+                    target_user_email,
+                    target_user_name,
+                    target_user_commits,
+                    target_user_commit_pct,
+                    target_user_lines_changed,
+                    target_user_surviving_lines,
+                    target_user_last_commit
+                ) VALUES (
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                )
                 """,
                 (
                     analysis_id,
@@ -328,9 +513,22 @@ def record_analysis(
                     project.get("test_coverage_estimate"),
                     _boolean_to_int(project.get("is_git_repo")),
                     project.get("total_commits"),
+                    project.get("primary_branch"),
+                    project.get("total_branches"),
+                    _boolean_to_int(project.get("has_remote")),
                     project.get("last_commit_date"),
                     project.get("last_modified_date"),
                     project.get("directory_depth"),
+                    project.get("project_start_date"),
+                    project.get("project_end_date"),
+                    project.get("project_active_days"),
+                    target_user_email,
+                    target_user_name,
+                    target_user_commits,
+                    target_user_commit_pct,
+                    target_user_lines_changed,
+                    target_user_surviving_lines,
+                    target_user_last_commit,
                 ),
             )
             project_id = project_cursor.lastrowid
@@ -355,9 +553,32 @@ def record_analysis(
                     (project_id, framework),
                 )
 
+            # Generate portfolio item and store skills_exercised
+            try:
+                from .analysis.portfolio_item_generator import generate_portfolio_item
+                portfolio_item = generate_portfolio_item(project)
+                skills_exercised = portfolio_item.get("skills_exercised", [])
+                
+                for skill in skills_exercised:
+                    conn.execute(
+                        """
+                        INSERT INTO project_skills (project_id, skill)
+                        VALUES (?, ?)
+                        """,
+                        (project_id, skill),
+                    )
+            except Exception:
+                # If portfolio item generation fails, continue without storing skills
+                # This ensures analysis can still be stored even if skills generation fails
+                pass
+
             dependencies = project.get("dependencies") or {}
             for ecosystem, deps in dependencies.items():
+                seen_deps = set()
                 for dependency in deps or []:
+                    if dependency in seen_deps:
+                        continue
+                    seen_deps.add(dependency)
                     conn.execute(
                         """
                         INSERT INTO project_dependencies (project_id, ecosystem, dependency)
@@ -401,6 +622,107 @@ def record_analysis(
                         largest_file.get("size_mb"),
                     ),
                 )
+
+            # Git analysis extended fields
+            remote_urls = project.get("remote_urls") or []
+            for url in remote_urls:
+                conn.execute(
+                    """
+                    INSERT INTO project_remote_urls (project_id, url)
+                    VALUES (?, ?)
+                    """,
+                    (project_id, url),
+                )
+
+            code_ownership = project.get("code_ownership") or []
+            for entry in code_ownership:
+                conn.execute(
+                    """
+                    INSERT INTO project_code_ownership (
+                        project_id,
+                        path,
+                        dominant_author,
+                        dominant_email,
+                        ownership_percentage,
+                        total_lines
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        project_id,
+                        entry.get("path"),
+                        entry.get("dominant_author"),
+                        entry.get("dominant_email"),
+                        entry.get("ownership_percentage"),
+                        entry.get("total_lines"),
+                    ),
+                )
+
+            blame_summary = project.get("blame_summary") or {}
+            for email, lines in blame_summary.items():
+                conn.execute(
+                    """
+                    INSERT INTO project_blame_summary (project_id, email, surviving_lines)
+                    VALUES (?, ?, ?)
+                    """,
+                    (project_id, email, lines),
+                )
+
+            language_breakdown = project.get("language_breakdown") or {}
+            for email, langs in language_breakdown.items():
+                for language, lines in (langs or {}).items():
+                    conn.execute(
+                        """
+                        INSERT INTO project_language_breakdown (project_id, email, language, lines_changed)
+                        VALUES (?, ?, ?, ?)
+                        """,
+                        (project_id, email, language, lines),
+                    )
+
+            semantic_summary = project.get("semantic_summary") or {}
+            for email, stats in semantic_summary.items():
+                conn.execute(
+                    """
+                    INSERT INTO project_semantic_summary (
+                        project_id,
+                        email,
+                        name,
+                        trivial_commits,
+                        substantial_commits,
+                        total_lines_changed
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        project_id,
+                        email,
+                        stats.get("name"),
+                        stats.get("trivial_commits"),
+                        stats.get("substantial_commits"),
+                        stats.get("total_lines_changed"),
+                    ),
+                )
+
+            contribution_volume = project.get("contribution_volume") or {}
+            for email, lines in contribution_volume.items():
+                conn.execute(
+                    """
+                    INSERT INTO project_contribution_volume (project_id, email, lines_changed)
+                    VALUES (?, ?, ?)
+                    """,
+                    (project_id, email, lines),
+                )
+
+            activity_breakdown = project.get("activity_breakdown") or {}
+            for email, activities in activity_breakdown.items():
+                for activity_type, lines in (activities or {}).items():
+                    if lines is None or lines == 0:
+                        continue
+                    conn.execute(
+                        """
+                        INSERT INTO project_activity_breakdown (project_id, email, activity_type, lines_changed)
+                        VALUES (?, ?, ?, ?)
+                        """,
+                        (project_id, email, activity_type, lines),
+                    )
 
         conn.commit()
 
