@@ -571,3 +571,74 @@ def get_all_analyses() -> List[sqlite3.Row]:
             ORDER BY created_at DESC
             """
         ).fetchall()
+
+
+def get_all_analyses_for_user(username: str) -> List[Dict[str, Any]]:
+    """Get all analyses for a specific user."""
+    with get_connection() as conn:
+        # For now, return all analyses as we don't have user-specific filtering yet
+        # TODO: Add user association to analyses table
+        rows = conn.execute(
+            """
+            SELECT analysis_uuid, analysis_type, zip_file, analysis_timestamp, 
+                   total_projects, raw_json
+            FROM analyses 
+            ORDER BY created_at DESC
+            """
+        ).fetchall()
+        
+        return [
+            {
+                "analysis_uuid": row["analysis_uuid"],
+                "analysis_type": row["analysis_type"],
+                "zip_file": row["zip_file"],
+                "analysis_timestamp": row["analysis_timestamp"],
+                "total_projects": row["total_projects"],
+            }
+            for row in rows
+        ]
+
+
+def get_analysis_by_uuid(uuid_str: str, username: str = None) -> Optional[Dict[str, Any]]:
+    """Get analysis details by UUID for a specific user."""
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT analysis_uuid, analysis_type, zip_file, analysis_timestamp, 
+                   total_projects, raw_json
+            FROM analyses 
+            WHERE analysis_uuid = ?
+            """,
+            (uuid_str,),
+        ).fetchone()
+        
+        if not row:
+            return None
+            
+        # Parse the JSON data to get projects and other details
+        raw_data = json.loads(row["raw_json"]) if row["raw_json"] else {}
+        
+        return {
+            "analysis_uuid": row["analysis_uuid"],
+            "analysis_type": row["analysis_type"],
+            "zip_file": row["zip_file"],
+            "analysis_timestamp": row["analysis_timestamp"],
+            "total_projects": row["total_projects"],
+            "projects": raw_data.get("projects", []),
+            "skills": raw_data.get("skills", []),
+            "summary": raw_data.get("summary"),
+        }
+
+
+def delete_analysis(uuid_str: str, username: str = None) -> bool:
+    """Delete an analysis by UUID."""
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            DELETE FROM analyses 
+            WHERE analysis_uuid = ?
+            """,
+            (uuid_str,),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
