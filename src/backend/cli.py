@@ -10,10 +10,9 @@ import zipfile
 from pathlib import Path
 from typing import Optional
 
-from .analysis.analyze import calculate_composite_score
-
 from . import (Folder_traversal_fs, MDAShell, UserAlreadyExistsError,
                authenticate_user, create_user, initialize)
+from .analysis.analyze import calculate_composite_score
 from .analysis.deep_code_analyzer import generate_comprehensive_report
 from .analysis.document_analyzer import DocumentAnalysis, analyze_document
 from .analysis_database import init_db
@@ -378,7 +377,7 @@ def display_analysis(results: dict) -> None:
                     print(f"   Surviving lines: {surviving_lines} ({percentage:.1f}% of codebase)")
                 else:
                     print(f"   Surviving lines: {surviving_lines}")
-            
+
             # Semantic summary (trivial vs substantial commits)
             user_semantic = semantic_summary.get(target_user_email, {})
             if user_semantic:
@@ -389,7 +388,7 @@ def display_analysis(results: dict) -> None:
                     print(f"   Commit breakdown: {substantial} substantial, {trivial} trivial commits")
                 if total_lines_semantic > 0:
                     print(f"   Total lines changed (semantic): {total_lines_semantic}")
-            
+
             # Activity breakdown (code/test/docs/design)
             user_activity = activity_breakdown.get(target_user_email, {})
             if user_activity:
@@ -402,7 +401,7 @@ def display_analysis(results: dict) -> None:
                     activity_parts.append(f"docs: {user_activity['docs']} lines")
                 if user_activity.get("design", 0) > 0:
                     activity_parts.append(f"design: {user_activity['design']} lines")
-                
+
                 if activity_parts:
                     print(f"   Activity breakdown: {', '.join(activity_parts)}")
 
@@ -531,16 +530,16 @@ def display_analysis(results: dict) -> None:
                     commits = contrib.get("commit_count", 0)
                     percentage = contrib.get("percentage", 0)
                     print(f"      • {name}: {commits} commits ({percentage:.1f}%)")
-        
+
         # Additional Git Contribution Details (if available)
         semantic_summary = project.get("semantic_summary", {})
         activity_breakdown = project.get("activity_breakdown", {})
         contribution_volume = project.get("contribution_volume", {})
         blame_summary = project.get("blame_summary", {})
-        
+
         if semantic_summary or activity_breakdown or contribution_volume or blame_summary:
             print(f"\nDetailed Contribution Analysis:")
-            
+
             # Show overall contribution volume
             if contribution_volume:
                 total_lines = sum(v for v in contribution_volume.values() if isinstance(v, (int, float)))
@@ -549,54 +548,32 @@ def display_analysis(results: dict) -> None:
                     print(f"   Contributors with changes: {len(contribution_volume)}")
                     # Show top contributors by lines changed
                     sorted_contributors = sorted(
-                        contribution_volume.items(), 
-                        key=lambda x: x[1] if isinstance(x[1], (int, float)) else 0, 
-                        reverse=True
+                        contribution_volume.items(), key=lambda x: x[1] if isinstance(x[1], (int, float)) else 0, reverse=True
                     )[:3]
                     print(f"   Top contributors by lines:")
                     for email, lines in sorted_contributors:
                         if isinstance(lines, (int, float)) and lines > 0:
                             percentage = (lines / total_lines * 100) if total_lines > 0 else 0
                             print(f"      • {email}: {lines} lines ({percentage:.1f}%)")
-            
+
             # Show semantic summary (trivial vs substantial)
             if semantic_summary:
                 total_substantial = sum(
-                    stats.get("substantial_commits", 0) 
-                    for stats in semantic_summary.values() 
-                    if isinstance(stats, dict)
+                    stats.get("substantial_commits", 0) for stats in semantic_summary.values() if isinstance(stats, dict)
                 )
                 total_trivial = sum(
-                    stats.get("trivial_commits", 0) 
-                    for stats in semantic_summary.values() 
-                    if isinstance(stats, dict)
+                    stats.get("trivial_commits", 0) for stats in semantic_summary.values() if isinstance(stats, dict)
                 )
                 if total_substantial > 0 or total_trivial > 0:
                     print(f"   Commit quality: {total_substantial} substantial, {total_trivial} trivial commits")
-            
+
             # Show activity breakdown summary
             if activity_breakdown:
-                total_code = sum(
-                    act.get("code", 0) 
-                    for act in activity_breakdown.values() 
-                    if isinstance(act, dict)
-                )
-                total_test = sum(
-                    act.get("test", 0) 
-                    for act in activity_breakdown.values() 
-                    if isinstance(act, dict)
-                )
-                total_docs = sum(
-                    act.get("docs", 0) 
-                    for act in activity_breakdown.values() 
-                    if isinstance(act, dict)
-                )
-                total_design = sum(
-                    act.get("design", 0) 
-                    for act in activity_breakdown.values() 
-                    if isinstance(act, dict)
-                )
-                
+                total_code = sum(act.get("code", 0) for act in activity_breakdown.values() if isinstance(act, dict))
+                total_test = sum(act.get("test", 0) for act in activity_breakdown.values() if isinstance(act, dict))
+                total_docs = sum(act.get("docs", 0) for act in activity_breakdown.values() if isinstance(act, dict))
+                total_design = sum(act.get("design", 0) for act in activity_breakdown.values() if isinstance(act, dict))
+
                 activity_parts = []
                 if total_code > 0:
                     activity_parts.append(f"code: {total_code}")
@@ -606,10 +583,10 @@ def display_analysis(results: dict) -> None:
                     activity_parts.append(f"docs: {total_docs}")
                 if total_design > 0:
                     activity_parts.append(f"design: {total_design}")
-                
+
                 if activity_parts:
                     print(f"   Activity breakdown: {', '.join(activity_parts)} lines")
-            
+
             # Show blame summary (surviving lines)
             if blame_summary:
                 total_surviving = sum(v for v in blame_summary.values() if isinstance(v, (int, float)))
@@ -617,22 +594,21 @@ def display_analysis(results: dict) -> None:
                     print(f"   Total surviving lines: {total_surviving}")
                     if len(blame_summary) > 1:
                         sorted_blame = sorted(
-                            blame_summary.items(),
-                            key=lambda x: x[1] if isinstance(x[1], (int, float)) else 0,
-                            reverse=True
+                            blame_summary.items(), key=lambda x: x[1] if isinstance(x[1], (int, float)) else 0, reverse=True
                         )[:3]
                         print(f"   Top code owners:")
                         for email, lines in sorted_blame:
                             if isinstance(lines, (int, float)) and lines > 0:
                                 percentage = (lines / total_surviving * 100) if total_surviving > 0 else 0
                                 print(f"      • {email}: {lines} lines ({percentage:.1f}%)")
-        
+
         # Contribution Ranking Scores (if calculated)
         # Note: These scores are typically calculated in analyze.py's summarize_top_ranked_projects
         # but we can calculate them here if needed for display
         if project.get("target_user_email"):
             try:
                 from analysis.analyze import calculate_composite_score
+
                 score_data = calculate_composite_score(project)
                 if score_data:
                     print(f"\nContribution Ranking Scores:")
@@ -1131,9 +1107,7 @@ def main() -> int:
                             )
                     if aggregated_projects:
                         aggregated_projects.sort(
-                            key=lambda x: x["score_data"].get(
-                                "adjusted_score", x["score_data"]["composite_score"]
-                            ),
+                            key=lambda x: x["score_data"].get("adjusted_score", x["score_data"]["composite_score"]),
                             reverse=True,
                         )
                         print("\n" + "=" * 78)
@@ -1427,9 +1401,9 @@ def main() -> int:
 
         elif args.command == "timeline":
             # No login/consent required to view previously stored aggregate timelines
-            from .analysis.chronology import (get_projects_timeline,
-                                              get_skills_timeline,
-                                              get_all_skills_chronological)
+            from .analysis.chronology import (get_all_skills_chronological,
+                                              get_projects_timeline,
+                                              get_skills_timeline)
 
             try:
                 init_db()
@@ -1503,7 +1477,7 @@ def main() -> int:
                     return 0
                 print("\nChronological List of All Skills Exercised:")
                 print("=" * 70)
-                
+
                 # Group by date for better display
                 current_date = None
                 for i, skill_entry in enumerate(skills, 1):
@@ -1512,16 +1486,14 @@ def main() -> int:
                             print()  # Blank line between dates
                         current_date = skill_entry.first_exercised_date
                         print(f"\n{current_date}:")
-                    
-                    skill_type_label = {
-                        "language": "Language",
-                        "framework": "Framework",
-                        "detailed_skill": "Skill"
-                    }.get(skill_entry.skill_type, "Skill")
-                    
+
+                    skill_type_label = {"language": "Language", "framework": "Framework", "detailed_skill": "Skill"}.get(
+                        skill_entry.skill_type, "Skill"
+                    )
+
                     print(f"  {i}. [{skill_type_label}] {skill_entry.skill}")
                     print(f"     First used in: {skill_entry.project_name}")
-                
+
                 print(f"\n{'=' * 70}")
                 print(f"Total unique skills: {len(skills)}")
                 return 0

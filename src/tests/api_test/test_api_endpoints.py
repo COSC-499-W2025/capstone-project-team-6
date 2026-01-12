@@ -57,13 +57,11 @@ class TestAuthentication:
     def test_signup_success(self, client):
         """Test POST /api/auth/signup with valid credentials."""
         import random
+
         username = f"newuser_{random.randint(1000, 9999)}"
-        
-        response = client.post(
-            "/api/auth/signup",
-            json={"username": username, "password": "password123"}
-        )
-        
+
+        response = client.post("/api/auth/signup", json={"username": username, "password": "password123"})
+
         assert response.status_code == 201
         data = response.json()
         assert "access_token" in data
@@ -72,57 +70,41 @@ class TestAuthentication:
 
     def test_signup_short_password(self, client):
         """Test signup rejects password less than 6 characters."""
-        response = client.post(
-            "/api/auth/signup",
-            json={"username": "testuser", "password": "12345"}
-        )
+        response = client.post("/api/auth/signup", json={"username": "testuser", "password": "12345"})
         assert response.status_code == 422  # Validation error
 
     def test_signup_short_username(self, client):
         """Test signup rejects username less than 3 characters."""
-        response = client.post(
-            "/api/auth/signup",
-            json={"username": "ab", "password": "password123"}
-        )
+        response = client.post("/api/auth/signup", json={"username": "ab", "password": "password123"})
         assert response.status_code == 422  # Validation error
 
     def test_signup_duplicate_user(self, client):
         """Test signup fails for existing username."""
         import random
+
         username = f"dupuser_{random.randint(1000, 9999)}"
-        
+
         # Create user first time
-        response1 = client.post(
-            "/api/auth/signup",
-            json={"username": username, "password": "password123"}
-        )
+        response1 = client.post("/api/auth/signup", json={"username": username, "password": "password123"})
         assert response1.status_code == 201
-        
+
         # Try to create same user again
-        response2 = client.post(
-            "/api/auth/signup",
-            json={"username": username, "password": "password123"}
-        )
+        response2 = client.post("/api/auth/signup", json={"username": username, "password": "password123"})
         assert response2.status_code == 409  # Conflict
 
     def test_login_success(self, client):
         """Test POST /api/auth/login with valid credentials."""
         import random
+
         username = f"loginuser_{random.randint(1000, 9999)}"
         password = "password123"
-        
+
         # Create user first
-        client.post(
-            "/api/auth/signup",
-            json={"username": username, "password": password}
-        )
-        
+        client.post("/api/auth/signup", json={"username": username, "password": password})
+
         # Try to login
-        response = client.post(
-            "/api/auth/login",
-            json={"username": username, "password": password}
-        )
-        
+        response = client.post("/api/auth/login", json={"username": username, "password": password})
+
         assert response.status_code == 200
         data = response.json()
         assert "access_token" in data
@@ -132,27 +114,19 @@ class TestAuthentication:
     def test_login_wrong_password(self, client):
         """Test login fails with wrong password."""
         import random
+
         username = f"wrongpass_{random.randint(1000, 9999)}"
-        
+
         # Create user
-        client.post(
-            "/api/auth/signup",
-            json={"username": username, "password": "correctpass"}
-        )
-        
+        client.post("/api/auth/signup", json={"username": username, "password": "correctpass"})
+
         # Try to login with wrong password
-        response = client.post(
-            "/api/auth/login",
-            json={"username": username, "password": "wrongpass"}
-        )
+        response = client.post("/api/auth/login", json={"username": username, "password": "wrongpass"})
         assert response.status_code == 401  # Unauthorized
 
     def test_login_nonexistent_user(self, client):
         """Test login fails for nonexistent user."""
-        response = client.post(
-            "/api/auth/login",
-            json={"username": "nonexistent_user_xyz", "password": "password123"}
-        )
+        response = client.post("/api/auth/login", json={"username": "nonexistent_user_xyz", "password": "password123"})
         assert response.status_code == 401
 
 
@@ -168,7 +142,7 @@ class TestTokenManagement:
     def test_token_expires(self):
         """Test token has expiration time."""
         from src.backend.api_server import active_tokens
-        
+
         token = create_access_token("testuser_expire")
         assert token in active_tokens
         assert "expires_at" in active_tokens[token]
@@ -180,27 +154,17 @@ class TestRequestValidation:
 
     def test_missing_username(self, client):
         """Test signup fails without username."""
-        response = client.post(
-            "/api/auth/signup",
-            json={"password": "password123"}
-        )
+        response = client.post("/api/auth/signup", json={"password": "password123"})
         assert response.status_code == 422
 
     def test_missing_password(self, client):
         """Test signup fails without password."""
-        response = client.post(
-            "/api/auth/signup",
-            json={"username": "testuser"}
-        )
+        response = client.post("/api/auth/signup", json={"username": "testuser"})
         assert response.status_code == 422
 
     def test_invalid_json(self, client):
         """Test endpoints reject invalid JSON."""
-        response = client.post(
-            "/api/auth/signup",
-            data="not json",
-            headers={"Content-Type": "application/json"}
-        )
+        response = client.post("/api/auth/signup", data="not json", headers={"Content-Type": "application/json"})
         assert response.status_code == 422
 
     def test_missing_auth_header(self, client):
@@ -210,10 +174,7 @@ class TestRequestValidation:
 
     def test_invalid_token_format(self, client):
         """Test endpoints reject invalid token format."""
-        response = client.post(
-            "/api/auth/logout",
-            headers={"Authorization": "Bearer invalid_token_xyz"}
-        )
+        response = client.post("/api/auth/logout", headers={"Authorization": "Bearer invalid_token_xyz"})
         assert response.status_code == 401  # Unauthorized
 
 
@@ -227,17 +188,14 @@ class TestPortfolioEndpoints:
 
     def test_list_portfolios_with_invalid_token(self, client):
         """Test portfolio list rejects invalid token."""
-        response = client.get(
-            "/api/portfolios",
-            headers={"Authorization": "Bearer fake_token"}
-        )
+        response = client.get("/api/portfolios", headers={"Authorization": "Bearer fake_token"})
         assert response.status_code == 401
 
 
 def test_api_documentation():
     """Test that API documentation is accessible."""
     client = TestClient(app)
-    
+
     # OpenAPI JSON
     response = client.get("/openapi.json")
     assert response.status_code == 200
@@ -249,15 +207,18 @@ def run_tests():
     print("=" * 70)
     print("Running API Endpoint Tests")
     print("=" * 70)
-    
+
     # Run with pytest
-    exit_code = pytest.main([
-        __file__,
-        "-v",
-        "--tb=short",
-        "-k", "not test_list_portfolios",  # Skip tests that need DB
-    ])
-    
+    exit_code = pytest.main(
+        [
+            __file__,
+            "-v",
+            "--tb=short",
+            "-k",
+            "not test_list_portfolios",  # Skip tests that need DB
+        ]
+    )
+
     return exit_code
 
 

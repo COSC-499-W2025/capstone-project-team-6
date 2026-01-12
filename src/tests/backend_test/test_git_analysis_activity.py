@@ -1,7 +1,7 @@
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
-import sys
 
 import pytest
 
@@ -71,4 +71,3 @@ def test_activity_breakdown_classification():
         # total contribution volume should be at least sum of activities
         total = result.contribution_volume.get("alice@example.com", 0)
         assert total >= sum(activity.values())
-

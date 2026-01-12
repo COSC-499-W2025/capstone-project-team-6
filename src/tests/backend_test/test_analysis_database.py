@@ -388,9 +388,7 @@ def test_git_extended_fields_persisted(temp_analysis_db):
     assert project["target_user_last_commit"] == "2024-02-14T12:00:00+00:00"
 
     with adb.get_connection() as conn:
-        remotes = conn.execute(
-            "SELECT url FROM project_remote_urls WHERE project_id = ?", (project["id"],)
-        ).fetchall()
+        remotes = conn.execute("SELECT url FROM project_remote_urls WHERE project_id = ?", (project["id"],)).fetchall()
         assert {row["url"] for row in remotes} == {"https://example.com/repo.git"}
 
         ownership = conn.execute(
@@ -458,15 +456,15 @@ def test_git_extended_fields_persisted(temp_analysis_db):
             """,
             (project["id"],),
         ).fetchall()
-        assert {
-            (row["email"], row["activity_type"], row["lines_changed"]) for row in activity
-        } == {
+        assert {(row["email"], row["activity_type"], row["lines_changed"]) for row in activity} == {
             ("alice@example.com", "code", 40),
             ("alice@example.com", "test", 5),
             ("alice@example.com", "docs", 5),
             ("alice@example.com", "design", 1),
             ("bob@example.com", "code", 10),
         }
+
+
 def test_get_analysis_by_zip_file(temp_analysis_db):
     """Test retrieving analysis by zip file path."""
     zip_file_path = "/path/to/test_project.zip"
@@ -544,12 +542,10 @@ def test_project_skills_table_created(temp_analysis_db):
     """Test that project_skills table is created during initialization."""
     with adb.get_connection() as conn:
         # Check if table exists
-        tables = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='project_skills'"
-        ).fetchall()
+        tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='project_skills'").fetchall()
         assert len(tables) == 1
         assert tables[0]["name"] == "project_skills"
-        
+
         # Check table schema
         columns = conn.execute("PRAGMA table_info(project_skills)").fetchall()
         column_names = {col[1] for col in columns}
@@ -610,33 +606,33 @@ def test_project_skills_stored_during_analysis(temp_analysis_db):
             "frameworks_used": ["Django"],
         },
     }
-    
+
     analysis_id = adb.record_analysis("non_llm", payload_with_oop)
     projects = adb.get_projects_for_analysis(analysis_id)
     assert len(projects) == 1
     project = projects[0]
-    
+
     # Verify skills were stored
     with adb.get_connection() as conn:
         skills = conn.execute(
             "SELECT skill FROM project_skills WHERE project_id = ? ORDER BY skill",
             (project["id"],),
         ).fetchall()
-        
+
         # Should have stored some skills
         assert len(skills) > 0
-        
+
         skill_names = [row["skill"] for row in skills]
-        
+
         # Should include framework skill
         assert any("Django" in skill for skill in skill_names)
-        
+
         # Should include Python OOP-related skills
         assert any("Python" in skill or "python" in skill.lower() for skill in skill_names)
-        
+
         # Should include testing skills
         assert any("test" in skill.lower() or "Test" in skill for skill in skill_names)
-        
+
         # Should include Git workflow skill
         assert any("Git" in skill for skill in skill_names)
 
@@ -700,14 +696,14 @@ def test_project_skills_multiple_projects(temp_analysis_db):
             "frameworks_used": ["Flask", "React"],
         },
     }
-    
+
     analysis_id = adb.record_analysis("non_llm", payload)
     projects = adb.get_projects_for_analysis(analysis_id)
     assert len(projects) == 2
-    
+
     python_proj = next(p for p in projects if p["project_name"] == "python_project")
     js_proj = next(p for p in projects if p["project_name"] == "js_project")
-    
+
     with adb.get_connection() as conn:
         # Check Python project skills
         python_skills = conn.execute(
@@ -717,7 +713,7 @@ def test_project_skills_multiple_projects(temp_analysis_db):
         python_skill_names = [row["skill"] for row in python_skills]
         assert len(python_skill_names) > 0
         assert any("Flask" in skill for skill in python_skill_names)
-        
+
         # Check JS project skills
         js_skills = conn.execute(
             "SELECT skill FROM project_skills WHERE project_id = ?",
@@ -726,7 +722,7 @@ def test_project_skills_multiple_projects(temp_analysis_db):
         js_skill_names = [row["skill"] for row in js_skills]
         assert len(js_skill_names) > 0
         assert any("React" in skill for skill in js_skill_names)
-        
+
         # Skills should be different between projects
         assert set(python_skill_names) != set(js_skill_names)
 
@@ -773,17 +769,17 @@ def test_project_skills_no_oop_analysis(temp_analysis_db):
             "frameworks_used": [],
         },
     }
-    
+
     analysis_id = adb.record_analysis("non_llm", payload)
     projects = adb.get_projects_for_analysis(analysis_id)
     project = projects[0]
-    
+
     with adb.get_connection() as conn:
         skills = conn.execute(
             "SELECT skill FROM project_skills WHERE project_id = ?",
             (project["id"],),
         ).fetchall()
-        
+
         # Even simple projects should have some skills (at least language-related)
         # But might have fewer skills than OOP projects
         assert len(skills) >= 0  # Allow for projects with no skills
@@ -826,16 +822,16 @@ def test_project_skills_handles_portfolio_generation_failure(temp_analysis_db):
             "frameworks_used": [],
         },
     }
-    
+
     # Should not raise an exception even if portfolio generation fails
     analysis_id = adb.record_analysis("non_llm", payload)
     assert analysis_id is not None
-    
+
     # Project should still be stored
     projects = adb.get_projects_for_analysis(analysis_id)
     assert len(projects) == 1
     assert projects[0]["project_name"] == "problematic_project"
-    
+
     # Skills might not be stored if portfolio generation failed, but that's OK
     with adb.get_connection() as conn:
         skills = conn.execute(
@@ -888,18 +884,18 @@ def test_project_skills_uniqueness(temp_analysis_db):
             "frameworks_used": ["Django"],
         },
     }
-    
+
     analysis_id = adb.record_analysis("non_llm", payload)
     projects = adb.get_projects_for_analysis(analysis_id)
     project = projects[0]
-    
+
     with adb.get_connection() as conn:
         skills = conn.execute(
             "SELECT skill FROM project_skills WHERE project_id = ?",
             (project["id"],),
         ).fetchall()
-        
+
         skill_names = [row["skill"] for row in skills]
-        
+
         # Each skill should appear only once (enforced by primary key)
         assert len(skill_names) == len(set(skill_names))

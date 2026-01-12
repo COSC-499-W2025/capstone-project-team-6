@@ -610,9 +610,7 @@ class MetadataExtractor:
 
         return None
 
-    def parse_git_log(
-        self, project_path: str
-    ) -> tuple[Dict[str, ContributorInfo], int, Optional[str], Optional[Dict[str, Any]]]:
+    def parse_git_log(self, project_path: str) -> tuple[Dict[str, ContributorInfo], int, Optional[str], Optional[Dict[str, Any]]]:
         # Parse git log if .git directory is present in the ZIP.
         # Returns a tuple of (contributors dict, total commits, last_commit_date, git_details)
 
@@ -665,9 +663,7 @@ class MetadataExtractor:
                         git_details = git_result.to_dict()
                         total_commits = git_result.total_commits
                         last_commit_date = (
-                            git_result.last_commit_date
-                            or git_result.project_end_date
-                            or git_result.project_start_date
+                            git_result.last_commit_date or git_result.project_end_date or git_result.project_start_date
                         )
 
                         # Normalize contributors for downstream compatibility
@@ -762,7 +758,7 @@ class MetadataExtractor:
         if git_details:
             # Extract branch count from git analysis
             metadata.branch_count = git_details.get("total_branches", 0)
-            
+
             # Populate commit_authors from git_result.contributors if available (more complete than local contributors)
             git_result_contributors = git_details.get("contributors", [])
             if git_result_contributors:
@@ -777,7 +773,7 @@ class MetadataExtractor:
                     if email:
                         commit_authors_set.add(email)
                 metadata.commit_authors = list(commit_authors_set)
-            
+
             metadata.project_start_date = git_details.get("project_start_date")
             metadata.project_end_date = git_details.get("project_end_date")
             metadata.project_active_days = git_details.get("project_active_days")

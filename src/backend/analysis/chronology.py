@@ -79,6 +79,7 @@ class SkillEntry:
 @dataclass
 class ChronologicalSkill:
     """Represents when a skill was first exercised."""
+
     skill: str
     skill_type: str  # "language", "framework", or "detailed_skill"
     first_exercised_date: str
@@ -159,7 +160,7 @@ def get_skills_timeline() -> List[SkillEntry]:
                 """,
                 (aid,),
             ).fetchall()
-            
+
             detailed_skills_set = {r["skill"] for r in detailed_skills}
 
             timeline.append(
@@ -178,17 +179,17 @@ def get_skills_timeline() -> List[SkillEntry]:
 
 def get_all_skills_chronological() -> List[ChronologicalSkill]:
     """Build a chronological list of all unique skills exercised across all projects.
-    
+
     Returns a list of skills ordered by when they were first exercised, showing
     the progression of skills over time. Each skill appears only once (at its
     first occurrence).
-    
+
     Returns:
         List of ChronologicalSkill objects, ordered by first_exercised_date.
     """
     with db.get_connection() as conn:
         conn.execute("PRAGMA foreign_keys = ON;")
-        
+
         # Get all projects ordered chronologically
         projects = conn.execute(
             """
@@ -206,17 +207,17 @@ def get_all_skills_chronological() -> List[ChronologicalSkill]:
             ORDER BY COALESCE(p.last_commit_date, p.last_modified_date, a.analysis_timestamp) ASC, p.id ASC
             """
         ).fetchall()
-        
+
         # Track skills we've seen and when they were first exercised
         skills_seen: Dict[str, ChronologicalSkill] = {}
-        
+
         for proj_row in projects:
             project_name = proj_row["project_name"]
             project_date = proj_row["project_date"]
             raw_json_str = proj_row["raw_json"]
             project_id = proj_row["id"]
             analysis_id = proj_row["analysis_id"]
-            
+
             # Get languages for this project
             langs = conn.execute(
                 """
@@ -227,7 +228,7 @@ def get_all_skills_chronological() -> List[ChronologicalSkill]:
                 """,
                 (project_id,),
             ).fetchall()
-            
+
             for lang_row in langs:
                 lang = lang_row["language"]
                 skill_key = f"language:{lang}"
@@ -238,7 +239,7 @@ def get_all_skills_chronological() -> List[ChronologicalSkill]:
                         first_exercised_date=project_date,
                         project_name=project_name,
                     )
-            
+
             # Get frameworks for this project
             frameworks = conn.execute(
                 """
@@ -249,7 +250,7 @@ def get_all_skills_chronological() -> List[ChronologicalSkill]:
                 """,
                 (project_id,),
             ).fetchall()
-            
+
             for fw_row in frameworks:
                 fw = fw_row["framework"]
                 skill_key = f"framework:{fw}"
@@ -260,7 +261,7 @@ def get_all_skills_chronological() -> List[ChronologicalSkill]:
                         first_exercised_date=project_date,
                         project_name=project_name,
                     )
-            
+
             # Get detailed skills from database (stored during analysis)
             detailed_skills = conn.execute(
                 """
@@ -271,7 +272,7 @@ def get_all_skills_chronological() -> List[ChronologicalSkill]:
                 """,
                 (project_id,),
             ).fetchall()
-            
+
             for skill_row in detailed_skills:
                 skill = skill_row["skill"]
                 skill_key = f"detailed_skill:{skill}"
@@ -282,9 +283,9 @@ def get_all_skills_chronological() -> List[ChronologicalSkill]:
                         first_exercised_date=project_date,
                         project_name=project_name,
                     )
-        
+
         # Convert to list and sort by date
         chronological_skills = list(skills_seen.values())
         chronological_skills.sort(key=lambda x: (x.first_exercised_date, x.skill))
-        
+
         return chronological_skills

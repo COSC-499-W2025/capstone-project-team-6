@@ -9,9 +9,9 @@ SRC = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(SRC))
 
 from backend import analysis_database as db
-from backend.analysis.chronology import (get_projects_timeline,
-                                         get_skills_timeline,
-                                         get_all_skills_chronological)
+from backend.analysis.chronology import (get_all_skills_chronological,
+                                         get_projects_timeline,
+                                         get_skills_timeline)
 
 
 def iso(ts: datetime) -> str:
@@ -300,24 +300,24 @@ def test_skills_timeline_includes_detailed_skills():
     skills = get_skills_timeline()
     assert len(skills) == 1
     assert skills[0].date == commit1
-    
+
     # Verify languages and frameworks are still present
     assert "Python" in skills[0].skills["languages"]
     assert "Django" in skills[0].skills["frameworks"]
-    
+
     # Verify detailed skills are included
     detailed_skills = skills[0].skills.get("detailed_skills", [])
     assert len(detailed_skills) > 0
-    
+
     # Should include framework skill
     assert any("Django" in skill for skill in detailed_skills)
-    
+
     # Should include testing skills (TDD or Unit testing)
     assert any("test" in skill.lower() or "Test" in skill for skill in detailed_skills)
-    
+
     # Should include Git workflow skill
     assert any("Git" in skill for skill in detailed_skills)
-    
+
     # Should include Python-specific skills (properties, operator overloading, or abstract classes)
     assert any("Python" in skill or "Abstract" in skill or "Operator" in skill for skill in detailed_skills)
 
@@ -326,10 +326,10 @@ def test_get_all_skills_chronological():
     """Test that get_all_skills_chronological returns skills in chronological order"""
     ts1 = iso(datetime(2024, 8, 1, 10, 0, 0))
     ts2 = iso(datetime(2024, 8, 15, 14, 0, 0))
-    
+
     commit1 = iso(datetime(2024, 7, 10, 12, 0, 0))
     commit2 = iso(datetime(2024, 7, 20, 15, 0, 0))
-    
+
     p1 = {
         "project_name": "EarlyProject",
         "primary_language": "Python",
@@ -354,7 +354,7 @@ def test_get_all_skills_chronological():
         "c_oop_analysis": {},
         "complexity_analysis": {"optimization_score": 0},
     }
-    
+
     p2 = {
         "project_name": "LaterProject",
         "primary_language": "JavaScript",
@@ -377,61 +377,53 @@ def test_get_all_skills_chronological():
         "c_oop_analysis": {},
         "complexity_analysis": {"optimization_score": 0},
     }
-    
+
     seed_analysis(make_payload(ts1, [p1]))
     seed_analysis(make_payload(ts2, [p2]))
-    
+
     chronological_skills = get_all_skills_chronological()
-    
+
     # Should have skills from both projects
     assert len(chronological_skills) > 0
-    
+
     # Should be ordered chronologically
     dates = [s.first_exercised_date for s in chronological_skills]
     assert dates == sorted(dates)
-    
+
     # Should include languages from both projects
     languages = [s.skill for s in chronological_skills if s.skill_type == "language"]
     assert "Python" in languages
     assert "JavaScript" in languages
-    
+
     # Should include frameworks from both projects
     frameworks = [s.skill for s in chronological_skills if s.skill_type == "framework"]
     assert "Flask" in frameworks
     assert "React" in frameworks
-    
+
     # Skills from first project should appear before skills from second project
     python_skill = next((s for s in chronological_skills if s.skill == "Python"), None)
     js_skill = next((s for s in chronological_skills if s.skill == "JavaScript"), None)
-    
+
     assert python_skill is not None
     assert js_skill is not None
     assert python_skill.first_exercised_date <= js_skill.first_exercised_date
-    
+
     # Each skill should only appear once
     skill_names = [s.skill for s in chronological_skills]
     assert len(skill_names) == len(set(skill_names))
-    
+
     # Should have project names
     assert all(s.project_name for s in chronological_skills)
-    
+
     # Verify skills are stored in database
     from backend import analysis_database as db
+
     with db.get_connection() as conn:
         # Get project IDs
-        p1_id = conn.execute(
-            "SELECT id FROM projects WHERE project_name = ?",
-            ("PythonWebApp",)
-        ).fetchone()
-        p2_id = conn.execute(
-            "SELECT id FROM projects WHERE project_name = ?",
-            ("ReactFrontend",)
-        ).fetchone()
-        
+        p1_id = conn.execute("SELECT id FROM projects WHERE project_name = ?", ("PythonWebApp",)).fetchone()
+        p2_id = conn.execute("SELECT id FROM projects WHERE project_name = ?", ("ReactFrontend",)).fetchone()
+
         if p1_id:
-            stored_skills = conn.execute(
-                "SELECT skill FROM project_skills WHERE project_id = ?",
-                (p1_id["id"],)
-            ).fetchall()
+            stored_skills = conn.execute("SELECT skill FROM project_skills WHERE project_id = ?", (p1_id["id"],)).fetchall()
             # Should have stored some skills for the Python project
             assert len(stored_skills) > 0

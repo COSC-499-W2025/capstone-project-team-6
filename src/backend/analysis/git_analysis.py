@@ -130,9 +130,7 @@ class GitAnalysisResult:
             result["contributors"] = [asdict(c) if not isinstance(c, dict) else c for c in self.contributors]
         if self.target_user_stats:
             result["target_user_stats"] = (
-                asdict(self.target_user_stats)
-                if not isinstance(self.target_user_stats, dict)
-                else self.target_user_stats
+                asdict(self.target_user_stats) if not isinstance(self.target_user_stats, dict) else self.target_user_stats
             )
         if self.code_ownership:
             result["code_ownership"] = [asdict(c) if not isinstance(c, dict) else c for c in self.code_ownership]
@@ -723,9 +721,7 @@ class GitAnalyzer:
             author_langs[language] = author_langs.get(language, 0) + lines_changed
 
             activity = self.classify_activity(filename)
-            author_activity = activity_breakdown.setdefault(
-                normalized_email, {"code": 0, "test": 0, "docs": 0, "design": 0}
-            )
+            author_activity = activity_breakdown.setdefault(normalized_email, {"code": 0, "test": 0, "docs": 0, "design": 0})
             author_activity[activity] = author_activity.get(activity, 0) + lines_changed
 
         # final commit

@@ -457,32 +457,30 @@ def _generate_detailed_git_contribution_summary(analysis: dict) -> str:
     - blame_summary (surviving lines)
     """
     git_details = []
-    
+
     target_user_email = analysis.get("target_user_email")
     semantic_summary = analysis.get("semantic_summary", {})
     activity_breakdown = analysis.get("activity_breakdown", {})
     contribution_volume = analysis.get("contribution_volume", {})
     blame_summary = analysis.get("blame_summary", {})
-    
+
     # If we have a target user, focus on their contributions
     if target_user_email:
         user_semantic = semantic_summary.get(target_user_email, {})
         user_activity = activity_breakdown.get(target_user_email, {})
         user_lines_changed = contribution_volume.get(target_user_email)
         user_surviving_lines = blame_summary.get(target_user_email)
-        
+
         if user_semantic:
             trivial = user_semantic.get("trivial_commits", 0)
             substantial = user_semantic.get("substantial_commits", 0)
             total_lines = user_semantic.get("total_lines_changed", 0)
-            
+
             if substantial > 0 or trivial > 0:
-                git_details.append(
-                    f"made {substantial} substantial and {trivial} trivial commits"
-                )
+                git_details.append(f"made {substantial} substantial and {trivial} trivial commits")
             if total_lines > 0:
                 git_details.append(f"changed {total_lines} total lines")
-        
+
         if user_activity:
             activity_parts = []
             if user_activity.get("code", 0) > 0:
@@ -493,43 +491,33 @@ def _generate_detailed_git_contribution_summary(analysis: dict) -> str:
                 activity_parts.append(f"{user_activity['docs']} documentation lines")
             if user_activity.get("design", 0) > 0:
                 activity_parts.append(f"{user_activity['design']} design/config lines")
-            
+
             if activity_parts:
                 git_details.append(f"contributed across: {', '.join(activity_parts)}")
-        
+
         if user_surviving_lines is not None and user_surviving_lines > 0:
             total_surviving = sum(v for v in blame_summary.values() if isinstance(v, (int, float)))
             if total_surviving > 0:
                 percentage = (user_surviving_lines / total_surviving) * 100
-                git_details.append(
-                    f"owns {user_surviving_lines} surviving lines ({percentage:.1f}% of codebase)"
-                )
-    
+                git_details.append(f"owns {user_surviving_lines} surviving lines ({percentage:.1f}% of codebase)")
+
     # Add overall contribution statistics if available
     if contribution_volume:
         total_lines_changed = sum(v for v in contribution_volume.values() if isinstance(v, (int, float)))
         if total_lines_changed > 0:
             git_details.append(f"total project changes: {total_lines_changed} lines across all contributors")
-    
+
     if semantic_summary:
         total_substantial = sum(
-            stats.get("substantial_commits", 0) 
-            for stats in semantic_summary.values() 
-            if isinstance(stats, dict)
+            stats.get("substantial_commits", 0) for stats in semantic_summary.values() if isinstance(stats, dict)
         )
-        total_trivial = sum(
-            stats.get("trivial_commits", 0) 
-            for stats in semantic_summary.values() 
-            if isinstance(stats, dict)
-        )
+        total_trivial = sum(stats.get("trivial_commits", 0) for stats in semantic_summary.values() if isinstance(stats, dict))
         if total_substantial > 0 or total_trivial > 0:
-            git_details.append(
-                f"project-wide: {total_substantial} substantial and {total_trivial} trivial commits"
-            )
-    
+            git_details.append(f"project-wide: {total_substantial} substantial and {total_trivial} trivial commits")
+
     if git_details:
         return " " + ". ".join(git_details) + "."
-    
+
     return ""
 
 
@@ -736,7 +724,7 @@ def generate_portfolio_item(analysis: dict) -> dict:
             f" The repository includes {commits} commits across {branches} branches "
             f"from {len(authors)} contributor(s), demonstrating active version-controlled development."
         )
-        
+
         # Add detailed git contribution information
         detailed_git = _generate_detailed_git_contribution_summary(analysis)
         if detailed_git:

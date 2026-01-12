@@ -520,9 +520,7 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
             unique_projects[unique_key] = item
         else:
             existing = unique_projects[unique_key]
-            existing_score = existing["score_data"].get(
-                "adjusted_score", existing["score_data"]["composite_score"]
-            )
+            existing_score = existing["score_data"].get("adjusted_score", existing["score_data"]["composite_score"])
             new_score = item["score_data"].get("adjusted_score", item["score_data"]["composite_score"])
 
             if new_score > existing_score:
@@ -665,20 +663,20 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
         contribution_volume = project.get("contribution_volume", {})
         blame_summary = project.get("blame_summary", {})
         target_user_email = project.get("target_user_email")
-        
+
         if semantic_summary or activity_breakdown or contribution_volume or blame_summary:
             print(f"\nGit Contribution Details:")
-            
+
             # Target user contribution details
             if target_user_email:
                 user_semantic = semantic_summary.get(target_user_email, {})
                 user_activity = activity_breakdown.get(target_user_email, {})
                 user_lines_changed = contribution_volume.get(target_user_email)
                 user_surviving_lines = blame_summary.get(target_user_email)
-                
+
                 if user_semantic or user_activity or user_lines_changed is not None or user_surviving_lines is not None:
                     print(f"   Target User ({target_user_email}):")
-                    
+
                     if user_semantic:
                         trivial = user_semantic.get("trivial_commits", 0)
                         substantial = user_semantic.get("substantial_commits", 0)
@@ -687,7 +685,7 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
                             print(f"      Commits: {substantial} substantial, {trivial} trivial")
                         if total_lines_semantic > 0:
                             print(f"      Total lines changed: {total_lines_semantic}")
-                    
+
                     if user_activity:
                         activity_parts = []
                         if user_activity.get("code", 0) > 0:
@@ -700,10 +698,10 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
                             activity_parts.append(f"design: {user_activity['design']}")
                         if activity_parts:
                             print(f"      Activity: {', '.join(activity_parts)} lines")
-                    
+
                     if user_lines_changed is not None:
                         print(f"      Lines changed: {user_lines_changed}")
-                    
+
                     if user_surviving_lines is not None:
                         total_surviving = sum(v for v in blame_summary.values() if isinstance(v, (int, float)))
                         if total_surviving > 0:
@@ -711,33 +709,29 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
                             print(f"      Surviving lines: {user_surviving_lines} ({percentage:.1f}% of codebase)")
                         else:
                             print(f"      Surviving lines: {user_surviving_lines}")
-            
+
             # Overall project contribution statistics
             if contribution_volume:
                 total_lines = sum(v for v in contribution_volume.values() if isinstance(v, (int, float)))
                 if total_lines > 0:
                     print(f"   Total project lines changed: {total_lines}")
-            
+
             if semantic_summary:
                 total_substantial = sum(
-                    stats.get("substantial_commits", 0) 
-                    for stats in semantic_summary.values() 
-                    if isinstance(stats, dict)
+                    stats.get("substantial_commits", 0) for stats in semantic_summary.values() if isinstance(stats, dict)
                 )
                 total_trivial = sum(
-                    stats.get("trivial_commits", 0) 
-                    for stats in semantic_summary.values() 
-                    if isinstance(stats, dict)
+                    stats.get("trivial_commits", 0) for stats in semantic_summary.values() if isinstance(stats, dict)
                 )
                 if total_substantial > 0 or total_trivial > 0:
                     print(f"   Project commit quality: {total_substantial} substantial, {total_trivial} trivial")
-            
+
             if activity_breakdown:
                 total_code = sum(act.get("code", 0) for act in activity_breakdown.values() if isinstance(act, dict))
                 total_test = sum(act.get("test", 0) for act in activity_breakdown.values() if isinstance(act, dict))
                 total_docs = sum(act.get("docs", 0) for act in activity_breakdown.values() if isinstance(act, dict))
                 total_design = sum(act.get("design", 0) for act in activity_breakdown.values() if isinstance(act, dict))
-                
+
                 activity_parts = []
                 if total_code > 0:
                     activity_parts.append(f"code: {total_code}")
@@ -747,10 +741,10 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
                     activity_parts.append(f"docs: {total_docs}")
                 if total_design > 0:
                     activity_parts.append(f"design: {total_design}")
-                
+
                 if activity_parts:
                     print(f"   Project activity breakdown: {', '.join(activity_parts)} lines")
-            
+
             if blame_summary:
                 total_surviving = sum(v for v in blame_summary.values() if isinstance(v, (int, float)))
                 if total_surviving > 0:
