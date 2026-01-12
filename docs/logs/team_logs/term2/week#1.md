@@ -167,8 +167,6 @@
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/243  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/235  
 
-<img width="820" height="550" alt="HarjotWeek1" src="https://github.com/user-attachments/assets/743c3cf8-0925-4e46-a6ef-c82d0bdebfbe" />
-
 ---
 
 ### Mohamed Sakr (**mgjim101**)
