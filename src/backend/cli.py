@@ -959,7 +959,7 @@ def main() -> int:
 
     # Timeline command
     timeline_parser = subparsers.add_parser("timeline", help="Show chronological timelines from stored analyses")
-    timeline_parser.add_argument("type", choices=["projects", "skills"], help="Timeline type to display")
+    timeline_parser.add_argument("type", choices=["projects", "skills", "all-skills"], help="Timeline type to display")
 
     # Consent command
     consent_parser = subparsers.add_parser("consent", help="View or update consent status")
@@ -1428,7 +1428,8 @@ def main() -> int:
         elif args.command == "timeline":
             # No login/consent required to view previously stored aggregate timelines
             from .analysis.chronology import (get_projects_timeline,
-                                              get_skills_timeline)
+                                              get_skills_timeline,
+                                              get_all_skills_chronological)
 
             try:
                 init_db()
@@ -1475,9 +1476,54 @@ def main() -> int:
                 for i, e in enumerate(entries, 1):
                     langs = ", ".join(e.skills.get("languages", [])) or "-"
                     fws = ", ".join(e.skills.get("frameworks", [])) or "-"
+                    detailed_skills = e.skills.get("detailed_skills", [])
                     print(f"  {i}. {e.date}")
                     print(f"     Languages: {langs}")
                     print(f"     Frameworks: {fws}")
+                    if detailed_skills:
+                        print(f"     Detailed Skills ({len(detailed_skills)}):")
+                        # Display skills in a wrapped format
+                        skills_text = ", ".join(detailed_skills)
+                        words = skills_text.split(", ")
+                        line = "        "
+                        for word in words:
+                            if len(line) + len(word) + 2 > 73:
+                                print(line.rstrip())
+                                line = "        " + word
+                            else:
+                                line += (", " if line != "        " else "") + word
+                        if line.strip():
+                            print(line.rstrip())
+                return 0
+
+            elif args.type == "all-skills":
+                skills = get_all_skills_chronological()
+                if not skills:
+                    print("\nNo skills found in the analysis database.")
+                    return 0
+                print("\nChronological List of All Skills Exercised:")
+                print("=" * 70)
+                
+                # Group by date for better display
+                current_date = None
+                for i, skill_entry in enumerate(skills, 1):
+                    if current_date != skill_entry.first_exercised_date:
+                        if current_date is not None:
+                            print()  # Blank line between dates
+                        current_date = skill_entry.first_exercised_date
+                        print(f"\n{current_date}:")
+                    
+                    skill_type_label = {
+                        "language": "Language",
+                        "framework": "Framework",
+                        "detailed_skill": "Skill"
+                    }.get(skill_entry.skill_type, "Skill")
+                    
+                    print(f"  {i}. [{skill_type_label}] {skill_entry.skill}")
+                    print(f"     First used in: {skill_entry.project_name}")
+                
+                print(f"\n{'=' * 70}")
+                print(f"Total unique skills: {len(skills)}")
                 return 0
 
     except KeyboardInterrupt:
