@@ -857,6 +857,8 @@ def calculate_composite_score(project: Dict[str, Any], user_email: Optional[str]
             "collaboration_diversity": f"{collaboration_data['level']} - {collaboration_data['justification']}",
             "activity_duration": f"{duration_data['period']} - {duration_data['justification']}"
         }
+        if user_justification:
+            enhanced_justification["target_user"] = "; ".join(user_justification)
 
         return {
             "composite_score": final_score,
@@ -864,20 +866,28 @@ def calculate_composite_score(project: Dict[str, Any], user_email: Optional[str]
             "breakdown": enhanced_breakdown,
             "justification": enhanced_justification,
             "category": categorize_score(final_score),
-            "weights": weights
+            "weights": weights,
+            "user_contribution_score": user_contribution_score,
+            "adjusted_score": final_score + user_contribution_score,
         }
     else:
         # Legacy mode - just return base score
+        legacy_justification = {
+            "code_architecture": "; ".join(arch_justification)
+            + (" | " + "; ".join(architecture_details) if architecture_details else ""),
+            "code_quality": "; ".join(quality_details) if quality_details else "No quality metrics",
+            "project_maturity": "; ".join(maturity_details) if maturity_details else "No maturity indicators",
+            "algorithmic_quality": "; ".join(algorithmic_details) if algorithmic_details else "No algorithmic analysis",
+        }
+        if user_justification:
+            legacy_justification["target_user"] = "; ".join(user_justification)
+
         return {
             "composite_score": base_score,
             "breakdown": score_breakdown,
-            "justification": {
-                "code_architecture": "; ".join(arch_justification)
-                + (" | " + "; ".join(architecture_details) if architecture_details else ""),
-                "code_quality": "; ".join(quality_details) if quality_details else "No quality metrics",
-                "project_maturity": "; ".join(maturity_details) if maturity_details else "No maturity indicators",
-                "algorithmic_quality": "; ".join(algorithmic_details) if algorithmic_details else "No algorithmic analysis",
-            },
+            "justification": legacy_justification,
+            "user_contribution_score": user_contribution_score,
+            "adjusted_score": base_score + user_contribution_score,
         }
 
 
