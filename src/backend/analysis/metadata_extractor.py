@@ -80,6 +80,8 @@ class ProjectMetadata:
     # Git information (if available)
     is_git_repo: bool = False
     contributors: List[Dict[str, Any]] = field(default_factory=list)
+    commit_authors: List[str] = field(default_factory=list)  # List of contributor email addresses
+    branch_count: int = 0  # Number of branches in the repository
     total_commits: int = 0
     last_commit_date: Optional[str] = None
     last_modified_date: Optional[str] = None  # Most recent file modification timestamp from ZIP
@@ -87,6 +89,19 @@ class ProjectMetadata:
     # Complexity indicators
     directory_depth: int = 0
     largest_file: Optional[Dict[str, Any]] = None
+
+    # Target-user / git ownership signals
+    target_user_email: Optional[str] = None
+    target_user_stats: Optional[Dict[str, Any]] = None
+    project_start_date: Optional[str] = None
+    project_end_date: Optional[str] = None
+    project_active_days: Optional[int] = None
+    code_ownership: List[Dict[str, Any]] = field(default_factory=list)
+    blame_summary: Dict[str, int] = field(default_factory=dict)
+    language_breakdown: Dict[str, Dict[str, int]] = field(default_factory=dict)
+    semantic_summary: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    contribution_volume: Dict[str, int] = field(default_factory=dict)
+    activity_breakdown: Dict[str, Dict[str, int]] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         # Convert to dictionary for JSON serialization
@@ -159,13 +174,14 @@ class MetadataExtractor:
         ".drone.yml",
     ]
 
-    def __init__(self, zip_path: Path):
+    def __init__(self, zip_path: Path, target_user_email: Optional[str] = None):
         # Initialize the metadata extractor.
         #  zip_path: Path to the ZIP file containing projects
 
         self.zip_path = zip_path
         self.zip_file = zipfile.ZipFile(zip_path, "r")
         self.classifier = FileClassifier(zip_path)
+        self.target_user_email = target_user_email
 
     def _is_excluded_directory(self, path: str) -> bool:
         """
@@ -594,13 +610,14 @@ class MetadataExtractor:
 
         return None
 
-    def parse_git_log(self, project_path: str) -> tuple[Dict[str, ContributorInfo], int, Optional[str]]:
+    def parse_git_log(self, project_path: str) -> tuple[Dict[str, ContributorInfo], int, Optional[str], Optional[Dict[str, Any]]]:
         # Parse git log if .git directory is present in the ZIP.
-        # Returns a tuple of (contributors dict, total commits, last_commit_date)
+        # Returns a tuple of (contributors dict, total commits, last_commit_date, git_details)
 
         contributors = {}
         total_commits = 0
         last_commit_date = None
+        git_details: Optional[Dict[str, Any]] = None
 
         # Look for .git directory or git-related files
         git_path = f"{project_path}/.git" if project_path else ".git"
@@ -613,7 +630,7 @@ class MetadataExtractor:
                 break
 
         if not has_git:
-            return contributors, total_commits, last_commit_date
+            return contributors, total_commits, last_commit_date, git_details
 
         # Try to use GitAnalyzer if we have a real git repository extracted
         # For ZIP files, we need to extract and analyze temporarily
@@ -642,16 +659,35 @@ class MetadataExtractor:
                     analyzer = GitAnalyzer(str(extracted_path))
 
                     if analyzer.check_git_available() and analyzer.check_git_repo():
-                        # Get total commits
-                        total_commits = analyzer.get_total_commits()
+                        git_result = analyzer.analyze(target_user_email=self.target_user_email)
+                        git_details = git_result.to_dict()
+                        total_commits = git_result.total_commits
+                        last_commit_date = (
+                            git_result.last_commit_date or git_result.project_end_date or git_result.project_start_date
+                        )
 
-                        # Get last commit date
-                        last_commit_date = analyzer.get_repository_last_commit_date()
+                        # Normalize contributors for downstream compatibility
+                        for contributor in git_result.contributors or []:
+                            data = contributor if isinstance(contributor, dict) else asdict(contributor)
+                            email = data.get("email") or ""
+                            name = data.get("name") or ""
+                            commits = data.get("commit_count") or data.get("commits") or 0
+                            first_commit = data.get("first_commit_date") or data.get("first_commit")
+                            last_commit = data.get("last_commit_date") or data.get("last_commit")
+
+                            contributors[email] = ContributorInfo(
+                                name=name,
+                                email=email,
+                                commits=commits,
+                                files_touched=set(),
+                                first_commit=first_commit,
+                                last_commit=last_commit,
+                            )
         except Exception:
             # If git analysis fails, just return what we have
             pass
 
-        return contributors, total_commits, last_commit_date
+        return contributors, total_commits, last_commit_date, git_details
 
     def extract_project_metadata(self, project_path: str) -> ProjectMetadata:
         # Extract metadata for a single project.
@@ -674,6 +710,7 @@ class MetadataExtractor:
             total_files=stats["total_files"],
             total_size=stats["total_size"],
         )
+        metadata.target_user_email = self.target_user_email
 
         # Count files by category
         metadata.code_files = sum(len(files_list) for files_list in files["code"].values())
@@ -710,11 +747,47 @@ class MetadataExtractor:
         metadata.largest_file = self.find_largest_file(files)
 
         # Git analysis (if available)
-        contributors, total_commits, last_commit_date = self.parse_git_log(project_path)
+        contributors, total_commits, last_commit_date, git_details = self.parse_git_log(project_path)
         metadata.is_git_repo = total_commits > 0 or self._check_git_files(project_path)
         metadata.total_commits = total_commits
         metadata.last_commit_date = last_commit_date
         metadata.contributors = [c.to_dict() for c in contributors.values()]
+        # Extract commit_authors from contributors (list of email addresses)
+        metadata.commit_authors = [c.email for c in contributors.values()] if contributors else []
+
+        if git_details:
+            # Extract branch count from git analysis
+            metadata.branch_count = git_details.get("total_branches", 0)
+
+            # Populate commit_authors from git_result.contributors if available (more complete than local contributors)
+            git_result_contributors = git_details.get("contributors", [])
+            if git_result_contributors:
+                # Extract emails from git_result contributors (prefer this over local contributors)
+                commit_authors_set = set(metadata.commit_authors)  # Start with existing
+                for contrib in git_result_contributors:
+                    if isinstance(contrib, dict):
+                        email = contrib.get("email")
+                    else:
+                        # If it's a ContributorStats object converted to dict
+                        email = contrib.email if hasattr(contrib, "email") else None
+                    if email:
+                        commit_authors_set.add(email)
+                metadata.commit_authors = list(commit_authors_set)
+
+            metadata.project_start_date = git_details.get("project_start_date")
+            metadata.project_end_date = git_details.get("project_end_date")
+            metadata.project_active_days = git_details.get("project_active_days")
+            metadata.code_ownership = git_details.get("code_ownership") or []
+            metadata.blame_summary = git_details.get("blame_summary") or {}
+            metadata.language_breakdown = git_details.get("language_breakdown") or {}
+            metadata.semantic_summary = git_details.get("semantic_summary") or {}
+            metadata.contribution_volume = git_details.get("contribution_volume") or {}
+            metadata.activity_breakdown = git_details.get("activity_breakdown") or {}
+
+            target_user_stats = git_details.get("target_user_stats") or {}
+            # Persist target user email even if analyzer matched a different casing
+            metadata.target_user_email = target_user_stats.get("email") or self.target_user_email
+            metadata.target_user_stats = target_user_stats or None
 
         # Get last modified date from ZIP file metadata (fallback when git is not available)
         metadata.last_modified_date = self.get_last_modified_date(project_path)
@@ -766,6 +839,7 @@ class MetadataExtractor:
                 "zip_file": str(self.zip_path),
                 "analysis_timestamp": datetime.now().isoformat(),
                 "total_projects": len(projects_metadata),
+                "target_user_email": self.target_user_email,
             },
             "projects": projects_metadata,
             "summary": {
