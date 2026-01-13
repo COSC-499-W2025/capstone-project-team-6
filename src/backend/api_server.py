@@ -13,18 +13,20 @@ from fastapi import (Depends, FastAPI, File, Form, HTTPException, Security,
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
-from . import authenticate_user, create_user
-# from .analysis_database import (
-#     get_all_analyses_for_user,
-#     get_analysis_by_uuid,
-#     init_db as init_analysis_db,
-# )
-from .database import check_user_consent
-from .database import init_db as init_user_db
+from backend.database import authenticate_user, create_user
+from backend.analysis_database import (
+    get_all_analyses_for_user,
+    get_analysis_by_uuid,
+    init_db as init_analysis_db,
+    record_analysis,
+    delete_analysis,
+)
+from backend.task_manager import get_task_manager, TaskType, cleanup_background_tasks
+from backend.database import check_user_consent, init_db as init_user_db
 
 # Initialize databases
 init_user_db()
-# init_analysis_db()
+init_analysis_db()
 
 app = FastAPI(
     description="API for Portfolio and Resume generation with incremental uploads",
@@ -75,6 +77,18 @@ class MessageResponse(BaseModel):
     details: Optional[Dict[str, Any]] = None
 
 
+class TaskStatusResponse(BaseModel):
+    task_id: str
+    status: str
+    progress: int
+    created_at: str
+    updated_at: str
+    filename: str
+    task_type: str
+    result: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+
+
 def create_access_token(username: str) -> str:
     """Create a new access token for a user."""
     token = str(uuid.uuid4())
@@ -112,8 +126,8 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
 async def signup(credentials: UserCredentials):
     """Register a new user and return access token."""
     try:
-        from .database import UserAlreadyExistsError
-
+        from backend.database import UserAlreadyExistsError
+        
         create_user(credentials.username, credentials.password)
         token = create_access_token(credentials.username)
 
@@ -240,10 +254,17 @@ async def upload_new_portfolio(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to save uploaded file: {str(e)}",
         )
-
-    # TODO: Queue for background processing
-    # For now, return task ID
-
+    
+    # Queue for background processing
+    task_manager = get_task_manager()
+    task_id = task_manager.create_task(
+        task_type=TaskType.NEW_PORTFOLIO,
+        username=username,
+        filename=file.filename,
+        file_path=zip_path,
+        analysis_type=analysis_type,
+    )
+    
     return MessageResponse(
         message="Upload accepted, processing started",
         details={
@@ -264,7 +285,7 @@ async def add_to_existing_portfolio(
 ):
     """Add incremental data to an existing portfolio"""
     # Verify portfolio exists and belongs to user
-    existing = get_analysis_by_uuid(portfolio_id, username)  # to be implemented
+    existing = get_analysis_by_uuid(portfolio_id, username)
     if not existing:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -300,9 +321,17 @@ async def add_to_existing_portfolio(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to save uploaded file: {str(e)}",
         )
-
-    # TODO: Queue for background processing with portfolio_id
-
+    
+    # Queue for background processing with portfolio_id
+    task_manager = get_task_manager()
+    task_id = task_manager.create_task(
+        task_type=TaskType.INCREMENTAL_UPLOAD,
+        username=username,
+        filename=file.filename,
+        file_path=zip_path,
+        portfolio_id=portfolio_id,
+    )
+    
     return MessageResponse(
         message="Incremental upload accepted, merging with existing portfolio",
         details={
@@ -318,21 +347,103 @@ async def add_to_existing_portfolio(
 @app.delete("/api/portfolios/{portfolio_id}")
 async def delete_portfolio(portfolio_id: str, username: str = Depends(verify_token)):
     """Delete a portfolio and all associated data."""
-    from .analysis_database import delete_analysis
-
+    
     # Verify ownership
-    existing = get_analysis_by_uuid(portfolio_id, username)  # to be implemented
+    existing = get_analysis_by_uuid(portfolio_id, username)
     if not existing:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Portfolio {portfolio_id} not found",
         )
-
-    delete_analysis(portfolio_id, username)
-
+    
+    success = delete_analysis(portfolio_id, username)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete portfolio {portfolio_id}",
+        )
+    
     return MessageResponse(
         message=f"Portfolio {portfolio_id} deleted successfully",
     )
+
+
+@app.get("/api/tasks/{task_id}", response_model=TaskStatusResponse)
+async def get_task_status(task_id: str, username: str = Depends(verify_token)):
+    """Get status of a background task."""
+    task_manager = get_task_manager()
+    task = task_manager.get_task_status(task_id)
+    
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Task {task_id} not found",
+        )
+    
+    # Verify task belongs to user
+    if task.username != username:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this task",
+        )
+    
+    return TaskStatusResponse(
+        task_id=task.task_id,
+        status=task.status.value,
+        progress=task.progress,
+        created_at=task.created_at.isoformat(),
+        updated_at=task.updated_at.isoformat(),
+        filename=task.filename,
+        task_type=task.task_type.value,
+        result=task.result,
+        error=task.error,
+    )
+
+
+@app.get("/api/tasks", response_model=List[TaskStatusResponse])
+async def get_user_tasks(username: str = Depends(verify_token), limit: int = 20):
+    """Get all tasks for the current user."""
+    task_manager = get_task_manager()
+    tasks = task_manager.get_user_tasks(username, limit)
+    
+    return [
+        TaskStatusResponse(
+            task_id=task.task_id,
+            status=task.status.value,
+            progress=task.progress,
+            created_at=task.created_at.isoformat(),
+            updated_at=task.updated_at.isoformat(),
+            filename=task.filename,
+            task_type=task.task_type.value,
+            result=task.result,
+            error=task.error,
+        )
+        for task in tasks
+    ]
+
+
+@app.post("/api/admin/cleanup")
+async def cleanup_system(username: str = Depends(verify_token)):
+    """Clean up old tasks and temporary files. Admin endpoint."""
+    # Simple admin check - in production, implement proper role-based access
+    if username != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+    
+    cleanup_background_tasks()
+    
+    return MessageResponse(
+        message="System cleanup completed",
+        details={
+            "timestamp": datetime.now().isoformat(),
+            "cleaned_by": username,
+        },
+    )
+
+
+
 
 
 @app.get("/api/health")
