@@ -846,12 +846,6 @@ def calculate_composite_score(project: Dict[str, Any], user_email: Optional[str]
 
         # Enhanced justification
         enhanced_justification = {
-    return {
-        "composite_score": total_score,
-        "user_contribution_score": user_contribution_score,
-        "adjusted_score": total_score + user_contribution_score,
-        "breakdown": score_breakdown,
-        "justification": {
             "code_architecture": "; ".join(arch_justification)
             + (" | " + "; ".join(architecture_details) if architecture_details else ""),
             "code_quality": "; ".join(quality_details) if quality_details else "No quality metrics",
@@ -885,9 +879,6 @@ def calculate_composite_score(project: Dict[str, Any], user_email: Optional[str]
                 "algorithmic_quality": "; ".join(algorithmic_details) if algorithmic_details else "No algorithmic analysis",
             },
         }
-            "target_user": "; ".join(user_justification) if user_justification else "No user contribution data",
-        },
-    }
 
 
 def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] = None,
