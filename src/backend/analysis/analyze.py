@@ -63,7 +63,7 @@ def calculate_days_since(date_str: str) -> int:
         Number of days since the date, or 999999 if parsing fails
     """
     try:
-        date_obj = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+        date_obj = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
         now = datetime.now()
         delta = now - date_obj
         return delta.days
@@ -83,8 +83,8 @@ def calculate_duration_days(start_date_str: str, end_date_str: str) -> int:
         Number of days between dates, or 0 if parsing fails
     """
     try:
-        start = datetime.fromisoformat(start_date_str.replace('Z', '+00:00'))
-        end = datetime.fromisoformat(end_date_str.replace('Z', '+00:00'))
+        start = datetime.fromisoformat(start_date_str.replace("Z", "+00:00"))
+        end = datetime.fromisoformat(end_date_str.replace("Z", "+00:00"))
         delta = end - start
         return max(delta.days, 0)
     except (ValueError, AttributeError):
@@ -137,11 +137,7 @@ def calculate_contribution_score(project: Dict[str, Any], user_email: Optional[s
 
     if not is_collaborative:
         # Solo project - full credit
-        return {
-            "score": 30.0,
-            "level": "Solo Project",
-            "justification": "100% individual contribution"
-        }
+        return {"score": 30.0, "level": "Solo Project", "justification": "100% individual contribution"}
 
     # Collaborative project
     user_percentage = 0
@@ -186,7 +182,7 @@ def calculate_contribution_score(project: Dict[str, Any], user_email: Optional[s
     return {
         "score": score,
         "level": level,
-        "justification": f"{user_percentage:.1f}% of commits" if user_percentage > 0 else "Contribution percentage unknown"
+        "justification": f"{user_percentage:.1f}% of commits" if user_percentage > 0 else "Contribution percentage unknown",
     }
 
 
@@ -215,11 +211,7 @@ def calculate_recency_score(project: Dict[str, Any]) -> Dict[str, Any]:
         last_commit = project.get("last_modified_date")
 
     if not last_commit:
-        return {
-            "score": 3.0,
-            "period": "Unknown",
-            "justification": "No date information available"
-        }
+        return {"score": 3.0, "period": "Unknown", "justification": "No date information available"}
 
     days_ago = calculate_days_since(last_commit)
 
@@ -239,11 +231,7 @@ def calculate_recency_score(project: Dict[str, Any]) -> Dict[str, Any]:
         score = 3.0
         period = f"{days_ago // 365} year(s) ago"
 
-    return {
-        "score": score,
-        "period": period,
-        "justification": f"Last activity: {period}"
-    }
+    return {"score": score, "period": period, "justification": f"Last activity: {period}"}
 
 
 def calculate_scale_score(project: Dict[str, Any]) -> Dict[str, Any]:
@@ -287,11 +275,7 @@ def calculate_scale_score(project: Dict[str, Any]) -> Dict[str, Any]:
         scale = "Small"
         justification = f"{total_commits} commits, {total_files} files"
 
-    return {
-        "score": score,
-        "scale": scale,
-        "justification": justification
-    }
+    return {"score": score, "scale": scale, "justification": justification}
 
 
 def calculate_collaboration_score(project: Dict[str, Any]) -> Dict[str, Any]:
@@ -330,11 +314,7 @@ def calculate_collaboration_score(project: Dict[str, Any]) -> Dict[str, Any]:
         level = "Solo"
         justification = "Solo project"
 
-    return {
-        "score": score,
-        "level": level,
-        "justification": justification
-    }
+    return {"score": score, "level": level, "justification": justification}
 
 
 def calculate_duration_score(project: Dict[str, Any], user_email: Optional[str] = None) -> Dict[str, Any]:
@@ -405,15 +385,12 @@ def calculate_duration_score(project: Dict[str, Any], user_email: Optional[str] 
         period = "Unknown"
         justification = "Duration unknown"
 
-    return {
-        "score": score,
-        "period": period,
-        "justification": justification
-    }
+    return {"score": score, "period": period, "justification": justification}
 
 
-def calculate_composite_score(project: Dict[str, Any], user_email: Optional[str] = None,
-                            use_enhanced_ranking: bool = True) -> Dict[str, Any]:
+def calculate_composite_score(
+    project: Dict[str, Any], user_email: Optional[str] = None, use_enhanced_ranking: bool = True
+) -> Dict[str, Any]:
     """
     Calculate a comprehensive composite score for a project using a balanced multi-factor approach.
 
@@ -818,17 +795,17 @@ def calculate_composite_score(project: Dict[str, Any], user_email: Optional[str]
             "recency": 0.10,
             "scale": 0.08,
             "collaboration": 0.07,
-            "duration": 0.05
+            "duration": 0.05,
         }
 
         # Calculate weighted final score
         final_score = (
-            base_score * weights["base_score"] +
-            contribution_data["score"] * weights["contribution"] +
-            recency_data["score"] * weights["recency"] +
-            scale_data["score"] * weights["scale"] +
-            collaboration_data["score"] * weights["collaboration"] +
-            duration_data["score"] * weights["duration"]
+            base_score * weights["base_score"]
+            + contribution_data["score"] * weights["contribution"]
+            + recency_data["score"] * weights["recency"]
+            + scale_data["score"] * weights["scale"]
+            + collaboration_data["score"] * weights["collaboration"]
+            + duration_data["score"] * weights["duration"]
         )
 
         # Ensure score is within 0-100
@@ -841,7 +818,7 @@ def calculate_composite_score(project: Dict[str, Any], user_email: Optional[str]
             "recency": recency_data["score"],
             "project_scale": scale_data["score"],
             "collaboration_diversity": collaboration_data["score"],
-            "activity_duration": duration_data["score"]
+            "activity_duration": duration_data["score"],
         }
 
         # Enhanced justification
@@ -855,7 +832,7 @@ def calculate_composite_score(project: Dict[str, Any], user_email: Optional[str]
             "recency": recency_data["justification"],
             "project_scale": f"{scale_data['scale']} - {scale_data['justification']}",
             "collaboration_diversity": f"{collaboration_data['level']} - {collaboration_data['justification']}",
-            "activity_duration": f"{duration_data['period']} - {duration_data['justification']}"
+            "activity_duration": f"{duration_data['period']} - {duration_data['justification']}",
         }
         if user_justification:
             enhanced_justification["target_user"] = "; ".join(user_justification)
@@ -891,8 +868,7 @@ def calculate_composite_score(project: Dict[str, Any], user_email: Optional[str]
         }
 
 
-def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] = None,
-                                 user_email: Optional[str] = None) -> None:
+def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] = None, user_email: Optional[str] = None) -> None:
     """
     Retrieve projects from the database, calculate composite scores, and display top-ranked projects.
 
@@ -1009,49 +985,31 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
         print(f"\nCOMPOSITE SCORE: {score_data['composite_score']:.2f}/100.0")
 
         # Show category if available (enhanced ranking)
-        if 'category' in score_data:
+        if "category" in score_data:
             print(f"Category: {score_data['category']}")
 
         # Check if enhanced ranking is being used
-        has_enhanced = 'individual_contribution' in score_data['breakdown']
+        has_enhanced = "individual_contribution" in score_data["breakdown"]
 
         if has_enhanced:
             # Enhanced ranking output
             print(f"\n📊 ENHANCED RANKING BREAKDOWN:")
             print(f"\nBase Technical Score: {score_data.get('base_score', 0):.2f}/100.0 (Weight: 45%)")
-            print(
-                f"  • Code Architecture:   {score_data['breakdown']['code_architecture']:.2f}/30.0"
-            )
-            print(
-                f"  • Code Quality:        {score_data['breakdown']['code_quality']:.2f}/25.0"
-            )
-            print(
-                f"  • Project Maturity:    {score_data['breakdown']['project_maturity']:.2f}/25.0"
-            )
-            print(
-                f"  • Algorithmic Quality: {score_data['breakdown']['algorithmic_quality']:.2f}/20.0"
-            )
+            print(f"  • Code Architecture:   {score_data['breakdown']['code_architecture']:.2f}/30.0")
+            print(f"  • Code Quality:        {score_data['breakdown']['code_quality']:.2f}/25.0")
+            print(f"  • Project Maturity:    {score_data['breakdown']['project_maturity']:.2f}/25.0")
+            print(f"  • Algorithmic Quality: {score_data['breakdown']['algorithmic_quality']:.2f}/20.0")
 
             print(f"\nContribution & Context Factors:")
-            print(
-                f"  • Individual Contribution: {score_data['breakdown']['individual_contribution']:.2f}/30.0 (Weight: 25%)"
-            )
+            print(f"  • Individual Contribution: {score_data['breakdown']['individual_contribution']:.2f}/30.0 (Weight: 25%)")
             print(f"    └─ {score_data['justification']['individual_contribution']}")
-            print(
-                f"  • Recency:                 {score_data['breakdown']['recency']:.2f}/15.0 (Weight: 10%)"
-            )
+            print(f"  • Recency:                 {score_data['breakdown']['recency']:.2f}/15.0 (Weight: 10%)")
             print(f"    └─ {score_data['justification']['recency']}")
-            print(
-                f"  • Project Scale:           {score_data['breakdown']['project_scale']:.2f}/10.0 (Weight: 8%)"
-            )
+            print(f"  • Project Scale:           {score_data['breakdown']['project_scale']:.2f}/10.0 (Weight: 8%)")
             print(f"    └─ {score_data['justification']['project_scale']}")
-            print(
-                f"  • Collaboration:           {score_data['breakdown']['collaboration_diversity']:.2f}/10.0 (Weight: 7%)"
-            )
+            print(f"  • Collaboration:           {score_data['breakdown']['collaboration_diversity']:.2f}/10.0 (Weight: 7%)")
             print(f"    └─ {score_data['justification']['collaboration_diversity']}")
-            print(
-                f"  • Activity Duration:       {score_data['breakdown']['activity_duration']:.2f}/10.0 (Weight: 5%)"
-            )
+            print(f"  • Activity Duration:       {score_data['breakdown']['activity_duration']:.2f}/10.0 (Weight: 5%)")
             print(f"    └─ {score_data['justification']['activity_duration']}")
 
             print(f"\nDetailed Justifications:")

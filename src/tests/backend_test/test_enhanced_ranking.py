@@ -25,17 +25,13 @@ backend_dir = src_dir / "backend"
 sys.path.insert(0, str(src_dir))
 sys.path.insert(0, str(backend_dir))
 
-from analysis.analyze import (
-    calculate_collaboration_score,
-    calculate_composite_score,
-    calculate_contribution_score,
-    calculate_days_since,
-    calculate_duration_days,
-    calculate_duration_score,
-    calculate_recency_score,
-    calculate_scale_score,
-    categorize_score,
-)
+from analysis.analyze import (calculate_collaboration_score,
+                              calculate_composite_score,
+                              calculate_contribution_score,
+                              calculate_days_since, calculate_duration_days,
+                              calculate_duration_score,
+                              calculate_recency_score, calculate_scale_score,
+                              categorize_score)
 
 
 class TestDateHelpers:
@@ -117,11 +113,7 @@ class TestContributionScore:
 
     def test_solo_project(self):
         """Test solo project gets full credit."""
-        project = {
-            "git_analysis": {
-                "is_collaborative": False
-            }
-        }
+        project = {"git_analysis": {"is_collaborative": False}}
         result = calculate_contribution_score(project)
         assert result["score"] == 30.0
         assert result["level"] == "Solo Project"
@@ -134,8 +126,8 @@ class TestContributionScore:
                 "is_collaborative": True,
                 "contributors": [
                     {"email": "user@example.com", "percentage": 75, "commits": 150},
-                    {"email": "other@example.com", "percentage": 25, "commits": 50}
-                ]
+                    {"email": "other@example.com", "percentage": 25, "commits": 50},
+                ],
             }
         }
         result = calculate_contribution_score(project, "user@example.com")
@@ -149,8 +141,8 @@ class TestContributionScore:
                 "is_collaborative": True,
                 "contributors": [
                     {"email": "user@example.com", "percentage": 60, "commits": 120},
-                    {"email": "other@example.com", "percentage": 40, "commits": 80}
-                ]
+                    {"email": "other@example.com", "percentage": 40, "commits": 80},
+                ],
             }
         }
         result = calculate_contribution_score(project, "user@example.com")
@@ -164,8 +156,8 @@ class TestContributionScore:
                 "is_collaborative": True,
                 "contributors": [
                     {"email": "user@example.com", "percentage": 40, "commits": 80},
-                    {"email": "other@example.com", "percentage": 60, "commits": 120}
-                ]
+                    {"email": "other@example.com", "percentage": 60, "commits": 120},
+                ],
             }
         }
         result = calculate_contribution_score(project, "user@example.com")
@@ -179,8 +171,8 @@ class TestContributionScore:
                 "is_collaborative": True,
                 "contributors": [
                     {"email": "user@example.com", "percentage": 10, "commits": 20},
-                    {"email": "other@example.com", "percentage": 90, "commits": 180}
-                ]
+                    {"email": "other@example.com", "percentage": 90, "commits": 180},
+                ],
             }
         }
         result = calculate_contribution_score(project, "user@example.com")
@@ -189,12 +181,7 @@ class TestContributionScore:
 
     def test_unknown_contributor(self):
         """Test collaborative project with unknown contribution."""
-        project = {
-            "git_analysis": {
-                "is_collaborative": True,
-                "contributors": []
-            }
-        }
+        project = {"git_analysis": {"is_collaborative": True, "contributors": []}}
         result = calculate_contribution_score(project)
         assert result["score"] == 15.0
         assert result["level"] == "Collaborative (Unknown %)"
@@ -206,11 +193,7 @@ class TestRecencyScore:
     def test_very_recent(self):
         """Test very recent activity (last 30 days)."""
         recent_date = (datetime.now() - timedelta(days=15)).isoformat()
-        project = {
-            "git_analysis": {
-                "last_commit_date": recent_date
-            }
-        }
+        project = {"git_analysis": {"last_commit_date": recent_date}}
         result = calculate_recency_score(project)
         assert result["score"] == 15.0
         assert result["period"] == "Last 30 days"
@@ -218,11 +201,7 @@ class TestRecencyScore:
     def test_recent(self):
         """Test recent activity (last 90 days)."""
         recent_date = (datetime.now() - timedelta(days=60)).isoformat()
-        project = {
-            "git_analysis": {
-                "last_commit_date": recent_date
-            }
-        }
+        project = {"git_analysis": {"last_commit_date": recent_date}}
         result = calculate_recency_score(project)
         assert result["score"] == 12.0
         assert result["period"] == "Last 90 days"
@@ -230,11 +209,7 @@ class TestRecencyScore:
     def test_moderately_recent(self):
         """Test moderately recent activity (last 180 days)."""
         recent_date = (datetime.now() - timedelta(days=120)).isoformat()
-        project = {
-            "git_analysis": {
-                "last_commit_date": recent_date
-            }
-        }
+        project = {"git_analysis": {"last_commit_date": recent_date}}
         result = calculate_recency_score(project)
         assert result["score"] == 9.0
         assert result["period"] == "Last 180 days"
@@ -242,22 +217,14 @@ class TestRecencyScore:
     def test_last_year(self):
         """Test activity within last year."""
         recent_date = (datetime.now() - timedelta(days=300)).isoformat()
-        project = {
-            "git_analysis": {
-                "last_commit_date": recent_date
-            }
-        }
+        project = {"git_analysis": {"last_commit_date": recent_date}}
         result = calculate_recency_score(project)
         assert result["score"] == 6.0
         assert result["period"] == "Last year"
 
     def test_old_project(self):
         """Test old project (>1 year)."""
-        project = {
-            "git_analysis": {
-                "last_commit_date": "2022-01-01"
-            }
-        }
+        project = {"git_analysis": {"last_commit_date": "2022-01-01"}}
         result = calculate_recency_score(project)
         assert result["score"] == 3.0
         assert "year(s) ago" in result["period"]
@@ -265,9 +232,7 @@ class TestRecencyScore:
     def test_no_date_fallback(self):
         """Test fallback to last_modified_date."""
         recent_date = (datetime.now() - timedelta(days=15)).isoformat()
-        project = {
-            "last_modified_date": recent_date
-        }
+        project = {"last_modified_date": recent_date}
         result = calculate_recency_score(project)
         assert result["score"] == 15.0
 
@@ -277,40 +242,28 @@ class TestScaleScore:
 
     def test_large_project(self):
         """Test large project (500+ commits or 100+ files)."""
-        project = {
-            "total_commits": 600,
-            "total_files": 120
-        }
+        project = {"total_commits": 600, "total_files": 120}
         result = calculate_scale_score(project)
         assert result["score"] == 10.0
         assert result["scale"] == "Large"
 
     def test_medium_large_project(self):
         """Test medium-large project (100+ commits or 50+ files)."""
-        project = {
-            "total_commits": 150,
-            "total_files": 60
-        }
+        project = {"total_commits": 150, "total_files": 60}
         result = calculate_scale_score(project)
         assert result["score"] == 7.0
         assert result["scale"] == "Medium-Large"
 
     def test_medium_project(self):
         """Test medium project (50+ commits or 20+ files)."""
-        project = {
-            "total_commits": 75,
-            "total_files": 30
-        }
+        project = {"total_commits": 75, "total_files": 30}
         result = calculate_scale_score(project)
         assert result["score"] == 5.0
         assert result["scale"] == "Medium"
 
     def test_small_project(self):
         """Test small project."""
-        project = {
-            "total_commits": 20,
-            "total_files": 10
-        }
+        project = {"total_commits": 20, "total_files": 10}
         result = calculate_scale_score(project)
         assert result["score"] == 3.0
         assert result["scale"] == "Small"
@@ -321,44 +274,28 @@ class TestCollaborationScore:
 
     def test_large_team(self):
         """Test large team (5+ contributors)."""
-        project = {
-            "git_analysis": {
-                "total_contributors": 7
-            }
-        }
+        project = {"git_analysis": {"total_contributors": 7}}
         result = calculate_collaboration_score(project)
         assert result["score"] == 10.0
         assert result["level"] == "Large Team"
 
     def test_small_team(self):
         """Test small team (3-4 contributors)."""
-        project = {
-            "git_analysis": {
-                "total_contributors": 3
-            }
-        }
+        project = {"git_analysis": {"total_contributors": 3}}
         result = calculate_collaboration_score(project)
         assert result["score"] == 7.0
         assert result["level"] == "Small Team"
 
     def test_pair(self):
         """Test pair programming (2 contributors)."""
-        project = {
-            "git_analysis": {
-                "total_contributors": 2
-            }
-        }
+        project = {"git_analysis": {"total_contributors": 2}}
         result = calculate_collaboration_score(project)
         assert result["score"] == 4.0
         assert result["level"] == "Pair"
 
     def test_solo(self):
         """Test solo project (1 contributor)."""
-        project = {
-            "git_analysis": {
-                "total_contributors": 1
-            }
-        }
+        project = {"git_analysis": {"total_contributors": 1}}
         result = calculate_collaboration_score(project)
         assert result["score"] == 0.0
         assert result["level"] == "Solo"
@@ -376,7 +313,7 @@ class TestDurationScore:
                         "email": "user@example.com",
                         "commits": 200,
                         "first_commit_date": "2024-01-01",
-                        "last_commit_date": "2024-12-01"
+                        "last_commit_date": "2024-12-01",
                     }
                 ]
             }
@@ -394,7 +331,7 @@ class TestDurationScore:
                         "email": "user@example.com",
                         "commits": 100,
                         "first_commit_date": "2024-06-01",
-                        "last_commit_date": "2024-09-01"
+                        "last_commit_date": "2024-09-01",
                     }
                 ]
             }
@@ -412,7 +349,7 @@ class TestDurationScore:
                         "email": "user@example.com",
                         "commits": 50,
                         "first_commit_date": "2024-10-01",
-                        "last_commit_date": "2024-11-15"
+                        "last_commit_date": "2024-11-15",
                     }
                 ]
             }
@@ -430,7 +367,7 @@ class TestDurationScore:
                         "email": "user@example.com",
                         "commits": 30,
                         "first_commit_date": "2024-11-01",
-                        "last_commit_date": "2024-11-03"
+                        "last_commit_date": "2024-11-03",
                     }
                 ]
             }
@@ -462,8 +399,8 @@ class TestEnhancedCompositeScore:
             "git_analysis": {
                 "is_collaborative": False,
                 "total_contributors": 1,
-                "last_commit_date": (datetime.now() - timedelta(days=30)).isoformat()
-            }
+                "last_commit_date": (datetime.now() - timedelta(days=30)).isoformat(),
+            },
         }
 
         result = calculate_composite_score(project, use_enhanced_ranking=True)
@@ -502,7 +439,7 @@ class TestEnhancedCompositeScore:
             "has_ci_cd": True,
             "is_git_repo": True,
             "has_tests": True,
-            "test_coverage_estimate": "medium"
+            "test_coverage_estimate": "medium",
         }
 
         result = calculate_composite_score(project, use_enhanced_ranking=False)
@@ -532,10 +469,10 @@ class TestEnhancedCompositeScore:
                 "contributors": [
                     {"email": "alice@example.com", "percentage": 60, "commits": 60},
                     {"email": "bob@example.com", "percentage": 30, "commits": 30},
-                    {"email": "charlie@example.com", "percentage": 10, "commits": 10}
+                    {"email": "charlie@example.com", "percentage": 10, "commits": 10},
                 ],
-                "last_commit_date": (datetime.now() - timedelta(days=15)).isoformat()
-            }
+                "last_commit_date": (datetime.now() - timedelta(days=15)).isoformat(),
+            },
         }
 
         # Score without user_email (should use top contributor)
@@ -558,8 +495,8 @@ class TestEnhancedCompositeScore:
             "git_analysis": {
                 "is_collaborative": False,
                 "total_contributors": 1,
-                "last_commit_date": (datetime.now() - timedelta(days=15)).isoformat()
-            }
+                "last_commit_date": (datetime.now() - timedelta(days=15)).isoformat(),
+            },
         }
 
         result = calculate_composite_score(project)
@@ -570,12 +507,12 @@ class TestEnhancedCompositeScore:
         weights = result["weights"]
 
         expected = (
-            base * weights["base_score"] +
-            breakdown["individual_contribution"] * weights["contribution"] +
-            breakdown["recency"] * weights["recency"] +
-            breakdown["project_scale"] * weights["scale"] +
-            breakdown["collaboration_diversity"] * weights["collaboration"] +
-            breakdown["activity_duration"] * weights["duration"]
+            base * weights["base_score"]
+            + breakdown["individual_contribution"] * weights["contribution"]
+            + breakdown["recency"] * weights["recency"]
+            + breakdown["project_scale"] * weights["scale"]
+            + breakdown["collaboration_diversity"] * weights["collaboration"]
+            + breakdown["activity_duration"] * weights["duration"]
         )
 
         # Allow small floating point differences
