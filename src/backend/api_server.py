@@ -13,16 +13,15 @@ from fastapi import (Depends, FastAPI, File, Form, HTTPException, Security,
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
-from backend.database import authenticate_user, create_user
-from backend.analysis_database import (
-    get_all_analyses_for_user,
-    get_analysis_by_uuid,
-    init_db as init_analysis_db,
-    record_analysis,
-    delete_analysis,
-)
-from backend.task_manager import get_task_manager, TaskType, cleanup_background_tasks
-from backend.database import check_user_consent, init_db as init_user_db
+from backend.analysis_database import (delete_analysis,
+                                       get_all_analyses_for_user,
+                                       get_analysis_by_uuid)
+from backend.analysis_database import init_db as init_analysis_db
+from backend.analysis_database import record_analysis
+from backend.database import authenticate_user, check_user_consent, create_user
+from backend.database import init_db as init_user_db
+from backend.task_manager import (TaskType, cleanup_background_tasks,
+                                  get_task_manager)
 
 # Initialize databases
 init_user_db()
@@ -127,7 +126,7 @@ async def signup(credentials: UserCredentials):
     """Register a new user and return access token."""
     try:
         from backend.database import UserAlreadyExistsError
-        
+
         create_user(credentials.username, credentials.password)
         token = create_access_token(credentials.username)
 
@@ -254,7 +253,7 @@ async def upload_new_portfolio(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to save uploaded file: {str(e)}",
         )
-    
+
     # Queue for background processing
     task_manager = get_task_manager()
     task_id = task_manager.create_task(
@@ -264,7 +263,7 @@ async def upload_new_portfolio(
         file_path=zip_path,
         analysis_type=analysis_type,
     )
-    
+
     return MessageResponse(
         message="Upload accepted, processing started",
         details={
@@ -321,7 +320,7 @@ async def add_to_existing_portfolio(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to save uploaded file: {str(e)}",
         )
-    
+
     # Queue for background processing with portfolio_id
     task_manager = get_task_manager()
     task_id = task_manager.create_task(
@@ -331,7 +330,7 @@ async def add_to_existing_portfolio(
         file_path=zip_path,
         portfolio_id=portfolio_id,
     )
-    
+
     return MessageResponse(
         message="Incremental upload accepted, merging with existing portfolio",
         details={
@@ -347,7 +346,7 @@ async def add_to_existing_portfolio(
 @app.delete("/api/portfolios/{portfolio_id}")
 async def delete_portfolio(portfolio_id: str, username: str = Depends(verify_token)):
     """Delete a portfolio and all associated data."""
-    
+
     # Verify ownership
     existing = get_analysis_by_uuid(portfolio_id, username)
     if not existing:
@@ -355,14 +354,14 @@ async def delete_portfolio(portfolio_id: str, username: str = Depends(verify_tok
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Portfolio {portfolio_id} not found",
         )
-    
+
     success = delete_analysis(portfolio_id, username)
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete portfolio {portfolio_id}",
         )
-    
+
     return MessageResponse(
         message=f"Portfolio {portfolio_id} deleted successfully",
     )
@@ -373,20 +372,20 @@ async def get_task_status(task_id: str, username: str = Depends(verify_token)):
     """Get status of a background task."""
     task_manager = get_task_manager()
     task = task_manager.get_task_status(task_id)
-    
+
     if not task:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Task {task_id} not found",
         )
-    
+
     # Verify task belongs to user
     if task.username != username:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied to this task",
         )
-    
+
     return TaskStatusResponse(
         task_id=task.task_id,
         status=task.status.value,
@@ -405,7 +404,7 @@ async def get_user_tasks(username: str = Depends(verify_token), limit: int = 20)
     """Get all tasks for the current user."""
     task_manager = get_task_manager()
     tasks = task_manager.get_user_tasks(username, limit)
-    
+
     return [
         TaskStatusResponse(
             task_id=task.task_id,
@@ -431,9 +430,9 @@ async def cleanup_system(username: str = Depends(verify_token)):
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
         )
-    
+
     cleanup_background_tasks()
-    
+
     return MessageResponse(
         message="System cleanup completed",
         details={
@@ -441,9 +440,6 @@ async def cleanup_system(username: str = Depends(verify_token)):
             "cleaned_by": username,
         },
     )
-
-
-
 
 
 @app.get("/api/health")

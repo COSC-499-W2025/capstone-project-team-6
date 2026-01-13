@@ -910,7 +910,7 @@ def get_all_analyses_for_user(username: str) -> List[Dict[str, Any]]:
             ORDER BY created_at DESC
             """
         ).fetchall()
-        
+
         return [
             {
                 "analysis_uuid": row["analysis_uuid"],
@@ -935,13 +935,13 @@ def get_analysis_by_uuid(uuid_str: str, username: str = None) -> Optional[Dict[s
             """,
             (uuid_str,),
         ).fetchone()
-        
+
         if not row:
             return None
-            
+
         # Parse the JSON data to get projects and other details
         raw_data = json.loads(row["raw_json"]) if row["raw_json"] else {}
-        
+
         return {
             "analysis_uuid": row["analysis_uuid"],
             "analysis_type": row["analysis_type"],
