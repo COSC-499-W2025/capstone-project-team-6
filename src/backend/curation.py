@@ -35,6 +35,7 @@ class ProjectCurationSettings:
     user_id: str
     comparison_attributes: List[str]
     showcase_project_ids: List[int]
+    custom_project_order: List[int]
     
     
 @dataclass 
@@ -96,6 +97,7 @@ def init_curation_tables() -> None:
                 user_id TEXT NOT NULL,
                 comparison_attributes TEXT NOT NULL, -- JSON array of attribute names
                 showcase_project_ids TEXT NOT NULL, -- JSON array of project IDs
+                custom_project_order TEXT NOT NULL DEFAULT '[]', -- JSON array of project IDs for custom order
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (user_id)

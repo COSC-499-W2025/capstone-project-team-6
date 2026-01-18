@@ -947,6 +947,10 @@ def main() -> int:
     # Comparison attributes
     comparison_parser = curate_subparsers.add_parser("comparison", help="Select attributes for project comparison")
     
+    # Project re-reanking
+    comparison_parser = curate_subparsers.add_parser("rerank", help="Allows the rer-ranking of projects based on your preference")
+
+
     # Showcase projects
     showcase_parser = curate_subparsers.add_parser("showcase", help="Select top 3 projects to showcase")
     
