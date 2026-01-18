@@ -33,7 +33,15 @@ export const AuthProvider = ({ children }) => {
       setUser({ username: data.username, token: data.access_token });
       return { success: true };
     } catch (error) {
-      const message = error.response?.data?.detail || 'Login failed';
+      console.error('Login error:', error);
+      let message = 'Login failed';
+      if (error.response?.data?.detail) {
+        message = error.response.data.detail;
+      } else if (error.message) {
+        message = error.message.includes('Network Error')
+          ? 'Cannot connect to server. Please ensure the backend is running on http://localhost:8000'
+          : error.message;
+      }
       return { success: false, error: message };
     }
   };
@@ -46,7 +54,15 @@ export const AuthProvider = ({ children }) => {
       setUser({ username: data.username, token: data.access_token });
       return { success: true };
     } catch (error) {
-      const message = error.response?.data?.detail || 'Signup failed';
+      console.error('Signup error:', error);
+      let message = 'Signup failed';
+      if (error.response?.data?.detail) {
+        message = error.response.data.detail;
+      } else if (error.message) {
+        message = error.message.includes('Network Error')
+          ? 'Cannot connect to server. Please ensure the backend is running on http://localhost:8000'
+          : error.message;
+      }
       return { success: false, error: message };
     }
   };
