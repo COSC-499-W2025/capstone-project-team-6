@@ -18,7 +18,7 @@ const LoginPage = () => {
     const result = await login(username, password);
 
     if (result.success) {
-      navigate('/dashboard');
+      navigate('/consent');
     } else {
       setError(result.error);
     }

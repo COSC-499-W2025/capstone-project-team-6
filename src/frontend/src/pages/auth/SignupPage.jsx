@@ -35,7 +35,7 @@ const SignupPage = () => {
     const result = await signup(username, password);
 
     if (result.success) {
-      navigate('/dashboard');
+      navigate('/consent');
     } else {
       setError(result.error);
     }
