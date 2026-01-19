@@ -58,6 +58,18 @@ def init_db() -> None:
     with get_connection() as conn:
         conn.execute("PRAGMA foreign_keys = ON;")
 
+        # Ensure a minimal users table exists so the FK on analyses.username is valid
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS analyses (
