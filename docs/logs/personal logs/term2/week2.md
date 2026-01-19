@@ -133,7 +133,54 @@ No major blockers this week.
 - Address any additional feedback on authentication frontend and ranking integration
 - Collaborate with team on integrating frontend components with backend API endpoints
 
+
+
+
+
+
+
+
+
 # Harjot Sahota
+
+## Date ranges
+January 12 - January 19
+<img width="1075" height="629" alt="Screenshot 2026-01-18 at 8 40 48 PM" src="https://github.com/user-attachments/assets/f7093385-3b39-4312-ad1f-63b2c095ae40" />
+
+## What went well
+### What went well
+
+- I successfully implemented the **“My Projects”** feature, allowing users to view their previously analyzed projects through a new protected frontend page connected to a backend API endpoint. This involved correctly wiring authentication, routing, and data fetching, and ensured that existing analysis data could be surfaced without modifying the analysis pipeline itself.
+
+- Throughout this work, I learned and researched more about **API design and integration**, including authenticated endpoints, request/response handling, and connecting frontend components to backend services in a clean and maintainable way.
+
+- In addition, I successfully created a draft for the **team’s introduction for the prototype testing**
+
+## What didn't go well
+
+### What didn’t go well
+
+- I was not able to complete as many coding pull requests as I had planned because my work depended on another part of the project being completed by my teammates. That component was submitted later than expected, which significantly reduced the amount of time I had to implement and refine my own contributions.
+
+- For next time, I plan to coordinate more proactively with my team by setting clearer intermediate deadlines and identifying fallback tasks earlier, so that delays in one area do not block my progress.
+
+## PR's initiated
+- View my projects page https://github.com/COSC-499-W2025/capstone-project-team-6/pull/298
+
+## PR's reviewed
+- Curation part2  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/288
+- Allow incremental information by adding another zipped folder of files https://github.com/COSC-499-W2025/capstone-project-team-6/pull/283
+- Frontend login-signup https://github.com/COSC-499-W2025/capstone-project-team-6/pull/280
+
+## Plans for next week
+
+
+
+
+
+
+
+
 
 # Mohamed Sakr
 
