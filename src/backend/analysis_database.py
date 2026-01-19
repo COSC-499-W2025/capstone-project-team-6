@@ -769,36 +769,42 @@ def get_projects_for_analysis(analysis_id: int) -> List[sqlite3.Row]:
         ).fetchall()
 
 
-def get_analysis_by_zip_file(zip_file: str) -> Optional[sqlite3.Row]:
-    """Get the most recent analysis for a given zip file path."""
+def get_analysis_by_zip_file(zip_file: str, username: Optional[str] = None) -> Optional[sqlite3.Row]:
+    """Get the most recent analysis for a given zip file path scoped to a user."""
+    if not username:
+        raise ValueError("username is required for get_analysis_by_zip_file")
+
     with get_connection() as conn:
         return conn.execute(
             """
             SELECT * FROM analyses 
-            WHERE zip_file = ? 
+            WHERE zip_file = ? AND username = ?
             ORDER BY created_at DESC 
             LIMIT 1
             """,
-            (zip_file,),
+            (zip_file, username),
         ).fetchone()
 
 
-def get_all_analyses_by_zip_file(zip_file: str) -> List[sqlite3.Row]:
-    """Get all analyses (not just the most recent) for a given zip file path."""
+def get_all_analyses_by_zip_file(zip_file: str, username: Optional[str] = None) -> List[sqlite3.Row]:
+    """Get all analyses (not just the most recent) for a given zip file path scoped to a user."""
+    if not username:
+        raise ValueError("username is required for get_all_analyses_by_zip_file")
+
     with get_connection() as conn:
         return conn.execute(
             """
             SELECT * FROM analyses 
-            WHERE zip_file = ? 
+            WHERE zip_file = ? AND username = ?
             ORDER BY created_at DESC
             """,
-            (zip_file,),
+            (zip_file, username),
         ).fetchall()
 
 
-def get_analysis_report(zip_file: str) -> Optional[Dict[str, Any]]:
-    """Retrieve the full analysis report (JSON) for a given zip file path."""
-    analysis = get_analysis_by_zip_file(zip_file)
+def get_analysis_report(zip_file: str, username: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Retrieve the full analysis report (JSON) for a given zip file path scoped to a user."""
+    analysis = get_analysis_by_zip_file(zip_file, username=username)
     if not analysis:
         return None
 
@@ -818,24 +824,26 @@ def count_analyses_by_zip_file(zip_file: str) -> int:
         return result["count"] if result else 0
 
 
-def delete_analyses_by_zip_file(zip_file: str) -> int:
-    """Delete all analyses for a given zip file path."""
+def delete_analyses_by_zip_file(zip_file: str, username: Optional[str] = None) -> int:
+    """Delete all analyses for a given zip file path scoped to a user."""
     if not zip_file:
         raise ValueError("zip_file path cannot be empty")
+    if not username:
+        raise ValueError("username is required for delete_analyses_by_zip_file")
 
     try:
         with get_connection() as conn:
             conn.execute("PRAGMA foreign_keys = ON;")
             count_result = conn.execute(
-                "SELECT COUNT(*) as count FROM analyses WHERE zip_file = ?",
-                (zip_file,),
+                "SELECT COUNT(*) as count FROM analyses WHERE zip_file = ? AND username = ?",
+                (zip_file, username),
             ).fetchone()
             count = count_result["count"] if count_result else 0
 
             if count > 0:
                 cursor = conn.execute(
-                    "DELETE FROM analyses WHERE zip_file = ?",
-                    (zip_file,),
+                    "DELETE FROM analyses WHERE zip_file = ? AND username = ?",
+                    (zip_file, username),
                 )
                 deleted_rows = cursor.rowcount
                 conn.commit()
@@ -908,14 +916,23 @@ def clear_resume_items() -> None:
         conn.commit()
 
 
-def get_all_analyses() -> List[sqlite3.Row]:
-    """Get all analyses from the database, ordered by most recent first."""
+def get_all_analyses(username: Optional[str] = None) -> List[sqlite3.Row]:
+    """
+    Get analyses ordered by most recent first.
+
+    Warning: username is required to avoid cross-user data leakage.
+    """
+    if not username:
+        raise ValueError("username is required for get_all_analyses")
+
     with get_connection() as conn:
         return conn.execute(
             """
             SELECT * FROM analyses 
+            WHERE username = ?
             ORDER BY created_at DESC
-            """
+            """,
+            (username,),
         ).fetchall()
 
 

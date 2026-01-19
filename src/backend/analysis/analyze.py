@@ -868,7 +868,12 @@ def calculate_composite_score(
         }
 
 
-def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] = None, user_email: Optional[str] = None) -> None:
+def summarize_top_ranked_projects(
+    limit: int = 10,
+    zip_file_path: Optional[str] = None,
+    user_email: Optional[str] = None,
+    username: Optional[str] = None,
+) -> None:
     """
     Retrieve projects from the database, calculate composite scores, and display top-ranked projects.
 
@@ -882,12 +887,11 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
     else:
         print_separator("TOP RANKED PROJECTS SUMMARY (ALL ZIP FILES)")
 
-    # Get analyses - filter by zip_file_path if provided
+    # Get analyses - filter by zip_file_path if provided (scoped by username)
     if zip_file_path:
-        all_analyses = get_all_analyses_by_zip_file(zip_file_path)
+        all_analyses = get_all_analyses_by_zip_file(zip_file_path, username=username) if username else []
     else:
-        # Get all analyses
-        all_analyses = get_all_analyses()
+        all_analyses = get_all_analyses(username) if username else []
 
     if not all_analyses:
         if zip_file_path:
