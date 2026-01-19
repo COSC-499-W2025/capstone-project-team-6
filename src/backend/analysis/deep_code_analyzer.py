@@ -454,7 +454,7 @@ def analyze_project_deep(zip_path: Path, project_path: str = "") -> Dict:
 
 
 def generate_comprehensive_report(
-    zip_path: Path, output_path: Optional[Path] = None, target_user_email: Optional[str] = None
+    zip_path: Path, output_path: Optional[Path] = None, target_user_email: Optional[str] = None, quick_mode: bool = False
 ) -> Dict:
     """
     Generate a comprehensive analysis report combining all analysis phases.
@@ -468,6 +468,8 @@ def generate_comprehensive_report(
     Args:
         zip_path: Path to ZIP file
         output_path: Optional path to save JSON report
+        target_user_email: Optional email to focus git analysis on
+        quick_mode: If True, skip expensive operations like git blame
 
     Returns:
         Complete analysis report as dictionary

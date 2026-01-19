@@ -11,12 +11,16 @@ import logging
 import shutil
 import tempfile
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
+
+# Thread pool for blocking operations
+_executor = ThreadPoolExecutor(max_workers=4)
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -207,12 +211,17 @@ class TaskManager:
             task.status = TaskStatus.FAILED
             task.error = str(e)
             task.progress = 0
-            logger.error(f"Task {task_id} failed: {e}")
+            logger.error(f"Task {task_id} failed: {e}", exc_info=True)
+            raise
 
-        task.updated_at = datetime.now()
+        finally:
+            task.updated_at = datetime.now()
 
     async def _process_new_portfolio(self, task: TaskInfo) -> Dict[str, Any]:
-        """Process a new portfolio upload."""
+        """Process a new portfolio upload.
+        
+        Offloads blocking analyze_folder to thread executor.
+        """
         from .analysis_database import record_analysis
         from .cli import analyze_folder
 
@@ -223,38 +232,30 @@ class TaskManager:
         # Run analysis on the uploaded file
         file_path = Path(task.file_path)
 
-        try:
-            analysis_result = analyze_folder(file_path)
-            task.progress = 80
+        # Offload blocking operation to thread pool
+        loop = asyncio.get_event_loop()
+        analysis_result = await loop.run_in_executor(
+            _executor,
+            analyze_folder,
+            file_path,
+        )
+        task.progress = 80
 
-            # Store analysis in database
-            analysis_id = record_analysis(
-                task.analysis_type or "non_llm",
-                analysis_result,
-                username=task.username,
-            )
-            task.progress = 90
+        # Store analysis in database
+        analysis_id = record_analysis(task.analysis_type or "non_llm", analysis_result)
+        task.progress = 90
 
-            return {
-                "analysis_id": analysis_id,
-                "analysis_uuid": analysis_result.get("analysis_metadata", {}).get("analysis_uuid"),
-                "total_projects": len(analysis_result.get("projects", [])),
-                "file_hash": task.file_hash,
-            }
-        except Exception as e:
-            logger.error(f"Analysis failed for task {task.task_id}: {e}")
-            # Return a simplified result for now
-            return {
-                "analysis_id": None,
-                "analysis_uuid": str(uuid.uuid4()),
-                "total_projects": 0,
-                "file_hash": task.file_hash,
-                "error": str(e),
-            }
+        return {
+            "analysis_id": analysis_id,
+            "analysis_uuid": analysis_result.get("analysis_metadata", {}).get("analysis_uuid"),
+            "total_projects": len(analysis_result.get("projects", [])),
+            "file_hash": task.file_hash,
+        }
 
     async def _process_incremental_upload(self, task: TaskInfo) -> Dict[str, Any]:
-        """Process an incremental upload to existing portfolio."""
-        from .analysis_database import get_analysis_by_uuid, record_analysis
+        """Process an incremental upload to existing portfolio.
+        """
+        from .analysis_database import get_analysis_by_uuid, get_connection
         from .cli import analyze_folder
 
         # Get existing portfolio
@@ -265,43 +266,106 @@ class TaskManager:
         await asyncio.sleep(1)
         task.progress = 40
 
-        try:
-            # Analyze new file
-            file_path = Path(task.file_path)
-            new_analysis = analyze_folder(file_path)
+        # Analyze new file using existing pipeline - offload to thread pool
+        file_path = Path(task.file_path)
+        loop = asyncio.get_event_loop()
+        new_analysis = await loop.run_in_executor(
+            _executor,
+            analyze_folder,
+            file_path,
+        )
 
-            task.progress = 70
+        task.progress = 60
 
-            # Merge with existing portfolio (simplified merging)
-            merged_projects = existing_portfolio.get("projects", []) + new_analysis.get("projects", [])
+        # Merge: append new projects to existing ones
+        existing_projects = existing_portfolio.get("projects", [])
+        new_projects = new_analysis.get("projects", [])
+        
+        # Deduplicate by project path
+        existing_paths = {p.get("project_path") for p in existing_projects}
+        added_projects = [p for p in new_projects if p.get("project_path") not in existing_paths]
+        
+        merged_projects = existing_projects + added_projects
 
-            # Create new analysis with merged data
-            merged_analysis = new_analysis.copy()
-            merged_analysis["projects"] = merged_projects
-            merged_analysis["total_projects"] = len(merged_projects)
+        # Merge and recompute metadata
+        merged_data = self._merge_analysis_metadata(
+            existing=existing_portfolio,
+            new=new_analysis,
+            merged_projects=merged_projects,
+        )
 
-            task.progress = 90
+        # Update the raw_json in database
+        with get_connection() as conn:
+            conn.execute(
+                """UPDATE analyses 
+                   SET raw_json = ?, 
+                       total_projects = ?,
+                       analysis_timestamp = datetime('now')
+                   WHERE analysis_uuid = ?""",
+                (json.dumps(merged_data), len(merged_projects), task.portfolio_id)
+            )
+            conn.commit()
 
-            # Store updated analysis
-            analysis_id = record_analysis("incremental", merged_analysis, username=task.username)
+        task.progress = 90
 
-            return {
-                "analysis_id": analysis_id,
-                "analysis_uuid": merged_analysis.get("analysis_metadata", {}).get("analysis_uuid"),
-                "total_projects": len(merged_projects),
-                "original_portfolio_id": task.portfolio_id,
-                "added_projects": len(new_analysis.get("projects", [])),
-            }
-        except Exception as e:
-            logger.error(f"Incremental analysis failed for task {task.task_id}: {e}")
-            return {
-                "analysis_id": None,
-                "analysis_uuid": str(uuid.uuid4()),
-                "total_projects": 0,
-                "original_portfolio_id": task.portfolio_id,
-                "added_projects": 0,
-                "error": str(e),
-            }
+        logger.info(
+            f"Incremental upload {task.task_id}: "
+            f"added {len(added_projects)} projects, total now {len(merged_projects)}"
+        )
+
+        return {
+            "analysis_uuid": task.portfolio_id,
+            "total_projects": len(merged_projects),
+            "original_portfolio_id": task.portfolio_id,
+            "added_projects": len(added_projects),
+        }
+
+    def _merge_analysis_metadata(
+        self,
+        existing: Dict[str, Any],
+        new: Dict[str, Any],
+        merged_projects: list,
+    ) -> Dict[str, Any]:
+        """Merge analysis metadata.
+        
+        Updates summaries, skills, timestamps, and other computed fields
+        to reflect the combined project set.
+        """
+        existing_meta = existing.get("analysis_metadata", {})
+        new_meta = new.get("analysis_metadata", {})
+        
+        # Merge skills (combine and deduplicate)
+        existing_skills = set(existing_meta.get("skills", []))
+        new_skills = set(new_meta.get("skills", []))
+        merged_skills = sorted(list(existing_skills | new_skills))
+        
+        # Merge languages (combine and deduplicate)
+        existing_langs = set(existing_meta.get("languages", []))
+        new_langs = set(new_meta.get("languages", []))
+        merged_langs = sorted(list(existing_langs | new_langs))
+        
+        # Update totals and timestamps
+        merged_metadata = existing_meta.copy()
+        merged_metadata.update({
+            "total_projects": len(merged_projects),
+            "skills": merged_skills,
+            "languages": merged_langs,
+            "total_files": (
+                existing_meta.get("total_files", 0) +
+                new_meta.get("total_files", 0)
+            ),
+            "total_lines_of_code": (
+                existing_meta.get("total_lines_of_code", 0) +
+                new_meta.get("total_lines_of_code", 0)
+            ),
+            "last_updated": datetime.now().isoformat(),
+        })
+        
+        return {
+            **existing,
+            "projects": merged_projects,
+            "analysis_metadata": merged_metadata,
+        }
 
     def cleanup_completed_tasks(self, older_than_hours: int = 48):
         """Clean up completed tasks older than specified hours."""
