@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
 const LoginPage = () => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -16,7 +16,7 @@ const LoginPage = () => {
     setError('');
     setLoading(true);
 
-    const result = await login(username, password);
+    const result = await login(email, password);
 
     if (result.success) {
       navigate('/consent');
@@ -93,12 +93,11 @@ const LoginPage = () => {
               Email
             </label>
             <input
-              type="text"
+              type="email"
               placeholder="student@example.com"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
-              minLength={3}
               style={{
                 width: '100%',
                 padding: '12px 16px',

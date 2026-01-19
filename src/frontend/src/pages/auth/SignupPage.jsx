@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
 const SignupPage = () => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -12,6 +12,15 @@ const SignupPage = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { signup } = useAuth();
   const navigate = useNavigate();
+
+  const validateEmail = () => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+    return true;
+  };
 
   const validatePassword = () => {
     if (password.length < 6) {
@@ -29,12 +38,12 @@ const SignupPage = () => {
     e.preventDefault();
     setError('');
 
-    if (!validatePassword()) {
+    if (!validateEmail() || !validatePassword()) {
       return;
     }
 
     setLoading(true);
-    const result = await signup(username, password);
+    const result = await signup(email, password);
 
     if (result.success) {
       navigate('/consent');
@@ -117,16 +126,14 @@ const SignupPage = () => {
               marginBottom: '8px',
               color: '#1a1a1a'
             }}>
-              Username
+              Email
             </label>
             <input
-              type="text"
-              placeholder="Choose a username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              type="email"
+              placeholder="Enter your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
-              minLength={3}
-              maxLength={50}
               style={{
                 width: '100%',
                 padding: '12px 16px',
@@ -140,13 +147,6 @@ const SignupPage = () => {
               onFocus={(e) => e.target.style.borderColor = '#2563EB'}
               onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
             />
-            <p style={{
-              fontSize: '12px',
-              color: '#666',
-              margin: '4px 0 0 0'
-            }}>
-              3-50 characters
-            </p>
           </div>
 
           <div style={{ marginBottom: '24px' }}>
