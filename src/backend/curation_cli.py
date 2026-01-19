@@ -15,24 +15,17 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 try:
-    from .curation import (
-        ATTRIBUTE_DESCRIPTIONS,
-        DEFAULT_COMPARISON_ATTRIBUTES,
-        ProjectChronologyCorrection,
-        format_project_comparison,
-        get_chronology_corrections,
-        get_showcase_projects,
-        get_user_curation_settings,
-        get_user_projects,
-        init_curation_tables,
-        save_chronology_correction,
-        save_comparison_attributes,
-        save_showcase_projects,
-        validate_date_format,
-        save_project_order,
-        get_available_skills_alphabetical,
-        save_highlighted_skills,
-    )
+    from .curation import (ATTRIBUTE_DESCRIPTIONS,
+                           DEFAULT_COMPARISON_ATTRIBUTES,
+                           ProjectChronologyCorrection,
+                           format_project_comparison,
+                           get_available_skills_alphabetical,
+                           get_chronology_corrections, get_showcase_projects,
+                           get_user_curation_settings, get_user_projects,
+                           init_curation_tables, save_chronology_correction,
+                           save_comparison_attributes, save_highlighted_skills,
+                           save_project_order, save_showcase_projects,
+                           validate_date_format)
 except ImportError:
     # Handle direct execution or testing
     import sys
@@ -40,24 +33,19 @@ except ImportError:
     current_dir = Path(__file__).parent
     src_dir = current_dir.parent
     sys.path.insert(0, str(src_dir))
-    from backend.curation import (
-        ATTRIBUTE_DESCRIPTIONS,
-        DEFAULT_COMPARISON_ATTRIBUTES,
-        ProjectChronologyCorrection,
-        format_project_comparison,
-        get_chronology_corrections,
-        get_showcase_projects,
-        get_user_curation_settings,
-        get_user_projects,
-        init_curation_tables,
-        save_chronology_correction,
-        save_comparison_attributes,
-        save_showcase_projects,
-        validate_date_format,
-        save_project_order,
-        get_available_skills_alphabetical,
-        save_highlighted_skills,
-    )
+    from backend.curation import (ATTRIBUTE_DESCRIPTIONS,
+                                  DEFAULT_COMPARISON_ATTRIBUTES,
+                                  ProjectChronologyCorrection,
+                                  format_project_comparison,
+                                  get_available_skills_alphabetical,
+                                  get_chronology_corrections,
+                                  get_showcase_projects,
+                                  get_user_curation_settings,
+                                  get_user_projects, init_curation_tables,
+                                  save_chronology_correction,
+                                  save_comparison_attributes,
+                                  save_highlighted_skills, save_project_order,
+                                  save_showcase_projects, validate_date_format)
 
 
 def curate_chronology_interactive(user_id: str) -> None:
@@ -429,13 +417,13 @@ def curate_project_rank_interactive(user_id: str):
 
         choice = input("\nEnter choice: ").strip().lower()
 
-        if choice == 's':
-            new_order = [p['id'] for p in projects]
+        if choice == "s":
+            new_order = [p["id"] for p in projects]
             save_project_order(user_id, new_order)
             print("Order saved successfully!")
             return
 
-        if choice == 'q':
+        if choice == "q":
             return
 
         try:
@@ -447,6 +435,7 @@ def curate_project_rank_interactive(user_id: str):
                 print("Invalid position numbers.")
         except ValueError:
             print("Enter two numbers, e.g. `2 1`")
+
 
 def curate_skills_highlight_interactive(user_id: str) -> None:
     """Interactive interface for selecting up to 10 highlighted skills."""
@@ -481,18 +470,18 @@ def curate_skills_highlight_interactive(user_id: str) -> None:
 
         choice = input("\nEnter choice: ").strip().lower()
 
-        if choice == 's':
+        if choice == "s":
             if save_highlighted_skills(user_id, list(selected)):
                 print("Highlighted skills saved successfully!")
             else:
                 print("Failed to save highlighted skills")
             return
 
-        if choice == 'q':
+        if choice == "q":
             print("Cancelled - no changes saved")
             return
 
-        if choice == 'c':
+        if choice == "c":
             selected.clear()
             print("Cleared all selected skills")
             continue
@@ -524,8 +513,6 @@ def curate_skills_highlight_interactive(user_id: str) -> None:
             print("Enter space-separated numbers (e.g., '1 3 7 12') or 's', 'c', 'q'")
 
 
-
-
 def display_curation_status(user_id: str) -> None:
     """Display user's current curation status."""
     print("\n" + "=" * 70)
@@ -546,17 +533,17 @@ def display_curation_status(user_id: str) -> None:
         if settings.custom_project_order:
             print("  Status: [CUSTOM RANK ACTIVE]")
             # Show top 3 in the custom order as a preview
-            preview = [p['project_name'] for p in projects[:3]]
+            preview = [p["project_name"] for p in projects[:3]]
             print(f"  Current Top 3: {', '.join(preview)}{'...' if len(projects) > 3 else ''}")
         else:
             print("  Status: Default (Chronological)")
-        
+
         # Comparison attributes
         print(f"\nComparison Attributes ({len(settings.comparison_attributes)} selected):")
         for attr in settings.comparison_attributes:
             desc = ATTRIBUTE_DESCRIPTIONS.get(attr, attr)
             print(f"  • {desc}")
-            
+
         # Highlighted skills
         print(f"\nHighlighted Skills ({len(settings.highlighted_skills)}/10 selected):")
         if settings.highlighted_skills:
@@ -565,8 +552,7 @@ def display_curation_status(user_id: str) -> None:
         else:
             print("  (None selected)")
 
-
-        # Showcase projects  
+        # Showcase projects
         print(f"\nShowcase Projects ({len(settings.showcase_project_ids)}/3 selected):")
         if showcase:
             for project in showcase:

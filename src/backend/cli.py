@@ -10,7 +10,8 @@ import zipfile
 from pathlib import Path
 from typing import Optional
 
-from src.backend.curation_cli import curate_project_rank_interactive, curate_skills_highlight_interactive
+from src.backend.curation_cli import (curate_project_rank_interactive,
+                                      curate_skills_highlight_interactive)
 
 from . import (Folder_traversal_fs, MDAShell, UserAlreadyExistsError,
                authenticate_user, create_user, initialize)
@@ -959,8 +960,7 @@ def main() -> int:
     # Project re-ranking
     rerank_parser = curate_subparsers.add_parser("rerank", help="Allows the rer-ranking of projects based on your preference")
 
-    skills_parser = curate_subparsers.add_parser("skills-highlight",help="Select up to 10 skills to highlight")
-
+    skills_parser = curate_subparsers.add_parser("skills-highlight", help="Select up to 10 skills to highlight")
 
     # Showcase projects
     showcase_parser = curate_subparsers.add_parser("showcase", help="Select top 3 projects to showcase")
@@ -1612,13 +1612,11 @@ def main() -> int:
                 from .curation_cli import (
                     curate_chronology_interactive,
                     curate_comparison_attributes_interactive,
-                    curate_showcase_projects_interactive,
-                    display_curation_status,
-                    display_showcase_summary,
                     curate_project_rank_interactive,
-                    curate_skills_highlight_interactive
-                )
-                
+                    curate_showcase_projects_interactive,
+                    curate_skills_highlight_interactive,
+                    display_curation_status, display_showcase_summary)
+
                 init_db()
                 init_curation_tables()
             except Exception as e:
