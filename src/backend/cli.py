@@ -1536,7 +1536,8 @@ def main() -> int:
                     curate_comparison_attributes_interactive,
                     curate_showcase_projects_interactive,
                     display_curation_status,
-                    display_showcase_summary
+                    display_showcase_summary,
+                    curate_project_rank_interactive
                 )
                 
                 init_db()
@@ -1558,8 +1559,8 @@ def main() -> int:
                 display_curation_status(username)
                 display_showcase_summary(username)
                 return 0
-            elif args.curate_command == "rerank":
-                curate_project_rank_interactive(user_id)
+            elif args.curate_type == "rerank":
+                curate_project_rank_interactive(username)
             else:
                 print("\nAvailable curation commands:")
                 print("  mda curate chronology  - Correct project dates")

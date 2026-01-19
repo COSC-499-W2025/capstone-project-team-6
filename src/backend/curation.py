@@ -297,7 +297,7 @@ def save_comparison_attributes(user_id: str, attributes: List[str]) -> bool:
                     COALESCE((SELECT custom_project_order FROM user_curation_settings WHERE user_id = ?), '[]'),
                     ?
                 )
-            """, (user_id, json.dumps(attributes), user_id, user_id datetime.now().isoformat()))
+            """, (user_id, json.dumps(attributes), user_id, user_id, datetime.now().isoformat()))
             
             conn.commit()
             return True
@@ -357,7 +357,7 @@ def get_user_curation_settings(user_id: str) -> ProjectCurationSettings:
                 user_id=user_id,
                 comparison_attributes=json.loads(row["comparison_attributes"]),
                 showcase_project_ids=json.loads(row["showcase_project_ids"]),
-                custom_project_order=json.loads(row.get("custom_project_order", "[]"))
+                custom_project_order=json.loads(row["custom_project_order"] or "[]"),
             )
         else:
             # Return defaults

@@ -403,6 +403,7 @@ def _toggle_showcase_projects(projects: List[Dict[str, Any]], current_showcase: 
         except ValueError:
             print("Please enter a valid number or 'b' to go back")
 
+'''
 def curate_project_rank_interactive(user_id: str):
     """Interactive CLI to re-rank projects."""
     while True:
@@ -446,6 +447,45 @@ def curate_project_rank_interactive(user_id: str):
                     print("Invalid position numbers.")
         except ValueError:
             print("Please enter two numbers (e.g., '3 1' to move 3rd project to 1st).")
+'''
+def curate_project_rank_interactive(user_id: str):
+    projects = get_user_projects(user_id)  # LOAD ONCE
+
+    if not projects:
+        print("No projects found to rank.")
+        return
+
+    while True:
+        print("\n--- PROJECT DISPLAY ORDER ---")
+        print("This order determines how projects appear in your showcase.")
+        for i, p in enumerate(projects, 1):
+            print(f"{i}. {p['project_name']} (ID: {p['id']})")
+
+        print("\nOptions:")
+        print("  [number] [new_pos] : Move project from current number to new position")
+        print("  's'                : Save and exit")
+        print("  'q'                : Quit without saving")
+
+        choice = input("\nEnter choice: ").strip().lower()
+
+        if choice == 's':
+            new_order = [p['id'] for p in projects]
+            save_project_order(user_id, new_order)
+            print("Order saved successfully!")
+            return
+
+        if choice == 'q':
+            return
+
+        try:
+            old_idx, new_idx = map(lambda x: int(x) - 1, choice.split())
+            if 0 <= old_idx < len(projects) and 0 <= new_idx < len(projects):
+                project = projects.pop(old_idx)
+                projects.insert(new_idx, project)
+            else:
+                print("Invalid position numbers.")
+        except ValueError:
+            print("Enter two numbers, e.g. `2 1`")
 
 
 
@@ -462,8 +502,18 @@ def display_curation_status(user_id: str) -> None:
         
         # Get settings
         settings = get_user_curation_settings(user_id)
+        projects = get_user_projects(user_id)
         corrections = get_chronology_corrections(user_id)
         showcase = get_showcase_projects(user_id)
+
+        print(f"\nProject Display Order:")
+        if settings.custom_project_order:
+            print("  Status: [CUSTOM RANK ACTIVE]")
+            # Show top 3 in the custom order as a preview
+            preview = [p['project_name'] for p in projects[:3]]
+            print(f"  Current Top 3: {', '.join(preview)}{'...' if len(projects) > 3 else ''}")
+        else:
+            print("  Status: Default (Chronological)")
         
         # Comparison attributes
         print(f"\nComparison Attributes ({len(settings.comparison_attributes)} selected):")
