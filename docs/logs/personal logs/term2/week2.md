@@ -1,5 +1,96 @@
 # Mandira Samarasekara
 
+## Date Ranges
+
+January 12 – January 18  
+<img width="1425" height="836" alt="image" src="https://github.com/user-attachments/assets/cd1602ac-81fe-49b4-90f2-0f662f0ce07b" />
+
+
+
+## Weekly recap goals
+
+- Attended weekly check-ins  
+- Discussed Milestone 2 requirements with the team  
+- Completed Requirement 23 (allow users to choose which information is represented) in collaboration with Aakash  
+- Scheduled and attended team meetings  
+- Wrote weekly personal logs  
+- Wrote the team logs for this week  
+- Reviewed pull requests  
+- Initiated pull requests  
+
+## What went well
+
+This week went well overall. I scheduled team meetings to discuss the plan for the week and coordinated how we would prepare for the in-class heuristic evaluation. We identified and organized the tasks required for the evaluation and assigned responsibilities accordingly. I also took ownership of creating and working on the Google survey that will be used during the heuristic evaluation.
+
+## What didn't go well
+
+While working on Requirement 23, we identified a significant issue in the database design: analyses from all users were being stored together instead of being properly separated per user. Although this issue was discovered later than ideal, identifying it during this phase allowed us to quickly fix it along with related underlying problems.
+
+## PR's initiated
+
+- **User curation controls Req 23**  
+  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/277  
+
+- **User curation controls Tests**  
+  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/278  
+
+These two PRs together deliver full support for user-controlled project curation, meeting Requirement 23.
+
+**PR #277 – User Curation Controls** introduces three major features that allow users to customize how their project data is presented:
+- Manual correction of project timelines to fix inaccurate automated dates  
+- Selection of project attributes for comparisons, with smart defaults  
+- Selection of up to three showcase projects for highlights and summaries  
+
+The implementation includes core curation logic, persistent user-specific settings, and a fully integrated CLI experience via the `mda curate` command.
+
+**PR #278 – User Curation Controls Tests** adds comprehensive test coverage for the above features, with 36 total tests validating both core functionality and CLI interactions. These tests ensure correctness, stability, and prevent regressions.
+
+Together, these PRs provide a robust, well-tested curation system that enhances user control, usability, and presentation quality.
+
+## PR's reviewed
+
+- **Curation part 2**  
+  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/288  
+
+- **Allow incremental information by adding another zipped folder of files**  
+  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/283  
+
+- **Output projects' analysis based on User ID**  
+  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/281  
+
+- **Mohamed Week 2 Term 2 Personal Log**  
+  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/291  
+
+- **Mithish Week 2 Logs Term 2**  
+  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/286  
+
+## Distinct PR review
+
+- **Curation part 2**  
+  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/288  
+
+I reviewed this PR which introduces two new curation features: custom project re-ranking and user-selected skill highlighting. I verified that all previously reported issues were fully resolved, including safe and backward-compatible database migrations, consistent SQL queries, and correct handling of the `highlighted_skills` and custom project ordering logic.
+
+I confirmed through automated tests and manual validation that project re-ranking persists correctly, skill highlighting allows selection of up to 10 skills, and existing data remains intact. I noted a minor limitation regarding the lack of user-specific storage for analyzed data in the current version; however, this was acknowledged and has since been addressed in a follow-up PR.
+
+Based on code quality, correctness, and test results, I approved the PR as stable and ready for integration.
+
+## Issue board
+
+- **Issue #276**:
+  <img width="1553" height="118" alt="Screenshot 2026-01-18 213318" src="https://github.com/user-attachments/assets/2446259a-8b62-4118-b221-d3e91f9aaf03" />
+
+
+## Plan for next week
+
+- Ensure the entire team is prepared to perform the heuristic evaluation and run the system on their devices  
+- Update or adjust the task list based on TA feedback  
+- Finalize the Google survey by the end of the week  
+- Merge development into main after verifying there are no hidden issues  
+- Begin work on Requirement 24 if time permits  
+
+
+
 # Aakash Tirithdas
 
 # Mithish Ravisankar Geetha
