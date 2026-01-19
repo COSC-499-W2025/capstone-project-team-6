@@ -101,15 +101,21 @@ def init_curation_tables() -> None:
                 user_id TEXT NOT NULL,
                 comparison_attributes TEXT NOT NULL, -- JSON array of attribute names
                 showcase_project_ids TEXT NOT NULL, -- JSON array of project IDs
-                custom_project_order TEXT NOT NULL DEFAULT '[]', -- JSON array of project IDs for custom order
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (user_id)
             );
         """)
         
+        # Check existing columns and add missing ones
         cols = conn.execute("PRAGMA table_info(user_curation_settings);").fetchall()
         col_names = {c["name"] for c in cols}  # rows are sqlite3.Row
+
+        if "custom_project_order" not in col_names:
+            conn.execute("""
+                ALTER TABLE user_curation_settings
+                ADD COLUMN custom_project_order TEXT NOT NULL DEFAULT '[]';
+            """)
 
         if "highlighted_skills" not in col_names:
             conn.execute("""
@@ -285,12 +291,13 @@ def save_project_order(user_id: str, project_ids: List[int]) -> bool:
             # Use COALESCE to keep existing values for other columns
             conn.execute("""
                 INSERT OR REPLACE INTO user_curation_settings
-                (user_id, comparison_attributes, showcase_project_ids, custom_project_order, updated_at)
+                (user_id, comparison_attributes, showcase_project_ids, custom_project_order, highlighted_skills, updated_at)
                 VALUES (
                     ?, 
                     COALESCE((SELECT comparison_attributes FROM user_curation_settings WHERE user_id = ?), ?),
                     COALESCE((SELECT showcase_project_ids FROM user_curation_settings WHERE user_id = ?), '[]'),
                     ?,
+                    COALESCE((SELECT highlighted_skills FROM user_curation_settings WHERE user_id = ?), '[]'),
                     ?
                 )
             """, (
@@ -298,6 +305,7 @@ def save_project_order(user_id: str, project_ids: List[int]) -> bool:
                 user_id, json.dumps(DEFAULT_COMPARISON_ATTRIBUTES),
                 user_id,
                 json.dumps(project_ids), 
+                user_id,
                 datetime.now().isoformat()
             ))
             
@@ -324,15 +332,16 @@ def save_comparison_attributes(user_id: str, attributes: List[str]) -> bool:
             conn.execute(
                 """
                 INSERT OR REPLACE INTO user_curation_settings
-                (user_id, comparison_attributes, showcase_project_ids, custom_project_order, updated_at)
+                (user_id, comparison_attributes, showcase_project_ids, custom_project_order, highlighted_skills, updated_at)
                 VALUES (
                     ?, 
                     ?, 
                     COALESCE((SELECT showcase_project_ids FROM user_curation_settings WHERE user_id = ?), '[]'),
                     COALESCE((SELECT custom_project_order FROM user_curation_settings WHERE user_id = ?), '[]'),
+                    COALESCE((SELECT highlighted_skills FROM user_curation_settings WHERE user_id = ?), '[]'),
                     ?
                 )
-            """, (user_id, json.dumps(attributes), user_id, user_id, datetime.now().isoformat()))
+            """, (user_id, json.dumps(attributes), user_id, user_id, user_id, datetime.now().isoformat()))
             
             conn.commit()
             return True
@@ -361,15 +370,16 @@ def save_showcase_projects(user_id: str, project_ids: List[int]) -> bool:
             conn.execute(
                 """
                 INSERT OR REPLACE INTO user_curation_settings
-                (user_id, comparison_attributes, showcase_project_ids, custom_project_order, updated_at)
+                (user_id, comparison_attributes, showcase_project_ids, custom_project_order, highlighted_skills, updated_at)
                 VALUES (
                     ?,
                     COALESCE((SELECT comparison_attributes FROM user_curation_settings WHERE user_id = ?), ?),
                     ?,
                     COALESCE((SELECT custom_project_order FROM user_curation_settings WHERE user_id = ?), '[]'),
+                    COALESCE((SELECT highlighted_skills FROM user_curation_settings WHERE user_id = ?), '[]'),
                     ?
                 )
-            """, (user_id, user_id, json.dumps(DEFAULT_COMPARISON_ATTRIBUTES), json.dumps(project_ids), user_id, datetime.now().isoformat()))
+            """, (user_id, user_id, json.dumps(DEFAULT_COMPARISON_ATTRIBUTES), json.dumps(project_ids), user_id, user_id, datetime.now().isoformat()))
             
             conn.commit()
             return True
