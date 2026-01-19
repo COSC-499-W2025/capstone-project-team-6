@@ -54,7 +54,6 @@ One challenge this week was that parts of the API broke temporarily while adapti
 
 
 ## Issue board
-
 ![alt text](image-3.png)
 ![alt text](image-4.png)
 ## Plan for next week
