@@ -55,6 +55,8 @@ except ImportError:
         save_showcase_projects,
         validate_date_format,
         save_project_order,
+        get_available_skills_alphabetical,
+        save_highlighted_skills,
     )
 
 
