@@ -219,7 +219,7 @@ class TaskManager:
 
     async def _process_new_portfolio(self, task: TaskInfo) -> Dict[str, Any]:
         """Process a new portfolio upload.
-        
+
         Offloads blocking analyze_folder to thread executor.
         """
         from .analysis_database import record_analysis
@@ -253,8 +253,7 @@ class TaskManager:
         }
 
     async def _process_incremental_upload(self, task: TaskInfo) -> Dict[str, Any]:
-        """Process an incremental upload to existing portfolio.
-        """
+        """Process an incremental upload to existing portfolio."""
         from .analysis_database import get_analysis_by_uuid, get_connection
         from .cli import analyze_folder
 
@@ -280,11 +279,11 @@ class TaskManager:
         # Merge: append new projects to existing ones
         existing_projects = existing_portfolio.get("projects", [])
         new_projects = new_analysis.get("projects", [])
-        
+
         # Deduplicate by project path
         existing_paths = {p.get("project_path") for p in existing_projects}
         added_projects = [p for p in new_projects if p.get("project_path") not in existing_paths]
-        
+
         merged_projects = existing_projects + added_projects
 
         # Merge and recompute metadata
@@ -302,15 +301,14 @@ class TaskManager:
                        total_projects = ?,
                        analysis_timestamp = datetime('now')
                    WHERE analysis_uuid = ?""",
-                (json.dumps(merged_data), len(merged_projects), task.portfolio_id)
+                (json.dumps(merged_data), len(merged_projects), task.portfolio_id),
             )
             conn.commit()
 
         task.progress = 90
 
         logger.info(
-            f"Incremental upload {task.task_id}: "
-            f"added {len(added_projects)} projects, total now {len(merged_projects)}"
+            f"Incremental upload {task.task_id}: " f"added {len(added_projects)} projects, total now {len(merged_projects)}"
         )
 
         return {
@@ -327,40 +325,36 @@ class TaskManager:
         merged_projects: list,
     ) -> Dict[str, Any]:
         """Merge analysis metadata.
-        
+
         Updates summaries, skills, timestamps, and other computed fields
         to reflect the combined project set.
         """
         existing_meta = existing.get("analysis_metadata", {})
         new_meta = new.get("analysis_metadata", {})
-        
+
         # Merge skills (combine and deduplicate)
         existing_skills = set(existing_meta.get("skills", []))
         new_skills = set(new_meta.get("skills", []))
         merged_skills = sorted(list(existing_skills | new_skills))
-        
+
         # Merge languages (combine and deduplicate)
         existing_langs = set(existing_meta.get("languages", []))
         new_langs = set(new_meta.get("languages", []))
         merged_langs = sorted(list(existing_langs | new_langs))
-        
+
         # Update totals and timestamps
         merged_metadata = existing_meta.copy()
-        merged_metadata.update({
-            "total_projects": len(merged_projects),
-            "skills": merged_skills,
-            "languages": merged_langs,
-            "total_files": (
-                existing_meta.get("total_files", 0) +
-                new_meta.get("total_files", 0)
-            ),
-            "total_lines_of_code": (
-                existing_meta.get("total_lines_of_code", 0) +
-                new_meta.get("total_lines_of_code", 0)
-            ),
-            "last_updated": datetime.now().isoformat(),
-        })
-        
+        merged_metadata.update(
+            {
+                "total_projects": len(merged_projects),
+                "skills": merged_skills,
+                "languages": merged_langs,
+                "total_files": (existing_meta.get("total_files", 0) + new_meta.get("total_files", 0)),
+                "total_lines_of_code": (existing_meta.get("total_lines_of_code", 0) + new_meta.get("total_lines_of_code", 0)),
+                "last_updated": datetime.now().isoformat(),
+            }
+        )
+
         return {
             **existing,
             "projects": merged_projects,

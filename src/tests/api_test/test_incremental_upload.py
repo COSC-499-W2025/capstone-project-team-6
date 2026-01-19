@@ -42,7 +42,7 @@ def auth_token(client, test_user):
     if response.status_code == 409:
         # User exists, just login
         response = client.post("/api/auth/login", json=test_user)
-    
+
     assert response.status_code in [200, 201]
     return response.json()["access_token"]
 
@@ -51,13 +51,13 @@ def auth_token(client, test_user):
 def test_zip_file():
     """Create a test ZIP file with a simple project."""
     with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
-        with zipfile.ZipFile(tmp.name, 'w') as zipf:
+        with zipfile.ZipFile(tmp.name, "w") as zipf:
             # Add a simple Python file
             zipf.writestr("test_project/main.py", "print('Hello World')")
             zipf.writestr("test_project/README.md", "# Test Project")
-        
+
         yield Path(tmp.name)
-        
+
         # Cleanup
         Path(tmp.name).unlink(missing_ok=True)
 
@@ -66,13 +66,13 @@ def test_zip_file():
 def additional_zip_file():
     """Create another test ZIP file with additional projects."""
     with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
-        with zipfile.ZipFile(tmp.name, 'w') as zipf:
+        with zipfile.ZipFile(tmp.name, "w") as zipf:
             # Add different project
             zipf.writestr("another_project/app.py", "print('Another project')")
             zipf.writestr("another_project/README.md", "# Another Project")
-        
+
         yield Path(tmp.name)
-        
+
         # Cleanup
         Path(tmp.name).unlink(missing_ok=True)
 
@@ -85,82 +85,69 @@ class TestIncrementalUploadAPI:
         # Try to add to a non-existent portfolio (should return 404)
         headers = {"Authorization": f"Bearer {auth_token}"}
         response = client.post(
-            "/api/portfolios/fake-uuid/add",
-            headers=headers,
-            files={"file": ("test.zip", b"fake content", "application/zip")}
+            "/api/portfolios/fake-uuid/add", headers=headers, files={"file": ("test.zip", b"fake content", "application/zip")}
         )
-        
+
         # Should fail with 404 (portfolio not found) not 405 (method not allowed)
         assert response.status_code == 404
         assert "not found" in response.json()["detail"].lower()
 
     def test_incremental_upload_requires_auth(self, client, test_zip_file):
         """Test that incremental upload requires authentication."""
-        with open(test_zip_file, 'rb') as f:
-            response = client.post(
-                "/api/portfolios/some-uuid/add",
-                files={"file": ("test.zip", f, "application/zip")}
-            )
-        
+        with open(test_zip_file, "rb") as f:
+            response = client.post("/api/portfolios/some-uuid/add", files={"file": ("test.zip", f, "application/zip")})
+
         assert response.status_code == 403  # No auth token
 
     def test_incremental_upload_validates_file_type(self, client, auth_token):
         """Test that endpoint validates file type."""
         headers = {"Authorization": f"Bearer {auth_token}"}
-        
+
         # Try to upload non-ZIP file
         response = client.post(
-            "/api/portfolios/fake-uuid/add",
-            headers=headers,
-            files={"file": ("test.txt", b"not a zip", "text/plain")}
+            "/api/portfolios/fake-uuid/add", headers=headers, files={"file": ("test.txt", b"not a zip", "text/plain")}
         )
-        
+
         # Should fail validation before checking if portfolio exists
         assert response.status_code in [400, 404]
 
-    @patch('backend.api_server.get_analysis_by_uuid')
-    @patch('backend.api_server.check_user_consent')
-    @patch('backend.api_server.get_task_manager')
+    @patch("backend.api_server.get_analysis_by_uuid")
+    @patch("backend.api_server.check_user_consent")
+    @patch("backend.api_server.get_task_manager")
     def test_incremental_upload_success(
-        self, 
-        mock_get_task_manager,
-        mock_check_consent,
-        mock_get_analysis,
-        client, 
-        auth_token, 
-        test_zip_file
+        self, mock_get_task_manager, mock_check_consent, mock_get_analysis, client, auth_token, test_zip_file
     ):
         """Test successful incremental upload flow."""
         # Mock existing portfolio
         mock_get_analysis.return_value = {
             "analysis_uuid": "test-portfolio-123",
             "projects": [{"project_name": "existing"}],
-            "total_projects": 1
+            "total_projects": 1,
         }
-        
+
         # Mock consent check
         mock_check_consent.return_value = True
-        
+
         # Mock task manager
         mock_task_manager = MagicMock()
         mock_task_manager.create_task.return_value = "task-456"
         mock_get_task_manager.return_value = mock_task_manager
-        
+
         headers = {"Authorization": f"Bearer {auth_token}"}
-        
-        with open(test_zip_file, 'rb') as f:
+
+        with open(test_zip_file, "rb") as f:
             response = client.post(
                 "/api/portfolios/test-portfolio-123/add",
                 headers=headers,
-                files={"file": (test_zip_file.name, f, "application/zip")}
+                files={"file": (test_zip_file.name, f, "application/zip")},
             )
-        
+
         assert response.status_code == 202
         data = response.json()
         assert "task_id" in data["details"]
         assert data["details"]["portfolio_id"] == "test-portfolio-123"
         assert "merge" in data["message"].lower() or "incremental" in data["message"].lower()
-        
+
         # Verify task was created with correct type
         mock_task_manager.create_task.assert_called_once()
         call_kwargs = mock_task_manager.create_task.call_args[1]
@@ -175,7 +162,7 @@ class TestTaskManagerIncrementalUpload:
     async def test_process_incremental_upload_deduplicates_projects(self):
         """Test that incremental upload deduplicates projects by path."""
         from datetime import datetime
-        
+
         # Create mock task
         task = TaskInfo(
             task_id="test-task-1",
@@ -186,51 +173,51 @@ class TestTaskManagerIncrementalUpload:
             username="testuser",
             filename="additional.zip",
             file_path="/tmp/test.zip",
-            portfolio_id="portfolio-123"
+            portfolio_id="portfolio-123",
         )
-        
+
         # Mock existing portfolio with one project
         existing_portfolio = {
             "projects": [
                 {"project_name": "Project1", "project_path": "project1"},
             ],
-            "analysis_metadata": {"total_projects": 1}
+            "analysis_metadata": {"total_projects": 1},
         }
-        
+
         # Mock new analysis with overlapping and new projects
         new_analysis = {
             "projects": [
                 {"project_name": "Project1", "project_path": "project1"},  # Duplicate
                 {"project_name": "Project2", "project_path": "project2"},  # New
             ],
-            "analysis_metadata": {"total_projects": 2}
+            "analysis_metadata": {"total_projects": 2},
         }
-        
+
         task_manager = TaskManager()
-        
-        with patch('backend.analysis_database.get_analysis_by_uuid', return_value=existing_portfolio), \
-             patch('backend.cli.analyze_folder', return_value=new_analysis), \
-             patch('backend.analysis_database.get_connection') as mock_conn:
-            
+
+        with patch("backend.analysis_database.get_analysis_by_uuid", return_value=existing_portfolio), patch(
+            "backend.cli.analyze_folder", return_value=new_analysis
+        ), patch("backend.analysis_database.get_connection") as mock_conn:
+
             # Mock database connection with proper execute().fetchone() chain
             mock_cursor = MagicMock()
             mock_cursor.fetchone.return_value = {"raw_json": json.dumps(existing_portfolio)}
-            
+
             mock_conn_obj = MagicMock()
             mock_conn_obj.__enter__ = MagicMock(return_value=mock_conn_obj)
             mock_conn_obj.__exit__ = MagicMock(return_value=False)
             mock_conn_obj.execute.return_value = mock_cursor
             mock_conn_obj.commit = MagicMock()
-            
+
             mock_conn.return_value = mock_conn_obj
-            
+
             result = await task_manager._process_incremental_upload(task)
-            
+
             # Should only add 1 new project (Project2)
             assert result["added_projects"] == 1
             assert result["total_projects"] == 2
             assert result["analysis_uuid"] == "portfolio-123"
-            
+
             # Verify database was updated
             assert mock_conn_obj.commit.called
 
@@ -246,12 +233,12 @@ class TestTaskManagerIncrementalUpload:
             username="testuser",
             filename="additional.zip",
             file_path="/tmp/test.zip",
-            portfolio_id="nonexistent-portfolio"
+            portfolio_id="nonexistent-portfolio",
         )
-        
+
         task_manager = TaskManager()
-        
-        with patch('backend.analysis_database.get_analysis_by_uuid', return_value=None):
+
+        with patch("backend.analysis_database.get_analysis_by_uuid", return_value=None):
             with pytest.raises(ValueError, match="not found"):
                 await task_manager._process_incremental_upload(task)
 
@@ -267,50 +254,43 @@ class TestTaskManagerIncrementalUpload:
             username="testuser",
             filename="additional.zip",
             file_path="/tmp/test.zip",
-            portfolio_id="portfolio-789"
+            portfolio_id="portfolio-789",
         )
-        
+
         existing_portfolio = {
             "projects": [{"project_name": "Old", "project_path": "old"}],
-            "analysis_metadata": {"total_projects": 1}
+            "analysis_metadata": {"total_projects": 1},
         }
-        
-        new_analysis = {
-            "projects": [{"project_name": "New", "project_path": "new"}],
-            "analysis_metadata": {"total_projects": 1}
-        }
-        
+
+        new_analysis = {"projects": [{"project_name": "New", "project_path": "new"}], "analysis_metadata": {"total_projects": 1}}
+
         task_manager = TaskManager()
-        
-        with patch('backend.analysis_database.get_analysis_by_uuid', return_value=existing_portfolio), \
-             patch('backend.cli.analyze_folder', return_value=new_analysis), \
-             patch('backend.analysis_database.get_connection') as mock_conn:
-            
+
+        with patch("backend.analysis_database.get_analysis_by_uuid", return_value=existing_portfolio), patch(
+            "backend.cli.analyze_folder", return_value=new_analysis
+        ), patch("backend.analysis_database.get_connection") as mock_conn:
+
             mock_conn_obj = MagicMock()
             mock_conn_obj.__enter__ = MagicMock(return_value=mock_conn_obj)
             mock_conn_obj.__exit__ = MagicMock(return_value=False)
-            
+
             # Mock row result
             mock_row = {"raw_json": json.dumps(existing_portfolio)}
             mock_cursor = MagicMock()
             mock_cursor.fetchone.return_value = mock_row
             mock_conn_obj.execute.return_value = mock_cursor
             mock_conn_obj.commit = MagicMock()
-            
+
             mock_conn.return_value = mock_conn_obj
-            
+
             result = await task_manager._process_incremental_upload(task)
-            
+
             # Verify database was updated
             assert mock_conn_obj.commit.called
-            
+
             # Verify UPDATE query was executed
-            update_calls = [call for call in mock_conn_obj.execute.call_args_list 
-                          if 'UPDATE' in str(call)]
+            update_calls = [call for call in mock_conn_obj.execute.call_args_list if "UPDATE" in str(call)]
             assert len(update_calls) > 0
-
-
-
 
 
 if __name__ == "__main__":
