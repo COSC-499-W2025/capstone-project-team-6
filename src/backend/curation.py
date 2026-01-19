@@ -366,7 +366,7 @@ def save_showcase_projects(user_id: str, project_ids: List[int]) -> bool:
                     ?,
                     COALESCE((SELECT comparison_attributes FROM user_curation_settings WHERE user_id = ?), ?),
                     ?,
-                    COALESCE((SELECT custom_project_order FROM user_curation_settings WHERE user_id = ?), '[]')
+                    COALESCE((SELECT custom_project_order FROM user_curation_settings WHERE user_id = ?), '[]'),
                     ?
                 )
             """, (user_id, user_id, json.dumps(DEFAULT_COMPARISON_ATTRIBUTES), json.dumps(project_ids), user_id, datetime.now().isoformat()))
