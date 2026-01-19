@@ -93,6 +93,84 @@ Based on code quality, correctness, and test results, I approved the PR as stabl
 
 # Aakash Tirithdas
 
+![Mithish Week 1](../images/aakashlogst2w2.png)
+
+
+## Date Ranges
+December to 2026-01-18
+
+
+
+## Weekly recap goals
+- Discussed Milestone 2 requirements with the team  
+- Completed Requirement 23 (allow users to choose which information is represented) in collaboration with Mandira  
+- Scheduled and attended team meetings  
+- Wrote weekly personal logs  
+
+
+## What went well
+- Mandira helped a lot by initiating the cli for the backend of curation features.
+- got my work done in short time. 
+
+## What didn't go well
+- Due to late arrival from another country missed 2 meetings.
+- didnt do extra work during the month of December.
+- had issues with team meetings due to different time zones.
+
+
+## PR's initiated
+
+### Curation part 2 #288
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/288
+
+added to Mandiras initial code 
+
+User curation controls Req 23 #277
+
+Added code that allows projects to be reranked and to highlight/pick certain skills to be displayed. Not atteced to the resume or portfolio as of yet
+
+## PR's reviewed
+
+- Output projects' analysis based on User ID #281
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/281
+- Frontend login-signup #280
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/280
+- Enhanced REST API Implementation #272
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/272
+- Add REST API Server structure with Authentication (Milestone 2) #265
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/265
+- Updated Analysis Database Projects Table to Reflect Skill Analysis Updates #261
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/261
+- Multi-Project Skill Chronological Listing #259
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/259
+- Updated Summary Output To Reflect On Analysis Updates #255
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/255
+- Multi-Project Skill Chronological Listing #259
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/259
+- Updated Summary Output To Reflect On Analysis Updates #255
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/255
+- Zero Project Contribution Detection #251
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/251
+- Ranking Multiple Projects in a Folder Based on Contribution Scores #249
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/249
+- Updated Analysis DB for new git analysis features #239
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/239
+- Improved Gaps in Git Analysis Extrapolation #235
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/235
+
+
+## Issue board
+- https://github.com/COSC-499-W2025/capstone-project-team-6/issues/287
+
+
+## Plan for next week
+- update data flow diagram
+- update architecture diagram
+- make sure that the initial ranking of a project is stored somewhere and only compare the project to a set of already existing ranking.
+- attend all group meetings
+- take on more tasks
+
+
 # Mithish Ravisankar Geetha
 
 ## Date Ranges
