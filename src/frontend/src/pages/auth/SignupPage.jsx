@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
 const SignupPage = () => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -13,10 +13,13 @@ const SignupPage = () => {
   const { signup } = useAuth();
   const navigate = useNavigate();
 
-  const validateEmail = () => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setError('Please enter a valid email address');
+  const validateUsername = () => {
+    if (username.length < 3) {
+      setError('Username must be at least 3 characters');
+      return false;
+    }
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      setError('Username can only contain letters, numbers, and underscores');
       return false;
     }
     return true;
@@ -38,12 +41,12 @@ const SignupPage = () => {
     e.preventDefault();
     setError('');
 
-    if (!validateEmail() || !validatePassword()) {
+    if (!validateUsername() || !validatePassword()) {
       return;
     }
 
     setLoading(true);
-    const result = await signup(email, password);
+    const result = await signup(username, password);
 
     if (result.success) {
       navigate('/consent');
@@ -126,13 +129,13 @@ const SignupPage = () => {
               marginBottom: '8px',
               color: '#1a1a1a'
             }}>
-              Email
+              Username
             </label>
             <input
-              type="email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="text"
+              placeholder="Enter your username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               required
               style={{
                 width: '100%',
