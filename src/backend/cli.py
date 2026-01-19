@@ -124,11 +124,13 @@ def create_temp_zip(directory: Path) -> Path:
     return temp_zip
 
 
-def analyze_folder(path: Path, target_user_email: Optional[str] = None) -> dict:
+def analyze_folder(path: Path, target_user_email: Optional[str] = None, quick_mode: bool = False) -> dict:
     """Analyze a folder or ZIP file using the comprehensive analysis pipeline.
 
     Args:
         path: Path to the folder or ZIP file to analyze
+        target_user_email: Optional email to focus git analysis on specific user
+        quick_mode: If True, skip heavy operations like deep git blame analysis
 
     Returns:
         dict: Comprehensive analysis results from the pipeline
@@ -147,7 +149,8 @@ def analyze_folder(path: Path, target_user_email: Optional[str] = None) -> dict:
     try:
         # Determine if we need to create a ZIP
         if path.is_dir():
-            print(f"Creating temporary archive...")
+            if not quick_mode:
+                print(f"Creating temporary archive...")
             temp_zip = create_temp_zip(path)
             zip_path = temp_zip
             # For directories, we can analyze git directly
@@ -160,8 +163,12 @@ def analyze_folder(path: Path, target_user_email: Optional[str] = None) -> dict:
             raise ValueError(f"Path must be a directory or ZIP file: {path}")
 
         # Run comprehensive analysis (Python/Java)
-        print(f"Running analysis pipeline...")
-        report = generate_comprehensive_report(zip_path, target_user_email=target_user_email)
+        if not quick_mode:
+            print(f"Running analysis pipeline...")
+        else:
+            print(f"Running quick analysis (skipping heavy git operations)...")
+        
+        report = generate_comprehensive_report(zip_path, target_user_email=target_user_email, quick_mode=quick_mode)
 
         # Add C++ and C analysis to the report
         for i, project in enumerate(report["projects"]):
@@ -1090,6 +1097,67 @@ def main() -> int:
                         analysis_id = record_analysis("non_llm", results)
                         analysis_uuid = results.get("analysis_metadata", {}).get("analysis_uuid", "unknown")
                         print(f"\nAnalysis saved to database (ID: {analysis_id}, UUID: {analysis_uuid})")
+                        
+                        # Ask if user wants to add more projects incrementally
+                        while True:
+                            try:
+                                response = input("\n" + "="*70 + "\nWould you like to add more projects to this portfolio? (y/N): ").strip().lower()
+                                if response in ['y', 'yes']:
+                                    additional_path = input("Enter path to additional ZIP file or folder: ").strip()
+                                    if not additional_path:
+                                        print("No path provided, skipping...")
+                                        break
+                                    
+                                    additional_path = Path(additional_path).expanduser()
+                                    if not additional_path.exists():
+                                        print(f"Error: Path does not exist: {additional_path}")
+                                        continue
+                                    
+                                    print(f"\n[*] Analyzing additional projects from: {additional_path}")
+                                    new_results = analyze_folder(additional_path, target_user_email=args.user_email, quick_mode=True)
+                                    
+                                    # Merge with existing results
+                                    existing_projects = results.get("projects", [])
+                                    new_projects = new_results.get("projects", [])
+                                    
+                                    # Deduplicate by project_path
+                                    existing_paths = {p.get("project_path") for p in existing_projects}
+                                    added_count = 0
+                                    for proj in new_projects:
+                                        if proj.get("project_path") not in existing_paths:
+                                            existing_projects.append(proj)
+                                            added_count += 1
+                                    
+                                    results["projects"] = existing_projects
+                                    results["analysis_metadata"]["total_projects"] = len(existing_projects)
+                                    
+                                    # Update database
+                                    from .analysis_database import get_connection
+                                    import json
+                                    
+                                    with get_connection() as conn:
+                                        conn.execute(
+                                            """UPDATE analyses 
+                                               SET raw_json = ?, 
+                                                   total_projects = ?,
+                                                   analysis_timestamp = datetime('now')
+                                               WHERE analysis_uuid = ?""",
+                                            (json.dumps(results), len(existing_projects), analysis_uuid)
+                                        )
+                                        conn.commit()
+                                    
+                                    print(f"\n✓ Added {added_count} new project(s) to portfolio")
+                                    print(f"✓ Total projects now: {len(existing_projects)}")
+                                    print(f"✓ Portfolio UUID: {analysis_uuid}")
+                                else:
+                                    break
+                            except KeyboardInterrupt:
+                                print("\n\nIncremental upload cancelled.")
+                                break
+                            except Exception as e:
+                                print(f"\nError adding projects: {e}")
+                                break
+                        
                     except Exception as db_error:
                         print(f"\nWarning: Could not save to database: {db_error}")
 

@@ -250,7 +250,7 @@ class TaskManager:
 
     async def _process_incremental_upload(self, task: TaskInfo) -> Dict[str, Any]:
         """Process an incremental upload to existing portfolio."""
-        from .analysis_database import get_analysis_by_uuid, record_analysis
+        from .analysis_database import get_analysis_by_uuid
         from .cli import analyze_folder
 
         # Get existing portfolio
@@ -262,37 +262,61 @@ class TaskManager:
         task.progress = 40
 
         try:
-            # Analyze new file
+            # Analyze new file using existing pipeline
             file_path = Path(task.file_path)
             new_analysis = analyze_folder(file_path)
 
-            task.progress = 70
+            task.progress = 60
 
-            # Merge with existing portfolio (simplified merging)
-            merged_projects = existing_portfolio.get("projects", []) + new_analysis.get("projects", [])
+            # Simple merge: append new projects to existing ones
+            existing_projects = existing_portfolio.get("projects", [])
+            new_projects = new_analysis.get("projects", [])
+            
+            # Deduplicate by project path
+            existing_paths = {p.get("project_path") for p in existing_projects}
+            added_projects = [p for p in new_projects if p.get("project_path") not in existing_paths]
+            
+            merged_projects = existing_projects + added_projects
 
-            # Create new analysis with merged data
-            merged_analysis = new_analysis.copy()
-            merged_analysis["projects"] = merged_projects
-            merged_analysis["total_projects"] = len(merged_projects)
+            # Update the raw_json in database directly
+            from .analysis_database import get_connection
+            
+            with get_connection() as conn:
+                # Get current raw data
+                row = conn.execute(
+                    "SELECT raw_json FROM analyses WHERE analysis_uuid = ?",
+                    (task.portfolio_id,)
+                ).fetchone()
+                
+                if row:
+                    import json
+                    existing_data = json.loads(row["raw_json"])
+                    existing_data["projects"] = merged_projects
+                    existing_data["analysis_metadata"]["total_projects"] = len(merged_projects)
+                    
+                    # Update the database
+                    conn.execute(
+                        """UPDATE analyses 
+                           SET raw_json = ?, 
+                               total_projects = ?,
+                               analysis_timestamp = datetime('now')
+                           WHERE analysis_uuid = ?""",
+                        (json.dumps(existing_data), len(merged_projects), task.portfolio_id)
+                    )
+                    conn.commit()
 
             task.progress = 90
 
-            # Store updated analysis
-            analysis_id = record_analysis("incremental", merged_analysis)
-
             return {
-                "analysis_id": analysis_id,
-                "analysis_uuid": merged_analysis.get("analysis_metadata", {}).get("analysis_uuid"),
+                "analysis_uuid": task.portfolio_id,
                 "total_projects": len(merged_projects),
                 "original_portfolio_id": task.portfolio_id,
-                "added_projects": len(new_analysis.get("projects", [])),
+                "added_projects": len(added_projects),
             }
         except Exception as e:
             logger.error(f"Incremental analysis failed for task {task.task_id}: {e}")
             return {
-                "analysis_id": None,
-                "analysis_uuid": str(uuid.uuid4()),
+                "analysis_uuid": task.portfolio_id,
                 "total_projects": 0,
                 "original_portfolio_id": task.portfolio_id,
                 "added_projects": 0,

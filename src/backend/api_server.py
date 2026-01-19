@@ -282,7 +282,8 @@ async def add_to_existing_portfolio(
     file: UploadFile = File(..., description="ZIP file with additional projects"),
     username: str = Depends(verify_token),
 ):
-    """Add incremental data to an existing portfolio"""
+    """Add incremental information to an existing portfolio.
+    """
     # Verify portfolio exists and belongs to user
     existing = get_analysis_by_uuid(portfolio_id, username)
     if not existing:
