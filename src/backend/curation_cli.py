@@ -495,20 +495,31 @@ def curate_skills_highlight_interactive(user_id: str) -> None:
             continue
 
         try:
-            idx = int(choice) - 1
-            if 0 <= idx < len(skills):
-                skill = skills[idx]
+            parts = choice.split()
+            indices = [int(p) - 1 for p in parts]
+
+            # Validate all indices first
+            bad = [i for i in indices if i < 0 or i >= len(skills)]
+            if bad:
+                # Convert back to user-facing 1-based for message
+                bad_display = ", ".join(str(i + 1) for i in bad)
+                print(f"Invalid skill number(s): {bad_display}")
+                continue
+
+            # Toggle each requested skill
+            for i in indices:
+                skill = skills[i]
                 if skill in selected:
                     selected.remove(skill)
                 else:
                     if len(selected) >= 10:
-                        print("Maximum of 10 skills allowed. Remove one first.")
-                    else:
-                        selected.add(skill)
-            else:
-                print("Invalid skill number")
+                        print(" Maximum of 10 skills allowed. Remaining selections skipped.")
+                        break
+                    selected.add(skill)
+
         except ValueError:
-            print("Enter a number, 's', 'c', or 'q'")
+            print("Enter space-separated numbers (e.g., '1 3 7 12') or 's', 'c', 'q'")
+
 
 
 
@@ -543,6 +554,15 @@ def display_curation_status(user_id: str) -> None:
             desc = ATTRIBUTE_DESCRIPTIONS.get(attr, attr)
             print(f"  • {desc}")
             
+        # Highlighted skills
+        print(f"\nHighlighted Skills ({len(settings.highlighted_skills)}/10 selected):")
+        if settings.highlighted_skills:
+            for skill in settings.highlighted_skills:
+                print(f"  • {skill}")
+        else:
+            print("  (None selected)")
+
+
         # Showcase projects  
         print(f"\nShowcase Projects ({len(settings.showcase_project_ids)}/3 selected):")
         if showcase:
