@@ -946,8 +946,9 @@ def get_all_analyses_for_user(username: str) -> List[Dict[str, Any]]:
             FROM analyses 
             WHERE username = ?
             ORDER BY created_at DESC
-            """
-        , (username,)).fetchall()
+            """,
+            (username,),
+        ).fetchall()
 
         return [
             {
