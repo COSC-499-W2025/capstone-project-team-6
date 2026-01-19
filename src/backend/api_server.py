@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 import bcrypt
 from fastapi import (Depends, FastAPI, File, Form, HTTPException, Security,
                      UploadFile, status)
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
@@ -18,7 +19,8 @@ from backend.analysis_database import (delete_analysis,
                                        get_analysis_by_uuid)
 from backend.analysis_database import init_db as init_analysis_db
 from backend.analysis_database import record_analysis
-from backend.database import authenticate_user, check_user_consent, create_user
+from backend.database import (authenticate_user, check_user_consent, create_user,
+                              save_user_consent)
 from backend.database import init_db as init_user_db
 from backend.task_manager import (TaskType, cleanup_background_tasks,
                                   get_task_manager)
@@ -30,6 +32,15 @@ init_analysis_db()
 app = FastAPI(
     description="API for Portfolio and Resume generation with incremental uploads",
     version="2.0.0",
+)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # Frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 security = HTTPBearer()
@@ -74,6 +85,15 @@ class IncrementalUploadRequest(BaseModel):
 class MessageResponse(BaseModel):
     message: str
     details: Optional[Dict[str, Any]] = None
+
+
+class ConsentRequest(BaseModel):
+    has_consented: bool
+
+
+class ConsentResponse(BaseModel):
+    has_consented: bool
+    message: str
 
 
 class TaskStatusResponse(BaseModel):
@@ -166,6 +186,34 @@ async def logout(username: str = Depends(verify_token)):
         del active_tokens[token]
 
     return MessageResponse(message="Successfully logged out")
+
+
+@app.post("/api/user/consent", response_model=ConsentResponse)
+async def save_consent(consent: ConsentRequest, username: str = Depends(verify_token)):
+    """Save user consent status."""
+    try:
+        save_user_consent(username, consent.has_consented)
+        message = "Consent saved successfully" if consent.has_consented else "Consent declined"
+        return ConsentResponse(has_consented=consent.has_consented, message=message)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save consent: {str(e)}",
+        )
+
+
+@app.get("/api/user/consent", response_model=ConsentResponse)
+async def get_consent(username: str = Depends(verify_token)):
+    """Get user consent status."""
+    try:
+        has_consented = check_user_consent(username)
+        message = "User has consented" if has_consented else "User has not consented"
+        return ConsentResponse(has_consented=has_consented, message=message)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve consent: {str(e)}",
+        )
 
 
 @app.get("/api/portfolios", response_model=List[PortfolioListItem])
