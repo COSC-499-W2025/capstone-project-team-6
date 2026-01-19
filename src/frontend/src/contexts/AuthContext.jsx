@@ -21,6 +21,8 @@ export const AuthProvider = ({ children }) => {
     const username = localStorage.getItem('username');
     const tokenExpiry = localStorage.getItem('token_expiry');
 
+    let logoutTimer;
+
     if (token && username && tokenExpiry) {
       const expiryDate = new Date(tokenExpiry);
       const now = new Date();
@@ -31,16 +33,13 @@ export const AuthProvider = ({ children }) => {
 
         // Set up auto-logout when token expires
         const timeUntilExpiry = expiryDate.getTime() - now.getTime();
-        const logoutTimer = setTimeout(() => {
+        logoutTimer = setTimeout(() => {
           localStorage.removeItem('access_token');
           localStorage.removeItem('username');
           localStorage.removeItem('token_expiry');
           setUser(null);
           window.location.href = '/login';
         }, timeUntilExpiry);
-
-        // Cleanup timer on unmount
-        return () => clearTimeout(logoutTimer);
       } else {
         // Token expired, clear storage
         localStorage.removeItem('access_token');
@@ -48,7 +47,15 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('token_expiry');
       }
     }
+
     setLoading(false);
+
+    // Cleanup timer on unmount
+    return () => {
+      if (logoutTimer) {
+        clearTimeout(logoutTimer);
+      }
+    };
   }, []);
 
   const login = async (username, password) => {
