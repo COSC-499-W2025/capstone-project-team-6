@@ -36,7 +36,7 @@ class ProjectCurationSettings:
     comparison_attributes: List[str]
     showcase_project_ids: List[int]
     custom_project_order: List[int]
-    
+    highlighted_skills: List[str]
     
 @dataclass 
 class ProjectChronologyCorrection:
@@ -104,6 +104,16 @@ def init_curation_tables() -> None:
             );
         """)
         
+        cols = conn.execute("PRAGMA table_info(user_curation_settings);").fetchall()
+        col_names = {c["name"] for c in cols}  # rows are sqlite3.Row
+
+        if "highlighted_skills" not in col_names:
+            conn.execute("""
+                ALTER TABLE user_curation_settings
+                ADD COLUMN highlighted_skills TEXT NOT NULL DEFAULT '[]';
+            """)
+
+
         # Table for chronology corrections
         conn.execute("""
             CREATE TABLE IF NOT EXISTS project_chronology_corrections (
@@ -340,6 +350,42 @@ def save_showcase_projects(user_id: str, project_ids: List[int]) -> bool:
     except Exception:
         return False
 
+def save_highlighted_skills(user_id: str, skills: List[str]) -> bool:
+    """Save user's highlighted skills selection (max 10)."""
+    try:
+        if len(skills) > 10:
+            raise ValueError("Maximum 10 highlighted skills allowed")
+
+        import json
+        with db.get_connection() as conn:
+            conn.execute("PRAGMA foreign_keys = ON;")
+
+            conn.execute("""
+                INSERT OR REPLACE INTO user_curation_settings
+                (user_id, comparison_attributes, showcase_project_ids, custom_project_order, highlighted_skills, updated_at)
+                VALUES (
+                    ?,
+                    COALESCE((SELECT comparison_attributes FROM user_curation_settings WHERE user_id = ?), ?),
+                    COALESCE((SELECT showcase_project_ids FROM user_curation_settings WHERE user_id = ?), '[]'),
+                    COALESCE((SELECT custom_project_order FROM user_curation_settings WHERE user_id = ?), '[]'),
+                    ?,
+                    ?
+                )
+            """, (
+                user_id,
+                user_id, json.dumps(DEFAULT_COMPARISON_ATTRIBUTES),
+                user_id,
+                user_id,
+                json.dumps(skills),
+                datetime.now().isoformat()
+            ))
+
+            conn.commit()
+            return True
+
+    except Exception:
+        return False
+
 
 def get_user_curation_settings(user_id: str) -> ProjectCurationSettings:
     """Get user's current curation settings."""
@@ -347,7 +393,7 @@ def get_user_curation_settings(user_id: str) -> ProjectCurationSettings:
         conn.execute("PRAGMA foreign_keys = ON;")
         
         row = conn.execute("""
-            SELECT comparison_attributes, showcase_project_ids, custom_project_order 
+            SELECT comparison_attributes, showcase_project_ids, custom_project_order, highlighted_skills 
             FROM user_curation_settings WHERE user_id = ?
         """, (user_id,)).fetchone()
         
@@ -358,6 +404,8 @@ def get_user_curation_settings(user_id: str) -> ProjectCurationSettings:
                 comparison_attributes=json.loads(row["comparison_attributes"]),
                 showcase_project_ids=json.loads(row["showcase_project_ids"]),
                 custom_project_order=json.loads(row["custom_project_order"] or "[]"),
+                highlighted_skills=json.loads(row["highlighted_skills"] or "[]"), 
+
             )
         else:
             # Return defaults
@@ -365,7 +413,8 @@ def get_user_curation_settings(user_id: str) -> ProjectCurationSettings:
                 user_id=user_id,
                 comparison_attributes=DEFAULT_COMPARISON_ATTRIBUTES.copy(),
                 showcase_project_ids=[],
-                custom_project_order=[]
+                custom_project_order=[],
+                highlighted_skills=[],
             )
 
 
@@ -419,6 +468,22 @@ def get_showcase_projects(user_id: str) -> List[Dict[str, Any]]:
             projects.append(project)
             
         return projects
+
+def get_available_skills_alphabetical() -> List[str]:
+    """
+    Return all unique skills (languages/frameworks/detailed skills) sorted alphabetically.
+    """
+    # Import here to avoid circular imports / heavy imports at module load time
+    from .analysis.chronology import get_all_skills_chronological
+
+    all_skill_entries = get_all_skills_chronological()
+
+    # Each entry is expected to have a `.skill` attribute (based on existing usage patterns)
+    skills = sorted({entry.skill for entry in all_skill_entries if getattr(entry, "skill", None)})
+
+    return skills
+
+
 
 
 def validate_date_format(date_str: str) -> bool:
