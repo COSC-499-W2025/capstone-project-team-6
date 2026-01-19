@@ -16,11 +16,37 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is already logged in
+    // Check if user is already logged in and token is not expired
     const token = localStorage.getItem('access_token');
     const username = localStorage.getItem('username');
-    if (token && username) {
-      setUser({ username, token });
+    const tokenExpiry = localStorage.getItem('token_expiry');
+
+    if (token && username && tokenExpiry) {
+      const expiryDate = new Date(tokenExpiry);
+      const now = new Date();
+
+      if (now < expiryDate) {
+        // Token is still valid
+        setUser({ username, token });
+
+        // Set up auto-logout when token expires
+        const timeUntilExpiry = expiryDate.getTime() - now.getTime();
+        const logoutTimer = setTimeout(() => {
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('username');
+          localStorage.removeItem('token_expiry');
+          setUser(null);
+          window.location.href = '/login';
+        }, timeUntilExpiry);
+
+        // Cleanup timer on unmount
+        return () => clearTimeout(logoutTimer);
+      } else {
+        // Token expired, clear storage
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('username');
+        localStorage.removeItem('token_expiry');
+      }
     }
     setLoading(false);
   }, []);
@@ -28,8 +54,13 @@ export const AuthProvider = ({ children }) => {
   const login = async (username, password) => {
     try {
       const data = await authAPI.login(username, password);
+      // Token expires in 24 hours (matching backend)
+      const expiryDate = new Date();
+      expiryDate.setHours(expiryDate.getHours() + 24);
+
       localStorage.setItem('access_token', data.access_token);
       localStorage.setItem('username', data.username);
+      localStorage.setItem('token_expiry', expiryDate.toISOString());
       setUser({ username: data.username, token: data.access_token });
       return { success: true };
     } catch (error) {
@@ -49,8 +80,13 @@ export const AuthProvider = ({ children }) => {
   const signup = async (username, password) => {
     try {
       const data = await authAPI.signup(username, password);
+      // Token expires in 24 hours (matching backend)
+      const expiryDate = new Date();
+      expiryDate.setHours(expiryDate.getHours() + 24);
+
       localStorage.setItem('access_token', data.access_token);
       localStorage.setItem('username', data.username);
+      localStorage.setItem('token_expiry', expiryDate.toISOString());
       setUser({ username: data.username, token: data.access_token });
       return { success: true };
     } catch (error) {
@@ -75,6 +111,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       localStorage.removeItem('access_token');
       localStorage.removeItem('username');
+      localStorage.removeItem('token_expiry');
       setUser(null);
     }
   };
