@@ -171,7 +171,19 @@
 
 ### Harjot Sahota (**HarjotSahota**)
 
+- **Task:** “View My Projects” frontend page + backend wiring  
+  **Description:** Designed and implemented a new **“My Projects” view** in the frontend that allows authenticated users to see all projects they have previously analyzed. This involved:
+  - Adding a new protected route and page in the React frontend  
+  - Wiring the frontend to the backend `/api/projects` endpoint  
+  - Debugging authentication edge cases (401 errors, token handling, protected routing) to ensure the page works reliably for logged-in users  
+  This feature improves prototype usability by giving users visibility into their past analyses instead of treating each run as isolated.
+- **Task:** review pr's
+  **Links**
+  - Curation part2 #288
+  - Allow incremental information by adding another zipped folder of files #283
+  - Frontend login-signup #280
 
+<img width="1231" height="67" alt="Screenshot 2026-01-19 at 12 19 12 AM" src="https://github.com/user-attachments/assets/56275cf1-984d-41f5-9e95-4f9a0f31a6e2" />
 
 ---
 
