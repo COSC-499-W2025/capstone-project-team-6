@@ -74,10 +74,17 @@ def init_db() -> None:
                 summary_languages TEXT,
                 summary_frameworks TEXT,
                 llm_summary TEXT,
+                username TEXT REFERENCES users(username),
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
             """
         )
+
+        # Ensure the username column exists for installations created before this field was added.
+        existing_columns = {row["name"] for row in conn.execute("PRAGMA table_info(analyses)")}
+        if "username" not in existing_columns:
+            conn.execute("ALTER TABLE analyses ADD COLUMN username TEXT REFERENCES users(username);")
+            conn.commit()
 
         conn.execute(
             """
@@ -384,6 +391,7 @@ def record_analysis(
     analysis_type: str,
     payload: Dict[str, Any],
     *,
+    username: Optional[str] = None,
     analysis_uuid: Optional[str] = None,
 ) -> int:
     if analysis_type not in VALID_ANALYSIS_TYPES:
@@ -423,8 +431,9 @@ def record_analysis(
                 summary_total_size_mb,
                 summary_languages,
                 summary_frameworks,
-                llm_summary
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                llm_summary,
+                username
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 analysis_uuid,
@@ -439,6 +448,7 @@ def record_analysis(
                 summary_fields["summary_languages"],
                 summary_fields["summary_frameworks"],
                 payload.get("llm_summary"),
+                username,
             ),
         )
         analysis_id = cursor.lastrowid
@@ -900,16 +910,15 @@ def get_all_analyses() -> List[sqlite3.Row]:
 def get_all_analyses_for_user(username: str) -> List[Dict[str, Any]]:
     """Get all analyses for a specific user."""
     with get_connection() as conn:
-        # For now, return all analyses as we don't have user-specific filtering yet
-        # TODO: Add user association to analyses table
         rows = conn.execute(
             """
             SELECT analysis_uuid, analysis_type, zip_file, analysis_timestamp, 
                    total_projects, raw_json
             FROM analyses 
+            WHERE username = ?
             ORDER BY created_at DESC
             """
-        ).fetchall()
+        , (username,)).fetchall()
 
         return [
             {
@@ -926,15 +935,26 @@ def get_all_analyses_for_user(username: str) -> List[Dict[str, Any]]:
 def get_analysis_by_uuid(uuid_str: str, username: str = None) -> Optional[Dict[str, Any]]:
     """Get analysis details by UUID for a specific user."""
     with get_connection() as conn:
-        row = conn.execute(
-            """
-            SELECT analysis_uuid, analysis_type, zip_file, analysis_timestamp, 
-                   total_projects, raw_json
-            FROM analyses 
-            WHERE analysis_uuid = ?
-            """,
-            (uuid_str,),
-        ).fetchone()
+        if username:
+            row = conn.execute(
+                """
+                SELECT analysis_uuid, analysis_type, zip_file, analysis_timestamp, 
+                       total_projects, raw_json
+                FROM analyses 
+                WHERE analysis_uuid = ? AND username = ?
+                """,
+                (uuid_str, username),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                """
+                SELECT analysis_uuid, analysis_type, zip_file, analysis_timestamp, 
+                       total_projects, raw_json
+                FROM analyses 
+                WHERE analysis_uuid = ?
+                """,
+                (uuid_str,),
+            ).fetchone()
 
         if not row:
             return None
@@ -957,12 +977,21 @@ def get_analysis_by_uuid(uuid_str: str, username: str = None) -> Optional[Dict[s
 def delete_analysis(uuid_str: str, username: str = None) -> bool:
     """Delete an analysis by UUID."""
     with get_connection() as conn:
-        cursor = conn.execute(
-            """
-            DELETE FROM analyses 
-            WHERE analysis_uuid = ?
-            """,
-            (uuid_str,),
-        )
+        if username:
+            cursor = conn.execute(
+                """
+                DELETE FROM analyses 
+                WHERE analysis_uuid = ? AND username = ?
+                """,
+                (uuid_str, username),
+            )
+        else:
+            cursor = conn.execute(
+                """
+                DELETE FROM analyses 
+                WHERE analysis_uuid = ?
+                """,
+                (uuid_str,),
+            )
         conn.commit()
         return cursor.rowcount > 0

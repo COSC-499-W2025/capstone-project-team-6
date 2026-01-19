@@ -228,7 +228,11 @@ class TaskManager:
             task.progress = 80
 
             # Store analysis in database
-            analysis_id = record_analysis(task.analysis_type or "non_llm", analysis_result)
+            analysis_id = record_analysis(
+                task.analysis_type or "non_llm",
+                analysis_result,
+                username=task.username,
+            )
             task.progress = 90
 
             return {
@@ -279,7 +283,7 @@ class TaskManager:
             task.progress = 90
 
             # Store updated analysis
-            analysis_id = record_analysis("incremental", merged_analysis)
+            analysis_id = record_analysis("incremental", merged_analysis, username=task.username)
 
             return {
                 "analysis_id": analysis_id,
