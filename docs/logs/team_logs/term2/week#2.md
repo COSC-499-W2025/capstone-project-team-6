@@ -83,7 +83,7 @@
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/291  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/286  
 
-<img width="1553" height="118" alt="Screenshot 2026-01-18 213318" src="https://github.com/user-attachments/assets/2446259a-8b62-4118-b221-d3e91f9aaf03" />
+<img width="1534" height="105" alt="image" src="https://github.com/user-attachments/assets/54edbd3e-72f1-433a-99a4-fc02ace50cc2" />
 
 ---
 
@@ -111,7 +111,11 @@
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/251  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/249  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/239  
-  - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/235  
+  - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/235
+ 
+    
+<img width="401" height="86" alt="image" src="https://github.com/user-attachments/assets/bd582b85-7ef2-49ac-98f5-5a2fccee5c18" />
+<img width="787" height="80" alt="image" src="https://github.com/user-attachments/assets/7970961d-135a-4e21-88ff-fdc7c13d2b27" />
 
 ---
 
@@ -129,6 +133,8 @@
   **PRs reviewed:**
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/278  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/282  
+
+<img width="1751" height="241" alt="image" src="https://github.com/user-attachments/assets/40f963f8-cf09-48b8-8119-33c0f286700e" />
 
 ---
 
@@ -158,11 +164,14 @@
   **Links:**
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/282  
 
+<img width="679" height="206" alt="image" src="https://github.com/user-attachments/assets/a4ce8d47-0979-4f34-8942-5ff71dd30d83" />
+<img width="465" height="92" alt="image" src="https://github.com/user-attachments/assets/4e55b44e-b397-4cde-9af2-b8bacd7a2e7f" />
+
 ---
 
 ### Harjot Sahota (**HarjotSahota**)
 
-*(leave blank — Harjot to fill in)*
+
 
 ---
 
@@ -190,6 +199,9 @@
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/280  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/283  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/288  
+
+<img width="803" height="429" alt="image" src="https://github.com/user-attachments/assets/0cfe11d6-e3f9-4c75-8e77-95bbfb7042d5" />
+
 
 ---
 
@@ -241,4 +253,5 @@
 
 ## Project Burnup Chart
 
-*(Not provided in this week’s personal logs — add chart image here if available.)*
+<img width="1784" height="939" alt="image" src="https://github.com/user-attachments/assets/abb9b3b4-9c38-4ae1-b82f-7eca06a980b1" />
+
