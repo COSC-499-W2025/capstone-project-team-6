@@ -24,7 +24,7 @@ from backend.database import init_db as init_user_db
 from backend.database import save_user_consent
 from backend.task_manager import (TaskType, cleanup_background_tasks,
                                   get_task_manager)
-from backend.curation import get_user_projects
+from backend.analysis_database import get_projects_for_user
 
 # Initialize databases
 init_user_db()
@@ -138,7 +138,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token expired",
         )
-
+    
     return token_data["username"]
 
 
@@ -331,7 +331,7 @@ async def add_to_existing_portfolio(
     file: UploadFile = File(..., description="ZIP file with additional projects"),
     username: str = Depends(verify_token),
 ):
-    """Add incremental information to an existing portfolio."""
+    """Add incremental data to an existing portfolio"""
     # Verify portfolio exists and belongs to user
     existing = get_analysis_by_uuid(portfolio_id, username)
     if not existing:
@@ -512,21 +512,18 @@ async def root():
     }
 
 
-if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-
 @app.get("/api/projects")
 async def list_projects(username: str = Depends(verify_token)) -> List[Dict[str, Any]]:
-    """
-    Return all projects analyzed by the authenticated user.
-    Uses username as user_id.
-    """
     try:
-        return get_user_projects(username)
+        return get_projects_for_user(username)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve projects: {str(e)}",
         )
+    
+    
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=8000)
