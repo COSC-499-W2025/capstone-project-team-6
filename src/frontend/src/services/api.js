@@ -27,10 +27,15 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    console.error('API Error:', error);
+    console.error('Error response:', error.response);
+    
     if (error.response?.status === 401) {
+      console.log('401 Unauthorized - clearing tokens and redirecting to login');
       // Clear token and redirect to login
       localStorage.removeItem('access_token');
       localStorage.removeItem('username');
+      localStorage.removeItem('token_expiry');
       window.location.href = '/login';
     }
     return Promise.reject(error);
@@ -64,6 +69,24 @@ export const consentAPI = {
 
   getConsent: async () => {
     const response = await api.get('/user/consent');
+    return response.data;
+  },
+};
+
+// Projects API calls
+export const projectsAPI = {
+  getProjects: async () => {
+    const response = await api.get('/projects');  // Changed from /portfolios to /projects
+    return response.data;
+  },
+
+  getProjectById: async (portfolioId) => {
+    const response = await api.get(`/portfolios/${portfolioId}`);
+    return response.data;
+  },
+
+  deleteProject: async (portfolioId) => {
+    const response = await api.delete(`/portfolios/${portfolioId}`);
     return response.data;
   },
 };
