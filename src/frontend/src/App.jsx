@@ -5,6 +5,7 @@ import LoginPage from './pages/auth/LoginPage';
 import SignupPage from './pages/auth/SignupPage';
 import ConsentPage from './pages/auth/ConsentPage';
 import Dashboard from './pages/Dashboard';
+import ProjectsPage from './ProjectsPage';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -35,6 +36,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/projects"
+            element={
+              <ProtectedRoute>
+                <ProjectsPage />
               </ProtectedRoute>
             }
           />

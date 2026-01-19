@@ -24,6 +24,7 @@ from backend.database import init_db as init_user_db
 from backend.database import save_user_consent
 from backend.task_manager import (TaskType, cleanup_background_tasks,
                                   get_task_manager)
+from backend.curation import get_user_projects
 
 # Initialize databases
 init_user_db()
@@ -515,3 +516,17 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+@app.get("/api/projects")
+async def list_projects(username: str = Depends(verify_token)) -> List[Dict[str, Any]]:
+    """
+    Return all projects analyzed by the authenticated user.
+    Uses username as user_id.
+    """
+    try:
+        return get_user_projects(username)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve projects: {str(e)}",
+        )

@@ -68,6 +68,24 @@ const Dashboard = () => {
             >
               Logout
             </button>
+            <button
+              onClick={() => navigate('/projects')}
+              style={{
+                padding: '12px 24px',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: 'white',
+                backgroundColor: '#3B82F6',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s'
+              }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#2563EB'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = '#3B82F6'}
+            >
+              My Projects
+            </button>
           </div>
         </div>
 
