@@ -15,15 +15,24 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 try:
-    from .curation import (ATTRIBUTE_DESCRIPTIONS,
-                           DEFAULT_COMPARISON_ATTRIBUTES,
-                           ProjectChronologyCorrection,
-                           format_project_comparison,
-                           get_chronology_corrections, get_showcase_projects,
-                           get_user_curation_settings, get_user_projects,
-                           init_curation_tables, save_chronology_correction,
-                           save_comparison_attributes, save_showcase_projects,
-                           validate_date_format)
+    from .curation import (
+        ATTRIBUTE_DESCRIPTIONS,
+        DEFAULT_COMPARISON_ATTRIBUTES,
+        ProjectChronologyCorrection,
+        format_project_comparison,
+        get_chronology_corrections,
+        get_showcase_projects,
+        get_user_curation_settings,
+        get_user_projects,
+        init_curation_tables,
+        save_chronology_correction,
+        save_comparison_attributes,
+        save_showcase_projects,
+        validate_date_format,
+        save_project_order,
+        get_available_skills_alphabetical,
+        save_highlighted_skills,
+    )
 except ImportError:
     # Handle direct execution or testing
     import sys
@@ -31,17 +40,24 @@ except ImportError:
     current_dir = Path(__file__).parent
     src_dir = current_dir.parent
     sys.path.insert(0, str(src_dir))
-    from backend.curation import (ATTRIBUTE_DESCRIPTIONS,
-                                  DEFAULT_COMPARISON_ATTRIBUTES,
-                                  ProjectChronologyCorrection,
-                                  format_project_comparison,
-                                  get_chronology_corrections,
-                                  get_showcase_projects,
-                                  get_user_curation_settings,
-                                  get_user_projects, init_curation_tables,
-                                  save_chronology_correction,
-                                  save_comparison_attributes,
-                                  save_showcase_projects, validate_date_format)
+    from backend.curation import (
+        ATTRIBUTE_DESCRIPTIONS,
+        DEFAULT_COMPARISON_ATTRIBUTES,
+        ProjectChronologyCorrection,
+        format_project_comparison,
+        get_chronology_corrections,
+        get_showcase_projects,
+        get_user_curation_settings,
+        get_user_projects,
+        init_curation_tables,
+        save_chronology_correction,
+        save_comparison_attributes,
+        save_showcase_projects,
+        validate_date_format,
+        save_project_order,
+        get_available_skills_alphabetical,
+        save_highlighted_skills,
+    )
 
 
 def curate_chronology_interactive(user_id: str) -> None:
@@ -393,6 +409,123 @@ def _toggle_showcase_projects(projects: List[Dict[str, Any]], current_showcase: 
             print("Please enter a valid number or 'b' to go back")
 
 
+def curate_project_rank_interactive(user_id: str):
+    projects = get_user_projects(user_id)  # LOAD ONCE
+
+    if not projects:
+        print("No projects found to rank.")
+        return
+
+    while True:
+        print("\n--- PROJECT DISPLAY ORDER ---")
+        print("This order determines how projects appear in your showcase.")
+        for i, p in enumerate(projects, 1):
+            print(f"{i}. {p['project_name']} (ID: {p['id']})")
+
+        print("\nOptions:")
+        print("  [number] [new_pos] : Move project from current number to new position")
+        print("  's'                : Save and exit")
+        print("  'q'                : Quit without saving")
+
+        choice = input("\nEnter choice: ").strip().lower()
+
+        if choice == 's':
+            new_order = [p['id'] for p in projects]
+            save_project_order(user_id, new_order)
+            print("Order saved successfully!")
+            return
+
+        if choice == 'q':
+            return
+
+        try:
+            old_idx, new_idx = map(lambda x: int(x) - 1, choice.split())
+            if 0 <= old_idx < len(projects) and 0 <= new_idx < len(projects):
+                project = projects.pop(old_idx)
+                projects.insert(new_idx, project)
+            else:
+                print("Invalid position numbers.")
+        except ValueError:
+            print("Enter two numbers, e.g. `2 1`")
+
+def curate_skills_highlight_interactive(user_id: str) -> None:
+    """Interactive interface for selecting up to 10 highlighted skills."""
+    print("\n" + "=" * 70)
+    print("SKILLS HIGHLIGHT SELECTION (Max 10)")
+    print("=" * 70)
+
+    # Load available skills (alphabetical, from all-skills)
+    skills = get_available_skills_alphabetical()
+    if not skills:
+        print("\nNo skills found. Please analyze projects first.")
+        return
+
+    # Load current settings
+    settings = get_user_curation_settings(user_id)
+    selected = set(settings.highlighted_skills)
+
+    while True:
+        print("\nAvailable skills:")
+        print("-" * 50)
+        for i, skill in enumerate(skills, 1):
+            mark = "✓" if skill in selected else " "
+            print(f"{i:2d}. [{mark}] {skill}")
+
+        print(f"\nSelected: {len(selected)}/10")
+
+        print("\nOptions:")
+        print("  [number]  : Toggle skill")
+        print("  'c'       : Clear all selections")
+        print("  's'       : Save and exit")
+        print("  'q'       : Quit without saving")
+
+        choice = input("\nEnter choice: ").strip().lower()
+
+        if choice == 's':
+            if save_highlighted_skills(user_id, list(selected)):
+                print("Highlighted skills saved successfully!")
+            else:
+                print("Failed to save highlighted skills")
+            return
+
+        if choice == 'q':
+            print("Cancelled - no changes saved")
+            return
+
+        if choice == 'c':
+            selected.clear()
+            print("Cleared all selected skills")
+            continue
+
+        try:
+            parts = choice.split()
+            indices = [int(p) - 1 for p in parts]
+
+            # Validate all indices first
+            bad = [i for i in indices if i < 0 or i >= len(skills)]
+            if bad:
+                # Convert back to user-facing 1-based for message
+                bad_display = ", ".join(str(i + 1) for i in bad)
+                print(f"Invalid skill number(s): {bad_display}")
+                continue
+
+            # Toggle each requested skill
+            for i in indices:
+                skill = skills[i]
+                if skill in selected:
+                    selected.remove(skill)
+                else:
+                    if len(selected) >= 10:
+                        print(" Maximum of 10 skills allowed. Remaining selections skipped.")
+                        break
+                    selected.add(skill)
+
+        except ValueError:
+            print("Enter space-separated numbers (e.g., '1 3 7 12') or 's', 'c', 'q'")
+
+
+
+
 def display_curation_status(user_id: str) -> None:
     """Display user's current curation status."""
     print("\n" + "=" * 70)
@@ -405,16 +538,35 @@ def display_curation_status(user_id: str) -> None:
 
         # Get settings
         settings = get_user_curation_settings(user_id)
+        projects = get_user_projects(user_id)
         corrections = get_chronology_corrections(user_id)
         showcase = get_showcase_projects(user_id)
 
+        print(f"\nProject Display Order:")
+        if settings.custom_project_order:
+            print("  Status: [CUSTOM RANK ACTIVE]")
+            # Show top 3 in the custom order as a preview
+            preview = [p['project_name'] for p in projects[:3]]
+            print(f"  Current Top 3: {', '.join(preview)}{'...' if len(projects) > 3 else ''}")
+        else:
+            print("  Status: Default (Chronological)")
+        
         # Comparison attributes
         print(f"\nComparison Attributes ({len(settings.comparison_attributes)} selected):")
         for attr in settings.comparison_attributes:
             desc = ATTRIBUTE_DESCRIPTIONS.get(attr, attr)
             print(f"  • {desc}")
+            
+        # Highlighted skills
+        print(f"\nHighlighted Skills ({len(settings.highlighted_skills)}/10 selected):")
+        if settings.highlighted_skills:
+            for skill in settings.highlighted_skills:
+                print(f"  • {skill}")
+        else:
+            print("  (None selected)")
 
-        # Showcase projects
+
+        # Showcase projects  
         print(f"\nShowcase Projects ({len(settings.showcase_project_ids)}/3 selected):")
         if showcase:
             for project in showcase:
