@@ -937,6 +937,22 @@ def main() -> int:
     timeline_parser = subparsers.add_parser("timeline", help="Show chronological timelines from stored analyses")
     timeline_parser.add_argument("type", choices=["projects", "skills", "all-skills"], help="Timeline type to display")
 
+    # Curation command
+    curate_parser = subparsers.add_parser("curate", help="Curate project information and presentation")
+    curate_subparsers = curate_parser.add_subparsers(dest="curate_type", help="Curation options")
+    
+    # Chronology correction
+    chrono_parser = curate_subparsers.add_parser("chronology", help="Correct project dates and chronology")
+    
+    # Comparison attributes
+    comparison_parser = curate_subparsers.add_parser("comparison", help="Select attributes for project comparison")
+    
+    # Showcase projects
+    showcase_parser = curate_subparsers.add_parser("showcase", help="Select top 3 projects to showcase")
+    
+    # Status overview
+    status_parser = curate_subparsers.add_parser("status", help="Show current curation settings")
+
     # Consent command
     consent_parser = subparsers.add_parser("consent", help="View or update consent status")
     consent_parser.add_argument("--status", action="store_true", help="Check current consent status")
@@ -1497,6 +1513,52 @@ def main() -> int:
                 print(f"\n{'=' * 70}")
                 print(f"Total unique skills: {len(skills)}")
                 return 0
+
+        elif args.command == "curate":
+            session = get_session()
+            if not session["logged_in"]:
+                print("\nPlease login first")
+                return 1
+
+            username = session["username"]
+            
+            # Initialize curation tables
+            try:
+                from .curation import init_curation_tables
+                from .curation_cli import (
+                    curate_chronology_interactive,
+                    curate_comparison_attributes_interactive,
+                    curate_showcase_projects_interactive,
+                    display_curation_status,
+                    display_showcase_summary
+                )
+                
+                init_db()
+                init_curation_tables()
+            except Exception as e:
+                print(f"\nError initializing curation: {e}")
+                return 1
+
+            if args.curate_type == "chronology":
+                curate_chronology_interactive(username)
+                return 0
+            elif args.curate_type == "comparison":
+                curate_comparison_attributes_interactive(username)
+                return 0
+            elif args.curate_type == "showcase":
+                curate_showcase_projects_interactive(username)
+                return 0
+            elif args.curate_type == "status":
+                display_curation_status(username)
+                display_showcase_summary(username)
+                return 0
+            else:
+                print("\nAvailable curation commands:")
+                print("  mda curate chronology  - Correct project dates")
+                print("  mda curate comparison  - Select comparison attributes")
+                print("  mda curate showcase    - Choose top 3 projects")
+                print("  mda curate status      - Show current settings")
+                return 1
 
     except KeyboardInterrupt:
         print("\n\nInterrupted by user. Exiting.")
