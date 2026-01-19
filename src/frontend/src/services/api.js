@@ -55,4 +55,17 @@ export const authAPI = {
   },
 };
 
+// Consent API calls
+export const consentAPI = {
+  saveConsent: async (hasConsented) => {
+    const response = await api.post('/user/consent', { has_consented: hasConsented });
+    return response.data;
+  },
+
+  getConsent: async () => {
+    const response = await api.get('/user/consent');
+    return response.data;
+  },
+};
+
 export default api;

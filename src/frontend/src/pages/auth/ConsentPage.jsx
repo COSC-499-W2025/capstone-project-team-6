@@ -1,27 +1,30 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import api from '../../services/api';
+import { consentAPI } from '../../services/api';
 
 const ConsentPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   const handleConsent = async (hasConsented) => {
     setLoading(true);
     setError('');
 
     try {
-      // TODO: Replace with actual consent endpoint when backend implements it
-      // await api.post('/user/consent', { has_consented: hasConsented });
+      await consentAPI.saveConsent(hasConsented);
 
-      // For now, just navigate to dashboard
       if (hasConsented) {
         navigate('/dashboard');
       } else {
-        setError('You must consent to use the application');
+        // If user denies consent, log them out
+        setError('You must consent to use the application. You will be logged out.');
+        setTimeout(async () => {
+          await logout();
+          navigate('/login');
+        }, 2000);
       }
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to save consent');
