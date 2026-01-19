@@ -942,10 +942,10 @@ def main() -> int:
     # Curation command
     curate_parser = subparsers.add_parser("curate", help="Curate project information and presentation")
     curate_subparsers = curate_parser.add_subparsers(dest="curate_type", help="Curation options")
-    
+
     # Chronology correction
     chrono_parser = curate_subparsers.add_parser("chronology", help="Correct project dates and chronology")
-    
+
     # Comparison attributes
     comparison_parser = curate_subparsers.add_parser("comparison", help="Select attributes for project comparison")
 
@@ -957,7 +957,7 @@ def main() -> int:
 
     # Showcase projects
     showcase_parser = curate_subparsers.add_parser("showcase", help="Select top 3 projects to showcase")
-    
+
     # Status overview
     status_parser = curate_subparsers.add_parser("status", help="Show current curation settings")
 
@@ -1529,7 +1529,7 @@ def main() -> int:
                 return 1
 
             username = session["username"]
-            
+
             # Initialize curation tables
             try:
                 from .curation import init_curation_tables
