@@ -203,6 +203,13 @@ async def save_consent(consent: ConsentRequest, username: str = Depends(verify_t
         )
 
 
+# Alias for privacy consent
+@app.post("/api/privacy-consent", response_model=ConsentResponse)
+async def save_privacy_consent(consent: ConsentRequest, username: str = Depends(verify_token)):
+    """Save user privacy consent status (alias for /api/user/consent)."""
+    return await save_consent(consent, username)
+
+
 @app.get("/api/user/consent", response_model=ConsentResponse)
 async def get_consent(username: str = Depends(verify_token)):
     """Get user consent status."""
@@ -255,6 +262,13 @@ async def get_portfolio(portfolio_id: str, username: str = Depends(verify_token)
         skills=analysis.get("skills", []),
         summary=analysis.get("summary"),
     )
+
+
+# Alias for GET portfolio
+@app.get("/api/portfolio/{portfolio_id}", response_model=PortfolioDetail)
+async def get_portfolio_alias(portfolio_id: str, username: str = Depends(verify_token)):
+    """Get detailed information about a specific portfolio (alias)."""
+    return await get_portfolio(portfolio_id, username)
 
 
 @app.post("/api/portfolios/upload", status_code=202)
@@ -323,6 +337,17 @@ async def upload_new_portfolio(
             "status_url": f"/api/tasks/{task_id}",
         },
     )
+
+
+# Alias for projects upload
+@app.post("/api/projects/upload", status_code=202)
+async def upload_project(
+    file: UploadFile = File(..., description="ZIP file containing project"),
+    analysis_type: str = Form("llm", description="Analysis type: llm or non_llm"),
+    username: str = Depends(verify_token),
+):
+    """Upload a new project (alias for /api/portfolios/upload)."""
+    return await upload_new_portfolio(file, analysis_type, username)
 
 
 @app.post("/api/portfolios/{portfolio_id}/add", status_code=202)
@@ -529,4 +554,175 @@ async def list_projects(username: str = Depends(verify_token)) -> List[Dict[str,
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve projects: {str(e)}",
+        )
+
+
+@app.get("/api/projects/{project_id}")
+async def get_project_detail(project_id: str, username: str = Depends(verify_token)) -> Dict[str, Any]:
+    """
+    Get detailed information about a specific project.
+    """
+    try:
+        projects = get_user_projects(username)
+        for project in projects:
+            if project.get("project_id") == project_id or project.get("project_path") == project_id:
+                return project
+        
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project {project_id} not found",
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve project: {str(e)}",
+        )
+
+
+@app.get("/api/skills")
+async def get_skills(username: str = Depends(verify_token)) -> Dict[str, Any]:
+    """
+    Get aggregated skills from all user projects.
+    """
+    try:
+        projects = get_user_projects(username)
+        skills_map = {}
+        
+        for project in projects:
+            # Extract skills from languages
+            languages = project.get("languages", {})
+            for lang, count in languages.items():
+                if lang not in skills_map:
+                    skills_map[lang] = {"name": lang, "count": 0, "category": "language"}
+                skills_map[lang]["count"] += count
+            
+            # Extract framework skills
+            frameworks = project.get("frameworks", [])
+            for fw in frameworks:
+                fw_name = fw if isinstance(fw, str) else fw.get("name", "")
+                if fw_name and fw_name not in skills_map:
+                    skills_map[fw_name] = {"name": fw_name, "count": 1, "category": "framework"}
+                elif fw_name:
+                    skills_map[fw_name]["count"] += 1
+        
+        return {
+            "skills": list(skills_map.values()),
+            "total_skills": len(skills_map),
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve skills: {str(e)}",
+        )
+
+
+@app.post("/api/resume/generate")
+async def generate_resume(
+    portfolio_id: Optional[str] = None,
+    username: str = Depends(verify_token),
+) -> Dict[str, Any]:
+    """
+    Generate a resume from user's portfolio data.
+    """
+    try:
+        from backend.analysis.resume_generator import generate_resume_from_analysis
+        
+        if portfolio_id:
+            analysis = get_analysis_by_uuid(portfolio_id, username)
+            if not analysis:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Portfolio {portfolio_id} not found",
+                )
+        else:
+            # Get all projects for user
+            projects = get_user_projects(username)
+            analysis = {
+                "projects": projects,
+                "analysis_metadata": {
+                    "total_projects": len(projects),
+                }
+            }
+        
+        resume = generate_resume_from_analysis(analysis)
+        resume_id = str(uuid.uuid4())
+        
+        # TODO: Store resume in database for later retrieval/editing
+        
+        return {
+            "resume_id": resume_id,
+            "resume": resume,
+            "message": "Resume generated successfully",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate resume: {str(e)}",
+        )
+
+
+@app.get("/api/resume/{resume_id}")
+async def get_resume(resume_id: str, username: str = Depends(verify_token)) -> Dict[str, Any]:
+    """
+    Get a previously generated resume by ID.
+    """
+    # TODO: Implement resume storage and retrieval
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="Resume storage not yet implemented. Use POST /api/resume/generate to create a new resume.",
+    )
+
+
+@app.post("/api/resume/{resume_id}/edit")
+async def edit_resume(
+    resume_id: str,
+    resume_data: Dict[str, Any],
+    username: str = Depends(verify_token),
+) -> Dict[str, Any]:
+    """
+    Edit an existing resume.
+    """
+    # TODO: Implement resume editing and storage
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="Resume editing not yet implemented.",
+    )
+
+
+@app.post("/api/portfolio/generate")
+async def generate_portfolio_document(
+    portfolio_id: str,
+    username: str = Depends(verify_token),
+) -> Dict[str, Any]:
+    """
+    Generate a formatted portfolio document (PDF/HTML) from a portfolio.
+    """
+    try:
+        from backend.analysis.portfolio_item_generator import generate_portfolio_items
+        
+        analysis = get_analysis_by_uuid(portfolio_id, username)
+        if not analysis:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Portfolio {portfolio_id} not found",
+            )
+        
+        portfolio_items = generate_portfolio_items(analysis)
+        
+        return {
+            "portfolio_id": portfolio_id,
+            "items": portfolio_items,
+            "total_items": len(portfolio_items),
+            "message": "Portfolio document generated successfully",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate portfolio: {str(e)}",
         )
