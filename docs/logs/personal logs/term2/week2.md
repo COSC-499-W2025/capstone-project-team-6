@@ -133,14 +133,6 @@ No major blockers this week.
 - Address any additional feedback on authentication frontend and ranking integration
 - Collaborate with team on integrating frontend components with backend API endpoints
 
-
-
-
-
-
-
-
-
 # Harjot Sahota
 
 ## Date ranges
@@ -155,8 +147,6 @@ January 12 - January 19
 - Throughout this work, I learned and researched more about **API design and integration**, including authenticated endpoints, request/response handling, and connecting frontend components to backend services in a clean and maintainable way.
 
 - In addition, I successfully created a draft for the **team’s introduction for the prototype testing**
-
-## What didn't go well
 
 ### What didn’t go well
 
@@ -174,13 +164,7 @@ January 12 - January 19
 
 ## Plans for next week
 
-
-
-
-
-
-
-
+Next week, I plan to implement the storage for the resume generation and portfolio generation outputs by saving them directly in the database. This will allow generated resumes and portfolio content to be safely stored, retrieved, and reused without recomputation. the frontend will be able to reliably fetch and display resume and portfolio data for each project, improving both performance and user experience.
 
 # Mohamed Sakr
 
