@@ -58,6 +58,18 @@ def init_db() -> None:
     with get_connection() as conn:
         conn.execute("PRAGMA foreign_keys = ON;")
 
+        # Ensure a minimal users table exists so the FK on analyses.username is valid
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS analyses (
@@ -74,10 +86,17 @@ def init_db() -> None:
                 summary_languages TEXT,
                 summary_frameworks TEXT,
                 llm_summary TEXT,
+                username TEXT REFERENCES users(username),
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
             """
         )
+
+        # Ensure the username column exists for installations created before this field was added.
+        existing_columns = {row["name"] for row in conn.execute("PRAGMA table_info(analyses)")}
+        if "username" not in existing_columns:
+            conn.execute("ALTER TABLE analyses ADD COLUMN username TEXT REFERENCES users(username);")
+            conn.commit()
 
         conn.execute(
             """
@@ -384,6 +403,7 @@ def record_analysis(
     analysis_type: str,
     payload: Dict[str, Any],
     *,
+    username: Optional[str] = None,
     analysis_uuid: Optional[str] = None,
 ) -> int:
     if analysis_type not in VALID_ANALYSIS_TYPES:
@@ -423,8 +443,9 @@ def record_analysis(
                 summary_total_size_mb,
                 summary_languages,
                 summary_frameworks,
-                llm_summary
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                llm_summary,
+                username
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 analysis_uuid,
@@ -439,6 +460,7 @@ def record_analysis(
                 summary_fields["summary_languages"],
                 summary_fields["summary_frameworks"],
                 payload.get("llm_summary"),
+                username,
             ),
         )
         analysis_id = cursor.lastrowid
@@ -747,36 +769,42 @@ def get_projects_for_analysis(analysis_id: int) -> List[sqlite3.Row]:
         ).fetchall()
 
 
-def get_analysis_by_zip_file(zip_file: str) -> Optional[sqlite3.Row]:
-    """Get the most recent analysis for a given zip file path."""
+def get_analysis_by_zip_file(zip_file: str, username: Optional[str] = None) -> Optional[sqlite3.Row]:
+    """Get the most recent analysis for a given zip file path scoped to a user."""
+    if not username:
+        raise ValueError("username is required for get_analysis_by_zip_file")
+
     with get_connection() as conn:
         return conn.execute(
             """
             SELECT * FROM analyses 
-            WHERE zip_file = ? 
+            WHERE zip_file = ? AND username = ?
             ORDER BY created_at DESC 
             LIMIT 1
             """,
-            (zip_file,),
+            (zip_file, username),
         ).fetchone()
 
 
-def get_all_analyses_by_zip_file(zip_file: str) -> List[sqlite3.Row]:
-    """Get all analyses (not just the most recent) for a given zip file path."""
+def get_all_analyses_by_zip_file(zip_file: str, username: Optional[str] = None) -> List[sqlite3.Row]:
+    """Get all analyses (not just the most recent) for a given zip file path scoped to a user."""
+    if not username:
+        raise ValueError("username is required for get_all_analyses_by_zip_file")
+
     with get_connection() as conn:
         return conn.execute(
             """
             SELECT * FROM analyses 
-            WHERE zip_file = ? 
+            WHERE zip_file = ? AND username = ?
             ORDER BY created_at DESC
             """,
-            (zip_file,),
+            (zip_file, username),
         ).fetchall()
 
 
-def get_analysis_report(zip_file: str) -> Optional[Dict[str, Any]]:
-    """Retrieve the full analysis report (JSON) for a given zip file path."""
-    analysis = get_analysis_by_zip_file(zip_file)
+def get_analysis_report(zip_file: str, username: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Retrieve the full analysis report (JSON) for a given zip file path scoped to a user."""
+    analysis = get_analysis_by_zip_file(zip_file, username=username)
     if not analysis:
         return None
 
@@ -796,24 +824,26 @@ def count_analyses_by_zip_file(zip_file: str) -> int:
         return result["count"] if result else 0
 
 
-def delete_analyses_by_zip_file(zip_file: str) -> int:
-    """Delete all analyses for a given zip file path."""
+def delete_analyses_by_zip_file(zip_file: str, username: Optional[str] = None) -> int:
+    """Delete all analyses for a given zip file path scoped to a user."""
     if not zip_file:
         raise ValueError("zip_file path cannot be empty")
+    if not username:
+        raise ValueError("username is required for delete_analyses_by_zip_file")
 
     try:
         with get_connection() as conn:
             conn.execute("PRAGMA foreign_keys = ON;")
             count_result = conn.execute(
-                "SELECT COUNT(*) as count FROM analyses WHERE zip_file = ?",
-                (zip_file,),
+                "SELECT COUNT(*) as count FROM analyses WHERE zip_file = ? AND username = ?",
+                (zip_file, username),
             ).fetchone()
             count = count_result["count"] if count_result else 0
 
             if count > 0:
                 cursor = conn.execute(
-                    "DELETE FROM analyses WHERE zip_file = ?",
-                    (zip_file,),
+                    "DELETE FROM analyses WHERE zip_file = ? AND username = ?",
+                    (zip_file, username),
                 )
                 deleted_rows = cursor.rowcount
                 conn.commit()
@@ -886,30 +916,38 @@ def clear_resume_items() -> None:
         conn.commit()
 
 
-def get_all_analyses() -> List[sqlite3.Row]:
-    """Get all analyses from the database, ordered by most recent first."""
+def get_all_analyses(username: Optional[str] = None) -> List[sqlite3.Row]:
+    """
+    Get analyses ordered by most recent first.
+
+    Warning: username is required to avoid cross-user data leakage.
+    """
+    if not username:
+        raise ValueError("username is required for get_all_analyses")
+
     with get_connection() as conn:
         return conn.execute(
             """
             SELECT * FROM analyses 
+            WHERE username = ?
             ORDER BY created_at DESC
-            """
+            """,
+            (username,),
         ).fetchall()
 
 
 def get_all_analyses_for_user(username: str) -> List[Dict[str, Any]]:
     """Get all analyses for a specific user."""
     with get_connection() as conn:
-        # For now, return all analyses as we don't have user-specific filtering yet
-        # TODO: Add user association to analyses table
         rows = conn.execute(
             """
             SELECT analysis_uuid, analysis_type, zip_file, analysis_timestamp, 
                    total_projects, raw_json
             FROM analyses 
+            WHERE username = ?
             ORDER BY created_at DESC
             """
-        ).fetchall()
+        , (username,)).fetchall()
 
         return [
             {
@@ -926,15 +964,26 @@ def get_all_analyses_for_user(username: str) -> List[Dict[str, Any]]:
 def get_analysis_by_uuid(uuid_str: str, username: str = None) -> Optional[Dict[str, Any]]:
     """Get analysis details by UUID for a specific user."""
     with get_connection() as conn:
-        row = conn.execute(
-            """
-            SELECT analysis_uuid, analysis_type, zip_file, analysis_timestamp, 
-                   total_projects, raw_json
-            FROM analyses 
-            WHERE analysis_uuid = ?
-            """,
-            (uuid_str,),
-        ).fetchone()
+        if username:
+            row = conn.execute(
+                """
+                SELECT analysis_uuid, analysis_type, zip_file, analysis_timestamp, 
+                       total_projects, raw_json
+                FROM analyses 
+                WHERE analysis_uuid = ? AND username = ?
+                """,
+                (uuid_str, username),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                """
+                SELECT analysis_uuid, analysis_type, zip_file, analysis_timestamp, 
+                       total_projects, raw_json
+                FROM analyses 
+                WHERE analysis_uuid = ?
+                """,
+                (uuid_str,),
+            ).fetchone()
 
         if not row:
             return None
@@ -957,12 +1006,21 @@ def get_analysis_by_uuid(uuid_str: str, username: str = None) -> Optional[Dict[s
 def delete_analysis(uuid_str: str, username: str = None) -> bool:
     """Delete an analysis by UUID."""
     with get_connection() as conn:
-        cursor = conn.execute(
-            """
-            DELETE FROM analyses 
-            WHERE analysis_uuid = ?
-            """,
-            (uuid_str,),
-        )
+        if username:
+            cursor = conn.execute(
+                """
+                DELETE FROM analyses 
+                WHERE analysis_uuid = ? AND username = ?
+                """,
+                (uuid_str, username),
+            )
+        else:
+            cursor = conn.execute(
+                """
+                DELETE FROM analyses 
+                WHERE analysis_uuid = ?
+                """,
+                (uuid_str,),
+            )
         conn.commit()
         return cursor.rowcount > 0
