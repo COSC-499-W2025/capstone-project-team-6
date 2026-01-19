@@ -16,6 +16,7 @@ for p in (SRC_DIR, PROJECT_ROOT):
         sys.path.insert(0, str(p))
 
 from src.backend import analysis_database as adb
+from src.backend import database as udb
 
 SAMPLE_PAYLOAD = {
     "analysis_metadata": {
@@ -85,10 +86,22 @@ SAMPLE_PAYLOAD = {
 
 @pytest.fixture
 def temp_analysis_db(tmp_path):
-    previous = adb.set_db_path(tmp_path / "analysis.db")
-    adb.reset_db()
+    db_path = tmp_path / "analysis.db"
+    previous_analysis = adb.set_db_path(db_path)
+    previous_user = udb.set_db_path(db_path)
+
+    # Fresh database for each test
+    if db_path.exists():
+        db_path.unlink()
+
+    # Initialize user table first (required for foreign key), then analysis tables.
+    udb.init_db()
+    udb.create_user("alice", "password123")
+    udb.create_user("bob", "password123")
+    adb.init_db()
     yield
-    adb.set_db_path(previous)
+    adb.set_db_path(previous_analysis)
+    udb.set_db_path(previous_user)
 
 
 def test_record_analysis_persists_all_entities(temp_analysis_db):
@@ -175,6 +188,57 @@ def test_record_analysis_validates_input(temp_analysis_db):
     analysis_id = adb.record_analysis("non_llm", minimal_payload)
     analysis_row = adb.get_analysis(analysis_id)
     assert analysis_row["total_projects"] == 0
+
+
+def test_user_specific_storage_and_queries(temp_analysis_db):
+    """Ensure analyses are stored and filtered by username."""
+    # Store analyses for two different users
+    alice_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, analysis_uuid="uuid-alice", username="alice")
+    bob_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, analysis_uuid="uuid-bob", username="bob")
+
+    # Username is persisted
+    assert adb.get_analysis(alice_id)["username"] == "alice"
+    assert adb.get_analysis(bob_id)["username"] == "bob"
+
+    # Listing is user-scoped
+    alice_list = adb.get_all_analyses_for_user("alice")
+    bob_list = adb.get_all_analyses_for_user("bob")
+    assert [a["analysis_uuid"] for a in alice_list] == ["uuid-alice"]
+    assert [b["analysis_uuid"] for b in bob_list] == ["uuid-bob"]
+
+    # Fetch by UUID is user-scoped
+    assert adb.get_analysis_by_uuid("uuid-alice", "alice") is not None
+    assert adb.get_analysis_by_uuid("uuid-alice", "bob") is None
+
+    # Zip lookups are user-scoped
+    assert adb.get_analysis_by_zip_file("path/to/project.zip", "alice") is not None
+    assert adb.get_analysis_by_zip_file("path/to/project.zip", "bob") is not None
+    assert adb.get_analysis_by_zip_file("path/to/project.zip", "carol") is None
+
+    # Reports are user-scoped
+    assert adb.get_analysis_report("path/to/project.zip", "alice") is not None
+    assert adb.get_analysis_report("path/to/project.zip", "carol") is None
+
+    # Deletion by zip is user-scoped
+    assert adb.delete_analyses_by_zip_file("path/to/project.zip", "carol") == 0
+    assert adb.delete_analyses_by_zip_file("path/to/project.zip", "bob") == 1
+    assert adb.get_analysis_by_zip_file("path/to/project.zip", "bob") is None
+
+    # Unsafe calls without username should be rejected
+    with pytest.raises(ValueError):
+        adb.get_all_analyses()
+    with pytest.raises(ValueError):
+        adb.get_all_analyses_by_zip_file("path/to/project.zip")
+    with pytest.raises(ValueError):
+        adb.get_analysis_by_zip_file("path/to/project.zip")
+    with pytest.raises(ValueError):
+        adb.delete_analyses_by_zip_file("path/to/project.zip")
+
+    # Delete enforces ownership
+    assert adb.delete_analysis("uuid-alice", "bob") is False  # wrong user
+    assert adb.get_analysis_by_uuid("uuid-alice", "alice") is not None
+    assert adb.delete_analysis("uuid-alice", "alice") is True
+    assert adb.get_analysis_by_uuid("uuid-alice", "alice") is None
 
 
 def test_project_analysis_stored_in_db(temp_analysis_db):
@@ -469,8 +533,8 @@ def test_get_analysis_by_zip_file(temp_analysis_db):
     """Test retrieving analysis by zip file path."""
     zip_file_path = "/path/to/test_project.zip"
 
-    analysis_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD)
-    analysis = adb.get_analysis_by_zip_file(SAMPLE_PAYLOAD["analysis_metadata"]["zip_file"])
+    analysis_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, username="alice")
+    analysis = adb.get_analysis_by_zip_file(SAMPLE_PAYLOAD["analysis_metadata"]["zip_file"], "alice")
 
     assert analysis is not None
     assert analysis["id"] == analysis_id
@@ -481,17 +545,19 @@ def test_get_analysis_by_zip_file(temp_analysis_db):
 
 def test_get_analysis_by_zip_file_not_found(temp_analysis_db):
     """Test retrieving analysis by zip file when it doesn't exist."""
-    analysis = adb.get_analysis_by_zip_file("/nonexistent/path.zip")
+    with pytest.raises(ValueError):
+        adb.get_analysis_by_zip_file("/nonexistent/path.zip")
+    analysis = adb.get_analysis_by_zip_file("/nonexistent/path.zip", "alice")
     assert analysis is None
 
 
 def test_get_analysis_report(temp_analysis_db):
     """Test retrieving full analysis report by zip file."""
     # Store an analysis
-    analysis_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD)
+    analysis_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, username="alice")
 
     # Retrieve report
-    report = adb.get_analysis_report(SAMPLE_PAYLOAD["analysis_metadata"]["zip_file"])
+    report = adb.get_analysis_report(SAMPLE_PAYLOAD["analysis_metadata"]["zip_file"], "alice")
 
     assert report is not None
     assert report["analysis_metadata"]["zip_file"] == "path/to/project.zip"
@@ -502,7 +568,9 @@ def test_get_analysis_report(temp_analysis_db):
 
 def test_get_analysis_report_not_found(temp_analysis_db):
     """Test retrieving analysis report when it doesn't exist."""
-    report = adb.get_analysis_report("/nonexistent/path.zip")
+    with pytest.raises(ValueError):
+        adb.get_analysis_report("/nonexistent/path.zip")
+    report = adb.get_analysis_report("/nonexistent/path.zip", "alice")
     assert report is None
 
 

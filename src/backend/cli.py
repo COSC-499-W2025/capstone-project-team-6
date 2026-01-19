@@ -124,11 +124,13 @@ def create_temp_zip(directory: Path) -> Path:
     return temp_zip
 
 
-def analyze_folder(path: Path, target_user_email: Optional[str] = None) -> dict:
+def analyze_folder(path: Path, target_user_email: Optional[str] = None, quick_mode: bool = False) -> dict:
     """Analyze a folder or ZIP file using the comprehensive analysis pipeline.
 
     Args:
         path: Path to the folder or ZIP file to analyze
+        target_user_email: Optional email to focus git analysis on specific user
+        quick_mode: If True, skip heavy operations like deep git blame analysis
 
     Returns:
         dict: Comprehensive analysis results from the pipeline
@@ -147,7 +149,8 @@ def analyze_folder(path: Path, target_user_email: Optional[str] = None) -> dict:
     try:
         # Determine if we need to create a ZIP
         if path.is_dir():
-            print(f"Creating temporary archive...")
+            if not quick_mode:
+                print(f"Creating temporary archive...")
             temp_zip = create_temp_zip(path)
             zip_path = temp_zip
             # For directories, we can analyze git directly
@@ -160,8 +163,12 @@ def analyze_folder(path: Path, target_user_email: Optional[str] = None) -> dict:
             raise ValueError(f"Path must be a directory or ZIP file: {path}")
 
         # Run comprehensive analysis (Python/Java)
-        print(f"Running analysis pipeline...")
-        report = generate_comprehensive_report(zip_path, target_user_email=target_user_email)
+        if not quick_mode:
+            print(f"Running analysis pipeline...")
+        else:
+            print(f"Running quick analysis (skipping heavy git operations)...")
+
+        report = generate_comprehensive_report(zip_path, target_user_email=target_user_email, quick_mode=quick_mode)
 
         # Add C++ and C analysis to the report
         for i, project in enumerate(report["projects"]):
@@ -937,6 +944,22 @@ def main() -> int:
     timeline_parser = subparsers.add_parser("timeline", help="Show chronological timelines from stored analyses")
     timeline_parser.add_argument("type", choices=["projects", "skills", "all-skills"], help="Timeline type to display")
 
+    # Curation command
+    curate_parser = subparsers.add_parser("curate", help="Curate project information and presentation")
+    curate_subparsers = curate_parser.add_subparsers(dest="curate_type", help="Curation options")
+
+    # Chronology correction
+    chrono_parser = curate_subparsers.add_parser("chronology", help="Correct project dates and chronology")
+
+    # Comparison attributes
+    comparison_parser = curate_subparsers.add_parser("comparison", help="Select attributes for project comparison")
+
+    # Showcase projects
+    showcase_parser = curate_subparsers.add_parser("showcase", help="Select top 3 projects to showcase")
+
+    # Status overview
+    status_parser = curate_subparsers.add_parser("status", help="Show current curation settings")
+
     # Consent command
     consent_parser = subparsers.add_parser("consent", help="View or update consent status")
     consent_parser.add_argument("--status", action="store_true", help="Check current consent status")
@@ -1090,6 +1113,75 @@ def main() -> int:
                         analysis_id = record_analysis("non_llm", results)
                         analysis_uuid = results.get("analysis_metadata", {}).get("analysis_uuid", "unknown")
                         print(f"\nAnalysis saved to database (ID: {analysis_id}, UUID: {analysis_uuid})")
+
+                        # Ask if user wants to add more projects incrementally
+                        while True:
+                            try:
+                                response = (
+                                    input("\n" + "=" * 70 + "\nWould you like to add more projects to this portfolio? (y/N): ")
+                                    .strip()
+                                    .lower()
+                                )
+                                if response in ["y", "yes"]:
+                                    additional_path = input("Enter path to additional ZIP file or folder: ").strip()
+                                    if not additional_path:
+                                        print("No path provided, skipping...")
+                                        break
+
+                                    additional_path = Path(additional_path).expanduser()
+                                    if not additional_path.exists():
+                                        print(f"Error: Path does not exist: {additional_path}")
+                                        continue
+
+                                    print(f"\n[*] Analyzing additional projects from: {additional_path}")
+                                    new_results = analyze_folder(
+                                        additional_path, target_user_email=args.user_email, quick_mode=True
+                                    )
+
+                                    # Merge with existing results
+                                    existing_projects = results.get("projects", [])
+                                    new_projects = new_results.get("projects", [])
+
+                                    # Deduplicate by project_path
+                                    existing_paths = {p.get("project_path") for p in existing_projects}
+                                    added_count = 0
+                                    for proj in new_projects:
+                                        if proj.get("project_path") not in existing_paths:
+                                            existing_projects.append(proj)
+                                            added_count += 1
+
+                                    results["projects"] = existing_projects
+                                    results["analysis_metadata"]["total_projects"] = len(existing_projects)
+
+                                    # Update database
+                                    import json
+
+                                    from .analysis_database import \
+                                        get_connection
+
+                                    with get_connection() as conn:
+                                        conn.execute(
+                                            """UPDATE analyses 
+                                               SET raw_json = ?, 
+                                                   total_projects = ?,
+                                                   analysis_timestamp = datetime('now')
+                                               WHERE analysis_uuid = ?""",
+                                            (json.dumps(results), len(existing_projects), analysis_uuid),
+                                        )
+                                        conn.commit()
+
+                                    print(f"\n✓ Added {added_count} new project(s) to portfolio")
+                                    print(f"✓ Total projects now: {len(existing_projects)}")
+                                    print(f"✓ Portfolio UUID: {analysis_uuid}")
+                                else:
+                                    break
+                            except KeyboardInterrupt:
+                                print("\n\nIncremental upload cancelled.")
+                                break
+                            except Exception as e:
+                                print(f"\nError adding projects: {e}")
+                                break
+
                     except Exception as db_error:
                         print(f"\nWarning: Could not save to database: {db_error}")
 
@@ -1497,6 +1589,50 @@ def main() -> int:
                 print(f"\n{'=' * 70}")
                 print(f"Total unique skills: {len(skills)}")
                 return 0
+
+        elif args.command == "curate":
+            session = get_session()
+            if not session["logged_in"]:
+                print("\nPlease login first")
+                return 1
+
+            username = session["username"]
+
+            # Initialize curation tables
+            try:
+                from .curation import init_curation_tables
+                from .curation_cli import (
+                    curate_chronology_interactive,
+                    curate_comparison_attributes_interactive,
+                    curate_showcase_projects_interactive,
+                    display_curation_status, display_showcase_summary)
+
+                init_db()
+                init_curation_tables()
+            except Exception as e:
+                print(f"\nError initializing curation: {e}")
+                return 1
+
+            if args.curate_type == "chronology":
+                curate_chronology_interactive(username)
+                return 0
+            elif args.curate_type == "comparison":
+                curate_comparison_attributes_interactive(username)
+                return 0
+            elif args.curate_type == "showcase":
+                curate_showcase_projects_interactive(username)
+                return 0
+            elif args.curate_type == "status":
+                display_curation_status(username)
+                display_showcase_summary(username)
+                return 0
+            else:
+                print("\nAvailable curation commands:")
+                print("  mda curate chronology  - Correct project dates")
+                print("  mda curate comparison  - Select comparison attributes")
+                print("  mda curate showcase    - Choose top 3 projects")
+                print("  mda curate status      - Show current settings")
+                return 1
 
     except KeyboardInterrupt:
         print("\n\nInterrupted by user. Exiting.")
