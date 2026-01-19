@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 import bcrypt
 from fastapi import (Depends, FastAPI, File, Form, HTTPException, Security,
                      UploadFile, status)
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
@@ -30,6 +31,15 @@ init_analysis_db()
 app = FastAPI(
     description="API for Portfolio and Resume generation with incremental uploads",
     version="2.0.0",
+)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # Frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 security = HTTPBearer()
