@@ -19,9 +19,9 @@ from backend.analysis_database import (delete_analysis,
                                        get_analysis_by_uuid)
 from backend.analysis_database import init_db as init_analysis_db
 from backend.analysis_database import record_analysis
-from backend.database import (authenticate_user, check_user_consent, create_user,
-                              save_user_consent)
+from backend.database import authenticate_user, check_user_consent, create_user
 from backend.database import init_db as init_user_db
+from backend.database import save_user_consent
 from backend.task_manager import (TaskType, cleanup_background_tasks,
                                   get_task_manager)
 
