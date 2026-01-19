@@ -29,6 +29,7 @@ try:
         save_comparison_attributes,
         save_showcase_projects,
         validate_date_format,
+        save_project_order,
     )
 except ImportError:
     # Handle direct execution or testing
@@ -50,6 +51,7 @@ except ImportError:
         save_comparison_attributes,
         save_showcase_projects,
         validate_date_format,
+        save_project_order,
     )
 
 
@@ -400,6 +402,52 @@ def _toggle_showcase_projects(projects: List[Dict[str, Any]], current_showcase: 
                 
         except ValueError:
             print("Please enter a valid number or 'b' to go back")
+
+def curate_project_rank_interactive(user_id: str):
+    """Interactive CLI to re-rank projects."""
+    while True:
+        projects = get_user_projects(user_id)
+        if not projects:
+            print("No projects found to rank.")
+            return
+
+        print("\n--- PROJECT DISPLAY ORDER ---")
+        print("This order determines how projects appear in your showcase.")
+        for i, p in enumerate(projects, 1):
+            print(f"{i}. {p['project_name']} (ID: {p['id']})")
+        
+        print("\nOptions:")
+        print("  [number] [new_pos] : Move project from current number to new position")
+        print("  's'                : Save and exit")
+        print("  'q'                : Quit without saving")
+        
+        choice = input("\nEnter choice: ").strip().lower()
+        
+        if choice == 's':
+            new_order = [p['id'] for p in projects]
+            if save_project_order(user_id, new_order):
+                print("Order saved successfully!")
+            break
+        elif choice == 'q':
+            break
+        
+        try:
+            # Logic to swap projects in the temporary 'projects' list
+            parts = choice.split()
+            if len(parts) == 2:
+                old_idx = int(parts[0]) - 1
+                new_idx = int(parts[1]) - 1
+                
+                if 0 <= old_idx < len(projects) and 0 <= new_idx < len(projects):
+                    # Move the project in the list
+                    project_to_move = projects.pop(old_idx)
+                    projects.insert(new_idx, project_to_move)
+                else:
+                    print("Invalid position numbers.")
+        except ValueError:
+            print("Please enter two numbers (e.g., '3 1' to move 3rd project to 1st).")
+
+
 
 
 def display_curation_status(user_id: str) -> None:

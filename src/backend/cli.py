@@ -10,6 +10,8 @@ import zipfile
 from pathlib import Path
 from typing import Optional
 
+from src.backend.curation_cli import curate_project_rank_interactive
+
 from . import (Folder_traversal_fs, MDAShell, UserAlreadyExistsError,
                authenticate_user, create_user, initialize)
 from .analysis.analyze import calculate_composite_score
@@ -946,9 +948,9 @@ def main() -> int:
     
     # Comparison attributes
     comparison_parser = curate_subparsers.add_parser("comparison", help="Select attributes for project comparison")
-    
-    # Project re-reanking
-    comparison_parser = curate_subparsers.add_parser("rerank", help="Allows the rer-ranking of projects based on your preference")
+
+    # Project re-ranking
+    rerank_parser = curate_subparsers.add_parser("rerank", help="Allows the rer-ranking of projects based on your preference")
 
 
     # Showcase projects
@@ -1556,12 +1558,15 @@ def main() -> int:
                 display_curation_status(username)
                 display_showcase_summary(username)
                 return 0
+            elif args.curate_command == "rerank":
+                curate_project_rank_interactive(user_id)
             else:
                 print("\nAvailable curation commands:")
                 print("  mda curate chronology  - Correct project dates")
                 print("  mda curate comparison  - Select comparison attributes")
                 print("  mda curate showcase    - Choose top 3 projects")
                 print("  mda curate status      - Show current settings")
+                print("  mda curate rerank      - Re-rank projects")
                 return 1
 
     except KeyboardInterrupt:
