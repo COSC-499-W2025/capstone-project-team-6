@@ -16,7 +16,8 @@ from pydantic import BaseModel, Field
 
 from backend.analysis_database import (delete_analysis,
                                        get_all_analyses_for_user,
-                                       get_analysis_by_uuid)
+                                       get_analysis_by_uuid,
+                                       get_projects_for_user)
 from backend.analysis_database import init_db as init_analysis_db
 from backend.analysis_database import record_analysis
 from backend.database import authenticate_user, check_user_consent, create_user
@@ -24,7 +25,6 @@ from backend.database import init_db as init_user_db
 from backend.database import save_user_consent
 from backend.task_manager import (TaskType, cleanup_background_tasks,
                                   get_task_manager)
-from backend.analysis_database import get_projects_for_user
 
 # Initialize databases
 init_user_db()
@@ -138,7 +138,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token expired",
         )
-    
+
     return token_data["username"]
 
 
@@ -521,8 +521,8 @@ async def list_projects(username: str = Depends(verify_token)) -> List[Dict[str,
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve projects: {str(e)}",
         )
-    
-    
+
+
 if __name__ == "__main__":
     import uvicorn
 

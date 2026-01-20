@@ -768,6 +768,7 @@ def get_projects_for_analysis(analysis_id: int) -> List[sqlite3.Row]:
             (analysis_id,),
         ).fetchall()
 
+
 def get_projects_for_user(username: str) -> list[dict]:
     with get_connection() as conn:
         rows = conn.execute(
