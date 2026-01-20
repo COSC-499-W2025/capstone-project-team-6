@@ -1118,7 +1118,7 @@ def main() -> int:
                     try:
                         from .analysis_database import record_analysis
 
-                        analysis_id = record_analysis("non_llm", results)
+                        analysis_id = record_analysis("non_llm", results, username=username)
                         analysis_uuid = results.get("analysis_metadata", {}).get("analysis_uuid", "unknown")
                         print(f"\nAnalysis saved to database (ID: {analysis_id}, UUID: {analysis_uuid})")
 
@@ -1318,7 +1318,7 @@ def main() -> int:
                             try:
                                 from .analysis_database import record_analysis
 
-                                llm_analysis_id = record_analysis("llm", llm_results)
+                                llm_analysis_id = record_analysis("llm", llm_results, username=username)
                                 print(f"\n📊 AI analysis saved to database (ID: {llm_analysis_id})")
                             except Exception as db_error:
                                 print(f"\n⚠️  Warning: Could not save AI results: {db_error}")
