@@ -769,6 +769,30 @@ def get_projects_for_analysis(analysis_id: int) -> List[sqlite3.Row]:
         ).fetchall()
 
 
+def get_projects_for_user(username: str) -> list[dict]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                p.id,
+                p.project_name,
+                p.primary_language,
+                p.total_files,
+                p.has_tests,
+                p.last_modified_date,
+                a.username AS owner_username,
+                a.analysis_timestamp AS analysis_timestamp
+            FROM projects p
+            JOIN analyses a ON a.id = p.analysis_id
+            WHERE a.username = ?
+            ORDER BY p.id DESC
+            """,
+            (username,),
+        ).fetchall()
+
+        return [dict(r) for r in rows]
+
+
 def get_analysis_by_zip_file(zip_file: str, username: Optional[str] = None) -> Optional[sqlite3.Row]:
     """Get the most recent analysis for a given zip file path scoped to a user."""
     if not username:
