@@ -1035,6 +1035,11 @@ def get_all_resume_items(username: Optional[str] = None) -> List[sqlite3.Row]:
             """
         ).fetchall()
 
+def get_resume_items_for_project(project_id: int) -> List[sqlite3.Row]:
+    """
+    Backwards-compatible alias for older code/tests.
+    """
+    return get_resume_items_for_project_id(project_id)
 
 def get_resume_items_for_project_id(project_id: int) -> List[sqlite3.Row]:
     with get_connection() as conn:
