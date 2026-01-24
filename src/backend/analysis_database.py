@@ -289,12 +289,59 @@ def init_db() -> None:
             """
         )
 
+        # Resume items 
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS resume_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                analysis_id INTEGER NOT NULL REFERENCES analyses(id) ON DELETE CASCADE,
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
                 project_name TEXT NOT NULL,
                 resume_text TEXT NOT NULL,
+                bullet_order INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+
+        # Migrations for older installs (add missing columns safely)
+        existing = {row["name"] for row in conn.execute("PRAGMA table_info(resume_items)")}
+
+        if "analysis_id" not in existing:
+            conn.execute(
+                "ALTER TABLE resume_items ADD COLUMN analysis_id INTEGER REFERENCES analyses(id) ON DELETE CASCADE;"
+            )
+        if "project_id" not in existing:
+            conn.execute(
+                "ALTER TABLE resume_items ADD COLUMN project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE;"
+            )
+        if "project_name" not in existing:
+            conn.execute("ALTER TABLE resume_items ADD COLUMN project_name TEXT;")
+        if "bullet_order" not in existing:
+            conn.execute("ALTER TABLE resume_items ADD COLUMN bullet_order INTEGER;")
+
+        # index for quick fetch per project/analysis
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_resume_items_project ON resume_items(project_id, bullet_order);"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_resume_items_analysis ON resume_items(analysis_id);"
+        )
+
+        conn.commit()
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS portfolio_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                project_name TEXT NOT NULL,
+                text_summary TEXT,
+                tech_stack TEXT,
+                skills_exercised TEXT,
+                quality_score INTEGER,
+                sophistication_level TEXT,
+                project_statistics TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
             """
@@ -414,7 +461,7 @@ def record_analysis(
 
     metadata = payload.get("analysis_metadata") or {}
     summary = payload.get("summary") or {}
-    projects = payload.get("projects") or []
+    projects = payload.get("projects") or (payload.get("non_llm_results") or {}).get("projects") or []
 
     if not metadata:
         raise ValueError("payload must include analysis_metadata")
@@ -429,6 +476,17 @@ def record_analysis(
 
     with get_connection() as conn:
         conn.execute("PRAGMA foreign_keys = ON;")
+
+        # Ensure username exists in analysis DB users table (required for FK)
+        if username:
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO users (username)
+                VALUES (?)
+                """,
+                (username,),
+            )
+
         cursor = conn.execute(
             """
             INSERT INTO analyses (
@@ -555,6 +613,26 @@ def record_analysis(
             )
             project_id = project_cursor.lastrowid
 
+            # Store resume bullets EXACTLY as CLI generates them
+            try:
+                from .analysis.resume_generator import _generate_project_items
+
+                bullets = _generate_project_items(project) 
+                for idx, bullet in enumerate(bullets):
+                    if not bullet or not bullet.strip():
+                        continue
+
+                    conn.execute(
+                        """
+                        INSERT INTO resume_items (analysis_id, project_id, project_name, resume_text, bullet_order)
+                        VALUES (?, ?, ?, ?, ?)
+                        """,
+                        (analysis_id, project_id, project.get("project_name", "Project"), bullet.strip(), idx),
+                    )
+
+            except Exception:
+                pass
+
             languages = project.get("languages") or {}
             for language, file_count in languages.items():
                 conn.execute(
@@ -577,20 +655,46 @@ def record_analysis(
 
             # Generate portfolio item and store skills_exercised
             try:
-                from .analysis.portfolio_item_generator import \
-                    generate_portfolio_item
-
+                from .analysis.portfolio_item_generator import generate_portfolio_item
                 portfolio_item = generate_portfolio_item(project)
-                skills_exercised = portfolio_item.get("skills_exercised", [])
+                skills_exercised = portfolio_item.get("skills_exercised", []) or []
 
+                # Store skills 
                 for skill in skills_exercised:
                     conn.execute(
                         """
-                        INSERT INTO project_skills (project_id, skill)
+                        INSERT OR IGNORE INTO project_skills (project_id, skill)
                         VALUES (?, ?)
                         """,
                         (project_id, skill),
                     )
+
+                # Store portfolio item
+                stats = portfolio_item.get("project_statistics") or {}
+                conn.execute(
+                    """
+                    INSERT INTO portfolio_items (
+                        project_id,
+                        project_name,
+                        text_summary,
+                        tech_stack,
+                        skills_exercised,
+                        quality_score,
+                        sophistication_level,
+                        project_statistics
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        project_id,
+                        project.get("project_name"),
+                        portfolio_item.get("text_summary"),
+                        _serialize_array(portfolio_item.get("tech_stack")),
+                        _serialize_array(portfolio_item.get("skills_exercised")),
+                        stats.get("quality_score"),
+                        stats.get("sophistication_level"),
+                        json.dumps(stats),
+                    ),
+                )
             except Exception:
                 # If portfolio item generation fails, continue without storing skills
                 # This ensures analysis can still be stored even if skills generation fails
@@ -885,45 +989,94 @@ def delete_analyses_by_zip_file(zip_file: str, username: Optional[str] = None) -
         logging.error(f"Error deleting analyses for {zip_file}: {e}")
         raise
 
-
-def store_resume_item(project_name: str, resume_text: str) -> None:
-    if not project_name or not resume_text:
-        raise ValueError("project_name and resume_text are required")
+def store_resume_item(
+    analysis_id: int,
+    project_id: int,
+    project_name: str,
+    resume_text: str,
+    bullet_order: int = 0,
+) -> None:
+    if not resume_text or not resume_text.strip():
+        raise ValueError("resume_text is required")
 
     with get_connection() as conn:
         conn.execute(
             """
-            INSERT INTO resume_items (project_name, resume_text)
-            VALUES (?, ?)
+            INSERT INTO resume_items (analysis_id, project_id, project_name, resume_text, bullet_order)
+            VALUES (?, ?, ?, ?, ?)
             """,
-            (project_name, resume_text),
+            (analysis_id, project_id, project_name, resume_text.strip(), bullet_order),
         )
         conn.commit()
 
-
-def get_all_resume_items() -> List[sqlite3.Row]:
+def get_all_resume_items(username: Optional[str] = None) -> List[sqlite3.Row]:
+    """
+    If username is provided, scope results to that user's analyses.
+    """
     with get_connection() as conn:
+        if username:
+            return conn.execute(
+                """
+                SELECT
+                    ri.id, ri.analysis_id, ri.project_id, ri.project_name, ri.resume_text, ri.bullet_order, ri.created_at
+                FROM resume_items ri
+                JOIN analyses a ON a.id = ri.analysis_id
+                WHERE a.username = ?
+                ORDER BY ri.created_at DESC
+                """,
+                (username,),
+            ).fetchall()
+
         return conn.execute(
             """
-            SELECT id, project_name, resume_text, created_at
+            SELECT id, analysis_id, project_id, project_name, resume_text, bullet_order, created_at
             FROM resume_items
             ORDER BY created_at DESC
             """
         ).fetchall()
 
 
-def get_resume_items_for_project(project_name: str) -> List[sqlite3.Row]:
+def get_resume_items_for_project_id(project_id: int) -> List[sqlite3.Row]:
     with get_connection() as conn:
         return conn.execute(
             """
-            SELECT id, project_name, resume_text, created_at
+            SELECT id, analysis_id, project_id, project_name, resume_text, bullet_order, created_at
             FROM resume_items
-            WHERE project_name = ?
-            ORDER BY created_at DESC
+            WHERE project_id = ?
+            ORDER BY bullet_order ASC, id ASC
             """,
-            (project_name,),
+            (project_id,),
         ).fetchall()
 
+def get_resume_items_for_analysis(analysis_id: int) -> List[sqlite3.Row]:
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT id, analysis_id, project_id, project_name, resume_text, bullet_order, created_at
+            FROM resume_items
+            WHERE analysis_id = ?
+            ORDER BY project_id ASC, bullet_order ASC, id ASC
+            """,
+            (analysis_id,),
+        ).fetchall()
+    
+def get_portfolio_item_for_project(project_id: int) -> Optional[dict]:
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                id, project_id, project_name, text_summary, tech_stack,
+                skills_exercised, quality_score, sophistication_level,
+                project_statistics, created_at
+            FROM portfolio_items
+            WHERE project_id = ?
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (project_id,),
+        ).fetchone()
+
+        return dict(row) if row else None
 
 def delete_resume_item(item_id: int) -> None:
     with get_connection() as conn:

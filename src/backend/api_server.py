@@ -14,10 +14,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
-from backend.analysis_database import (delete_analysis,
-                                       get_all_analyses_for_user,
-                                       get_analysis_by_uuid,
-                                       get_projects_for_user)
+from backend.analysis_database import (
+    delete_analysis,
+    get_all_analyses_for_user,
+    get_analysis_by_uuid,
+    get_projects_for_user,
+    get_resume_items_for_project_id,
+    get_portfolio_item_for_project,
+)
 from backend.analysis_database import init_db as init_analysis_db
 from backend.analysis_database import record_analysis
 from backend.database import authenticate_user, check_user_consent, create_user
@@ -520,6 +524,49 @@ async def list_projects(username: str = Depends(verify_token)) -> List[Dict[str,
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve projects: {str(e)}",
+        )
+
+@app.get("/api/projects/{project_id}/resume-items")
+async def get_project_resume_items(
+    project_id: int,
+    username: str = Depends(verify_token),
+) -> List[Dict[str, Any]]:
+    try:
+        # verify project belongs to this user (prevents data leakage)
+        user_projects = get_projects_for_user(username)
+        if not any(p["id"] == project_id for p in user_projects):
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        rows = get_resume_items_for_project_id(project_id)
+        return [dict(r) for r in rows]
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve resume items: {str(e)}",
+        )
+
+
+@app.get("/api/projects/{project_id}/portfolio")
+async def get_project_portfolio(
+    project_id: int,
+    username: str = Depends(verify_token),
+) -> Dict[str, Any]:
+    try:
+        user_projects = get_projects_for_user(username)
+        if not any(p["id"] == project_id for p in user_projects):
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        item = get_portfolio_item_for_project(project_id)
+        return item or {}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve portfolio item: {str(e)}",
         )
 
 
