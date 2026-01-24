@@ -350,6 +350,9 @@ def init_db() -> None:
         if "target_user_last_commit" not in existing_columns:
             conn.execute("ALTER TABLE projects ADD COLUMN target_user_last_commit TEXT")
 
+        if "thumbnail_image_path" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN thumbnail_image_path TEXT")
+
         # Ensure activity breakdown table exists in migrations as well
         cursor.execute(
             """
@@ -1034,7 +1037,7 @@ def delete_analysis(uuid_str: str, username: str = None) -> bool:
         if username:
             cursor = conn.execute(
                 """
-                DELETE FROM analyses 
+                DELETE FROM analyses
                 WHERE analysis_uuid = ? AND username = ?
                 """,
                 (uuid_str, username),
@@ -1042,10 +1045,79 @@ def delete_analysis(uuid_str: str, username: str = None) -> bool:
         else:
             cursor = conn.execute(
                 """
-                DELETE FROM analyses 
+                DELETE FROM analyses
                 WHERE analysis_uuid = ?
                 """,
                 (uuid_str,),
             )
         conn.commit()
         return cursor.rowcount > 0
+
+
+def update_project_thumbnail(project_id: int, thumbnail_path: Optional[str]) -> bool:
+    """Update the thumbnail image path for a project.
+
+    Args:
+        project_id: The project's database ID
+        thumbnail_path: Path to the thumbnail image file, or None to remove
+
+    Returns:
+        True if update was successful, False otherwise
+    """
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE projects
+            SET thumbnail_image_path = ?
+            WHERE id = ?
+            """,
+            (thumbnail_path, project_id),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+def get_project_by_path_and_portfolio(portfolio_uuid: str, project_path: str, username: str) -> Optional[sqlite3.Row]:
+    """Get a project by its path within a specific portfolio.
+
+    Args:
+        portfolio_uuid: UUID of the portfolio
+        project_path: Path of the project within the portfolio
+        username: Username to verify access
+
+    Returns:
+        Project row if found, None otherwise
+    """
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT p.*
+            FROM projects p
+            JOIN analyses a ON a.id = p.analysis_id
+            WHERE a.analysis_uuid = ?
+            AND p.project_path = ?
+            AND a.username = ?
+            """,
+            (portfolio_uuid, project_path, username),
+        ).fetchone()
+
+
+def get_project_thumbnail(project_id: int) -> Optional[str]:
+    """Get the thumbnail path for a project.
+
+    Args:
+        project_id: The project's database ID
+
+    Returns:
+        Thumbnail path if set, None otherwise
+    """
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT thumbnail_image_path
+            FROM projects
+            WHERE id = ?
+            """,
+            (project_id,),
+        ).fetchone()
+        return row["thumbnail_image_path"] if row else None
