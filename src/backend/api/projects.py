@@ -1,4 +1,5 @@
 """Project-related API endpoints."""
+
 import os
 import uuid
 from pathlib import Path
@@ -27,6 +28,7 @@ MAX_THUMBNAIL_SIZE_MB = 5
 
 class ProjectDetail(BaseModel):
     """Detailed project information."""
+
     name: str
     path: str
     metadata: Dict[str, Any]
@@ -35,6 +37,7 @@ class ProjectDetail(BaseModel):
 
 class ThumbnailUploadResponse(BaseModel):
     """Response after uploading a thumbnail."""
+
     message: str
     thumbnail_url: str
     project_id: str
@@ -42,6 +45,7 @@ class ThumbnailUploadResponse(BaseModel):
 
 class SkillInfo(BaseModel):
     """Aggregated skill information."""
+
     skill: str
     count: int
     projects: List[str]
@@ -93,7 +97,9 @@ async def get_project_detail(project_id: str, username: str = Depends(verify_tok
         )
 
     # Get thumbnail if available
-    project_db_row = get_project_by_path_and_portfolio(portfolio_uuid, project_path, username)
+    project_db_row = get_project_by_path_and_portfolio(
+        portfolio_uuid, project_path, username
+    )
     thumbnail_url = None
     if project_db_row and project_db_row["thumbnail_image_path"]:
         thumbnail_url = f"/api/projects/{project_id}/thumbnail"
@@ -154,7 +160,9 @@ async def get_aggregated_skills(username: str = Depends(verify_token)):
 @router.post("/projects/{project_id}/thumbnail", response_model=ThumbnailUploadResponse)
 async def upload_project_thumbnail(
     project_id: str,
-    file: UploadFile = File(..., description="Thumbnail image file (JPG, PNG, GIF, WebP)"),
+    file: UploadFile = File(
+        ..., description="Thumbnail image file (JPG, PNG, GIF, WebP)"
+    ),
     username: str = Depends(verify_token),
 ):
     """Upload a thumbnail image for a specific project.
@@ -171,7 +179,9 @@ async def upload_project_thumbnail(
     portfolio_uuid, project_path = project_id.split(":", 1)
 
     # Verify project exists and user has access
-    project_db_row = get_project_by_path_and_portfolio(portfolio_uuid, project_path, username)
+    project_db_row = get_project_by_path_and_portfolio(
+        portfolio_uuid, project_path, username
+    )
     if not project_db_row:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -254,7 +264,9 @@ async def get_project_thumbnail(project_id: str, username: str = Depends(verify_
     portfolio_uuid, project_path = project_id.split(":", 1)
 
     # Verify project exists and user has access
-    project_db_row = get_project_by_path_and_portfolio(portfolio_uuid, project_path, username)
+    project_db_row = get_project_by_path_and_portfolio(
+        portfolio_uuid, project_path, username
+    )
     if not project_db_row:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -293,7 +305,9 @@ async def get_project_thumbnail(project_id: str, username: str = Depends(verify_
 
 
 @router.delete("/projects/{project_id}/thumbnail")
-async def delete_project_thumbnail(project_id: str, username: str = Depends(verify_token)):
+async def delete_project_thumbnail(
+    project_id: str, username: str = Depends(verify_token)
+):
     """Delete the thumbnail image for a specific project."""
     # Parse project_id
     if ":" not in project_id:
@@ -305,7 +319,9 @@ async def delete_project_thumbnail(project_id: str, username: str = Depends(veri
     portfolio_uuid, project_path = project_id.split(":", 1)
 
     # Verify project exists and user has access
-    project_db_row = get_project_by_path_and_portfolio(portfolio_uuid, project_path, username)
+    project_db_row = get_project_by_path_and_portfolio(
+        portfolio_uuid, project_path, username
+    )
     if not project_db_row:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

@@ -9,9 +9,11 @@ SRC = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(SRC))
 
 from backend import analysis_database as db
-from backend.analysis.chronology import (get_all_skills_chronological,
-                                         get_projects_timeline,
-                                         get_skills_timeline)
+from backend.analysis.chronology import (
+    get_all_skills_chronological,
+    get_projects_timeline,
+    get_skills_timeline,
+)
 
 
 def iso(ts: datetime) -> str:
@@ -43,7 +45,13 @@ def make_payload(ts: str, projects):
             "total_files": sum(p.get("total_files", 0) for p in projects),
             "total_size_bytes": 0,
             "total_size_mb": 0,
-            "languages_used": list({p.get("primary_language") for p in projects if p.get("primary_language")}),
+            "languages_used": list(
+                {
+                    p.get("primary_language")
+                    for p in projects
+                    if p.get("primary_language")
+                }
+            ),
             "frameworks_used": [],
         },
         "projects": projects,
@@ -180,7 +188,9 @@ def test_projects_timeline_mixed_commit_dates():
     ts1 = iso(datetime(2024, 5, 1, 10, 0, 0))
     ts2 = iso(datetime(2024, 5, 15, 14, 0, 0))
 
-    commit1 = iso(datetime(2024, 4, 10, 12, 0, 0))  # Earlier than both analysis timestamps
+    commit1 = iso(
+        datetime(2024, 4, 10, 12, 0, 0)
+    )  # Earlier than both analysis timestamps
     modified2 = iso(datetime(2024, 4, 20, 15, 0, 0))  # Between commit1 and ts1
 
     p1 = {
@@ -319,7 +329,10 @@ def test_skills_timeline_includes_detailed_skills():
     assert any("Git" in skill for skill in detailed_skills)
 
     # Should include Python-specific skills (properties, operator overloading, or abstract classes)
-    assert any("Python" in skill or "Abstract" in skill or "Operator" in skill for skill in detailed_skills)
+    assert any(
+        "Python" in skill or "Abstract" in skill or "Operator" in skill
+        for skill in detailed_skills
+    )
 
 
 def test_get_all_skills_chronological():
@@ -420,10 +433,16 @@ def test_get_all_skills_chronological():
 
     with db.get_connection() as conn:
         # Get project IDs
-        p1_id = conn.execute("SELECT id FROM projects WHERE project_name = ?", ("PythonWebApp",)).fetchone()
-        p2_id = conn.execute("SELECT id FROM projects WHERE project_name = ?", ("ReactFrontend",)).fetchone()
+        p1_id = conn.execute(
+            "SELECT id FROM projects WHERE project_name = ?", ("PythonWebApp",)
+        ).fetchone()
+        p2_id = conn.execute(
+            "SELECT id FROM projects WHERE project_name = ?", ("ReactFrontend",)
+        ).fetchone()
 
         if p1_id:
-            stored_skills = conn.execute("SELECT skill FROM project_skills WHERE project_id = ?", (p1_id["id"],)).fetchall()
+            stored_skills = conn.execute(
+                "SELECT skill FROM project_skills WHERE project_id = ?", (p1_id["id"],)
+            ).fetchall()
             # Should have stored some skills for the Python project
             assert len(stored_skills) > 0

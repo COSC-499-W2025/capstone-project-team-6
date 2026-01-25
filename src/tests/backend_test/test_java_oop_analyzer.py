@@ -16,11 +16,14 @@ sys.path.insert(0, str(src_dir))
 sys.path.insert(0, str(backend_dir))
 
 try:
-    from analysis.java_oop_analyzer import (JavaOOPAnalysis, JavaOOPAnalyzer,
-                                            analyze_java_file,
-                                            calculate_oop_score,
-                                            calculate_solid_score,
-                                            get_coding_style)
+    from analysis.java_oop_analyzer import (
+        JavaOOPAnalysis,
+        JavaOOPAnalyzer,
+        analyze_java_file,
+        calculate_oop_score,
+        calculate_solid_score,
+        get_coding_style,
+    )
 
     JAVALANG_AVAILABLE = True
 except ImportError:
@@ -46,7 +49,9 @@ class TestJavaOOPAnalysis:
 
     def test_oop_analysis_to_dict(self):
         """Test converting JavaOOPAnalysis to dictionary."""
-        analysis = JavaOOPAnalysis(total_classes=5, interface_count=2, private_methods=10)
+        analysis = JavaOOPAnalysis(
+            total_classes=5, interface_count=2, private_methods=10
+        )
         result = analysis.to_dict()
         assert isinstance(result, dict)
         assert result["total_classes"] == 5
@@ -223,7 +228,10 @@ class TestScoringFunctions:
             private_fields=30,  # Add fields for better encapsulation score
             override_count=5,
             generic_classes=3,
-            annotations={"Override": 5, "Autowired": 3},  # Add annotations for advanced features
+            annotations={
+                "Override": 5,
+                "Autowired": 3,
+            },  # Add annotations for advanced features
             lambda_count=2,  # Add lambdas for advanced features
         )
         score = calculate_oop_score(analysis)

@@ -93,9 +93,13 @@ def init_db() -> None:
         )
 
         # Ensure the username column exists for installations created before this field was added.
-        existing_columns = {row["name"] for row in conn.execute("PRAGMA table_info(analyses)")}
+        existing_columns = {
+            row["name"] for row in conn.execute("PRAGMA table_info(analyses)")
+        }
         if "username" not in existing_columns:
-            conn.execute("ALTER TABLE analyses ADD COLUMN username TEXT REFERENCES users(username);")
+            conn.execute(
+                "ALTER TABLE analyses ADD COLUMN username TEXT REFERENCES users(username);"
+            )
             conn.commit()
 
         conn.execute(
@@ -318,7 +322,9 @@ def init_db() -> None:
             conn.execute("ALTER TABLE projects ADD COLUMN total_branches INTEGER")
 
         if "has_remote" not in existing_columns:
-            conn.execute("ALTER TABLE projects ADD COLUMN has_remote INTEGER CHECK(has_remote IN (0, 1))")
+            conn.execute(
+                "ALTER TABLE projects ADD COLUMN has_remote INTEGER CHECK(has_remote IN (0, 1))"
+            )
 
         if "project_start_date" not in existing_columns:
             conn.execute("ALTER TABLE projects ADD COLUMN project_start_date TEXT")
@@ -342,10 +348,14 @@ def init_db() -> None:
             conn.execute("ALTER TABLE projects ADD COLUMN target_user_commit_pct REAL")
 
         if "target_user_lines_changed" not in existing_columns:
-            conn.execute("ALTER TABLE projects ADD COLUMN target_user_lines_changed INTEGER")
+            conn.execute(
+                "ALTER TABLE projects ADD COLUMN target_user_lines_changed INTEGER"
+            )
 
         if "target_user_surviving_lines" not in existing_columns:
-            conn.execute("ALTER TABLE projects ADD COLUMN target_user_surviving_lines INTEGER")
+            conn.execute(
+                "ALTER TABLE projects ADD COLUMN target_user_surviving_lines INTEGER"
+            )
 
         if "target_user_last_commit" not in existing_columns:
             conn.execute("ALTER TABLE projects ADD COLUMN target_user_last_commit TEXT")
@@ -470,15 +480,27 @@ def record_analysis(
 
         for project in projects:
             target_user_stats = project.get("target_user_stats") or {}
-            target_user_email = project.get("target_user_email") or target_user_stats.get("email")
+            target_user_email = project.get(
+                "target_user_email"
+            ) or target_user_stats.get("email")
             target_user_name = target_user_stats.get("name")
-            target_user_commits = target_user_stats.get("commit_count") or target_user_stats.get("commits")
+            target_user_commits = target_user_stats.get(
+                "commit_count"
+            ) or target_user_stats.get("commits")
             target_user_commit_pct = target_user_stats.get("percentage")
             contribution_volume = project.get("contribution_volume") or {}
             blame_summary = project.get("blame_summary") or {}
-            target_user_lines_changed = contribution_volume.get(target_user_email) if target_user_email else None
-            target_user_surviving_lines = blame_summary.get(target_user_email) if target_user_email else None
-            target_user_last_commit = target_user_stats.get("last_commit_date") or project.get("last_commit_date")
+            target_user_lines_changed = (
+                contribution_volume.get(target_user_email)
+                if target_user_email
+                else None
+            )
+            target_user_surviving_lines = (
+                blame_summary.get(target_user_email) if target_user_email else None
+            )
+            target_user_last_commit = target_user_stats.get(
+                "last_commit_date"
+            ) or project.get("last_commit_date")
 
             project_cursor = conn.execute(
                 """
@@ -580,8 +602,7 @@ def record_analysis(
 
             # Generate portfolio item and store skills_exercised
             try:
-                from .analysis.portfolio_item_generator import \
-                    generate_portfolio_item
+                from .analysis.portfolio_item_generator import generate_portfolio_item
 
                 portfolio_item = generate_portfolio_item(project)
                 skills_exercised = portfolio_item.get("skills_exercised", [])
@@ -796,7 +817,9 @@ def get_projects_for_user(username: str) -> list[dict]:
         return [dict(r) for r in rows]
 
 
-def get_analysis_by_zip_file(zip_file: str, username: Optional[str] = None) -> Optional[sqlite3.Row]:
+def get_analysis_by_zip_file(
+    zip_file: str, username: Optional[str] = None
+) -> Optional[sqlite3.Row]:
     """Get the most recent analysis for a given zip file path scoped to a user."""
     if not username:
         raise ValueError("username is required for get_analysis_by_zip_file")
@@ -813,7 +836,9 @@ def get_analysis_by_zip_file(zip_file: str, username: Optional[str] = None) -> O
         ).fetchone()
 
 
-def get_all_analyses_by_zip_file(zip_file: str, username: Optional[str] = None) -> List[sqlite3.Row]:
+def get_all_analyses_by_zip_file(
+    zip_file: str, username: Optional[str] = None
+) -> List[sqlite3.Row]:
     """Get all analyses (not just the most recent) for a given zip file path scoped to a user."""
     if not username:
         raise ValueError("username is required for get_all_analyses_by_zip_file")
@@ -829,7 +854,9 @@ def get_all_analyses_by_zip_file(zip_file: str, username: Optional[str] = None) 
         ).fetchall()
 
 
-def get_analysis_report(zip_file: str, username: Optional[str] = None) -> Optional[Dict[str, Any]]:
+def get_analysis_report(
+    zip_file: str, username: Optional[str] = None
+) -> Optional[Dict[str, Any]]:
     """Retrieve the full analysis report (JSON) for a given zip file path scoped to a user."""
     analysis = get_analysis_by_zip_file(zip_file, username=username)
     if not analysis:
@@ -877,7 +904,9 @@ def delete_analyses_by_zip_file(zip_file: str, username: Optional[str] = None) -
                 if deleted_rows != count:
                     import logging
 
-                    logging.warning(f"Expected to delete {count} analyses, but only deleted {deleted_rows}")
+                    logging.warning(
+                        f"Expected to delete {count} analyses, but only deleted {deleted_rows}"
+                    )
 
                 return deleted_rows
 
@@ -989,7 +1018,9 @@ def get_all_analyses_for_user(username: str) -> List[Dict[str, Any]]:
         ]
 
 
-def get_analysis_by_uuid(uuid_str: str, username: str = None) -> Optional[Dict[str, Any]]:
+def get_analysis_by_uuid(
+    uuid_str: str, username: str = None
+) -> Optional[Dict[str, Any]]:
     """Get analysis details by UUID for a specific user."""
     with get_connection() as conn:
         if username:
@@ -1077,7 +1108,9 @@ def update_project_thumbnail(project_id: int, thumbnail_path: Optional[str]) -> 
         return cursor.rowcount > 0
 
 
-def get_project_by_path_and_portfolio(portfolio_uuid: str, project_path: str, username: str) -> Optional[sqlite3.Row]:
+def get_project_by_path_and_portfolio(
+    portfolio_uuid: str, project_path: str, username: str
+) -> Optional[sqlite3.Row]:
     """Get a project by its path within a specific portfolio.
 
     Args:

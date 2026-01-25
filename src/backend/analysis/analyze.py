@@ -28,18 +28,25 @@ sys.path.insert(0, str(src_dir))
 sys.path.insert(0, str(backend_dir))
 
 from analysis.deep_code_analyzer import generate_comprehensive_report
-from analysis.resume_generator import (generate_formatted_resume_entry,
-                                       print_resume_items)
+from analysis.resume_generator import (
+    generate_formatted_resume_entry,
+    print_resume_items,
+)
 
 from backend.analysis.portfolio_item_generator import generate_portfolio_item
-from backend.analysis_database import (count_analyses_by_zip_file,
-                                       delete_analyses_by_zip_file,
-                                       get_all_analyses,
-                                       get_all_analyses_by_zip_file,
-                                       get_analysis_by_zip_file,
-                                       get_analysis_report, get_connection,
-                                       get_resume_items_for_project, init_db,
-                                       record_analysis, store_resume_item)
+from backend.analysis_database import (
+    count_analyses_by_zip_file,
+    delete_analyses_by_zip_file,
+    get_all_analyses,
+    get_all_analyses_by_zip_file,
+    get_analysis_by_zip_file,
+    get_analysis_report,
+    get_connection,
+    get_resume_items_for_project,
+    init_db,
+    record_analysis,
+    store_resume_item,
+)
 
 
 def print_separator(title=""):
@@ -113,7 +120,9 @@ def categorize_score(score: float) -> str:
         return "Minor Contribution"
 
 
-def calculate_contribution_score(project: Dict[str, Any], user_email: Optional[str] = None) -> Dict[str, Any]:
+def calculate_contribution_score(
+    project: Dict[str, Any], user_email: Optional[str] = None
+) -> Dict[str, Any]:
     """
     Calculate individual contribution score (0-30 points).
 
@@ -137,7 +146,11 @@ def calculate_contribution_score(project: Dict[str, Any], user_email: Optional[s
 
     if not is_collaborative:
         # Solo project - full credit
-        return {"score": 30.0, "level": "Solo Project", "justification": "100% individual contribution"}
+        return {
+            "score": 30.0,
+            "level": "Solo Project",
+            "justification": "100% individual contribution",
+        }
 
     # Collaborative project
     user_percentage = 0
@@ -150,7 +163,9 @@ def calculate_contribution_score(project: Dict[str, Any], user_email: Optional[s
             user_percentage = user_stats.get("percentage", 0)
         # If not found, look in contributors list
         elif contributors:
-            user_contrib = next((c for c in contributors if c.get("email") == user_email), None)
+            user_contrib = next(
+                (c for c in contributors if c.get("email") == user_email), None
+            )
             if user_contrib:
                 user_percentage = user_contrib.get("percentage", 0)
     else:
@@ -182,7 +197,11 @@ def calculate_contribution_score(project: Dict[str, Any], user_email: Optional[s
     return {
         "score": score,
         "level": level,
-        "justification": f"{user_percentage:.1f}% of commits" if user_percentage > 0 else "Contribution percentage unknown",
+        "justification": (
+            f"{user_percentage:.1f}% of commits"
+            if user_percentage > 0
+            else "Contribution percentage unknown"
+        ),
     }
 
 
@@ -211,7 +230,11 @@ def calculate_recency_score(project: Dict[str, Any]) -> Dict[str, Any]:
         last_commit = project.get("last_modified_date")
 
     if not last_commit:
-        return {"score": 3.0, "period": "Unknown", "justification": "No date information available"}
+        return {
+            "score": 3.0,
+            "period": "Unknown",
+            "justification": "No date information available",
+        }
 
     days_ago = calculate_days_since(last_commit)
 
@@ -231,7 +254,11 @@ def calculate_recency_score(project: Dict[str, Any]) -> Dict[str, Any]:
         score = 3.0
         period = f"{days_ago // 365} year(s) ago"
 
-    return {"score": score, "period": period, "justification": f"Last activity: {period}"}
+    return {
+        "score": score,
+        "period": period,
+        "justification": f"Last activity: {period}",
+    }
 
 
 def calculate_scale_score(project: Dict[str, Any]) -> Dict[str, Any]:
@@ -317,7 +344,9 @@ def calculate_collaboration_score(project: Dict[str, Any]) -> Dict[str, Any]:
     return {"score": score, "level": level, "justification": justification}
 
 
-def calculate_duration_score(project: Dict[str, Any], user_email: Optional[str] = None) -> Dict[str, Any]:
+def calculate_duration_score(
+    project: Dict[str, Any], user_email: Optional[str] = None
+) -> Dict[str, Any]:
     """
     Calculate activity duration score (0-10 points).
 
@@ -341,7 +370,9 @@ def calculate_duration_score(project: Dict[str, Any], user_email: Optional[str] 
     # Try to find user's specific duration
     duration_days = 0
     if user_email and contributors:
-        user_contrib = next((c for c in contributors if c.get("email") == user_email), None)
+        user_contrib = next(
+            (c for c in contributors if c.get("email") == user_email), None
+        )
         if user_contrib:
             first = user_contrib.get("first_commit_date")
             last = user_contrib.get("last_commit_date")
@@ -389,7 +420,9 @@ def calculate_duration_score(project: Dict[str, Any], user_email: Optional[str] 
 
 
 def calculate_composite_score(
-    project: Dict[str, Any], user_email: Optional[str] = None, use_enhanced_ranking: bool = True
+    project: Dict[str, Any],
+    user_email: Optional[str] = None,
+    use_enhanced_ranking: bool = True,
 ) -> Dict[str, Any]:
     """
     Calculate a comprehensive composite score for a project using a balanced multi-factor approach.
@@ -445,7 +478,9 @@ def calculate_composite_score(
             design_patterns = python_oop.get("design_patterns", [])
             if design_patterns:
                 design_patterns_count += len(design_patterns)
-                architecture_details.append(f"Python: {len(design_patterns)} design pattern(s)")
+                architecture_details.append(
+                    f"Python: {len(design_patterns)} design pattern(s)"
+                )
 
     # Java OOP & SOLID
     if "java_oop_analysis" in project:
@@ -453,8 +488,10 @@ def calculate_composite_score(
         if "error" not in java_oop:
             oop_score = java_oop.get("oop_score", 0)
             if oop_score == 0:
-                from analysis.java_oop_analyzer import (JavaOOPAnalysis,
-                                                        calculate_oop_score)
+                from analysis.java_oop_analyzer import (
+                    JavaOOPAnalysis,
+                    calculate_oop_score,
+                )
 
                 try:
                     analysis_obj = JavaOOPAnalysis(**java_oop)
@@ -481,15 +518,19 @@ def calculate_composite_score(
             design_patterns = java_oop.get("design_patterns", [])
             if design_patterns:
                 design_patterns_count += len(design_patterns)
-                architecture_details.append(f"Java: {len(design_patterns)} design pattern(s)")
+                architecture_details.append(
+                    f"Java: {len(design_patterns)} design pattern(s)"
+                )
 
     # C++ OOP & SOLID
     if "cpp_oop_analysis" in project:
         cpp_oop = project["cpp_oop_analysis"]
         if "error" not in cpp_oop:
-            from analysis.cpp_oop_analyzer import (CppOOPAnalysis,
-                                                   calculate_oop_score,
-                                                   calculate_solid_score)
+            from analysis.cpp_oop_analyzer import (
+                CppOOPAnalysis,
+                calculate_oop_score,
+                calculate_solid_score,
+            )
 
             try:
                 analysis_obj = CppOOPAnalysis(**cpp_oop)
@@ -504,7 +545,9 @@ def calculate_composite_score(
                 design_patterns = cpp_oop.get("design_patterns", [])
                 if design_patterns:
                     design_patterns_count += len(design_patterns)
-                    architecture_details.append(f"C++: {len(design_patterns)} design pattern(s)")
+                    architecture_details.append(
+                        f"C++: {len(design_patterns)} design pattern(s)"
+                    )
             except:
                 pass
 
@@ -720,19 +763,33 @@ def calculate_composite_score(
         blame_summary = project.get("blame_summary") or {}
 
         # Ownership / lines changed
-        total_lines_changed = sum(v for v in contribution_volume.values() if isinstance(v, (int, float)))
-        user_lines_changed = contribution_volume.get(target_user_email) if target_user_email else None
+        total_lines_changed = sum(
+            v for v in contribution_volume.values() if isinstance(v, (int, float))
+        )
+        user_lines_changed = (
+            contribution_volume.get(target_user_email) if target_user_email else None
+        )
         lines_component = 0.0
         if total_lines_changed and user_lines_changed is not None:
-            lines_component = max(0.0, min(1.0, user_lines_changed / total_lines_changed))
+            lines_component = max(
+                0.0, min(1.0, user_lines_changed / total_lines_changed)
+            )
             user_justification.append(f"{lines_component * 100:.1f}% of changed lines")
         else:
-            total_surviving = sum(v for v in blame_summary.values() if isinstance(v, (int, float)))
+            total_surviving = sum(
+                v for v in blame_summary.values() if isinstance(v, (int, float))
+            )
             if total_surviving and target_user_email in blame_summary:
-                lines_component = max(0.0, min(1.0, blame_summary[target_user_email] / total_surviving))
-                user_justification.append(f"{lines_component * 100:.1f}% of surviving lines")
+                lines_component = max(
+                    0.0, min(1.0, blame_summary[target_user_email] / total_surviving)
+                )
+                user_justification.append(
+                    f"{lines_component * 100:.1f}% of surviving lines"
+                )
             else:
-                user_justification.append("No matching contributions found for target user")
+                user_justification.append(
+                    "No matching contributions found for target user"
+                )
 
         # Commit share
         commit_percentage = target_user_stats.get("percentage")
@@ -743,7 +800,9 @@ def calculate_composite_score(
 
         # Recency (favor recent activity)
         recency_component = 0.0
-        last_commit_str = target_user_stats.get("last_commit_date") or project.get("last_commit_date")
+        last_commit_str = target_user_stats.get("last_commit_date") or project.get(
+            "last_commit_date"
+        )
         if last_commit_str:
             try:
                 last_commit_dt = datetime.fromisoformat(last_commit_str)
@@ -763,7 +822,11 @@ def calculate_composite_score(
         commits_weight = 0.3
         recency_weight = 0.2
         max_user_points = 20.0
-        blended = (lines_component * lines_weight) + (commit_component * commits_weight) + (recency_component * recency_weight)
+        blended = (
+            (lines_component * lines_weight)
+            + (commit_component * commits_weight)
+            + (recency_component * recency_weight)
+        )
         user_contribution_score = max_user_points * blended
     else:
         user_justification.append("No target user email provided")
@@ -773,7 +836,9 @@ def calculate_composite_score(
     if oop_scores:
         arch_justification.append(f"OOP: {sum(oop_scores)/len(oop_scores):.1f}/100")
     if solid_scores:
-        arch_justification.append(f"SOLID: {sum(solid_scores)/len(solid_scores):.1f}/100")
+        arch_justification.append(
+            f"SOLID: {sum(solid_scores)/len(solid_scores):.1f}/100"
+        )
     if design_patterns_count > 0:
         arch_justification.append(f"{design_patterns_count} design pattern(s)")
     if not arch_justification:
@@ -825,9 +890,19 @@ def calculate_composite_score(
         enhanced_justification = {
             "code_architecture": "; ".join(arch_justification)
             + (" | " + "; ".join(architecture_details) if architecture_details else ""),
-            "code_quality": "; ".join(quality_details) if quality_details else "No quality metrics",
-            "project_maturity": "; ".join(maturity_details) if maturity_details else "No maturity indicators",
-            "algorithmic_quality": "; ".join(algorithmic_details) if algorithmic_details else "No algorithmic analysis",
+            "code_quality": (
+                "; ".join(quality_details) if quality_details else "No quality metrics"
+            ),
+            "project_maturity": (
+                "; ".join(maturity_details)
+                if maturity_details
+                else "No maturity indicators"
+            ),
+            "algorithmic_quality": (
+                "; ".join(algorithmic_details)
+                if algorithmic_details
+                else "No algorithmic analysis"
+            ),
             "individual_contribution": f"{contribution_data['level']} - {contribution_data['justification']}",
             "recency": recency_data["justification"],
             "project_scale": f"{scale_data['scale']} - {scale_data['justification']}",
@@ -852,9 +927,19 @@ def calculate_composite_score(
         legacy_justification = {
             "code_architecture": "; ".join(arch_justification)
             + (" | " + "; ".join(architecture_details) if architecture_details else ""),
-            "code_quality": "; ".join(quality_details) if quality_details else "No quality metrics",
-            "project_maturity": "; ".join(maturity_details) if maturity_details else "No maturity indicators",
-            "algorithmic_quality": "; ".join(algorithmic_details) if algorithmic_details else "No algorithmic analysis",
+            "code_quality": (
+                "; ".join(quality_details) if quality_details else "No quality metrics"
+            ),
+            "project_maturity": (
+                "; ".join(maturity_details)
+                if maturity_details
+                else "No maturity indicators"
+            ),
+            "algorithmic_quality": (
+                "; ".join(algorithmic_details)
+                if algorithmic_details
+                else "No algorithmic analysis"
+            ),
         }
         if user_justification:
             legacy_justification["target_user"] = "; ".join(user_justification)
@@ -889,7 +974,11 @@ def summarize_top_ranked_projects(
 
     # Get analyses - filter by zip_file_path if provided (scoped by username)
     if zip_file_path:
-        all_analyses = get_all_analyses_by_zip_file(zip_file_path, username=username) if username else []
+        all_analyses = (
+            get_all_analyses_by_zip_file(zip_file_path, username=username)
+            if username
+            else []
+        )
     else:
         all_analyses = get_all_analyses(username) if username else []
 
@@ -952,8 +1041,12 @@ def summarize_top_ranked_projects(
             unique_projects[unique_key] = item
         else:
             existing = unique_projects[unique_key]
-            existing_score = existing["score_data"].get("adjusted_score", existing["score_data"]["composite_score"])
-            new_score = item["score_data"].get("adjusted_score", item["score_data"]["composite_score"])
+            existing_score = existing["score_data"].get(
+                "adjusted_score", existing["score_data"]["composite_score"]
+            )
+            new_score = item["score_data"].get(
+                "adjusted_score", item["score_data"]["composite_score"]
+            )
 
             if new_score > existing_score:
                 unique_projects[unique_key] = item
@@ -964,7 +1057,10 @@ def summarize_top_ranked_projects(
     # Convert back to list and sort by composite score (descending)
     projects_with_scores = list(unique_projects.values())
     projects_with_scores.sort(
-        key=lambda x: x["score_data"].get("adjusted_score", x["score_data"]["composite_score"]), reverse=True
+        key=lambda x: x["score_data"].get(
+            "adjusted_score", x["score_data"]["composite_score"]
+        ),
+        reverse=True,
     )
 
     # Display top projects
@@ -998,29 +1094,51 @@ def summarize_top_ranked_projects(
         if has_enhanced:
             # Enhanced ranking output
             print(f"\n📊 ENHANCED RANKING BREAKDOWN:")
-            print(f"\nBase Technical Score: {score_data.get('base_score', 0):.2f}/100.0 (Weight: 45%)")
-            print(f"  • Code Architecture:   {score_data['breakdown']['code_architecture']:.2f}/30.0")
-            print(f"  • Code Quality:        {score_data['breakdown']['code_quality']:.2f}/25.0")
-            print(f"  • Project Maturity:    {score_data['breakdown']['project_maturity']:.2f}/25.0")
-            print(f"  • Algorithmic Quality: {score_data['breakdown']['algorithmic_quality']:.2f}/20.0")
+            print(
+                f"\nBase Technical Score: {score_data.get('base_score', 0):.2f}/100.0 (Weight: 45%)"
+            )
+            print(
+                f"  • Code Architecture:   {score_data['breakdown']['code_architecture']:.2f}/30.0"
+            )
+            print(
+                f"  • Code Quality:        {score_data['breakdown']['code_quality']:.2f}/25.0"
+            )
+            print(
+                f"  • Project Maturity:    {score_data['breakdown']['project_maturity']:.2f}/25.0"
+            )
+            print(
+                f"  • Algorithmic Quality: {score_data['breakdown']['algorithmic_quality']:.2f}/20.0"
+            )
 
             print(f"\nContribution & Context Factors:")
-            print(f"  • Individual Contribution: {score_data['breakdown']['individual_contribution']:.2f}/30.0 (Weight: 25%)")
+            print(
+                f"  • Individual Contribution: {score_data['breakdown']['individual_contribution']:.2f}/30.0 (Weight: 25%)"
+            )
             print(f"    └─ {score_data['justification']['individual_contribution']}")
-            print(f"  • Recency:                 {score_data['breakdown']['recency']:.2f}/15.0 (Weight: 10%)")
+            print(
+                f"  • Recency:                 {score_data['breakdown']['recency']:.2f}/15.0 (Weight: 10%)"
+            )
             print(f"    └─ {score_data['justification']['recency']}")
-            print(f"  • Project Scale:           {score_data['breakdown']['project_scale']:.2f}/10.0 (Weight: 8%)")
+            print(
+                f"  • Project Scale:           {score_data['breakdown']['project_scale']:.2f}/10.0 (Weight: 8%)"
+            )
             print(f"    └─ {score_data['justification']['project_scale']}")
-            print(f"  • Collaboration:           {score_data['breakdown']['collaboration_diversity']:.2f}/10.0 (Weight: 7%)")
+            print(
+                f"  • Collaboration:           {score_data['breakdown']['collaboration_diversity']:.2f}/10.0 (Weight: 7%)"
+            )
             print(f"    └─ {score_data['justification']['collaboration_diversity']}")
-            print(f"  • Activity Duration:       {score_data['breakdown']['activity_duration']:.2f}/10.0 (Weight: 5%)")
+            print(
+                f"  • Activity Duration:       {score_data['breakdown']['activity_duration']:.2f}/10.0 (Weight: 5%)"
+            )
             print(f"    └─ {score_data['justification']['activity_duration']}")
 
             print(f"\nDetailed Justifications:")
             print(f"  Architecture: {score_data['justification']['code_architecture']}")
             print(f"  Quality:      {score_data['justification']['code_quality']}")
             print(f"  Maturity:     {score_data['justification']['project_maturity']}")
-            print(f"  Algorithms:   {score_data['justification']['algorithmic_quality']}")
+            print(
+                f"  Algorithms:   {score_data['justification']['algorithmic_quality']}"
+            )
         else:
             # Legacy output (base score only)
             print(f"\nScore Breakdown:")
@@ -1060,7 +1178,9 @@ def summarize_top_ranked_projects(
 
         languages = project.get("languages", {})
         if languages:
-            lang_str = ", ".join([f"{lang} ({count})" for lang, count in list(languages.items())[:5]])
+            lang_str = ", ".join(
+                [f"{lang} ({count})" for lang, count in list(languages.items())[:5]]
+            )
             if len(languages) > 5:
                 lang_str += f" ... and {len(languages) - 5} more"
             print(f"  • Languages: {lang_str}")
@@ -1082,7 +1202,10 @@ def summarize_top_ranked_projects(
                 f"encapsulation: {python_oop.get('private_methods', 0) + python_oop.get('protected_methods', 0)} private/protected methods"
             )
 
-        if "java_oop_analysis" in project and "error" not in project["java_oop_analysis"]:
+        if (
+            "java_oop_analysis" in project
+            and "error" not in project["java_oop_analysis"]
+        ):
             java_oop = project["java_oop_analysis"]
             print(
                 f"  Java: {java_oop.get('total_classes', 0)} classes, "
@@ -1106,7 +1229,10 @@ def summarize_top_ranked_projects(
                 f"{c_oop.get('vtable_structs', 0)} vtable structs"
             )
 
-        if "complexity_analysis" in project and "error" not in project["complexity_analysis"]:
+        if (
+            "complexity_analysis" in project
+            and "error" not in project["complexity_analysis"]
+        ):
             complexity = project["complexity_analysis"]
             opt_score = complexity.get("optimization_score", 0.0)
             print(f"\n⚡ Complexity/Optimization Score: {opt_score:.1f}/100")
@@ -1161,7 +1287,9 @@ def summarize_top_ranked_projects(
                         issues_found.append(f"{label}: {summary[key]}")
 
                 if issues_found:
-                    print(f"     [!] Optimization opportunities: {', '.join(issues_found)}")
+                    print(
+                        f"     [!] Optimization opportunities: {', '.join(issues_found)}"
+                    )
 
                 if not good_found and not issues_found:
                     print(f"     No significant patterns detected")
@@ -1194,7 +1322,12 @@ def summarize_top_ranked_projects(
         blame_summary = project.get("blame_summary", {})
         target_user_email = project.get("target_user_email")
 
-        if semantic_summary or activity_breakdown or contribution_volume or blame_summary:
+        if (
+            semantic_summary
+            or activity_breakdown
+            or contribution_volume
+            or blame_summary
+        ):
             print(f"\nGit Contribution Details:")
 
             # Target user contribution details
@@ -1204,15 +1337,24 @@ def summarize_top_ranked_projects(
                 user_lines_changed = contribution_volume.get(target_user_email)
                 user_surviving_lines = blame_summary.get(target_user_email)
 
-                if user_semantic or user_activity or user_lines_changed is not None or user_surviving_lines is not None:
+                if (
+                    user_semantic
+                    or user_activity
+                    or user_lines_changed is not None
+                    or user_surviving_lines is not None
+                ):
                     print(f"   Target User ({target_user_email}):")
 
                     if user_semantic:
                         trivial = user_semantic.get("trivial_commits", 0)
                         substantial = user_semantic.get("substantial_commits", 0)
-                        total_lines_semantic = user_semantic.get("total_lines_changed", 0)
+                        total_lines_semantic = user_semantic.get(
+                            "total_lines_changed", 0
+                        )
                         if trivial > 0 or substantial > 0:
-                            print(f"      Commits: {substantial} substantial, {trivial} trivial")
+                            print(
+                                f"      Commits: {substantial} substantial, {trivial} trivial"
+                            )
                         if total_lines_semantic > 0:
                             print(f"      Total lines changed: {total_lines_semantic}")
 
@@ -1233,34 +1375,66 @@ def summarize_top_ranked_projects(
                         print(f"      Lines changed: {user_lines_changed}")
 
                     if user_surviving_lines is not None:
-                        total_surviving = sum(v for v in blame_summary.values() if isinstance(v, (int, float)))
+                        total_surviving = sum(
+                            v
+                            for v in blame_summary.values()
+                            if isinstance(v, (int, float))
+                        )
                         if total_surviving > 0:
                             percentage = (user_surviving_lines / total_surviving) * 100
-                            print(f"      Surviving lines: {user_surviving_lines} ({percentage:.1f}% of codebase)")
+                            print(
+                                f"      Surviving lines: {user_surviving_lines} ({percentage:.1f}% of codebase)"
+                            )
                         else:
                             print(f"      Surviving lines: {user_surviving_lines}")
 
             # Overall project contribution statistics
             if contribution_volume:
-                total_lines = sum(v for v in contribution_volume.values() if isinstance(v, (int, float)))
+                total_lines = sum(
+                    v
+                    for v in contribution_volume.values()
+                    if isinstance(v, (int, float))
+                )
                 if total_lines > 0:
                     print(f"   Total project lines changed: {total_lines}")
 
             if semantic_summary:
                 total_substantial = sum(
-                    stats.get("substantial_commits", 0) for stats in semantic_summary.values() if isinstance(stats, dict)
+                    stats.get("substantial_commits", 0)
+                    for stats in semantic_summary.values()
+                    if isinstance(stats, dict)
                 )
                 total_trivial = sum(
-                    stats.get("trivial_commits", 0) for stats in semantic_summary.values() if isinstance(stats, dict)
+                    stats.get("trivial_commits", 0)
+                    for stats in semantic_summary.values()
+                    if isinstance(stats, dict)
                 )
                 if total_substantial > 0 or total_trivial > 0:
-                    print(f"   Project commit quality: {total_substantial} substantial, {total_trivial} trivial")
+                    print(
+                        f"   Project commit quality: {total_substantial} substantial, {total_trivial} trivial"
+                    )
 
             if activity_breakdown:
-                total_code = sum(act.get("code", 0) for act in activity_breakdown.values() if isinstance(act, dict))
-                total_test = sum(act.get("test", 0) for act in activity_breakdown.values() if isinstance(act, dict))
-                total_docs = sum(act.get("docs", 0) for act in activity_breakdown.values() if isinstance(act, dict))
-                total_design = sum(act.get("design", 0) for act in activity_breakdown.values() if isinstance(act, dict))
+                total_code = sum(
+                    act.get("code", 0)
+                    for act in activity_breakdown.values()
+                    if isinstance(act, dict)
+                )
+                total_test = sum(
+                    act.get("test", 0)
+                    for act in activity_breakdown.values()
+                    if isinstance(act, dict)
+                )
+                total_docs = sum(
+                    act.get("docs", 0)
+                    for act in activity_breakdown.values()
+                    if isinstance(act, dict)
+                )
+                total_design = sum(
+                    act.get("design", 0)
+                    for act in activity_breakdown.values()
+                    if isinstance(act, dict)
+                )
 
                 activity_parts = []
                 if total_code > 0:
@@ -1273,10 +1447,14 @@ def summarize_top_ranked_projects(
                     activity_parts.append(f"design: {total_design}")
 
                 if activity_parts:
-                    print(f"   Project activity breakdown: {', '.join(activity_parts)} lines")
+                    print(
+                        f"   Project activity breakdown: {', '.join(activity_parts)} lines"
+                    )
 
             if blame_summary:
-                total_surviving = sum(v for v in blame_summary.values() if isinstance(v, (int, float)))
+                total_surviving = sum(
+                    v for v in blame_summary.values() if isinstance(v, (int, float))
+                )
                 if total_surviving > 0:
                     print(f"   Total surviving lines in codebase: {total_surviving}")
 
@@ -1333,28 +1511,45 @@ def main():
             current_analysis = get_analysis_by_zip_file(zip_file_path)
             if current_analysis:
                 try:
-                    timestamp = current_analysis["analysis_timestamp"] or current_analysis["created_at"]
+                    timestamp = (
+                        current_analysis["analysis_timestamp"]
+                        or current_analysis["created_at"]
+                    )
                 except KeyError:
                     try:
                         timestamp = current_analysis["created_at"]
                     except KeyError:
-                        timestamp = existing_report.get("analysis_metadata", {}).get("analysis_timestamp", "unknown time")
+                        timestamp = existing_report.get("analysis_metadata", {}).get(
+                            "analysis_timestamp", "unknown time"
+                        )
             else:
-                timestamp = existing_report.get("analysis_metadata", {}).get("analysis_timestamp", "unknown time")
+                timestamp = existing_report.get("analysis_metadata", {}).get(
+                    "analysis_timestamp", "unknown time"
+                )
             print(f"\nFound existing analysis in database (from {timestamp})")
             # Check if there are analyses and ask if user wants to delete them
             total_analyses_count = count_analyses_by_zip_file(zip_file_path)
             if total_analyses_count > 0:
-                print_separator("EXISTING ANALYSIS DETECTED" if total_analyses_count == 1 else "EXISTING ANALYSES DETECTED")
-                print(f"  Found {total_analyses_count} analysis{'es' if total_analyses_count > 1 else ''} in database.")
+                print_separator(
+                    "EXISTING ANALYSIS DETECTED"
+                    if total_analyses_count == 1
+                    else "EXISTING ANALYSES DETECTED"
+                )
+                print(
+                    f"  Found {total_analyses_count} analysis{'es' if total_analyses_count > 1 else ''} in database."
+                )
                 print(
                     f"  Note: Deleting analysis/analyses will remove analysis data but preserve resume items (they are shared across reports and will not be affected)."
                 )
                 print()
                 print(f"  Options:")
 
-                print(f"    1. Delete {total_analyses_count - 1} older analysis/analyses (keep most recent)")
-                print(f"    2. Delete ALL {total_analyses_count} analysis/analyses (including most recent)")
+                print(
+                    f"    1. Delete {total_analyses_count - 1} older analysis/analyses (keep most recent)"
+                )
+                print(
+                    f"    2. Delete ALL {total_analyses_count} analysis/analyses (including most recent)"
+                )
                 print(f"    3. Keep all analyses and run a new analysis")
                 print()
                 choice = None
@@ -1367,9 +1562,13 @@ def main():
                     # Delete older analyses (keep most recent)
                     all_analyses = get_all_analyses_by_zip_file(zip_file_path)
                     current_analysis = get_analysis_by_zip_file(zip_file_path)
-                    current_analysis_id = current_analysis["id"] if current_analysis else None
+                    current_analysis_id = (
+                        current_analysis["id"] if current_analysis else None
+                    )
 
-                    analyses_to_delete = [a for a in all_analyses if a["id"] != current_analysis_id]
+                    analyses_to_delete = [
+                        a for a in all_analyses if a["id"] != current_analysis_id
+                    ]
                     analyses_to_delete_count = len(analyses_to_delete)
 
                     if analyses_to_delete_count > 0:
@@ -1381,13 +1580,17 @@ def main():
                                     f"    - Analysis ID {analysis['id']} ({analysis['analysis_type']}) from {analysis['analysis_timestamp']}"
                                 )
                             confirm = (
-                                input(f"\n  Confirm deletion of {analyses_to_delete_count} older analysis/analyses? (y/n): ")
+                                input(
+                                    f"\n  Confirm deletion of {analyses_to_delete_count} older analysis/analyses? (y/n): "
+                                )
                                 .lower()
                                 .strip()
                             )
                         else:
                             confirm = (
-                                input(f"\n  Confirm deletion of {analyses_to_delete_count} older analysis/analyses? (y/n): ")
+                                input(
+                                    f"\n  Confirm deletion of {analyses_to_delete_count} older analysis/analyses? (y/n): "
+                                )
                                 .lower()
                                 .strip()
                             )
@@ -1405,28 +1608,43 @@ def main():
                             # Verify deletion worked
                             remaining_count = count_analyses_by_zip_file(zip_file_path)
                             if deleted_count > 0:
-                                print(f"  ✓ Deleted {deleted_count} older analysis/analyses")
-                                print(f"  ✓ {remaining_count} analysis/analyses remaining in database")
+                                print(
+                                    f"  ✓ Deleted {deleted_count} older analysis/analyses"
+                                )
+                                print(
+                                    f"  ✓ {remaining_count} analysis/analyses remaining in database"
+                                )
                                 # Refresh the report and analysis after deletion to get updated timestamp
                                 existing_report = get_analysis_report(zip_file_path)
                                 # Update the displayed timestamp to reflect the current (remaining) analysis
                                 if existing_report:
-                                    current_analysis = get_analysis_by_zip_file(zip_file_path)
+                                    current_analysis = get_analysis_by_zip_file(
+                                        zip_file_path
+                                    )
                                     if current_analysis:
                                         try:
-                                            timestamp = current_analysis["analysis_timestamp"] or current_analysis["created_at"]
-                                        except KeyError:
-                                            timestamp = existing_report.get("analysis_metadata", {}).get(
-                                                "analysis_timestamp", "unknown time"
+                                            timestamp = (
+                                                current_analysis["analysis_timestamp"]
+                                                or current_analysis["created_at"]
                                             )
-                                        print(f"  ✓ Now displaying analysis from {timestamp}")
+                                        except KeyError:
+                                            timestamp = existing_report.get(
+                                                "analysis_metadata", {}
+                                            ).get("analysis_timestamp", "unknown time")
+                                        print(
+                                            f"  ✓ Now displaying analysis from {timestamp}"
+                                        )
                             else:
                                 print(
                                     f"  ⚠ Warning: Deletion query executed but no rows were deleted (rowcount: {deleted_count})"
                                 )
-                                print(f"  ⚠ Current count: {remaining_count} analyses in database")
+                                print(
+                                    f"  ⚠ Current count: {remaining_count} analyses in database"
+                                )
                                 print(f"  ⚠ This might indicate a path mismatch issue")
-                            print(f"  ✓ Resume items preserved (not affected by deletion)")
+                            print(
+                                f"  ✓ Resume items preserved (not affected by deletion)"
+                            )
                         else:
                             print(f"  Deletion cancelled.")
                     else:
@@ -1460,12 +1678,18 @@ def main():
                         remaining_count = count_analyses_by_zip_file(zip_file_path)
                         if deleted_count > 0:
                             print(f"  ✓ Deleted ALL {deleted_count} analysis/analyses")
-                            print(f"  ✓ {remaining_count} analysis/analyses remaining in database")
+                            print(
+                                f"  ✓ {remaining_count} analysis/analyses remaining in database"
+                            )
                             # Clear the existing report since all analyses were deleted
                             existing_report = None
                         else:
-                            print(f"  ⚠ Warning: Deletion query executed but no rows were deleted (rowcount: {deleted_count})")
-                            print(f"  ⚠ Current count: {remaining_count} analyses in database")
+                            print(
+                                f"  ⚠ Warning: Deletion query executed but no rows were deleted (rowcount: {deleted_count})"
+                            )
+                            print(
+                                f"  ⚠ Current count: {remaining_count} analyses in database"
+                            )
                         print(f"  ✓ Resume items preserved (not affected by deletion)")
                     else:
                         print(f"  Deletion cancelled.")
@@ -1506,25 +1730,34 @@ def main():
                     from analysis.cpp_oop_analyzer import analyze_cpp_project
 
                     cpp_analysis = analyze_cpp_project(zip_path, project_path)
-                    report["projects"][i]["cpp_oop_analysis"] = cpp_analysis["cpp_oop_analysis"]
+                    report["projects"][i]["cpp_oop_analysis"] = cpp_analysis[
+                        "cpp_oop_analysis"
+                    ]
                 except ImportError:
                     report["projects"][i]["cpp_oop_analysis"] = {
                         "error": "C++ analyzer not available (libclang not installed)",
                         "total_classes": 0,
                     }
                 except Exception as e:
-                    report["projects"][i]["cpp_oop_analysis"] = {"error": str(e), "total_classes": 0}
+                    report["projects"][i]["cpp_oop_analysis"] = {
+                        "error": str(e),
+                        "total_classes": 0,
+                    }
 
             # C Analysis (note: .c files are classified as cpp in project_analyzer)
             # So we check for cpp language and run C analyzer too
-            if "cpp" in project.get("languages", {}) or "c" in project.get("languages", {}):
+            if "cpp" in project.get("languages", {}) or "c" in project.get(
+                "languages", {}
+            ):
                 try:
                     from analysis.c_oop_analyzer import analyze_c_project
 
                     c_analysis = analyze_c_project(zip_path, project_path)
                     # Only add if we found C-style code
                     if c_analysis["c_oop_analysis"].get("total_structs", 0) > 0:
-                        report["projects"][i]["c_oop_analysis"] = c_analysis["c_oop_analysis"]
+                        report["projects"][i]["c_oop_analysis"] = c_analysis[
+                            "c_oop_analysis"
+                        ]
                 except ImportError:
                     pass  # C analyzer optional
                 except Exception as e:
@@ -1557,29 +1790,37 @@ def main():
                 # C++ Analysis
                 if "cpp" in project.get("languages", {}):
                     try:
-                        from analysis.cpp_oop_analyzer import \
-                            analyze_cpp_project
+                        from analysis.cpp_oop_analyzer import analyze_cpp_project
 
                         cpp_analysis = analyze_cpp_project(zip_path, project_path)
-                        report["projects"][i]["cpp_oop_analysis"] = cpp_analysis["cpp_oop_analysis"]
+                        report["projects"][i]["cpp_oop_analysis"] = cpp_analysis[
+                            "cpp_oop_analysis"
+                        ]
                     except ImportError:
                         report["projects"][i]["cpp_oop_analysis"] = {
                             "error": "C++ analyzer not available (libclang not installed)",
                             "total_classes": 0,
                         }
                     except Exception as e:
-                        report["projects"][i]["cpp_oop_analysis"] = {"error": str(e), "total_classes": 0}
+                        report["projects"][i]["cpp_oop_analysis"] = {
+                            "error": str(e),
+                            "total_classes": 0,
+                        }
 
                 # C Analysis (note: .c files are classified as cpp in project_analyzer)
                 # So we check for cpp language and run C analyzer too
-                if "cpp" in project.get("languages", {}) or "c" in project.get("languages", {}):
+                if "cpp" in project.get("languages", {}) or "c" in project.get(
+                    "languages", {}
+                ):
                     try:
                         from analysis.c_oop_analyzer import analyze_c_project
 
                         c_analysis = analyze_c_project(zip_path, project_path)
                         # Only add if we found C-style code
                         if c_analysis["c_oop_analysis"].get("total_structs", 0) > 0:
-                            report["projects"][i]["c_oop_analysis"] = c_analysis["c_oop_analysis"]
+                            report["projects"][i]["c_oop_analysis"] = c_analysis[
+                                "c_oop_analysis"
+                            ]
                     except ImportError:
                         pass  # C analyzer optional
                     except Exception as e:
@@ -1643,7 +1884,9 @@ def main():
             print(f"  Test Coverage: {project['test_coverage_estimate']}")
 
         # Analyze Python projects
-        python_projects = [p for p in report["projects"] if "python" in p.get("languages", {})]
+        python_projects = [
+            p for p in report["projects"] if "python" in p.get("languages", {})
+        ]
 
         if python_projects:
             print(f"\n{'*' * 70}")
@@ -1668,7 +1911,9 @@ def main():
                 print(f"  Total Classes: {oop['total_classes']}")
 
                 if oop["abstract_classes"]:
-                    print(f"  Abstract Classes: {', '.join(oop['abstract_classes'][:5])}")
+                    print(
+                        f"  Abstract Classes: {', '.join(oop['abstract_classes'][:5])}"
+                    )
                     if len(oop["abstract_classes"]) > 5:
                         print(f"    ... and {len(oop['abstract_classes']) - 5} more")
 
@@ -1676,7 +1921,11 @@ def main():
                 print(f"  Max Inheritance Depth: {oop['inheritance_depth']}")
 
                 print(f"\nEncapsulation:")
-                total_methods = oop["private_methods"] + oop["protected_methods"] + oop["public_methods"]
+                total_methods = (
+                    oop["private_methods"]
+                    + oop["protected_methods"]
+                    + oop["public_methods"]
+                )
                 print(f"  Total Methods: {total_methods}")
                 print(f"    - Private (__name): {oop['private_methods']}")
                 print(f"    - Protected (_name): {oop['protected_methods']}")
@@ -1712,9 +1961,13 @@ def main():
                     print(f"SOLID Score: {solid_score:.1f}/5.0")
                 print(f"Principles Used:")
                 print(f"  {'✓' if oop['total_classes'] > 0 else '✗'} Uses Classes")
-                print(f"  {'✓' if oop['abstract_classes'] else '✗'} Abstraction (ABC/Protocol)")
+                print(
+                    f"  {'✓' if oop['abstract_classes'] else '✗'} Abstraction (ABC/Protocol)"
+                )
                 print(f"  {'✓' if oop['inheritance_depth'] > 0 else '✗'} Inheritance")
-                print(f"  {'✓' if oop['private_methods'] > 0 or oop['protected_methods'] > 0 else '✗'} Encapsulation")
+                print(
+                    f"  {'✓' if oop['private_methods'] > 0 or oop['protected_methods'] > 0 else '✗'} Encapsulation"
+                )
                 print(f"  {'✓' if oop['properties_count'] > 0 else '✗'} Properties")
                 print(f"  {'✓' if oop['operator_overloads'] > 0 else '✗'} Polymorphism")
 
@@ -1733,7 +1986,9 @@ def main():
             print("\nNo Python projects found for OOP analysis.")
 
         # Analyze Java projects
-        java_projects = [p for p in report["projects"] if "java" in p.get("languages", {})]
+        java_projects = [
+            p for p in report["projects"] if "java" in p.get("languages", {})
+        ]
 
         if java_projects:
             print(f"\n{'*' * 70}")
@@ -1759,12 +2014,18 @@ def main():
                 print(f"  Interfaces: {java_oop['interface_count']}")
 
                 if java_oop["abstract_classes"]:
-                    print(f"  Abstract Classes: {', '.join(java_oop['abstract_classes'][:5])}")
+                    print(
+                        f"  Abstract Classes: {', '.join(java_oop['abstract_classes'][:5])}"
+                    )
                     if len(java_oop["abstract_classes"]) > 5:
-                        print(f"    ... and {len(java_oop['abstract_classes']) - 5} more")
+                        print(
+                            f"    ... and {len(java_oop['abstract_classes']) - 5} more"
+                        )
 
                 print(f"  Enums: {java_oop['enum_count']}")
-                print(f"  Classes with Inheritance: {java_oop['classes_with_inheritance']}")
+                print(
+                    f"  Classes with Inheritance: {java_oop['classes_with_inheritance']}"
+                )
                 print(f"  Max Inheritance Depth: {java_oop['inheritance_depth']}")
 
                 print(f"\nEncapsulation:")
@@ -1793,7 +2054,11 @@ def main():
 
                 if java_oop.get("annotations"):
                     print(f"\nAnnotations (top 5):")
-                    for anno, count in sorted(java_oop["annotations"].items(), key=lambda x: x[1], reverse=True)[:5]:
+                    for anno, count in sorted(
+                        java_oop["annotations"].items(),
+                        key=lambda x: x[1],
+                        reverse=True,
+                    )[:5]:
                         print(f"  @{anno}: {count}")
 
                 if java_oop.get("design_patterns"):
@@ -1805,10 +2070,12 @@ def main():
                 from dataclasses import dataclass, field
                 from typing import Dict, List
 
-                from analysis.java_oop_analyzer import (JavaOOPAnalysis,
-                                                        calculate_oop_score,
-                                                        calculate_solid_score,
-                                                        get_coding_style)
+                from analysis.java_oop_analyzer import (
+                    JavaOOPAnalysis,
+                    calculate_oop_score,
+                    calculate_solid_score,
+                    get_coding_style,
+                )
 
                 analysis_obj = JavaOOPAnalysis(**java_oop)
                 oop_score = calculate_oop_score(analysis_obj)
@@ -1821,10 +2088,18 @@ def main():
                 print(
                     f"  {'✓' if java_oop['total_classes'] > 0 or java_oop['interface_count'] > 0 else '✗'} Uses Classes/Interfaces"
                 )
-                print(f"  {'✓' if java_oop['interface_count'] > 0 or java_oop['abstract_classes'] else '✗'} Abstraction")
-                print(f"  {'✓' if java_oop['inheritance_depth'] > 0 else '✗'} Inheritance")
-                print(f"  {'✓' if java_oop['private_fields'] > 0 or java_oop['private_methods'] > 0 else '✗'} Encapsulation")
-                print(f"  {'✓' if java_oop['override_count'] > 0 or java_oop['method_overloads'] > 0 else '✗'} Polymorphism")
+                print(
+                    f"  {'✓' if java_oop['interface_count'] > 0 or java_oop['abstract_classes'] else '✗'} Abstraction"
+                )
+                print(
+                    f"  {'✓' if java_oop['inheritance_depth'] > 0 else '✗'} Inheritance"
+                )
+                print(
+                    f"  {'✓' if java_oop['private_fields'] > 0 or java_oop['private_methods'] > 0 else '✗'} Encapsulation"
+                )
+                print(
+                    f"  {'✓' if java_oop['override_count'] > 0 or java_oop['method_overloads'] > 0 else '✗'} Polymorphism"
+                )
                 print(
                     f"  {'✓' if java_oop['generic_classes'] > 0 or java_oop['annotations'] or java_oop['lambda_count'] > 0 else '✗'} Advanced Features"
                 )
@@ -1834,7 +2109,9 @@ def main():
             print("\nNo Java projects found for OOP analysis.")
 
         # Analyze C++ projects
-        cpp_projects = [p for p in report["projects"] if "cpp" in p.get("languages", {})]
+        cpp_projects = [
+            p for p in report["projects"] if "cpp" in p.get("languages", {})
+        ]
 
         if cpp_projects:
             print(f"\n{'*' * 70}")
@@ -1858,7 +2135,9 @@ def main():
                 print(f"\nOOP Metrics:")
                 print(f"  Total Classes: {cpp_oop['total_classes']}")
                 print(f"  Abstract classes: {cpp_oop['abstract_classes']}")
-                print(f"  Classes with Inheritance: {cpp_oop['classes_with_inheritance']}")
+                print(
+                    f"  Classes with Inheritance: {cpp_oop['classes_with_inheritance']}"
+                )
                 print(f"  Inheritance depth: {cpp_oop['inheritance_depth']}")
 
                 print(f"\nEncapsulation:")
@@ -1901,11 +2180,15 @@ def main():
                 print(f"\nOOP-Style Metrics:")
                 print(f"  Total Structs: {c_oop['total_structs']}")
                 print(f"  Total Functions: {c_oop.get('total_functions', 0)}")
-                print(f"  Function pointer fields: {c_oop.get('function_pointer_fields', 0)}")
+                print(
+                    f"  Function pointer fields: {c_oop.get('function_pointer_fields', 0)}"
+                )
                 print(f"  Typedef count: {c_oop.get('typedef_count', 0)}")
 
                 print(f"\nEncapsulation Patterns:")
-                print(f"  Opaque pointer structs: {c_oop.get('opaque_pointer_structs', 0)}")
+                print(
+                    f"  Opaque pointer structs: {c_oop.get('opaque_pointer_structs', 0)}"
+                )
                 print(f"  Static functions: {c_oop.get('static_functions', 0)}")
 
                 print(f"\nPolymorphism Patterns:")
@@ -1913,8 +2196,12 @@ def main():
                 print(f"  OOP-style naming: {c_oop.get('oop_style_naming_count', 0)}")
 
                 print(f"\nMemory Management:")
-                print(f"  Malloc/Free usage: {c_oop.get('malloc_usage', 0)}/{c_oop.get('free_usage', 0)}")
-                print(f"  Constructor/Destructor pairs: {c_oop.get('constructor_destructor_pairs', 0)}")
+                print(
+                    f"  Malloc/Free usage: {c_oop.get('malloc_usage', 0)}/{c_oop.get('free_usage', 0)}"
+                )
+                print(
+                    f"  Constructor/Destructor pairs: {c_oop.get('constructor_destructor_pairs', 0)}"
+                )
 
                 # Calculate OOP-style score
                 score = 0
@@ -1930,7 +2217,9 @@ def main():
                     score += 1
 
                 print(f"\nOOP-Style Score: {score}/5")
-                print(f"Coding Style: {'Object-Oriented C' if score >= 3 else 'Procedural C'}")
+                print(
+                    f"Coding Style: {'Object-Oriented C' if score >= 3 else 'Procedural C'}"
+                )
         else:
             print("\nNo C projects found for OOP-style analysis.")
         for project in report["projects"]:
@@ -1938,7 +2227,9 @@ def main():
                 portfolio_item = generate_portfolio_item(project)
                 project["portfolio_item"] = portfolio_item
             except Exception as e:
-                print(f"[ERROR] Failed to generate portfolio item for {project.get('project_name', 'Unknown')} : {e}")
+                print(
+                    f"[ERROR] Failed to generate portfolio item for {project.get('project_name', 'Unknown')} : {e}"
+                )
         # Store analysis in database if it's new
         if new_analysis_generated:
             print_separator("STORING ANALYSIS IN DATABASE")
@@ -1978,11 +2269,15 @@ def main():
         existing_resume_count = sum(
             1
             for project in report.get("projects", [])
-            if get_resume_items_for_project(project.get("project_name", "Unknown Project"))
+            if get_resume_items_for_project(
+                project.get("project_name", "Unknown Project")
+            )
         )
 
         if existing_resume_count > 0:
-            print(f"Found {existing_resume_count}/{total_projects} résumé item(s) in database.")
+            print(
+                f"Found {existing_resume_count}/{total_projects} résumé item(s) in database."
+            )
             print()
             print("Options:")
             print("  1. View existing résumé items (and generate missing ones)")
@@ -2008,8 +2303,7 @@ def main():
             print("\n" + "=" * 78)
             print("  FULL RESUME")
             print("=" * 78 + "\n")
-            from analysis.resume_generator import \
-                generate_formatted_resume_entry
+            from analysis.resume_generator import generate_formatted_resume_entry
 
             # Check if resume items already exist
             resume_items_by_project = {}
@@ -2020,13 +2314,18 @@ def main():
                 existing_resume_items = get_resume_items_for_project(project_name)
 
                 if existing_resume_items and not regenerate_all:
-                    resume_items_by_project[project_name] = {"text": existing_resume_items[0]["resume_text"], "cached": True}
+                    resume_items_by_project[project_name] = {
+                        "text": existing_resume_items[0]["resume_text"],
+                        "cached": True,
+                    }
                 else:
                     projects_needing_resume.append(project)
 
             # Display existing resume items
             if resume_items_by_project and not regenerate_all:
-                print(f"✓ Retrieved {len(resume_items_by_project)} cached résumé item(s) from database\n")
+                print(
+                    f"✓ Retrieved {len(resume_items_by_project)} cached résumé item(s) from database\n"
+                )
 
                 for i, project in enumerate(report.get("projects", []), 1):
                     project_name = project.get("project_name", "Unknown Project")
@@ -2043,11 +2342,17 @@ def main():
 
             if projects_needing_resume:
                 if resume_items_by_project and not regenerate_all:
-                    print(f"\nGenerating {len(projects_needing_resume)} new résumé item(s)...\n")
+                    print(
+                        f"\nGenerating {len(projects_needing_resume)} new résumé item(s)...\n"
+                    )
                 elif regenerate_all:
-                    print(f"Regenerating all {len(projects_needing_resume)} résumé item(s)...\n")
+                    print(
+                        f"Regenerating all {len(projects_needing_resume)} résumé item(s)...\n"
+                    )
                 else:
-                    print(f"Generating {len(projects_needing_resume)} résumé item(s)...\n")
+                    print(
+                        f"Generating {len(projects_needing_resume)} résumé item(s)...\n"
+                    )
 
                 cached_count = len(resume_items_by_project)
 
@@ -2058,7 +2363,9 @@ def main():
                     item_number = cached_count + idx if not regenerate_all else idx
 
                     print("=" * 78)
-                    print(f"RÉSUMÉ ITEM {item_number}/{total_projects}- Project: {project_name}")
+                    print(
+                        f"RÉSUMÉ ITEM {item_number}/{total_projects}- Project: {project_name}"
+                    )
                     print("=" * 78)
                     print()
                     print(resume_entry)
@@ -2068,20 +2375,27 @@ def main():
                         # Delete old resume item if regenerating
                         if regenerate_all:
                             with get_connection() as conn:
-                                conn.execute("DELETE FROM resume_items WHERE project_name = ?", (project_name,))
+                                conn.execute(
+                                    "DELETE FROM resume_items WHERE project_name = ?",
+                                    (project_name,),
+                                )
                                 conn.commit()
 
                         store_resume_item(project_name, resume_entry)
                         newly_generated += 1
                     except Exception as e:
-                        print(f"⚠  Warning: Could not store résumé item for {project_name}: {e}")
+                        print(
+                            f"⚠  Warning: Could not store résumé item for {project_name}: {e}"
+                        )
                         import traceback
 
                         traceback.print_exc()
 
                 print("=" * 78)
                 if regenerate_all:
-                    print(f"✓ Successfully regenerated {newly_generated}/{len(projects_needing_resume)} résumé item(s)")
+                    print(
+                        f"✓ Successfully regenerated {newly_generated}/{len(projects_needing_resume)} résumé item(s)"
+                    )
                 elif newly_generated > 0:
                     print(
                         f"✓ Successfully generated and stored {newly_generated}/{len(projects_needing_resume)} new résumé item(s)"
@@ -2089,7 +2403,9 @@ def main():
                 print("=" * 78 + "\n")
             elif resume_items_by_project:
                 print("=" * 78)
-                print(f"✓ All {len(resume_items_by_project)} résumé item(s) retrieved from database")
+                print(
+                    f"✓ All {len(resume_items_by_project)} résumé item(s) retrieved from database"
+                )
                 print("=" * 78 + "\n")
 
         # Offer to save JSON

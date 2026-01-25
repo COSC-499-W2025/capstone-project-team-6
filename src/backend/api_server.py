@@ -1,11 +1,11 @@
 """Main FastAPI application with modular API routers."""
+
 from __future__ import annotations
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.analysis_database import init_db as init_analysis_db
-from backend.database import init_db as init_user_db
 
 # Import routers from modular API structure
 from backend.api.analysis import router as analysis_router
@@ -15,6 +15,7 @@ from backend.api.portfolios import router as portfolios_router
 from backend.api.projects import router as projects_router
 from backend.api.resume import router as resume_router
 from backend.api.tasks import router as tasks_router
+from backend.database import init_db as init_user_db
 
 # Initialize databases
 init_user_db()

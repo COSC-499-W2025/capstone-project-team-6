@@ -8,8 +8,7 @@ import pytest
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from backend.analysis.metadata_extractor import (MetadataExtractor,
-                                                 ProjectMetadata)
+from backend.analysis.metadata_extractor import MetadataExtractor, ProjectMetadata
 
 # Test configuration
 SCRIPT_DIR = Path(__file__).parent
@@ -115,7 +114,10 @@ class TestFrameworkDetection:
 
         # Check if Dockerfile or docker-compose.yml exists
         all_files = extractor.zip_file.namelist()
-        has_docker_file = any("dockerfile" in f.lower() or "docker-compose" in f.lower() for f in all_files)
+        has_docker_file = any(
+            "dockerfile" in f.lower() or "docker-compose" in f.lower()
+            for f in all_files
+        )
 
         if has_docker_file:
             assert "Docker" in frameworks
@@ -380,7 +382,9 @@ class TestMultipleProjects:
                     # Check that it's not a child of a previous project
                     for earlier_proj in sorted_projects[:i]:
                         if earlier_proj and proj.startswith(earlier_proj + "/"):
-                            pytest.fail(f"Nested project incorrectly detected: {proj} under {earlier_proj}")
+                            pytest.fail(
+                                f"Nested project incorrectly detected: {proj} under {earlier_proj}"
+                            )
 
 
 class TestGitAnalysis:
@@ -400,13 +404,17 @@ class TestGitAnalysis:
 
         # Verify by checking actual files
         all_files = extractor.zip_file.namelist()
-        actual_has_git = any(".git" in f or ".gitignore" in f or ".gitattributes" in f for f in all_files)
+        actual_has_git = any(
+            ".git" in f or ".gitignore" in f or ".gitattributes" in f for f in all_files
+        )
 
         assert has_git == actual_has_git
 
     def test_parse_git_log_returns_tuple(self, extractor):
         """Test that git log parsing returns expected format."""
-        contributors, total_commits, last_commit_date, git_details = extractor.parse_git_log("")
+        contributors, total_commits, last_commit_date, git_details = (
+            extractor.parse_git_log("")
+        )
 
         assert isinstance(contributors, dict)
         assert isinstance(total_commits, int)
@@ -432,7 +440,9 @@ class TestEdgeCases:
         with MetadataExtractor(TEST_ZIP_PATH) as extractor:
             # Try to parse a file that doesn't exist
             result = extractor._parse_dependency_file(
-                "nonexistent_file.txt", "nonexistent_file.txt", {"nonexistent_file.txt": r"test"}
+                "nonexistent_file.txt",
+                "nonexistent_file.txt",
+                {"nonexistent_file.txt": r"test"},
             )
             assert result == []
 

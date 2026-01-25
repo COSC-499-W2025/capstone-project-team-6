@@ -73,7 +73,9 @@ def get_projects_timeline() -> List[ProjectEntry]:
 @dataclass
 class SkillEntry:
     date: str
-    skills: Dict[str, List[str]]  # {"languages": [...], "frameworks": [...], "detailed_skills": [...]}
+    skills: Dict[
+        str, List[str]
+    ]  # {"languages": [...], "frameworks": [...], "detailed_skills": [...]}
 
 
 @dataclass

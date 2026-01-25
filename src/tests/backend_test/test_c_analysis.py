@@ -37,16 +37,20 @@ try:
     # Import the analyzer - use relative imports since we added analysis_dir to path
     # Verify libclang is available
     import clang.cindex
+
     # Import the project generator (in same directory as this test file)
     from project_generator import generate_all_test_projects
 
-    from backend.analysis.c_oop_analyzer import (COOPAnalysis, analyze_c_file,
-                                                 analyze_c_project,
-                                                 calculate_encapsulation_ratio,
-                                                 calculate_memory_safety_score,
-                                                 calculate_oop_score,
-                                                 calculate_solid_score,
-                                                 get_coding_style)
+    from backend.analysis.c_oop_analyzer import (
+        COOPAnalysis,
+        analyze_c_file,
+        analyze_c_project,
+        calculate_encapsulation_ratio,
+        calculate_memory_safety_score,
+        calculate_oop_score,
+        calculate_solid_score,
+        get_coding_style,
+    )
 
     CLANG_AVAILABLE = True
 except ImportError as e:
@@ -55,8 +59,12 @@ except ImportError as e:
     print(f"\nDEBUG INFO:")
     print(f"  Current file: {current_file}")
     print(f"  Analysis dir: {analysis_dir}")
-    print(f"  c_oop_analyzer.py exists: {(analysis_dir / 'c_oop_analyzer.py').exists()}")
-    print(f"  project_generator.py exists: {(backend_test_dir / 'project_generator.py').exists()}")
+    print(
+        f"  c_oop_analyzer.py exists: {(analysis_dir / 'c_oop_analyzer.py').exists()}"
+    )
+    print(
+        f"  project_generator.py exists: {(backend_test_dir / 'project_generator.py').exists()}"
+    )
     pytestmark = pytest.mark.skip(reason=f"Required dependencies not installed: {e}")
 
 
@@ -106,7 +114,9 @@ class TestCOOPAnalysis:
 
     def test_oop_analysis_to_dict(self):
         """Test converting COOPAnalysis to dictionary."""
-        analysis = COOPAnalysis(total_structs=5, total_functions=20, static_functions=10)
+        analysis = COOPAnalysis(
+            total_structs=5, total_functions=20, static_functions=10
+        )
         result = analysis.to_dict()
         assert isinstance(result, dict)
         assert result["total_structs"] == 5
@@ -335,7 +345,9 @@ class TestScoringFunctions:
 
     def test_memory_safety_score(self):
         """Test memory safety score calculation."""
-        analysis = COOPAnalysis(constructor_destructor_pairs=5, malloc_usage=10, free_usage=10)
+        analysis = COOPAnalysis(
+            constructor_destructor_pairs=5, malloc_usage=10, free_usage=10
+        )
         score = calculate_memory_safety_score(analysis)
         assert score == 10.0
 

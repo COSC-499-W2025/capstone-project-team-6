@@ -17,12 +17,14 @@ import pytest
 # Add src to Python path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from backend.analysis_database import (delete_analysis,
-                                       get_all_analyses_for_user,
-                                       get_analysis_by_uuid, init_db,
-                                       record_analysis)
-from backend.task_manager import (FileManager, TaskStatus, TaskType,
-                                  get_task_manager)
+from backend.analysis_database import (
+    delete_analysis,
+    get_all_analyses_for_user,
+    get_analysis_by_uuid,
+    init_db,
+    record_analysis,
+)
+from backend.task_manager import FileManager, TaskStatus, TaskType, get_task_manager
 
 
 class TestDatabaseIntegration:
@@ -77,7 +79,9 @@ class TestTaskManager:
         # without triggering async execution
 
         # Verify task manager has the required methods
-        assert hasattr(self.task_manager, "create_task"), "Should have create_task method"
+        assert hasattr(
+            self.task_manager, "create_task"
+        ), "Should have create_task method"
         assert hasattr(self.task_manager, "tasks"), "Should have tasks storage"
 
         # Test that we can create task objects with proper structure
@@ -214,10 +218,14 @@ class TestFileManager:
 
         try:
             file_hash = self.file_manager.calculate_file_hash(test_file)
-            permanent_path = self.file_manager.store_file_permanently(test_file, file_hash)
+            permanent_path = self.file_manager.store_file_permanently(
+                test_file, file_hash
+            )
 
             assert permanent_path.exists(), "File should be stored permanently"
-            assert permanent_path.name == f"{file_hash}.zip", "Should use hash as filename"
+            assert (
+                permanent_path.name == f"{file_hash}.zip"
+            ), "Should use hash as filename"
 
             # Clean up permanent file
             if permanent_path.exists():
@@ -244,7 +252,9 @@ class TestFileManager:
             # Store second file (should deduplicate)
             permanent_path2 = self.file_manager.store_file_permanently(test_file2)
 
-            assert permanent_path1 == permanent_path2, "Should deduplicate identical files"
+            assert (
+                permanent_path1 == permanent_path2
+            ), "Should deduplicate identical files"
             assert not test_file2.exists(), "Duplicate should be removed"
 
             # Clean up

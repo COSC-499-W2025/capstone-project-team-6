@@ -108,7 +108,9 @@ class CppOOPAnalyzer:
         try:
             import tempfile
 
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".cpp", delete=False) as f:
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".cpp", delete=False
+            ) as f:
                 f.write(content)
                 temp_path = f.name
 
@@ -145,7 +147,10 @@ class CppOOPAnalyzer:
                 self.analysis.namespaces_used = len(self.namespaces)
 
         # Method declarations (when inside a class)
-        elif cursor.kind in (CursorKind.CXX_METHOD, CursorKind.FUNCTION_DECL) and parent_class:
+        elif (
+            cursor.kind in (CursorKind.CXX_METHOD, CursorKind.FUNCTION_DECL)
+            and parent_class
+        ):
             self._analyze_method(cursor, parent_class)
 
         # Field declarations (when inside a class)
@@ -283,7 +288,11 @@ class CppOOPAnalyzer:
         elif access == AccessSpecifier.PUBLIC:
             self.analysis.public_fields += 1
 
-        field_info = {"name": field_name, "access": self._access_to_string(access), "type": cursor.type.spelling}
+        field_info = {
+            "name": field_name,
+            "access": self._access_to_string(access),
+            "type": cursor.type.spelling,
+        }
 
         if class_name in self.classes:
             self.classes[class_name].fields.append(field_info)
@@ -331,7 +340,9 @@ class CppOOPAnalyzer:
                 patterns.add("Factory")
 
             # Singleton pattern (heuristic)
-            if "Singleton" in class_name or any(m["name"] in ("getInstance", "instance") for m in class_info.methods):
+            if "Singleton" in class_name or any(
+                m["name"] in ("getInstance", "instance") for m in class_info.methods
+            ):
                 patterns.add("Singleton")
 
             # Strategy pattern
@@ -368,10 +379,18 @@ def calculate_oop_score(analysis: CppOOPAnalysis) -> int:
     ):
         score += 1
 
-    if analysis.virtual_methods > 0 or analysis.override_methods > 0 or analysis.operator_overloads > 0:
+    if (
+        analysis.virtual_methods > 0
+        or analysis.override_methods > 0
+        or analysis.operator_overloads > 0
+    ):
         score += 1
 
-    if analysis.template_classes > 0 or analysis.namespaces_used > 0 or len(analysis.design_patterns) > 0:
+    if (
+        analysis.template_classes > 0
+        or analysis.namespaces_used > 0
+        or len(analysis.design_patterns) > 0
+    ):
         score += 1
 
     return score
@@ -382,7 +401,9 @@ def calculate_solid_score(analysis: CppOOPAnalysis) -> float:
     score = 0.0
 
     total_types = analysis.total_classes + analysis.struct_count
-    total_methods = analysis.public_methods + analysis.private_methods + analysis.protected_methods
+    total_methods = (
+        analysis.public_methods + analysis.private_methods + analysis.protected_methods
+    )
 
     # Single Responsibility: reasonable methods per type
     if total_types > 0:
@@ -460,8 +481,12 @@ def analyze_cpp_project(zip_path: Path, project_path: str = "") -> Dict:
 
                 combined.total_classes += file_analysis.total_classes
                 combined.struct_count += file_analysis.struct_count
-                combined.classes_with_inheritance += file_analysis.classes_with_inheritance
-                combined.inheritance_depth = max(combined.inheritance_depth, file_analysis.inheritance_depth)
+                combined.classes_with_inheritance += (
+                    file_analysis.classes_with_inheritance
+                )
+                combined.inheritance_depth = max(
+                    combined.inheritance_depth, file_analysis.inheritance_depth
+                )
 
                 combined.private_methods += file_analysis.private_methods
                 combined.protected_methods += file_analysis.protected_methods

@@ -1,6 +1,7 @@
 """Shared fixtures for integration tests."""
 
 import os
+
 # Add src to path so we can import backend modules
 import sys
 import tempfile
@@ -79,7 +80,9 @@ def cleanup_session(temp_session_file: Path) -> Generator[None, None, None]:
 
 
 @pytest.fixture
-def isolated_test_env(temp_db: Path, temp_session_file: Path, cleanup_session) -> Generator[None, None, None]:
+def isolated_test_env(
+    temp_db: Path, temp_session_file: Path, cleanup_session
+) -> Generator[None, None, None]:
     """
     Combined fixture that provides a completely isolated test environment.
 

@@ -19,17 +19,22 @@ SRC = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(SRC))
 
 from backend import analysis_database as db
-from backend.curation import (ATTRIBUTE_DESCRIPTIONS,
-                              DEFAULT_COMPARISON_ATTRIBUTES,
-                              ProjectChronologyCorrection,
-                              ProjectCurationSettings,
-                              format_project_comparison,
-                              get_chronology_corrections,
-                              get_showcase_projects,
-                              get_user_curation_settings, get_user_projects,
-                              init_curation_tables, save_chronology_correction,
-                              save_comparison_attributes,
-                              save_showcase_projects, validate_date_format)
+from backend.curation import (
+    ATTRIBUTE_DESCRIPTIONS,
+    DEFAULT_COMPARISON_ATTRIBUTES,
+    ProjectChronologyCorrection,
+    ProjectCurationSettings,
+    format_project_comparison,
+    get_chronology_corrections,
+    get_showcase_projects,
+    get_user_curation_settings,
+    get_user_projects,
+    init_curation_tables,
+    save_chronology_correction,
+    save_comparison_attributes,
+    save_showcase_projects,
+    validate_date_format,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -193,18 +198,28 @@ def sample_projects():
                     "INSERT INTO project_languages (project_id, language, file_count) VALUES (?, ?, ?)",
                     (project_id, "Python", 18),
                 )
-                conn.execute("INSERT INTO project_frameworks (project_id, framework) VALUES (?, ?)", (project_id, "Flask"))
+                conn.execute(
+                    "INSERT INTO project_frameworks (project_id, framework) VALUES (?, ?)",
+                    (project_id, "Flask"),
+                )
             elif project_data["project_name"] == "MobileApp":
                 conn.execute(
                     "INSERT INTO project_languages (project_id, language, file_count) VALUES (?, ?, ?)",
                     (project_id, "JavaScript", 28),
                 )
-                conn.execute("INSERT INTO project_frameworks (project_id, framework) VALUES (?, ?)", (project_id, "React Native"))
+                conn.execute(
+                    "INSERT INTO project_frameworks (project_id, framework) VALUES (?, ?)",
+                    (project_id, "React Native"),
+                )
             elif project_data["project_name"] == "DataPipeline":
                 conn.execute(
-                    "INSERT INTO project_languages (project_id, language, file_count) VALUES (?, ?, ?)", (project_id, "Go", 12)
+                    "INSERT INTO project_languages (project_id, language, file_count) VALUES (?, ?, ?)",
+                    (project_id, "Go", 12),
                 )
-                conn.execute("INSERT INTO project_frameworks (project_id, framework) VALUES (?, ?)", (project_id, "Gin"))
+                conn.execute(
+                    "INSERT INTO project_frameworks (project_id, framework) VALUES (?, ?)",
+                    (project_id, "Gin"),
+                )
 
         conn.commit()
         return project_ids
@@ -242,7 +257,10 @@ class TestChronologyCorrection:
         new_start_date = "2023-11-01T00:00:00"
 
         success = save_chronology_correction(
-            project_ids[0], user_id, last_commit_date=new_commit_date, project_start_date=new_start_date
+            project_ids[0],
+            user_id,
+            last_commit_date=new_commit_date,
+            project_start_date=new_start_date,
         )
 
         assert success
@@ -263,7 +281,9 @@ class TestChronologyCorrection:
     def test_save_chronology_correction_invalid_project(self):
         """Test saving correction for non-existent project."""
         success = save_chronology_correction(
-            999999, "test_user_invalid", last_commit_date="2024-02-01T10:00:00"  # Non-existent project ID
+            999999,
+            "test_user_invalid",
+            last_commit_date="2024-02-01T10:00:00",  # Non-existent project ID
         )
 
         assert not success
@@ -275,7 +295,9 @@ class TestChronologyCorrection:
 
         # Save corrections for first project
         new_commit_date = "2024-03-01T15:00:00"
-        save_chronology_correction(project_ids[0], user_id, last_commit_date=new_commit_date)
+        save_chronology_correction(
+            project_ids[0], user_id, last_commit_date=new_commit_date
+        )
 
         # Get projects
         projects = get_user_projects(user_id)
@@ -292,7 +314,10 @@ class TestChronologyCorrection:
 
         # Check uncorrected project uses original date
         assert uncorrected_project["correction_timestamp"] is None
-        assert uncorrected_project["effective_last_commit_date"] == uncorrected_project["last_commit_date"]
+        assert (
+            uncorrected_project["effective_last_commit_date"]
+            == uncorrected_project["last_commit_date"]
+        )
 
 
 class TestComparisonAttributes:
@@ -429,7 +454,9 @@ class TestCurationIntegration:
 
         # 1. Correct chronology
         new_date = "2024-04-01T10:00:00"
-        success = save_chronology_correction(project_ids[0], user_id, last_commit_date=new_date)
+        success = save_chronology_correction(
+            project_ids[0], user_id, last_commit_date=new_date
+        )
         assert success
 
         # 2. Set comparison attributes

@@ -41,7 +41,12 @@ def store_document(file_name, file_type, category, extracted_text):
     db: Session = SessionLocal()
     try:
         # Create new document entry
-        doc = Document(file_name=file_name, file_type=file_type, category=category, extracted_text=extracted_text)
+        doc = Document(
+            file_name=file_name,
+            file_type=file_type,
+            category=category,
+            extracted_text=extracted_text,
+        )
         db.add(doc)
         db.commit()
         db.refresh(doc)
@@ -50,7 +55,11 @@ def store_document(file_name, file_type, category, extracted_text):
         chunks = chunk_text(extracted_text)
         for chunk_text_part in chunks:
             emb = generate_embedding(chunk_text_part)
-            db.add(DocumentChunk(document_id=doc.id, chunk_text=chunk_text_part, embedding=emb))
+            db.add(
+                DocumentChunk(
+                    document_id=doc.id, chunk_text=chunk_text_part, embedding=emb
+                )
+            )
 
         db.commit()
         print(f" Stored {len(chunks)} chunks for {file_name}")

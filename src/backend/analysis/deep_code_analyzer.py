@@ -129,9 +129,13 @@ def calculate_python_oop_score(analysis: OOPAnalysis) -> int:
             score += 0.5
 
     # encapsulation
-    total_methods = analysis.private_methods + analysis.protected_methods + analysis.public_methods
+    total_methods = (
+        analysis.private_methods + analysis.protected_methods + analysis.public_methods
+    )
     if total_methods > 0:
-        private_ratio = (analysis.private_methods + analysis.protected_methods) / total_methods
+        private_ratio = (
+            analysis.private_methods + analysis.protected_methods
+        ) / total_methods
         if is_small and private_ratio >= 0.4:
             score += 1
         elif is_medium and private_ratio >= 0.5:
@@ -171,7 +175,9 @@ def calculate_python_oop_score(analysis: OOPAnalysis) -> int:
     if analysis.design_patterns:
         advanced += 1
     if is_small:
-        if advanced > 0 and not (analysis.properties_count > 0 or analysis.operator_overloads > 0):
+        if advanced > 0 and not (
+            analysis.properties_count > 0 or analysis.operator_overloads > 0
+        ):
             score += 1
     elif is_medium:
         if advanced >= 2:
@@ -195,7 +201,9 @@ def calculate_python_solid_score(analysis: OOPAnalysis) -> float:
     is_large = total_classes >= 10
 
     # srp
-    total_methods = analysis.private_methods + analysis.protected_methods + analysis.public_methods
+    total_methods = (
+        analysis.private_methods + analysis.protected_methods + analysis.public_methods
+    )
     if total_classes > 0:
         avg_methods = total_methods / max(total_classes, 1)
         if is_small:
@@ -244,7 +252,9 @@ def calculate_python_solid_score(analysis: OOPAnalysis) -> float:
 
     # liskovs
     if analysis.classes_with_inheritance > 0:
-        override_ratio = analysis.operator_overloads / max(analysis.classes_with_inheritance, 1)
+        override_ratio = analysis.operator_overloads / max(
+            analysis.classes_with_inheritance, 1
+        )
         if is_small and override_ratio >= 0.5:
             score += 1.0
         elif is_medium and override_ratio >= 0.7:
@@ -373,7 +383,9 @@ def analyze_python_file(content: str) -> OOPAnalysis:
         analyzer = PythonOOPAnalyzer()
         analyzer.visit(tree)
         analyzer.calculate_inheritance_depth()
-        analyzer.analysis.design_patterns = detect_python_design_patterns(analyzer.classes)
+        analyzer.analysis.design_patterns = detect_python_design_patterns(
+            analyzer.classes
+        )
         analyzer.analysis.oop_score = calculate_python_oop_score(analyzer.analysis)
         analyzer.analysis.solid_score = calculate_python_solid_score(analyzer.analysis)
         return analyzer.analysis
@@ -397,7 +409,9 @@ def analyze_project_deep(zip_path: Path, project_path: str = "") -> Dict:
         ImportError: If MetadataExtractor or FileClassifier not available
     """
     if MetadataExtractor is None or FileClassifier is None:
-        raise ImportError("MetadataExtractor and FileClassifier are required for project analysis")
+        raise ImportError(
+            "MetadataExtractor and FileClassifier are required for project analysis"
+        )
 
     # First, get basic metadata using existing MetadataExtractor
     with MetadataExtractor(zip_path) as extractor:
@@ -422,10 +436,18 @@ def analyze_project_deep(zip_path: Path, project_path: str = "") -> Dict:
                 combined_oop.public_methods += file_analysis.public_methods
                 combined_oop.properties_count += file_analysis.properties_count
                 combined_oop.operator_overloads += file_analysis.operator_overloads
-                combined_oop.classes_with_inheritance += file_analysis.classes_with_inheritance
-                combined_oop.inheritance_depth = max(combined_oop.inheritance_depth, file_analysis.inheritance_depth)
+                combined_oop.classes_with_inheritance += (
+                    file_analysis.classes_with_inheritance
+                )
+                combined_oop.inheritance_depth = max(
+                    combined_oop.inheritance_depth, file_analysis.inheritance_depth
+                )
                 combined_oop.design_patterns.extend(
-                    [p for p in file_analysis.design_patterns if p not in combined_oop.design_patterns]
+                    [
+                        p
+                        for p in file_analysis.design_patterns
+                        if p not in combined_oop.design_patterns
+                    ]
                 )
             except Exception:
                 continue
@@ -454,7 +476,10 @@ def analyze_project_deep(zip_path: Path, project_path: str = "") -> Dict:
 
 
 def generate_comprehensive_report(
-    zip_path: Path, output_path: Optional[Path] = None, target_user_email: Optional[str] = None, quick_mode: bool = False
+    zip_path: Path,
+    output_path: Optional[Path] = None,
+    target_user_email: Optional[str] = None,
+    quick_mode: bool = False,
 ) -> Dict:
     """
     Generate a comprehensive analysis report combining all analysis phases.
@@ -490,15 +515,21 @@ def generate_comprehensive_report(
             if "python" in project.get("languages", {}):
                 try:
                     deep_analysis = analyze_project_deep(zip_path, project_path)
-                    report["projects"][i]["oop_analysis"] = deep_analysis["oop_analysis"]
+                    report["projects"][i]["oop_analysis"] = deep_analysis[
+                        "oop_analysis"
+                    ]
                 except Exception as e:
                     # If deep analysis fails, add error info
-                    report["projects"][i]["oop_analysis"] = {"error": str(e), "total_classes": 0}
+                    report["projects"][i]["oop_analysis"] = {
+                        "error": str(e),
+                        "total_classes": 0,
+                    }
 
                 # Phase 4: Add complexity analysis (Python & Java)
                 try:
-                    from .complexity_analyzer import \
-                        analyze_project as analyze_complexity
+                    from .complexity_analyzer import (
+                        analyze_project as analyze_complexity,
+                    )
 
                     # Get Python and Java files for this project
                     code_files = []
@@ -506,15 +537,21 @@ def generate_comprehensive_report(
                         for file_info in zf.namelist():
                             # Match Python and Java files in this project path
                             if file_info.endswith((".py", ".java")):
-                                if not project_path or file_info.startswith(project_path):
+                                if not project_path or file_info.startswith(
+                                    project_path
+                                ):
                                     try:
-                                        content = zf.read(file_info).decode("utf-8", errors="ignore")
+                                        content = zf.read(file_info).decode(
+                                            "utf-8", errors="ignore"
+                                        )
                                         code_files.append((file_info, content))
                                     except Exception:
                                         continue
 
                     if code_files:
-                        complexity_report = analyze_complexity(code_files, language="auto")
+                        complexity_report = analyze_complexity(
+                            code_files, language="auto"
+                        )
                         report["projects"][i]["complexity_analysis"] = {
                             "total_files_analyzed": complexity_report.total_files_analyzed,
                             "optimization_score": complexity_report.optimization_score,
@@ -522,14 +559,19 @@ def generate_comprehensive_report(
                             "insights_count": len(complexity_report.insights),
                         }
                 except Exception as e:
-                    report["projects"][i]["complexity_analysis"] = {"error": str(e), "optimization_score": 0}
+                    report["projects"][i]["complexity_analysis"] = {
+                        "error": str(e),
+                        "optimization_score": 0,
+                    }
 
             if "java" in project.get("languages", {}):
                 try:
                     from .java_oop_analyzer import analyze_java_project
 
                     java_analysis = analyze_java_project(zip_path, project_path)
-                    report["projects"][i]["java_oop_analysis"] = java_analysis["java_oop_analysis"]
+                    report["projects"][i]["java_oop_analysis"] = java_analysis[
+                        "java_oop_analysis"
+                    ]
                 except ImportError:
                     report["projects"][i]["java_oop_analysis"] = {
                         "error": "Java analyzer not available (javalang not installed)",
@@ -537,7 +579,10 @@ def generate_comprehensive_report(
                     }
                 except Exception as e:
                     # If deep analysis fails, add error info
-                    report["projects"][i]["java_oop_analysis"] = {"error": str(e), "total_classes": 0}
+                    report["projects"][i]["java_oop_analysis"] = {
+                        "error": str(e),
+                        "total_classes": 0,
+                    }
     # Save to file if requested
     if output_path:
         import json
@@ -638,7 +683,9 @@ if __name__ == "__main__":
         print("=" * 70)
         print("PYTHON OOP ANALYZER - Built-in Test")
         print("=" * 70)
-        print("\nUsage: python src/backend/analysis/deep_code_analyzer.py <path_to_file.py>")
+        print(
+            "\nUsage: python src/backend/analysis/deep_code_analyzer.py <path_to_file.py>"
+        )
         print("\nExample:")
         print("  python src/backend/analysis/deep_code_analyzer.py src/backend/cli.py")
         print("  python src/backend/analysis/deep_code_analyzer.py ~/mycode.py")

@@ -1,4 +1,5 @@
 """Analysis pipeline API endpoints."""
+
 import tempfile
 import uuid
 from pathlib import Path
@@ -17,6 +18,7 @@ router = APIRouter(prefix="/api/analysis", tags=["Analysis"])
 
 class AnalysisRequest(BaseModel):
     """Request to trigger analysis on an existing portfolio."""
+
     portfolio_id: str
     analysis_type: str = "llm"  # llm or non_llm
     force_reanalysis: bool = False
@@ -24,11 +26,13 @@ class AnalysisRequest(BaseModel):
 
 class QuickAnalysisRequest(BaseModel):
     """Request for quick analysis (without storing as portfolio)."""
+
     analysis_type: str = "llm"
 
 
 class AnalysisResponse(BaseModel):
     """Response from analysis request."""
+
     task_id: str
     portfolio_id: Optional[str] = None
     status: str
@@ -36,14 +40,18 @@ class AnalysisResponse(BaseModel):
     status_url: str
 
 
-@router.post("/portfolios/{portfolio_id}/reanalyze", status_code=202, response_model=AnalysisResponse)
+@router.post(
+    "/portfolios/{portfolio_id}/reanalyze",
+    status_code=202,
+    response_model=AnalysisResponse,
+)
 async def reanalyze_portfolio(
     portfolio_id: str,
     analysis_type: str = Form("llm", description="Analysis type: llm or non_llm"),
     username: str = Depends(verify_token),
 ):
     """Re-run analysis on an existing portfolio.
-    
+
     Useful when:
     - Analysis failed previously
     - New analysis features are available
@@ -74,27 +82,28 @@ async def reanalyze_portfolio(
     # Get the original file path from analysis metadata
     zip_file = analysis.get("zip_file", "")
 
-    
     raise HTTPException(
         status_code=status.HTTP_501_NOT_IMPLEMENTED,
         detail="Portfolio reanalysis not yet implemented. Original files are not retained. "
-               "Please upload the ZIP file again as a new portfolio or use incremental upload.",
+        "Please upload the ZIP file again as a new portfolio or use incremental upload.",
     )
 
 
 @router.post("/quick", status_code=200)
 async def quick_analysis(
-    file: UploadFile = File(..., description="ZIP file to analyze (not stored as portfolio)"),
+    file: UploadFile = File(
+        ..., description="ZIP file to analyze (not stored as portfolio)"
+    ),
     analysis_type: str = Form("non_llm", description="Analysis type: llm or non_llm"),
     username: str = Depends(verify_token),
 ):
     """Perform quick analysis on uploaded file without creating a portfolio.
-    
+
     Useful for:
     - Preview analysis before creating portfolio
     - One-time analysis without storage
     - Testing analysis pipeline
-    
+
     Results are returned immediately (not stored in database).
     """
     # Verify user consent
@@ -136,14 +145,15 @@ async def quick_analysis(
     # Run analysis directly (synchronously)
     try:
         from backend.cli import analyze_folder
-        
+
         # Use quick_mode=True for faster analysis
         results = analyze_folder(zip_path, target_user_email=None, quick_mode=True)
-        
+
         # Clean up temp file
         import shutil
+
         shutil.rmtree(temp_dir)
-        
+
         return {
             "status": "completed",
             "analysis_type": analysis_type,
@@ -153,29 +163,31 @@ async def quick_analysis(
     except Exception as e:
         # Clean up on error
         import shutil
+
         if temp_dir.exists():
             shutil.rmtree(temp_dir)
-        
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Analysis failed: {str(e)}",
         )
 
+
 @router.get("/status")
 async def get_analysis_status(username: str = Depends(verify_token)):
     """Get overall analysis pipeline status and statistics."""
     from backend.task_manager import get_task_manager
-    
+
     task_manager = get_task_manager()
     user_tasks = task_manager.get_user_tasks(username)
-    
+
     # Calculate statistics
     total_tasks = len(user_tasks)
     completed = sum(1 for t in user_tasks if t.status.value == "completed")
     failed = sum(1 for t in user_tasks if t.status.value == "failed")
     running = sum(1 for t in user_tasks if t.status.value == "running")
     pending = sum(1 for t in user_tasks if t.status.value == "pending")
-    
+
     return {
         "status": "operational",
         "statistics": {

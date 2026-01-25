@@ -1,4 +1,5 @@
 """Resume generation API endpoints."""
+
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -12,15 +13,21 @@ router = APIRouter(prefix="/api", tags=["Resume"])
 
 class ResumeRequest(BaseModel):
     """Request to generate a resume."""
-    portfolio_ids: List[str] = Field(..., description="List of portfolio UUIDs to include")
+
+    portfolio_ids: List[str] = Field(
+        ..., description="List of portfolio UUIDs to include"
+    )
     format: str = Field("markdown", description="Output format: markdown, pdf, html")
     include_skills: bool = Field(True, description="Include skills section")
     include_projects: bool = Field(True, description="Include projects section")
-    max_projects: Optional[int] = Field(None, description="Maximum number of projects to include")
+    max_projects: Optional[int] = Field(
+        None, description="Maximum number of projects to include"
+    )
 
 
 class ResumeResponse(BaseModel):
     """Generated resume response."""
+
     resume_id: str
     format: str
     content: str
@@ -29,6 +36,7 @@ class ResumeResponse(BaseModel):
 
 class ResumeEditRequest(BaseModel):
     """Request to edit a resume."""
+
     content: str
     metadata: Optional[Dict[str, Any]] = None
 
@@ -64,6 +72,7 @@ async def generate_resume(
 
         # Generate resume ID (in production, save to database)
         import uuid
+
         resume_id = str(uuid.uuid4())
 
         return ResumeResponse(

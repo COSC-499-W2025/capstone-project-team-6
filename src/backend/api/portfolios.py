@@ -1,4 +1,5 @@
 """Portfolio management API endpoints."""
+
 import tempfile
 import uuid
 from pathlib import Path
@@ -266,7 +267,11 @@ async def save_consent(consent: ConsentRequest, username: str = Depends(verify_t
         from backend.database import save_user_consent
 
         save_user_consent(username, consent.has_consented)
-        message = "Consent saved successfully" if consent.has_consented else "Consent declined"
+        message = (
+            "Consent saved successfully"
+            if consent.has_consented
+            else "Consent declined"
+        )
         return ConsentResponse(has_consented=consent.has_consented, message=message)
     except Exception as e:
         raise HTTPException(
@@ -276,7 +281,9 @@ async def save_consent(consent: ConsentRequest, username: str = Depends(verify_t
 
 
 @router.post("/privacy-consent", response_model=ConsentResponse)
-async def save_privacy_consent(consent: ConsentRequest, username: str = Depends(verify_token)):
+async def save_privacy_consent(
+    consent: ConsentRequest, username: str = Depends(verify_token)
+):
     """Save user privacy consent status (alias for /api/user/consent)."""
     return await save_consent(consent, username)
 

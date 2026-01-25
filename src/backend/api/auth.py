@@ -1,4 +1,5 @@
 """Authentication API endpoints."""
+
 import uuid
 from datetime import datetime, timedelta
 from typing import Any, Dict
@@ -105,7 +106,9 @@ async def login(credentials: UserCredentials):
 async def logout(username: str = Depends(verify_token)):
     """Logout and invalidate token."""
     # Remove all tokens for this user
-    tokens_to_remove = [token for token, data in active_tokens.items() if data["username"] == username]
+    tokens_to_remove = [
+        token for token, data in active_tokens.items() if data["username"] == username
+    ]
     for token in tokens_to_remove:
         del active_tokens[token]
 

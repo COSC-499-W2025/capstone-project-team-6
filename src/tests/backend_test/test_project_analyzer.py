@@ -102,9 +102,14 @@ class TestTestFileDetection:
 
     def test_detect_test_directory(self, classifier):
         """Test detection of test directories."""
-        assert classifier.is_test_file("project/tests/test_utils.py", "test_utils.py") == True
+        assert (
+            classifier.is_test_file("project/tests/test_utils.py", "test_utils.py")
+            == True
+        )
         assert classifier.is_test_file("tests/utils.py", "utils.py") == True
-        assert classifier.is_test_file("src/__tests__/app.test.js", "app.test.js") == True
+        assert (
+            classifier.is_test_file("src/__tests__/app.test.js", "app.test.js") == True
+        )
 
     def test_detect_spec_files(self, classifier):
         """Test detection of spec files."""
