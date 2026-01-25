@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from backend.analysis_database import get_analysis_by_uuid
 from backend.api.auth import verify_token
 from backend.database import check_user_consent
-from backend.task_manager import TaskType, get_task_manager
+from backend.task_manager import TaskType, get_task_manager, TaskType
 
 router = APIRouter(prefix="/api/analysis", tags=["Analysis"])
 
@@ -193,4 +193,83 @@ async def get_analysis_status(username: str = Depends(verify_token)):
             "pending": pending,
         },
         "message": "Analysis pipeline is operational",
+    }
+
+
+@router.post("/portfolios/{portfolio_id}/start")
+async def start_portfolio_analysis(
+    portfolio_id: str,
+    username: str = Depends(verify_token),
+):
+    """
+    Starts background analysis for an existing portfolio.
+
+    For now, we use a FIXED zip path.
+    Later, replace FIXED_ZIP_PATH with a DB lookup:
+      - fetch stored zip path by (portfolio_id, username)
+    """
+    # 1) Validate portfolio exists for this user
+    existing = get_analysis_by_uuid(portfolio_id, username)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+
+    # 2) TEMP: fixed path (replace with DB lookup later)
+    FIXED_ZIP_PATH = Path(r"C:/path/to/your/project.zip")  # Update this path accordingly
+    if not FIXED_ZIP_PATH.exists():
+        raise HTTPException(
+            status_code=400,
+            detail=f"Zip file not found on server: {FIXED_ZIP_PATH}",
+        )
+
+    # 3) Create background task
+    task_manager = get_task_manager()
+
+    task_id = task_manager.create_task(
+        task_type=TaskType.INCREMENTAL_UPLOAD,
+        username=username,
+        filename=FIXED_ZIP_PATH.name,
+        file_path=FIXED_ZIP_PATH,
+        analysis_type="non_llm",          # keep consistent with your pipeline defaults
+        portfolio_id=portfolio_id,        # required for INCREMENTAL_UPLOAD
+    )
+
+    # 4) Return task_id so frontend can poll /api/tasks/{task_id}
+    return {
+        "task_id": task_id,
+        "portfolio_id": portfolio_id,
+        "status_url": f"/api/tasks/{task_id}",
+    }
+
+
+@router.post("/start")
+async def start_new_analysis(
+    username: str = Depends(verify_token),
+):
+    """
+    Starts background analysis as a NEW portfolio.
+
+    For now: uses a fixed zip path on the SERVER.
+    Later: replace FIXED_ZIP_PATH with a DB lookup of the uploaded file for this user.
+    """
+    FIXED_ZIP_PATH = Path(r"C:/Users/aakas/uni/cosc499/Project13_FreeCodeCamp.zip")
+
+    if not FIXED_ZIP_PATH.exists():
+        raise HTTPException(
+            status_code=400,
+            detail=f"Zip file not found on server: {FIXED_ZIP_PATH}",
+        )
+
+    task_manager = get_task_manager()
+
+    task_id = task_manager.create_task(
+        task_type=TaskType.NEW_PORTFOLIO,
+        username=username,
+        filename=FIXED_ZIP_PATH.name,
+        file_path=FIXED_ZIP_PATH,
+        analysis_type="non_llm",
+    )
+
+    return {
+        "task_id": task_id,
+        "status_url": f"/api/tasks/{task_id}",
     }

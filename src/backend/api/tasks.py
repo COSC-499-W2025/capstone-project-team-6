@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-
+from datetime import datetime
 from backend.api.auth import verify_token
 from backend.task_manager import TaskStatus, get_task_manager
 
@@ -19,8 +19,9 @@ class TaskStatusResponse(BaseModel):
     task_type: str
     username: str
     filename: str
-    created_at: str
-    updated_at: str
+    created_at: datetime
+    updated_at: datetime
+    progress: int = 0
     error: Optional[str] = None
     result: Optional[Dict[str, Any]] = None
 
@@ -54,6 +55,7 @@ async def get_task_status(task_id: str, username: str = Depends(verify_token)):
         updated_at=task.updated_at,
         error=task.error,
         result=task.result,
+        progress=task.progress,
     )
 
 
@@ -84,6 +86,7 @@ async def list_user_tasks(
             updated_at=task.updated_at,
             error=task.error,
             result=task.result,
+            progress=task.progress,
         )
         for task in sorted_tasks
     ]
