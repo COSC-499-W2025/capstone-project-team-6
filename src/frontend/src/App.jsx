@@ -7,6 +7,7 @@ import ConsentPage from './pages/auth/ConsentPage';
 import Dashboard from './pages/Dashboard';
 import ProjectsPage from './ProjectsPage';
 import AnalyzePage from './pages/AnalyzePage';
+import CuratePage from './pages/CuratePage';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -53,6 +54,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <AnalyzePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/curate"
+            element={
+              <ProtectedRoute>
+                <CuratePage />
               </ProtectedRoute>
             }
           />
