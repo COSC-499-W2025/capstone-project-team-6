@@ -391,15 +391,17 @@ def init_db() -> None:
             """
         )
 
-        # Clean analyses that no longer have projects after deduplication.
-        conn.execute(
-            """
-            DELETE FROM analyses
-            WHERE NOT EXISTS (
-                SELECT 1 FROM projects WHERE projects.analysis_id = analyses.id
+        # Clean analyses with no projects only if projects data exists (avoid legacy losses).
+        has_projects = conn.execute("SELECT 1 FROM projects LIMIT 1").fetchone()
+        if has_projects:
+            conn.execute(
+                """
+                DELETE FROM analyses
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM projects WHERE projects.analysis_id = analyses.id
+                )
+                """
             )
-            """
-        )
 
         conn.commit()
 
