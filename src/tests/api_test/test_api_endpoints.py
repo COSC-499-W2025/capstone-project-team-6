@@ -163,7 +163,7 @@ class TestRequestValidation:
 
     def test_invalid_json(self, client):
         """Test endpoints reject invalid JSON."""
-        response = client.post("/api/auth/signup", data="not json", headers={"Content-Type": "application/json"})
+        response = client.post("/api/auth/signup", content="not json", headers={"Content-Type": "application/json"})
         assert response.status_code == 422
 
     def test_missing_auth_header(self, client):

@@ -111,9 +111,9 @@ class TestIncrementalUploadAPI:
         # Should fail validation before checking if portfolio exists
         assert response.status_code in [400, 404]
 
-    @patch("backend.api_server.get_analysis_by_uuid")
-    @patch("backend.api_server.check_user_consent")
-    @patch("backend.api_server.get_task_manager")
+    @patch("backend.api.portfolios.get_analysis_by_uuid")
+    @patch("backend.api.portfolios.check_user_consent")
+    @patch("backend.task_manager.get_task_manager")
     def test_incremental_upload_success(
         self, mock_get_task_manager, mock_check_consent, mock_get_analysis, client, auth_token, test_zip_file
     ):
@@ -130,7 +130,9 @@ class TestIncrementalUploadAPI:
 
         # Mock task manager
         mock_task_manager = MagicMock()
-        mock_task_manager.create_task.return_value = "task-456"
+        mock_task = MagicMock()
+        mock_task.task_id = "task-456"
+        mock_task_manager.create_task.return_value = mock_task
         mock_get_task_manager.return_value = mock_task_manager
 
         headers = {"Authorization": f"Bearer {auth_token}"}
