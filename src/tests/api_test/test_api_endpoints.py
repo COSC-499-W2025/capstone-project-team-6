@@ -8,13 +8,14 @@ from pathlib import Path
 
 import pytest
 
-# Add project root to path
-project_root = Path(__file__).parent.parent.parent.parent
-sys.path.insert(0, str(project_root))
+# Add src directory to path so backend imports work
+src_dir = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(src_dir))
 
 from fastapi.testclient import TestClient
 
-from src.backend.api_server import app, create_access_token, verify_token
+from backend.api_server import app
+from backend.api.auth import create_access_token, verify_token, active_tokens
 
 
 @pytest.fixture
@@ -141,8 +142,6 @@ class TestTokenManagement:
 
     def test_token_expires(self):
         """Test token has expiration time."""
-        from src.backend.api_server import active_tokens
-
         token = create_access_token("testuser_expire")
         assert token in active_tokens
         assert "expires_at" in active_tokens[token]
