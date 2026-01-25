@@ -1254,7 +1254,7 @@ def main() -> int:
                             temp_llm_zip = create_temp_zip(path)
                             llm_target_path = temp_llm_zip
                         except Exception as e:
-                            print(f"❌ Failed to create zip for AI analysis: {e}")
+                            print(f" Failed to create zip for AI analysis: {e}")
                             has_consented = False  # Abort LLM part
 
                     if has_consented:
@@ -1335,13 +1335,13 @@ def main() -> int:
 
                                 llm_results["non_llm_results"] = results
                                 llm_id = record_analysis("llm", llm_results, username=username)
-                                print(f"\n📊 AI analysis saved to database (ID: {llm_id})")
+                                print(f"\n AI analysis saved to database (ID: {llm_id})")
 
                             except Exception as db_error:
-                                print(f"\n⚠️  Warning: Could not save AI results: {db_error}")
+                                print(f"\n Warning: Could not save AI results: {db_error}")
 
                         except Exception as e:
-                            print(f"\n❌ AI analysis failed: {e}")
+                            print(f"\nAI analysis failed: {e}")
                             # Don't fail the whole command, standard analysis succeeded
 
                         finally:
@@ -1380,9 +1380,9 @@ def main() -> int:
                         output_path = Path(filename)
                         with open(output_path, "w", encoding="utf-8") as f:
                             json.dump(final_results, f, indent=2, ensure_ascii=False)
-                        print(f"✅ Analysis saved to: {output_path.absolute()}")
+                        print(f"Analysis saved to: {output_path.absolute()}")
                     except Exception as e:
-                        print(f"❌ Error saving JSON file: {e}")
+                        print(f"Error saving JSON file: {e}")
 
                 try:
                     # Generate resume highlights
