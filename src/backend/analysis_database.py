@@ -367,7 +367,9 @@ def init_db() -> None:
             """
         )
 
-        # Normalize and deduplicate existing projects so we can enforce uniqueness.
+        # Normalize/dedupe existing projects so we can enforce uniqueness.
+        # Drop the unique index temporarily to avoid conflicts during cleanup.
+        conn.execute("DROP INDEX IF EXISTS idx_projects_unique_name_path_owner")
         conn.execute("UPDATE projects SET project_path = '' WHERE project_path IS NULL")
         conn.execute("UPDATE projects SET owner_username = '' WHERE owner_username IS NULL")
         conn.execute(
