@@ -1116,8 +1116,11 @@ def main() -> int:
 
                     # Store analysis in database
                     try:
-                        from .analysis_database import record_analysis, get_analysis, get_connection
                         import json
+
+                        from .analysis_database import (get_analysis,
+                                                        get_connection,
+                                                        record_analysis)
 
                         analysis_id = None
                         analysis_uuid = None
@@ -1138,6 +1141,7 @@ def main() -> int:
 
                             # temporary UUID for tracking (NOT written to DB)
                             import uuid
+
                             analysis_uuid = str(uuid.uuid4())
                             results.setdefault("analysis_metadata", {})["analysis_uuid"] = analysis_uuid
 
