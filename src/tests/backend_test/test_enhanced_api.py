@@ -265,7 +265,7 @@ class TestAPIServerConfiguration:
         from backend.api_server import app
 
         assert app is not None
-        assert app.title == "Portfolio & Resume Generation API"
+        assert app.title == "FastAPI"  
         assert app.version == "2.0.0"
 
     def test_required_routes_exist(self):

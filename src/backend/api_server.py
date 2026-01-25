@@ -22,7 +22,7 @@ init_analysis_db()
 
 # Create FastAPI app
 app = FastAPI(
-    title="Portfolio & Resume Generation API",
+    title="FastAPI",
     description="API for Portfolio and Resume generation with incremental uploads",
     version="2.0.0",
 )
