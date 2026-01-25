@@ -30,7 +30,7 @@ class TaskStatusResponse(BaseModel):
 async def get_task_status(task_id: str, username: str = Depends(verify_token)):
     """Get status of a specific task."""
     task_manager = get_task_manager()
-    task = task_manager.get_task(task_id)
+    task = task_manager.get_task_status(task_id)
 
     if not task:
         raise HTTPException(
