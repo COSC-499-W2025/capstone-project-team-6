@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext"; 
+import { startAnalysisRequest, getTaskStatus } from "../services/analysisApi";
 
-const API_BASE = ""; 
+
+//const API_BASE = ""; 
 
 export default function AnalyzePage() {
   const navigate = useNavigate();
@@ -43,24 +45,10 @@ export default function AnalyzePage() {
     try {
       setStatus("starting");
       setError("");
+      const data = await startAnalysisRequest(user.token);
+      console.log("startAnalysis response:", data);
 
-      const res = await fetch(`${API_BASE}/api/analysis/start`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${user.token}`,
-        },
-        body: JSON.stringify({}), 
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Start failed (${res.status}): ${text}`);
-      }
-
-      const data = await res.json();
       if (!data.task_id) throw new Error("Start failed: no task_id returned");
-
       if (cancelledRef.current) return;
 
       setTaskId(data.task_id);
@@ -86,21 +74,12 @@ export default function AnalyzePage() {
 
   async function pollOnce(id) {
     try {
-      const res = await fetch(`${API_BASE}/api/tasks/${id}`, {
-        headers: {
-          Authorization: `Bearer ${user.token}`,
-        },
-      });
+      const data = await getTaskStatus(id, user.token);
+      console.log("task status:", data.status, data.progress);
 
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Status failed (${res.status}): ${text}`);
-      }
 
-      const data = await res.json();
       if (cancelledRef.current) return;
 
-      // tasks API includes progress and status :contentReference[oaicite:1]{index=1}
       const p = typeof data.progress === "number" ? data.progress : 0;
       setProgress(Math.max(0, Math.min(100, p)));
 
