@@ -217,12 +217,34 @@ class TestCLIConsentCommands:
 
         session.save_session("testuser")
 
-        with patch("sys.argv", ["cli", "consent", "--update"]), patch("sys.stdout", new=StringIO()) as fake_out:
+        with patch("sys.argv", ["cli", "consent", "--update"]), patch.object(builtins, "input", return_value="n"), patch(
+            "sys.stdout", new=StringIO()
+        ) as fake_out:
             result = main()
             output = fake_out.getvalue()
 
             assert result == 0
-            assert "You have already provided consent" in output
+            assert "Consent remains active" in output
+            assert database.check_user_consent("testuser") is True
+
+    def test_consent_revocation_for_consented_user(self, isolated_test_env, temp_session_file):
+        """Test revoking consent for user who already consented."""
+        database.create_user("testuser", "password123")
+        database.save_user_consent("testuser", True)
+
+        from backend import session
+
+        session.save_session("testuser")
+
+        with patch("sys.argv", ["cli", "consent", "--update"]), patch.object(builtins, "input", return_value="y"), patch(
+            "sys.stdout", new=StringIO()
+        ) as fake_out:
+            result = main()
+            output = fake_out.getvalue()
+
+            assert result == 0
+            assert "Consent revoked" in output
+            assert database.check_user_consent("testuser") is False
 
     def test_consent_commands_require_login(self, isolated_test_env):
         """Test that consent commands require being logged in."""
@@ -295,8 +317,8 @@ class TestCLIAnalyzeFlow:
             output = fake_out.getvalue()
 
             assert result == 0
-            assert "Analyzing folder" in output
-            assert "Analysis Results" in output
+            assert "[*] Analyzing" in output
+            assert "Analysis complete" in output
 
 
 class TestCLIEndToEndWorkflow:
@@ -327,7 +349,8 @@ class TestCLIEndToEndWorkflow:
         with patch("sys.argv", ["cli", "analyze", str(test_directory)]), patch("sys.stdout", new=StringIO()) as fake_out:
             result = main()
             assert result == 0
-            assert "Analysis Results" in fake_out.getvalue()
+            assert "[*] Analyzing" in fake_out.getvalue()
+            assert "Analysis complete" in fake_out.getvalue()
 
     def test_workflow_with_consent_denial_then_update(self, isolated_test_env, temp_session_file, test_directory):
         """Test workflow: signup (deny consent) -> login -> consent update -> analyze."""
@@ -366,7 +389,8 @@ class TestCLIEndToEndWorkflow:
         with patch("sys.argv", ["cli", "analyze", str(test_directory)]), patch("sys.stdout", new=StringIO()) as fake_out:
             result = main()
             assert result == 0
-            assert "Analysis Results" in fake_out.getvalue()
+            assert "[*] Analyzing" in fake_out.getvalue()
+            assert "Analysis complete" in fake_out.getvalue()
 
     def test_workflow_signup_first_time_login_with_consent(self, isolated_test_env, temp_session_file):
         """Test workflow: signup (no consent prompt) -> first-time login (consent prompt)."""
