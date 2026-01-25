@@ -84,22 +84,48 @@ class FileManager:
         return sha256_hash.hexdigest()
 
     def store_file_permanently(self, temp_path: Path, file_hash: str = None) -> Path:
-        """Move file from temp to permanent storage with deduplication."""
+        """Store file in permanent storage with deduplication.
+
+        IMPORTANT:
+        - If the file is in our temp upload directory, we can move/delete it.
+        - If it's a user-provided path elsewhere, we MUST NOT delete/move it.
+          We copy it instead.
+
+          This change was made as the whole zip file was moved to temp and made it look like the file was permenently deleted.
+        """
         if not file_hash:
             file_hash = self.calculate_file_hash(temp_path)
 
-        # Use hash as filename to ensure deduplication
         permanent_path = self.permanent_dir / f"{file_hash}.zip"
 
-        if not permanent_path.exists():
-            shutil.move(str(temp_path), str(permanent_path))
-            logger.info(f"File stored permanently: {permanent_path}")
-        else:
-            # File already exists, remove temporary file
-            temp_path.unlink()
+        if permanent_path.exists():
+            # already stored; only delete source if it's our temp file
+            try:
+                if temp_path.resolve().is_relative_to(self.temp_dir.resolve()):
+                    temp_path.unlink(missing_ok=True)
+            except Exception:
+                pass
             logger.info(f"Duplicate file detected, using existing: {permanent_path}")
+            return permanent_path
+
+        # Decide whether we can safely delete the source
+        can_delete_source = False
+        try:
+            can_delete_source = temp_path.resolve().is_relative_to(self.temp_dir.resolve())
+        except Exception:
+            can_delete_source = False
+
+        if can_delete_source:
+            # safe: uploaded temp file
+            shutil.move(str(temp_path), str(permanent_path))
+            logger.info(f"File moved to permanent storage: {permanent_path}")
+        else:
+            # safe: user file (do not remove from their computer)
+            shutil.copy2(str(temp_path), str(permanent_path))
+            logger.info(f"File copied to permanent storage (source preserved): {permanent_path}")
 
         return permanent_path
+
 
     def cleanup_temp_files(self, older_than_hours: int = 24):
         """Clean up temporary files older than specified hours."""
