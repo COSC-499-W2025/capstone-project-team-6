@@ -289,7 +289,7 @@ class TaskManager:
         - If user has consent, run LLM analysis + store it for this user.
         - LLM failures do not fail the whole task.
         """
-        from .analysis_database import record_analysis
+        from .analysis_database import record_analysis, get_analysis
         from .cli import analyze_folder
 
         from backend.database import check_user_consent
@@ -308,11 +308,14 @@ class TaskManager:
         task.progress = 80
 
         analysis_id = record_analysis(task.analysis_type or "non_llm", analysis_result, username=task.username)
+        row = get_analysis(analysis_id)
+        analysis_uuid = row["analysis_uuid"] if row and "analysis_uuid" in row else None
+
         task.progress = 90
 
         result_payload: Dict[str, Any] = {
             "analysis_id": analysis_id,
-            "analysis_uuid": analysis_result.get("analysis_metadata", {}).get("analysis_uuid"),
+            "analysis_uuid": analysis_uuid,
             "total_projects": len(analysis_result.get("projects", [])),
             "file_hash": task.file_hash,
 
