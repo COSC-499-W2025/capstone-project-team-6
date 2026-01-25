@@ -105,6 +105,7 @@ def init_db() -> None:
                 analysis_id INTEGER NOT NULL REFERENCES analyses(id) ON DELETE CASCADE,
                 project_name TEXT NOT NULL,
                 project_path TEXT,
+                owner_username TEXT,
                 primary_language TEXT,
                 total_files INTEGER,
                 total_size INTEGER,
@@ -305,6 +306,9 @@ def init_db() -> None:
         cursor.execute("PRAGMA table_info(projects)")
         existing_columns = {row[1] for row in cursor.fetchall()}
 
+        if "owner_username" not in existing_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN owner_username TEXT")
+
         if "last_commit_date" not in existing_columns:
             conn.execute("ALTER TABLE projects ADD COLUMN last_commit_date TEXT")
 
@@ -363,6 +367,38 @@ def init_db() -> None:
             """
         )
 
+        # Normalize and deduplicate existing projects so we can enforce uniqueness.
+        conn.execute("UPDATE projects SET project_path = '' WHERE project_path IS NULL")
+        conn.execute("UPDATE projects SET owner_username = '' WHERE owner_username IS NULL")
+        conn.execute(
+            """
+            DELETE FROM projects
+            WHERE id NOT IN (
+                SELECT MAX(id)
+                FROM projects
+                GROUP BY project_name, project_path, owner_username
+            )
+            """
+        )
+
+        # Enforce uniqueness so re-analyses replace prior project rows.
+        conn.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_unique_name_path_owner
+            ON projects (project_name, project_path, owner_username)
+            """
+        )
+
+        # Clean analyses that no longer have projects after deduplication.
+        conn.execute(
+            """
+            DELETE FROM analyses
+            WHERE NOT EXISTS (
+                SELECT 1 FROM projects WHERE projects.analysis_id = analyses.id
+            )
+            """
+        )
+
         conn.commit()
 
 
@@ -387,6 +423,45 @@ def _boolean_to_int(value: Any) -> Optional[int]:
     if value is None:
         return None
     return int(bool(value))
+
+
+def _normalize_project_path_value(path: Optional[str]) -> str:
+    """Ensure project_path participates in uniqueness (avoid NULL grouping)."""
+    return path or ""
+
+
+def _normalize_username_value(username: Optional[str]) -> str:
+    """Ensure username participates in uniqueness (avoid NULL grouping)."""
+    return username or ""
+
+
+def _clear_project_children(conn: sqlite3.Connection, project_id: int, project_name: str) -> None:
+    """Remove all child rows for a project so fresh data can be inserted."""
+    child_tables = [
+        "project_languages",
+        "project_frameworks",
+        "project_skills",
+        "project_dependencies",
+        "project_contributors",
+        "project_largest_file",
+        "project_remote_urls",
+        "project_code_ownership",
+        "project_blame_summary",
+        "project_language_breakdown",
+        "project_semantic_summary",
+        "project_contribution_volume",
+        "project_activity_breakdown",
+    ]
+    for table in child_tables:
+        conn.execute(f"DELETE FROM {table} WHERE project_id = ?", (project_id,))
+
+    # Resume items historically lacked project_id, so clear by both id and name defensively.
+    try:
+        conn.execute("DELETE FROM resume_items WHERE project_id = ?", (project_id,))
+    except sqlite3.OperationalError:
+        conn.execute("DELETE FROM resume_items WHERE project_name = ?", (project_name,))
+    else:
+        conn.execute("DELETE FROM resume_items WHERE project_name = ?", (project_name,))
 
 
 def _extract_summary(summary: Dict[str, Any]) -> Dict[str, Any]:
@@ -464,6 +539,8 @@ def record_analysis(
             ),
         )
         analysis_id = cursor.lastrowid
+        obsolete_analysis_ids: set[int] = set()
+        owner_username = _normalize_username_value(username)
 
         for project in projects:
             target_user_stats = project.get("target_user_stats") or {}
@@ -476,13 +553,26 @@ def record_analysis(
             target_user_lines_changed = contribution_volume.get(target_user_email) if target_user_email else None
             target_user_surviving_lines = blame_summary.get(target_user_email) if target_user_email else None
             target_user_last_commit = target_user_stats.get("last_commit_date") or project.get("last_commit_date")
+            project_name = project.get("project_name") or "Project"
+            project_path = _normalize_project_path_value(project.get("project_path"))
 
-            project_cursor = conn.execute(
+            existing_project = conn.execute(
+                """
+                SELECT id, analysis_id FROM projects
+                WHERE project_name = ? AND project_path = ? AND owner_username = ?
+                """,
+                (project_name, project_path, owner_username),
+            ).fetchone()
+            if existing_project and existing_project["analysis_id"] is not None:
+                obsolete_analysis_ids.add(existing_project["analysis_id"])
+
+            conn.execute(
                 """
                 INSERT INTO projects (
                     analysis_id,
                     project_name,
                     project_path,
+                    owner_username,
                     primary_language,
                     total_files,
                     total_size,
@@ -514,13 +604,48 @@ def record_analysis(
                     target_user_surviving_lines,
                     target_user_last_commit
                 ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                 )
+                ON CONFLICT(project_name, project_path, owner_username) DO UPDATE SET
+                    analysis_id = excluded.analysis_id,
+                    project_path = excluded.project_path,
+                    owner_username = excluded.owner_username,
+                    primary_language = excluded.primary_language,
+                    total_files = excluded.total_files,
+                    total_size = excluded.total_size,
+                    code_files = excluded.code_files,
+                    test_files = excluded.test_files,
+                    doc_files = excluded.doc_files,
+                    config_files = excluded.config_files,
+                    has_tests = excluded.has_tests,
+                    has_readme = excluded.has_readme,
+                    has_ci_cd = excluded.has_ci_cd,
+                    has_docker = excluded.has_docker,
+                    test_coverage_estimate = excluded.test_coverage_estimate,
+                    is_git_repo = excluded.is_git_repo,
+                    total_commits = excluded.total_commits,
+                    primary_branch = excluded.primary_branch,
+                    total_branches = excluded.total_branches,
+                    has_remote = excluded.has_remote,
+                    last_commit_date = excluded.last_commit_date,
+                    last_modified_date = excluded.last_modified_date,
+                    directory_depth = excluded.directory_depth,
+                    project_start_date = excluded.project_start_date,
+                    project_end_date = excluded.project_end_date,
+                    project_active_days = excluded.project_active_days,
+                    target_user_email = excluded.target_user_email,
+                    target_user_name = excluded.target_user_name,
+                    target_user_commits = excluded.target_user_commits,
+                    target_user_commit_pct = excluded.target_user_commit_pct,
+                    target_user_lines_changed = excluded.target_user_lines_changed,
+                    target_user_surviving_lines = excluded.target_user_surviving_lines,
+                    target_user_last_commit = excluded.target_user_last_commit
                 """,
                 (
                     analysis_id,
-                    project.get("project_name"),
-                    project.get("project_path"),
+                    project_name,
+                    project_path,
+                    owner_username,
                     project.get("primary_language"),
                     project.get("total_files"),
                     project.get("total_size"),
@@ -553,7 +678,17 @@ def record_analysis(
                     target_user_last_commit,
                 ),
             )
-            project_id = project_cursor.lastrowid
+            project_row = conn.execute(
+                """
+                SELECT id FROM projects WHERE project_name = ? AND project_path = ? AND owner_username = ?
+                """,
+                (project_name, project_path, owner_username),
+            ).fetchone()
+            if not project_row:
+                raise RuntimeError(f"Failed to upsert project '{project_name}' at path '{project_path}'")
+            project_id = project_row["id"]
+
+            _clear_project_children(conn, project_id, project_name)
 
             languages = project.get("languages") or {}
             for language, file_count in languages.items():
@@ -747,6 +882,19 @@ def record_analysis(
                         """,
                         (project_id, email, activity_type, lines),
                     )
+
+        if obsolete_analysis_ids:
+            placeholders = ",".join("?" for _ in obsolete_analysis_ids)
+            conn.execute(
+                f"""
+                DELETE FROM analyses
+                WHERE id IN ({placeholders})
+                AND NOT EXISTS (
+                    SELECT 1 FROM projects WHERE projects.analysis_id = analyses.id
+                )
+                """,
+                tuple(obsolete_analysis_ids),
+            )
 
         conn.commit()
 
