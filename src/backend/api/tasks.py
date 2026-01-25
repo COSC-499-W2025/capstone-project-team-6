@@ -1,4 +1,5 @@
 """Task management API endpoints."""
+
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -12,6 +13,7 @@ router = APIRouter(prefix="/api", tags=["Tasks"])
 
 class TaskStatusResponse(BaseModel):
     """Task status information."""
+
     task_id: str
     status: str
     task_type: str

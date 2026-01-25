@@ -14,8 +14,8 @@ sys.path.insert(0, str(src_dir))
 
 from fastapi.testclient import TestClient
 
+from backend.api.auth import active_tokens, create_access_token, verify_token
 from backend.api_server import app
-from backend.api.auth import create_access_token, verify_token, active_tokens
 
 
 @pytest.fixture

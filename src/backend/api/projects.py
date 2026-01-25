@@ -1,4 +1,5 @@
 """Project-related API endpoints."""
+
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -13,6 +14,7 @@ router = APIRouter(prefix="/api", tags=["Projects"])
 
 class ProjectDetail(BaseModel):
     """Detailed project information."""
+
     name: str
     path: str
     metadata: Dict[str, Any]
@@ -20,6 +22,7 @@ class ProjectDetail(BaseModel):
 
 class SkillInfo(BaseModel):
     """Aggregated skill information."""
+
     skill: str
     count: int
     projects: List[str]
