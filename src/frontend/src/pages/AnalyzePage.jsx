@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext"; 
-import { startAnalysisRequest, getTaskStatus } from "../services/analysisApi";
+import {startAnalysisRequest, getTaskStatus } from "../services/analysisApi";
 
 
 //const API_BASE = ""; 
@@ -88,6 +88,11 @@ export default function AnalyzePage() {
         setStatus("completed");
         setProgress(100);
         clearInterval(pollTimerRef.current);
+        const analysisUuid = data?.result?.analysis_uuid;
+        if (analysisUuid) {
+          sessionStorage.setItem("portfolio_id", analysisUuid);
+        }
+
       } else if (s === "failed") {
         setStatus("failed");
         setError(data.error || "Analysis failed");
@@ -166,7 +171,9 @@ export default function AnalyzePage() {
         <button onClick={() => navigate("/dashboard")}>Exit</button>
 
         <button
-          onClick={() => navigate("/curate")}
+          onClick={() => navigate("/curate",{
+            state: { portfolioId: sessionStorage.getItem("portfolio_id") },
+          })}
           disabled={!isDone}
           title={!isDone ? "Wait for analysis to complete" : ""}
         >

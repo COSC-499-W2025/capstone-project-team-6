@@ -16,7 +16,8 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-
+import io
+import contextlib
 from pydantic import BaseModel
 
 # Thread pool for blocking operations
@@ -217,6 +218,7 @@ class TaskManager:
         finally:
             task.updated_at = datetime.now()
 
+    '''
     async def _process_new_portfolio(self, task: TaskInfo) -> Dict[str, Any]:
         """Process a new portfolio upload.
 
@@ -242,7 +244,7 @@ class TaskManager:
         task.progress = 80
 
         # Store analysis in database
-        analysis_id = record_analysis(task.analysis_type or "non_llm", analysis_result)
+        analysis_id = record_analysis(task.analysis_type or "non_llm", analysis_result, username=task.username)
         task.progress = 90
 
         return {
@@ -251,6 +253,90 @@ class TaskManager:
             "total_projects": len(analysis_result.get("projects", [])),
             "file_hash": task.file_hash,
         }
+    '''
+    
+    async def _process_new_portfolio(self, task: TaskInfo) -> Dict[str, Any]:
+        """Process a new portfolio upload (webapp pipeline).
+
+        Option B:
+        - Always run non-LLM analysis + store it for this user.
+        - If user has consent, run LLM analysis + store it for this user.
+        - LLM failures do not fail the whole task.
+        """
+        from .analysis_database import record_analysis
+        from .cli import analyze_folder
+
+        from backend.database import check_user_consent
+        from .analysis.llm_pipeline import run_gemini_analysis
+
+        await asyncio.sleep(1)
+        task.progress = 50
+
+        if not task.file_path:
+            raise ValueError("Task file_path is missing")
+        file_path = Path(task.file_path)
+        loop = asyncio.get_event_loop()
+
+        # 1) NON-LLM ANALYSIS (always)
+        analysis_result = await loop.run_in_executor(_executor, analyze_folder, file_path)
+        task.progress = 80
+
+        analysis_id = record_analysis(task.analysis_type or "non_llm", analysis_result, username=task.username)
+        task.progress = 90
+
+        result_payload: Dict[str, Any] = {
+            "analysis_id": analysis_id,
+            "analysis_uuid": analysis_result.get("analysis_metadata", {}).get("analysis_uuid"),
+            "total_projects": len(analysis_result.get("projects", [])),
+            "file_hash": task.file_hash,
+
+            
+            "llm_ran": False,
+            "llm_analysis_id": None,
+            "llm_error": None,
+        }
+
+        # 2) LLM ANALYSIS (only if consent)
+        try:
+            has_consented = check_user_consent(task.username)
+        except Exception as e:
+            has_consented = False
+            result_payload["llm_error"] = f"Consent check failed: {e}"
+
+        if has_consented:
+            task.progress = 92
+            try:
+                # Choose active features 
+                active_features = ["architecture", "complexity", "security", "skills", "domain", "resume"]
+
+                # Run LLM analysis 
+                llm_results = await loop.run_in_executor(
+                    _executor,
+                    run_gemini_analysis,
+                    file_path,
+                    active_features,
+                    None,  # prompt_override
+                    None,  # progress_callback
+                )
+
+                task.progress = 97
+
+                # Store LLM under same user
+                llm_results["non_llm_results"] = analysis_result
+                llm_analysis_id = record_analysis("llm", llm_results, username=task.username)
+
+                result_payload["llm_ran"] = True
+                result_payload["llm_analysis_id"] = llm_analysis_id
+                result_payload["llm_error"] = None
+
+            except Exception as e:
+                #do NOT fail entire task if LLM fails
+                result_payload["llm_ran"] = False
+                result_payload["llm_error"] = str(e)
+
+        task.progress = 99
+        return result_payload
+
 
     async def _process_incremental_upload(self, task: TaskInfo) -> Dict[str, Any]:
         """Process an incremental upload to existing portfolio."""
