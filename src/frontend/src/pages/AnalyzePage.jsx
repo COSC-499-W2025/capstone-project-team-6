@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext"; 
 
-const API_BASE = "http://localhost:8000"; 
+const API_BASE = ""; 
 
 export default function AnalyzePage() {
   const navigate = useNavigate();
