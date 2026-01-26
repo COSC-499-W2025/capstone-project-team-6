@@ -5,7 +5,8 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from backend.analysis_database import get_all_analyses_for_user, get_analysis_by_uuid
+from backend.analysis_database import (get_all_analyses_for_user,
+                                       get_analysis_by_uuid)
 from backend.api.auth import verify_token
 
 router = APIRouter(prefix="/api", tags=["Resume"])
@@ -14,9 +15,7 @@ router = APIRouter(prefix="/api", tags=["Resume"])
 class ResumeRequest(BaseModel):
     """Request to generate a resume."""
 
-    portfolio_ids: List[str] = Field(
-        ..., description="List of portfolio UUIDs to include"
-    )
+    portfolio_ids: List[str] = Field(..., description="List of portfolio UUIDs to include")
     format: str = Field("markdown", description="Output format: markdown, pdf, html")
     include_skills: bool = Field(True, description="Include skills section")
     include_projects: bool = Field(True, description="Include projects section")

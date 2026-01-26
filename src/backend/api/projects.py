@@ -1,5 +1,7 @@
 """Project-related API endpoints."""
 
+from typing import Any, Dict, List
+
 import os
 import uuid
 from pathlib import Path

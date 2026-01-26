@@ -1324,7 +1324,31 @@ def main() -> int:
 
                     # Store analysis in database
                     try:
-                        from .analysis_database import record_analysis
+                        import json
+
+                        from .analysis_database import (get_analysis,
+                                                        get_connection,
+                                                        record_analysis)
+
+                        analysis_id = None
+                        analysis_uuid = None
+
+                        if not has_consented:
+                            analysis_id = record_analysis("non_llm", results, username=username)
+                            row = get_analysis(analysis_id)
+                            if row:
+                                analysis_uuid = row["analysis_uuid"]
+                                # Stored UUID in results metadata for consistency
+                                results.setdefault("analysis_metadata", {})["analysis_uuid"] = analysis_uuid
+                                print(f"\nAnalysis saved to database (ID: {analysis_id}, UUID: {analysis_uuid})")
+                            else:
+                                print(f"\nAnalysis saved to database (ID: {analysis_id})")
+
+                        else:
+                            print("\n[i] Standard analysis complete. Proceeding with AI analysis...")
+
+                            # temporary UUID for tracking (NOT written to DB)
+                            import uuid
 
                         analysis_id = record_analysis(
                             "non_llm", results, username=username
@@ -1498,7 +1522,7 @@ def main() -> int:
                             temp_llm_zip = create_temp_zip(path)
                             llm_target_path = temp_llm_zip
                         except Exception as e:
-                            print(f"❌ Failed to create zip for AI analysis: {e}")
+                            print(f" Failed to create zip for AI analysis: {e}")
                             has_consented = False  # Abort LLM part
 
                     if has_consented:
@@ -1606,19 +1630,15 @@ def main() -> int:
                             try:
                                 from .analysis_database import record_analysis
 
-                                llm_analysis_id = record_analysis(
-                                    "llm", llm_results, username=username
-                                )
-                                print(
-                                    f"\n📊 AI analysis saved to database (ID: {llm_analysis_id})"
-                                )
+                                llm_results["non_llm_results"] = results
+                                llm_id = record_analysis("llm", llm_results, username=username)
+                                print(f"\n AI analysis saved to database (ID: {llm_id})")
+
                             except Exception as db_error:
-                                print(
-                                    f"\n⚠️  Warning: Could not save AI results: {db_error}"
-                                )
+                                print(f"\n Warning: Could not save AI results: {db_error}")
 
                         except Exception as e:
-                            print(f"\n❌ AI analysis failed: {e}")
+                            print(f"\nAI analysis failed: {e}")
                             # Don't fail the whole command, standard analysis succeeded
 
                         finally:
@@ -1669,9 +1689,9 @@ def main() -> int:
                         output_path = Path(filename)
                         with open(output_path, "w", encoding="utf-8") as f:
                             json.dump(final_results, f, indent=2, ensure_ascii=False)
-                        print(f"✅ Analysis saved to: {output_path.absolute()}")
+                        print(f"Analysis saved to: {output_path.absolute()}")
                     except Exception as e:
-                        print(f"❌ Error saving JSON file: {e}")
+                        print(f"Error saving JSON file: {e}")
 
                 try:
                     # Generate resume highlights
