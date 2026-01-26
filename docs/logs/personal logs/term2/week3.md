@@ -78,9 +78,59 @@ What didn’t go as smoothly was that the initial PR implementing all the API en
 # Ansh Rastogi
 
 
+# **Harjot Sahota**
 
-# Harjot Sahota
+## **Date ranges**
+January 19 – January 26
+<img width="1078" height="631" alt="Screenshot 2026-01-25 at 5 24 26 PM" src="https://github.com/user-attachments/assets/807951c3-2b0c-488e-b4da-2c29c15b50d7" />
 
+---
+
+## **What went well**
+
+- This week I completed the **end-to-end storage and frontend display of resume_items and portfolio_items**, which included updating the SQLite schema, adding backend DB helper functions, implementing new protected API endpoints, and building the frontend UI to render project-specific summaries and resume bullet lists. 
+
+- I also successfully fixed a critical bug in the analysis flow with PR **#304 (Prevent Duplicate LLM Saves During Analysis)**. This required tracing the full CLI flow, debugging how analysis metadata was stored, and redesigning the logic so LLM-consented users no longer create duplicate rows. Both LLM and non-LLM paths now behave correctly.
+
+- I resolved several CI failures and test issues on my branch by updating unit tests, fixing import mismatches, addressing stale bytecode cache problems, and properly resolving merge conflicts. After these fixes, **all tests passed and CI turned fully green**.
+- I also added tests for my last weeks work on the frontend, Projects Page
+
+- Overall, I learned a lot about **test-driven debugging, merge conflict resolution, interactive rebasing, API routing, and how frontend and backend layers integrate across the stack**.
+
+---
+
+## **What didn’t go well**
+
+- A lot of unexpected time was spent fixing failing tests and CI issues after merging new updates from Development. Some failures were caused by cache inconsistencies, outdated imports, and mismatched API expectations, which made debugging slower than expected.
+
+---
+
+## **PRs initiated**
+
+- **Store + serve resume_items/portfolio_items and display on Projects page**  
+  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/311
+
+- **Fix: Prevent Duplicate LLM Saves During Analysis**  
+  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/304
+
+- **Add frontend tests configuration and ProjectsPage tests**  
+  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/322
+
+---
+
+## **PRs reviewed**
+
+- **Revoke Consent Feature**  
+  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/315
+
+- **Unit tests for tasks, resume, health and API Server endpoints**  
+  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/319
+
+---
+
+## **Plans for next week**
+- Finish polishing the resume/portfolio integration and begin working on UI improvements so the Projects page is more readable and user-friendly.  
+- Add more robust unit tests for the resume_items/portfolio endpoints to ensure ordering and authorization rules are enforced correctly.  
 
 # Mohamed Sakr
 
