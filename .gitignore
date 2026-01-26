@@ -14,3 +14,6 @@ build/
 pgvector/
 sample_*.txt
 analysis_report.json
+
+__pycache__/
+*.pyc
