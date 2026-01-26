@@ -83,6 +83,7 @@ class FileManager:
                 sha256_hash.update(chunk)
         return sha256_hash.hexdigest()
 
+    '''
     def store_file_permanently(self, temp_path: Path, file_hash: str = None) -> Path:
         """Store file in permanent storage with deduplication.
 
@@ -125,6 +126,60 @@ class FileManager:
             logger.info(f"File copied to permanent storage (source preserved): {permanent_path}")
 
         return permanent_path
+    '''
+    def store_file_permanently(
+            self,
+            temp_path: Path,
+            file_hash: str = None,
+            *,
+            preserve_source: bool | None = None,
+        ) -> Path:
+        """
+        Store file in permanent storage with deduplication.
+    
+        preserve_source:
+          - None: auto-detect (preserve if NOT in self.temp_dir)
+          - True: always preserve original (copy)
+          - False: safe to delete/move original (move; and delete if dedup hit)
+    
+        Rationale:
+          - Uploaded temp files should be removable.
+          - User-provided paths (fixed path projects) must not be deleted.
+        """
+        if not file_hash:
+            file_hash = self.calculate_file_hash(temp_path)
+    
+        permanent_path = self.permanent_dir / f"{file_hash}.zip"
+    
+        # Decide behavior if not explicitly provided
+        if preserve_source is None:
+            try:
+                # If it's inside our temp upload dir, we can delete/move it.
+                preserve_source = not temp_path.resolve().is_relative_to(self.temp_dir.resolve())
+            except Exception:
+                # Conservative default: preserve
+                preserve_source = True
+    
+        # If already stored, dedup: optionally remove the source if allowed
+        if permanent_path.exists():
+            if not preserve_source:
+                try:
+                    temp_path.unlink(missing_ok=True)
+                except Exception:
+                    pass
+            logger.info(f"Duplicate file detected, using existing: {permanent_path}")
+            return permanent_path
+    
+        # First time storing
+        if preserve_source:
+            shutil.copy2(str(temp_path), str(permanent_path))
+            logger.info(f"File copied to permanent storage (source preserved): {permanent_path}")
+        else:
+            shutil.move(str(temp_path), str(permanent_path))
+            logger.info(f"File moved to permanent storage: {permanent_path}")
+    
+        return permanent_path
+    
 
 
     def cleanup_temp_files(self, older_than_hours: int = 24):
