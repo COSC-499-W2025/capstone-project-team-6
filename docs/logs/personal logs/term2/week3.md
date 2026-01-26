@@ -131,9 +131,9 @@ January 19 - January 25
 - Migration for the new unique key needed iterative fixes to avoid legacy data loss; still need broader validation on seeded data.
 
 ## Plan for next week
-- Rerun full test suite locally (outside sandbox) to confirm stability.
 - Add documentation for consent management and edge cases around analyze gating.
 - Validate the per-user dedup migration on fresh and legacy databases and document rollback steps; add a short ops runbook for the unique-index rebuild.
+- Refactor as needed after all major milestone 2 requirements are met
 
 ## PR's initiated
 
