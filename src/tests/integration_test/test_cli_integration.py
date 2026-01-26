@@ -334,9 +334,9 @@ class TestCLIEnhancedRankingIntegration:
 
         session.save_session("testuser")
 
-        with patch("sys.argv", ["cli", "analyze", str(test_directory)]), patch.object(
-            builtins, "input", return_value="n"
-        ), patch("sys.stdout", new=StringIO()) as fake_out:
+        with patch("sys.argv", ["cli", "analyze", str(test_directory)]), patch.object(builtins, "input", return_value="n"), patch(
+            "sys.stdout", new=StringIO()
+        ) as fake_out:
             result = main()
             output = fake_out.getvalue()
 
@@ -370,9 +370,9 @@ class TestCLIEnhancedRankingIntegration:
 
         session.save_session("testuser")
 
-        with patch("sys.argv", ["cli", "analyze", str(test_directory)]), patch.object(
-            builtins, "input", return_value="n"
-        ), patch("sys.stdout", new=StringIO()) as fake_out:
+        with patch("sys.argv", ["cli", "analyze", str(test_directory)]), patch.object(builtins, "input", return_value="n"), patch(
+            "sys.stdout", new=StringIO()
+        ) as fake_out:
             result = main()
             output = fake_out.getvalue()
 
@@ -397,9 +397,9 @@ class TestCLIEnhancedRankingIntegration:
 
         session.save_session("testuser")
 
-        with patch("sys.argv", ["cli", "analyze", str(test_directory)]), patch.object(
-            builtins, "input", return_value="n"
-        ), patch("sys.stdout", new=StringIO()) as fake_out:
+        with patch("sys.argv", ["cli", "analyze", str(test_directory)]), patch.object(builtins, "input", return_value="n"), patch(
+            "sys.stdout", new=StringIO()
+        ) as fake_out:
             result = main()
             output = fake_out.getvalue()
 
@@ -422,9 +422,9 @@ class TestCLIEnhancedRankingIntegration:
 
         session.save_session("testuser")
 
-        with patch("sys.argv", ["cli", "analyze", str(test_directory)]), patch.object(
-            builtins, "input", return_value="n"
-        ), patch("sys.stdout", new=StringIO()) as fake_out:
+        with patch("sys.argv", ["cli", "analyze", str(test_directory)]), patch.object(builtins, "input", return_value="n"), patch(
+            "sys.stdout", new=StringIO()
+        ) as fake_out:
             result = main()
             output = fake_out.getvalue()
 
@@ -492,9 +492,9 @@ class TestCLIEndToEndWorkflow:
         session.save_session("alice")
 
         # Step 3: Analyze and verify enhanced ranking appears
-        with patch("sys.argv", ["cli", "analyze", str(test_directory)]), patch.object(
-            builtins, "input", return_value="n"
-        ), patch("sys.stdout", new=StringIO()) as fake_out:
+        with patch("sys.argv", ["cli", "analyze", str(test_directory)]), patch.object(builtins, "input", return_value="n"), patch(
+            "sys.stdout", new=StringIO()
+        ) as fake_out:
             result = main()
             output = fake_out.getvalue()
 

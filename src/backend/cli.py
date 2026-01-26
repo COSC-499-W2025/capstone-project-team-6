@@ -625,8 +625,8 @@ def display_analysis(results: dict) -> None:
                 print(f"{'=' * 60}")
 
                 # Overall scores
-                composite_score = score_data.get('composite_score', 0)
-                category = score_data.get('category', 'N/A')
+                composite_score = score_data.get("composite_score", 0)
+                category = score_data.get("category", "N/A")
                 print(f"\nFinal Score: {composite_score:.2f}/100.0 ({category})")
 
                 user_score = score_data.get("user_contribution_score", 0.0)
@@ -647,7 +647,7 @@ def display_analysis(results: dict) -> None:
                     print(f"    • Algorithmic Quality:   {breakdown.get('algorithmic_quality', 0):>6.2f}/20.0")
 
                     # Enhanced factors
-                    if 'individual_contribution' in breakdown:
+                    if "individual_contribution" in breakdown:
                         print(f"\n  Enhanced Factors (55% weight):")
                         print(f"    • Individual Contribution: {breakdown.get('individual_contribution', 0):>6.2f}/30.0")
                         print(f"    • Recency:                 {breakdown.get('recency', 0):>6.2f}/15.0")
@@ -656,7 +656,7 @@ def display_analysis(results: dict) -> None:
                         print(f"    • Activity Duration:       {breakdown.get('activity_duration', 0):>6.2f}/10.0")
 
                 # Show justifications for enhanced factors
-                if justification and 'individual_contribution' in justification:
+                if justification and "individual_contribution" in justification:
                     print(f"\nEnhanced Ranking Details:")
                     print(f"  • Contribution: {justification.get('individual_contribution', 'N/A')}")
                     print(f"  • Recency: {justification.get('recency', 'N/A')}")
