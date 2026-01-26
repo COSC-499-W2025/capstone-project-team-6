@@ -10,7 +10,7 @@ import zipfile
 from pathlib import Path
 from typing import Optional
 
-from src.backend.curation_cli import (curate_project_rank_interactive,
+from .curation_cli import (curate_project_rank_interactive,
                                       curate_skills_highlight_interactive)
 
 from . import (Folder_traversal_fs, MDAShell, UserAlreadyExistsError,
