@@ -1,15 +1,28 @@
 """Project-related API endpoints."""
 
-from typing import Any, Dict, List
+import uuid
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from backend.analysis_database import get_analysis_by_uuid
+from backend.analysis_database import (
+    get_analysis_by_uuid,
+    get_project_by_path_and_portfolio,
+    get_project_thumbnail,
+    update_project_thumbnail,
+)
 from backend.api.auth import verify_token
 from backend.curation import get_user_projects
 
 router = APIRouter(prefix="/api", tags=["Projects"])
+
+# Configuration for thumbnail uploads
+THUMBNAIL_UPLOAD_DIR = Path(__file__).parent.parent / "uploads" / "project_thumbnails"
+ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+MAX_THUMBNAIL_SIZE_MB = 5
 
 
 class ProjectDetail(BaseModel):
@@ -18,6 +31,14 @@ class ProjectDetail(BaseModel):
     name: str
     path: str
     metadata: Dict[str, Any]
+    thumbnail_url: Optional[str] = None
+
+
+class ThumbnailUploadResponse(BaseModel):
+    """Response after uploading a thumbnail."""
+    message: str
+    thumbnail_url: str
+    project_id: str
 
 
 class SkillInfo(BaseModel):
@@ -73,10 +94,17 @@ async def get_project_detail(project_id: str, username: str = Depends(verify_tok
             detail=f"Project {project_path} not found in portfolio {portfolio_uuid}",
         )
 
+    # Get thumbnail if available
+    project_db_row = get_project_by_path_and_portfolio(portfolio_uuid, project_path, username)
+    thumbnail_url = None
+    if project_db_row and project_db_row["thumbnail_image_path"]:
+        thumbnail_url = f"/api/projects/{project_id}/thumbnail"
+
     return ProjectDetail(
         name=project.get("name", ""),
         path=project.get("path", ""),
         metadata=project.get("metadata", {}),
+        thumbnail_url=thumbnail_url,
     )
 
 
@@ -123,3 +151,208 @@ async def get_aggregated_skills(username: str = Depends(verify_token)):
         "total_skills": len(skills_list),
         "skills": skills_list,
     }
+
+
+@router.post("/projects/{project_id}/thumbnail", response_model=ThumbnailUploadResponse)
+async def upload_project_thumbnail(
+    project_id: str,
+    file: UploadFile = File(..., description="Thumbnail image file (JPG, PNG, GIF, WebP)"),
+    username: str = Depends(verify_token),
+):
+    """Upload a thumbnail image for a specific project.
+
+    The project_id should be in format: {portfolio_uuid}:{project_path}
+    """
+    # Parse project_id
+    if ":" not in project_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid project_id format. Expected format: {portfolio_uuid}:{project_path}",
+        )
+
+    portfolio_uuid, project_path = project_id.split(":", 1)
+
+    # Verify project exists and user has access
+    project_db_row = get_project_by_path_and_portfolio(portfolio_uuid, project_path, username)
+    if not project_db_row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project not found or access denied",
+        )
+
+    # Validate file type
+    if not file.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No filename provided",
+        )
+
+    file_ext = Path(file.filename).suffix.lower()
+    if file_ext not in ALLOWED_IMAGE_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid file type. Allowed types: {', '.join(ALLOWED_IMAGE_EXTENSIONS)}",
+        )
+
+    # Read and validate file size
+    content = await file.read()
+    file_size_mb = len(content) / (1024 * 1024)
+    if file_size_mb > MAX_THUMBNAIL_SIZE_MB:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File size ({file_size_mb:.2f}MB) exceeds maximum allowed size ({MAX_THUMBNAIL_SIZE_MB}MB)",
+        )
+
+    # Create thumbnails directory if it doesn't exist
+    THUMBNAIL_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Get old thumbnail path before uploading new one
+    old_thumbnail_path = project_db_row["thumbnail_image_path"]
+
+    # Generate unique filename to avoid conflicts
+    unique_filename = f"{uuid.uuid4()}{file_ext}"
+    file_path = THUMBNAIL_UPLOAD_DIR / unique_filename
+
+    # Save the file
+    try:
+        file_path.write_bytes(content)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save thumbnail: {str(e)}",
+        )
+
+    # Update database with thumbnail path
+    relative_path = f"uploads/project_thumbnails/{unique_filename}"
+    success = update_project_thumbnail(project_db_row["id"], relative_path)
+
+    if not success:
+        # Clean up uploaded file if database update fails
+        file_path.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update project thumbnail in database",
+        )
+
+    # Delete old thumbnail file to prevent orphaned files
+    if old_thumbnail_path:
+        old_full_path = Path(__file__).parent.parent / old_thumbnail_path
+        if old_full_path.exists():
+            try:
+                old_full_path.unlink()
+            except Exception:
+                # Log but don't fail - the new thumbnail was uploaded successfully
+                pass
+
+    thumbnail_url = f"/api/projects/{project_id}/thumbnail"
+
+    return ThumbnailUploadResponse(
+        message="Thumbnail uploaded successfully",
+        thumbnail_url=thumbnail_url,
+        project_id=project_id,
+    )
+
+
+@router.get("/projects/{project_id}/thumbnail")
+async def get_project_thumbnail(project_id: str, username: str = Depends(verify_token)):
+    """Get the thumbnail image for a specific project.
+
+    Returns the actual image file.
+    """
+    # Parse project_id
+    if ":" not in project_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid project_id format. Expected format: {portfolio_uuid}:{project_path}",
+        )
+
+    portfolio_uuid, project_path = project_id.split(":", 1)
+
+    # Verify project exists and user has access
+    project_db_row = get_project_by_path_and_portfolio(portfolio_uuid, project_path, username)
+    if not project_db_row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found or access denied",
+        )
+
+    # Get thumbnail path
+    thumbnail_path = project_db_row["thumbnail_image_path"]
+    if not thumbnail_path:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No thumbnail set for this project",
+        )
+
+    # Construct full file path
+    full_path = Path(__file__).parent.parent / thumbnail_path
+
+    if not full_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Thumbnail file not found on disk",
+        )
+
+    # Determine media type from file extension
+    media_types = {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".gif": "image/gif",
+        ".webp": "image/webp",
+    }
+    file_ext = full_path.suffix.lower()
+    media_type = media_types.get(file_ext, "application/octet-stream")
+
+    return FileResponse(full_path, media_type=media_type)
+
+
+@router.delete("/projects/{project_id}/thumbnail")
+async def delete_project_thumbnail(project_id: str, username: str = Depends(verify_token)):
+    """Delete the thumbnail image for a specific project."""
+    # Parse project_id
+    if ":" not in project_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid project_id format. Expected format: {portfolio_uuid}:{project_path}",
+        )
+
+    portfolio_uuid, project_path = project_id.split(":", 1)
+
+    # Verify project exists and user has access
+    project_db_row = get_project_by_path_and_portfolio(portfolio_uuid, project_path, username)
+    if not project_db_row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found or access denied",
+        )
+
+    # Get current thumbnail path
+    thumbnail_path = project_db_row["thumbnail_image_path"]
+    if not thumbnail_path:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No thumbnail set for this project",
+        )
+
+    # Delete the file from disk
+    full_path = Path(__file__).parent.parent / thumbnail_path
+    if full_path.exists():
+        try:
+            full_path.unlink()
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to delete thumbnail file: {str(e)}",
+            )
+
+    # Update database to remove thumbnail reference
+    success = update_project_thumbnail(project_db_row["id"], None)
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update database",
+        )
+
+    return {"message": "Thumbnail deleted successfully", "project_id": project_id}
