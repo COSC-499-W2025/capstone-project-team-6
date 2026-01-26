@@ -1,10 +1,12 @@
 """
 Unit tests for résumé retrieval and regeneration functionality in analyze.py
+(updated to use project_id + analysis_id scoped resume_items)
 """
+
+from __future__ import annotations
 
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -17,36 +19,21 @@ sys.path.insert(0, str(src_dir))
 sys.path.insert(0, str(backend_dir))
 
 import backend.analysis_database as adb
-from backend.analysis_database import (get_connection,
-                                       get_resume_items_for_project,
-                                       store_resume_item)
 
 pytest_plugins = ["tests.backend_test.test_analysis_database"]
 
 
 @pytest.fixture(autouse=True)
 def clear_resume_items(temp_analysis_db):
-    """Clear resume_items table before each test to ensure isolation"""
-    with get_connection() as conn:
+    """Clear resume_items table before each test to ensure isolation."""
+    with adb.get_connection() as conn:
         conn.execute("DELETE FROM resume_items")
         conn.commit()
     yield
-    with get_connection() as conn:
+    with adb.get_connection() as conn:
         conn.execute("DELETE FROM resume_items")
         conn.commit()
 
-
-# Sample test data
-SAMPLE_PROJECT = {
-    "project_name": "TestProject",
-    "primary_language": "Python",
-    "languages": {"python": 10},
-    "frameworks": ["Django"],
-    "dependencies": {"pip": ["django"]},
-    "has_tests": True,
-    "has_readme": True,
-    "has_docker": True,
-}
 
 SAMPLE_RESUME_TEXT = """TestProject
 Technologies: Python, Django
@@ -54,98 +41,142 @@ Technologies: Python, Django
   • Implemented comprehensive testing"""
 
 
+def _create_analysis_with_one_project(project_name: str = "TestProject", username: str = "alice"):
+    payload = {
+        "analysis_metadata": {
+            "zip_file": f"/tmp/{project_name}.zip",
+            "analysis_timestamp": "2026-01-01T00:00:00",
+            "total_projects": 1,
+        },
+        "projects": [
+            {
+                "project_name": project_name,
+                "project_path": f"/{project_name}",
+                "primary_language": "python",
+                "languages": {"python": 1},
+                "total_files": 1,
+                "total_size": 1,
+                "code_files": 1,
+                "test_files": 0,
+                "doc_files": 0,
+                "config_files": 0,
+                "frameworks": [],
+                "dependencies": {},
+                "has_tests": False,
+                "has_readme": False,
+                "has_ci_cd": False,
+                "has_docker": False,
+                "test_coverage_estimate": "none",
+                "is_git_repo": False,
+            }
+        ],
+        "summary": {
+            "total_files": 1,
+            "total_size_bytes": 1,
+            "total_size_mb": 0.000001,
+            "languages_used": ["python"],
+            "frameworks_used": [],
+        },
+    }
+
+    analysis_id = adb.record_analysis("non_llm", payload, username=username)
+    project_id = adb.get_projects_for_analysis(analysis_id)[0]["id"]
+
+    # Clear it so tests control what exists.
+    with adb.get_connection() as conn:
+        conn.execute("DELETE FROM resume_items WHERE project_id = ?", (project_id,))
+        conn.commit()
+
+    return analysis_id, project_id, project_name
+
+
 class TestResumeRetrieval:
-    """Test résumé retrieval functionality"""
-
     def test_get_resume_items_for_existing_project(self, temp_analysis_db):
-        """Test retrieving résumé items for a project that exists in database"""
-        # Store a resume item
-        project_name = "TestProject"
+        analysis_id, project_id, project_name = _create_analysis_with_one_project("TestProject")
         resume_text = SAMPLE_RESUME_TEXT
-        store_resume_item(project_name, resume_text)
 
-        # Retrieve it
-        items = get_resume_items_for_project(project_name)
+        adb.store_resume_item(analysis_id, project_id, project_name, resume_text, bullet_order=0)
+        items = adb.get_resume_items_for_project_id(project_id)
 
         assert items is not None
         assert len(items) == 1
+        assert items[0]["project_id"] == project_id
         assert items[0]["project_name"] == project_name
         assert items[0]["resume_text"] == resume_text
+        assert items[0]["bullet_order"] == 0
 
     def test_get_resume_items_for_nonexistent_project(self, temp_analysis_db):
-        """Test retrieving résumé items for a project that doesn't exist"""
-        items = get_resume_items_for_project("NonexistentProject")
+        items = adb.get_resume_items_for_project_id(999999)
         assert items == []
 
     def test_store_resume_item_success(self, temp_analysis_db):
-        """Test successfully storing a résumé item"""
-        project_name = "NewProject"
+        analysis_id, project_id, project_name = _create_analysis_with_one_project("NewProject")
         resume_text = "New project resume text"
-        store_resume_item(project_name, resume_text)
-        items = get_resume_items_for_project(project_name)
+
+        adb.store_resume_item(analysis_id, project_id, project_name, resume_text, bullet_order=0)
+        items = adb.get_resume_items_for_project_id(project_id)
+
         assert len(items) == 1
         assert items[0]["resume_text"] == resume_text
 
-    def test_store_resume_item_empty_project_name(self, temp_analysis_db):
-        """Test storing résumé item with empty project name raises ValueError"""
-        with pytest.raises(ValueError, match="project_name and resume_text are required"):
-            store_resume_item("", "Some text")
-
     def test_store_resume_item_empty_resume_text(self, temp_analysis_db):
-        """Test storing résumé item with empty resume text raises ValueError"""
-        with pytest.raises(ValueError, match="project_name and resume_text are required"):
-            store_resume_item("ProjectName", "")
+        analysis_id, project_id, project_name = _create_analysis_with_one_project("ProjectName")
+        with pytest.raises(ValueError, match="resume_text is required"):
+            adb.store_resume_item(analysis_id, project_id, project_name, "", bullet_order=0)
 
 
 class TestResumeRegeneration:
-    """Test résumé regeneration functionality"""
-
     def test_regenerate_all_resumes(self, temp_analysis_db):
-        """Test regenerating all résumé items (overwrite existing)"""
         projects = [
             ("Project1", "Old resume 1", "New resume 1"),
             ("Project2", "Old resume 2", "New resume 2"),
             ("Project3", "Old resume 3", "New resume 3"),
         ]
+
+        created = []
         for project_name, old_resume, _ in projects:
-            store_resume_item(project_name, old_resume)
-        for project_name, old_resume, _ in projects:
-            items = get_resume_items_for_project(project_name)
+            analysis_id, project_id, pname = _create_analysis_with_one_project(project_name)
+            created.append((analysis_id, project_id, pname))
+            adb.store_resume_item(analysis_id, project_id, pname, old_resume, bullet_order=0)
+
+        # Verify old stored (including text)
+        for (_, project_id, pname), (_, old_resume, _) in zip(created, projects):
+            items = adb.get_resume_items_for_project_id(project_id)
             assert len(items) == 1
+            assert items[0]["project_name"] == pname
             assert items[0]["resume_text"] == old_resume
-        for project_name, _, new_resume in projects:
-            with get_connection() as conn:
-                conn.execute("DELETE FROM resume_items WHERE project_name = ?", (project_name,))
+
+        # Regenerate: delete + insert new
+        for (analysis_id, project_id, pname), (_, _, new_resume) in zip(created, projects):
+            with adb.get_connection() as conn:
+                conn.execute("DELETE FROM resume_items WHERE project_id = ?", (project_id,))
                 conn.commit()
-            store_resume_item(project_name, new_resume)
-        for project_name, _, new_resume in projects:
-            items = get_resume_items_for_project(project_name)
+            adb.store_resume_item(analysis_id, project_id, pname, new_resume, bullet_order=0)
+
+        # Verify new stored
+        for (_, project_id, _), (_, _, new_resume) in zip(created, projects):
+            items = adb.get_resume_items_for_project_id(project_id)
             assert len(items) == 1
             assert items[0]["resume_text"] == new_resume
 
 
 class TestResumeFilteringLogic:
-    """Test the logic for filtering projects that need résumé generation"""
-
     def test_filter_projects_needing_resume_none_cached(self, temp_analysis_db):
-        """Test filtering when no résumés are cached"""
-        projects = [
-            {"project_name": "Project1"},
-            {"project_name": "Project2"},
-        ]
+        a1, p1, n1 = _create_analysis_with_one_project("Project1")
+        a2, p2, n2 = _create_analysis_with_one_project("Project2")
 
+        projects = [{"id": p1, "project_name": n1}, {"id": p2, "project_name": n2}
+
+        ]
         resume_items_by_project = {}
         projects_needing_resume = []
 
         for project in projects:
-            project_name = project.get("project_name", "Unknown Project")
-            existing_resume_items = get_resume_items_for_project(project_name)
+            project_id = project["id"]
+            existing = adb.get_resume_items_for_project_id(project_id)
 
-            if existing_resume_items:
-                resume_items_by_project[project_name] = {
-                    "text": existing_resume_items[0]["resume_text"],
-                    "cached": True,
-                }
+            if existing:
+                resume_items_by_project[project_id] = {"text": existing[0]["resume_text"], "cached": True}
             else:
                 projects_needing_resume.append(project)
 
@@ -153,26 +184,23 @@ class TestResumeFilteringLogic:
         assert len(projects_needing_resume) == 2
 
     def test_filter_projects_needing_resume_all_cached(self, temp_analysis_db):
-        """Test filtering when all résumés are cached"""
-        projects = [
-            {"project_name": "Project1"},
-            {"project_name": "Project2"},
-        ]
-        for project in projects:
-            store_resume_item(project["project_name"], f"Resume for {project['project_name']}")
+        a1, p1, n1 = _create_analysis_with_one_project("Project1")
+        a2, p2, n2 = _create_analysis_with_one_project("Project2")
+
+        projects = [{"id": p1, "project_name": n1}, {"id": p2, "project_name": n2}]
+
+        adb.store_resume_item(a1, p1, n1, "Resume for Project1", bullet_order=0)
+        adb.store_resume_item(a2, p2, n2, "Resume for Project2", bullet_order=0)
 
         resume_items_by_project = {}
         projects_needing_resume = []
 
         for project in projects:
-            project_name = project.get("project_name", "Unknown Project")
-            existing_resume_items = get_resume_items_for_project(project_name)
+            project_id = project["id"]
+            existing = adb.get_resume_items_for_project_id(project_id)
 
-            if existing_resume_items:
-                resume_items_by_project[project_name] = {
-                    "text": existing_resume_items[0]["resume_text"],
-                    "cached": True,
-                }
+            if existing:
+                resume_items_by_project[project_id] = {"text": existing[0]["resume_text"], "cached": True}
             else:
                 projects_needing_resume.append(project)
 
@@ -180,26 +208,22 @@ class TestResumeFilteringLogic:
         assert len(projects_needing_resume) == 0
 
     def test_filter_projects_needing_resume_partial_cached(self, temp_analysis_db):
-        """Test filtering when some résumés are cached"""
-        projects = [
-            {"project_name": "Project1"},
-            {"project_name": "Project2"},
-            {"project_name": "Project3"},
-        ]
-        store_resume_item("Project1", "Resume for Project1")
+        a1, p1, n1 = _create_analysis_with_one_project("Project1")
+        a2, p2, n2 = _create_analysis_with_one_project("Project2")
+        a3, p3, n3 = _create_analysis_with_one_project("Project3")
+
+        projects = [{"id": p1, "project_name": n1}, {"id": p2, "project_name": n2}, {"id": p3, "project_name": n3}]
+        adb.store_resume_item(a1, p1, n1, "Resume for Project1", bullet_order=0)
 
         resume_items_by_project = {}
         projects_needing_resume = []
 
         for project in projects:
-            project_name = project.get("project_name", "Unknown Project")
-            existing_resume_items = get_resume_items_for_project(project_name)
+            project_id = project["id"]
+            existing = adb.get_resume_items_for_project_id(project_id)
 
-            if existing_resume_items:
-                resume_items_by_project[project_name] = {
-                    "text": existing_resume_items[0]["resume_text"],
-                    "cached": True,
-                }
+            if existing:
+                resume_items_by_project[project_id] = {"text": existing[0]["resume_text"], "cached": True}
             else:
                 projects_needing_resume.append(project)
 
@@ -209,65 +233,45 @@ class TestResumeFilteringLogic:
         assert projects_needing_resume[1]["project_name"] == "Project3"
 
     def test_filter_with_regenerate_all_flag(self, temp_analysis_db):
-        """Test filtering when regenerate_all flag is set"""
-        projects = [
-            {"project_name": "Project1"},
-            {"project_name": "Project2"},
-        ]
-        for project in projects:
-            store_resume_item(project["project_name"], f"Resume for {project['project_name']}")
+        a1, p1, n1 = _create_analysis_with_one_project("Project1")
+        a2, p2, n2 = _create_analysis_with_one_project("Project2")
+
+        projects = [{"id": p1, "project_name": n1}, {"id": p2, "project_name": n2}]
+        adb.store_resume_item(a1, p1, n1, "Resume for Project1", bullet_order=0)
+        adb.store_resume_item(a2, p2, n2, "Resume for Project2", bullet_order=0)
 
         regenerate_all = True
         resume_items_by_project = {}
         projects_needing_resume = []
 
         for project in projects:
-            project_name = project.get("project_name", "Unknown Project")
-            existing_resume_items = get_resume_items_for_project(project_name)
+            project_id = project["id"]
+            existing = adb.get_resume_items_for_project_id(project_id)
 
-            if existing_resume_items and not regenerate_all:
-                resume_items_by_project[project_name] = {
-                    "text": existing_resume_items[0]["resume_text"],
-                    "cached": True,
-                }
+            if existing and not regenerate_all:
+                resume_items_by_project[project_id] = {"text": existing[0]["resume_text"], "cached": True}
             else:
                 projects_needing_resume.append(project)
+
         assert len(resume_items_by_project) == 0
         assert len(projects_needing_resume) == 2
 
 
 class TestResumeItemNumbering:
-    """Test the numbering logic for résumé items"""
-
     def test_item_numbering_all_new(self):
-        """Test item numbering when all items are new"""
-        total_projects = 3
         cached_count = 0
-
         for idx in range(1, 4):
             item_number = cached_count + idx
             assert item_number == idx
 
     def test_item_numbering_mixed_cached_and_new(self):
-        """Test item numbering when mixing cached and new items"""
-        total_projects = 5
         cached_count = 2
-
         expected_numbers = [3, 4, 5]
-
         for idx, expected in enumerate(expected_numbers, 1):
             item_number = cached_count + idx
             assert item_number == expected
 
     def test_item_numbering_regenerate_all(self):
-        """Test item numbering when regenerating all items"""
-        total_projects = 3
-        cached_count = 0
-
         for idx in range(1, 4):
             item_number = idx
             assert item_number == idx
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])

@@ -89,6 +89,16 @@ export const projectsAPI = {
     const response = await api.delete(`/portfolios/${portfolioId}`);
     return response.data;
   },
+
+  getResumeItems: async (projectId) => {
+    const response = await api.get(`/projects/${projectId}/resume-items`);
+    return response.data;
+  },
+
+  getPortfolioItem: async (projectId) => {
+    const response = await api.get(`/projects/${projectId}/portfolio`);
+    return response.data;
+  },
 };
 
 export default api;

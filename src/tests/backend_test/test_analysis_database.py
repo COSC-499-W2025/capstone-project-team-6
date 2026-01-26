@@ -595,37 +595,99 @@ def test_get_analysis_report_not_found(temp_analysis_db):
     report = adb.get_analysis_report("/nonexistent/path.zip", "alice")
     assert report is None
 
-
 def test_store_and_get_resume_items(temp_analysis_db):
-    """Test storing and retrieving resume items."""
+    """Unit test: store_resume_item + get_resume_items_for_project_id (no record_analysis side effects)."""
+
+    # 1) Create a user (temp_analysis_db fixture already does this for "alice")
+    username = "alice"
+
+    # 2) Insert a minimal analysis row
+    with adb.get_connection() as conn:
+        # NOTE: adjust column list if your schema requires more NOT NULL fields.
+        cur = conn.execute(
+            """
+            INSERT INTO analyses (
+                analysis_uuid,
+                analysis_type,
+                zip_file,
+                analysis_timestamp,
+                total_projects,
+                username,
+                raw_json
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "unit-test-uuid",
+                "non_llm",
+                "unit.zip",
+                "2026-01-01T00:00:00",
+                1,
+                username,
+                '{"analysis_metadata":{},"projects":[],"summary":{}}',
+            ),
+        )
+        analysis_id = cur.lastrowid
+
+        # 3) Insert a minimal project row tied to that analysis
+        cur = conn.execute(
+            """
+            INSERT INTO projects (
+                analysis_id,
+                project_name,
+                project_path,
+                primary_language,
+                total_files,
+                has_tests
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                analysis_id,
+                "test_project",
+                "test_project",
+                "python",
+                1,
+                0,
+            ),
+        )
+        project_id = cur.lastrowid
+        conn.commit()
+
+    # 4) Now test ONLY the functions we care about
     project_name = "test_project"
-    resume_text = "Test Project\nTechnologies: Python, Django\n  • Built amazing features"
+    resume_text = "Built a thing"
 
-    adb.store_resume_item(project_name, resume_text)
+    adb.store_resume_item(analysis_id, project_id, project_name, resume_text, bullet_order=0)
 
-    items = adb.get_resume_items_for_project(project_name)
+    items = adb.get_resume_items_for_project_id(project_id)
 
     assert len(items) == 1
+    assert items[0]["analysis_id"] == analysis_id
+    assert items[0]["project_id"] == project_id
     assert items[0]["project_name"] == project_name
     assert items[0]["resume_text"] == resume_text
-
+    assert items[0]["bullet_order"] == 0
 
 def test_get_resume_items_for_project_not_found(temp_analysis_db):
-    """Test retrieving resume items for a project that doesn't exist."""
-    items = adb.get_resume_items_for_project("nonexistent_project")
-    assert len(items) == 0
+    """Test retrieving resume items for a project_id that doesn't exist."""
+    items = adb.get_resume_items_for_project_id(999999)
+    assert items == []
 
 
 def test_store_resume_item_validates_input(temp_analysis_db):
-    """Test that store_resume_item validates required inputs."""
-    with pytest.raises(ValueError, match="project_name and resume_text are required"):
-        adb.store_resume_item("", "some text")
+    payload = {
+        "analysis_metadata": {"zip_file": "x.zip", "analysis_timestamp": "now", "total_projects": 1},
+        "projects": [{"project_name": "test_project", "project_path": "test_project", "primary_language": "python"}],
+    }
+    analysis_id = adb.record_analysis("non_llm", payload, username="alice")
+    project_id = adb.get_projects_for_analysis(analysis_id)[0]["id"]
 
-    with pytest.raises(ValueError, match="project_name and resume_text are required"):
-        adb.store_resume_item("project", "")
+    with pytest.raises(ValueError, match="resume_text is required"):
+        adb.store_resume_item(analysis_id, project_id, "test_project", "")
 
-    with pytest.raises(ValueError, match="project_name and resume_text are required"):
-        adb.store_resume_item(None, "some text")
+    with pytest.raises(ValueError, match="resume_text is required"):
+        adb.store_resume_item(analysis_id, project_id, "test_project", "   ")
 
 
 def test_project_skills_table_created(temp_analysis_db):
