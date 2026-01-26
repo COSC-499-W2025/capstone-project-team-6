@@ -241,9 +241,9 @@ class TestFileManager:
         test_file2 = Path(p2)
 
         import os
+
         os.close(fd1)
         os.close(fd2)
-
 
         try:
             # Store first file

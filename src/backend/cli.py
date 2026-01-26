@@ -10,9 +10,6 @@ import zipfile
 from pathlib import Path
 from typing import Optional
 
-from .curation_cli import (curate_project_rank_interactive,
-                                      curate_skills_highlight_interactive)
-
 from . import (Folder_traversal_fs, MDAShell, UserAlreadyExistsError,
                authenticate_user, create_user, initialize)
 from .analysis.analyze import calculate_composite_score
@@ -20,6 +17,8 @@ from .analysis.deep_code_analyzer import generate_comprehensive_report
 from .analysis.document_analyzer import DocumentAnalysis, analyze_document
 from .analysis_database import init_db
 from .consent import ask_for_consent
+from .curation_cli import (curate_project_rank_interactive,
+                           curate_skills_highlight_interactive)
 
 # Avoid importing heavy optional dependencies at module import time
 

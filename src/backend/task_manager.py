@@ -5,7 +5,9 @@ Handles asynchronous analysis tasks with status tracking and file management.
 """
 
 import asyncio
+import contextlib
 import hashlib
+import io
 import json
 import logging
 import shutil
@@ -16,8 +18,7 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-import io
-import contextlib
+
 from pydantic import BaseModel
 
 # Thread pool for blocking operations
@@ -127,30 +128,31 @@ class FileManager:
 
         return permanent_path
     '''
+
     def store_file_permanently(
-            self,
-            temp_path: Path,
-            file_hash: str = None,
-            *,
-            preserve_source: bool | None = None,
-        ) -> Path:
+        self,
+        temp_path: Path,
+        file_hash: str = None,
+        *,
+        preserve_source: bool | None = None,
+    ) -> Path:
         """
         Store file in permanent storage with deduplication.
-    
+
         preserve_source:
           - None: auto-detect (preserve if NOT in self.temp_dir)
           - True: always preserve original (copy)
           - False: safe to delete/move original (move; and delete if dedup hit)
-    
+
         Rationale:
           - Uploaded temp files should be removable.
           - User-provided paths (fixed path projects) must not be deleted.
         """
         if not file_hash:
             file_hash = self.calculate_file_hash(temp_path)
-    
+
         permanent_path = self.permanent_dir / f"{file_hash}.zip"
-    
+
         # Decide behavior if not explicitly provided
         if preserve_source is None:
             try:
@@ -159,7 +161,7 @@ class FileManager:
             except Exception:
                 # Conservative default: preserve
                 preserve_source = True
-    
+
         # If already stored, dedup: optionally remove the source if allowed
         if permanent_path.exists():
             if not preserve_source:
@@ -169,7 +171,7 @@ class FileManager:
                     pass
             logger.info(f"Duplicate file detected, using existing: {permanent_path}")
             return permanent_path
-    
+
         # First time storing
         if preserve_source:
             shutil.copy2(str(temp_path), str(permanent_path))
@@ -177,10 +179,8 @@ class FileManager:
         else:
             shutil.move(str(temp_path), str(permanent_path))
             logger.info(f"File moved to permanent storage: {permanent_path}")
-    
-        return permanent_path
-    
 
+        return permanent_path
 
     def cleanup_temp_files(self, older_than_hours: int = 24):
         """Clean up temporary files older than specified hours."""
@@ -335,7 +335,7 @@ class TaskManager:
             "file_hash": task.file_hash,
         }
     '''
-    
+
     async def _process_new_portfolio(self, task: TaskInfo) -> Dict[str, Any]:
         """Process a new portfolio upload (webapp pipeline).
 
@@ -344,11 +344,11 @@ class TaskManager:
         - If user has consent, run LLM analysis + store it for this user.
         - LLM failures do not fail the whole task.
         """
-        from .analysis_database import record_analysis, get_analysis
-        from .cli import analyze_folder
-
         from backend.database import check_user_consent
+
         from .analysis.llm_pipeline import run_gemini_analysis
+        from .analysis_database import get_analysis, record_analysis
+        from .cli import analyze_folder
 
         await asyncio.sleep(1)
         task.progress = 50
@@ -373,8 +373,6 @@ class TaskManager:
             "analysis_uuid": analysis_uuid,
             "total_projects": len(analysis_result.get("projects", [])),
             "file_hash": task.file_hash,
-
-            
             "llm_ran": False,
             "llm_analysis_id": None,
             "llm_error": None,
@@ -390,10 +388,10 @@ class TaskManager:
         if has_consented:
             task.progress = 92
             try:
-                # Choose active features 
+                # Choose active features
                 active_features = ["architecture", "complexity", "security", "skills", "domain", "resume"]
 
-                # Run LLM analysis 
+                # Run LLM analysis
                 llm_results = await loop.run_in_executor(
                     _executor,
                     run_gemini_analysis,
@@ -414,13 +412,12 @@ class TaskManager:
                 result_payload["llm_error"] = None
 
             except Exception as e:
-                #do NOT fail entire task if LLM fails
+                # do NOT fail entire task if LLM fails
                 result_payload["llm_ran"] = False
                 result_payload["llm_error"] = str(e)
 
         task.progress = 99
         return result_payload
-
 
     async def _process_incremental_upload(self, task: TaskInfo) -> Dict[str, Any]:
         """Process an incremental upload to existing portfolio."""

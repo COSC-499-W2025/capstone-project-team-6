@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from backend.analysis_database import get_analysis_by_uuid
 from backend.api.auth import verify_token
 from backend.database import check_user_consent
-from backend.task_manager import TaskType, get_task_manager, TaskType
+from backend.task_manager import TaskType, get_task_manager
 
 router = APIRouter(prefix="/api/analysis", tags=["Analysis"])
 
@@ -233,8 +233,8 @@ async def start_portfolio_analysis(
         username=username,
         filename=FIXED_ZIP_PATH.name,
         file_path=FIXED_ZIP_PATH,
-        analysis_type="non_llm",          # keep consistent with your pipeline defaults
-        portfolio_id=portfolio_id,        # required for INCREMENTAL_UPLOAD
+        analysis_type="non_llm",  # keep consistent with your pipeline defaults
+        portfolio_id=portfolio_id,  # required for INCREMENTAL_UPLOAD
     )
 
     # 4) Return task_id so frontend can poll /api/tasks/{task_id}
