@@ -1101,14 +1101,14 @@ def main() -> int:
             username = session["username"]
             has_consented = check_user_consent(username)
 
-            if not has_consented:
-                print("\nPlease provide consent before analyzing files")
-                print("Run 'mda consent --update' to view and accept the consent form")
-                return 1
-
             llm_features_requested = (
                 args.all or args.prompt or args.architecture or args.security or args.skills or args.domain or args.resume
             )
+
+            if not has_consented and llm_features_requested:
+                print("\nPlease provide consent before using AI-powered analysis features")
+                print("Run 'mda consent --update' to view and accept the consent form")
+                return 1
 
             path = Path(args.path)
             if not path.exists():
