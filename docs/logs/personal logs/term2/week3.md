@@ -4,7 +4,55 @@
 
 
 # Aakash Tirithdas
+## Date Ranges
 
+January 19-January 25
+![aakash Week 3](../images/AAT2W3.png)
+
+## Goals for this week (planned last sprint)
+- Team goal - complete the main structure of the frontend so that it is presentational ready with few polishes ready
+- Complete the tests for the curate portion I coded last week
+- Help Mithish with the frontend API endpoints
+- Do not leave evrything for last minute work
+
+## What went well
+- Ended up helping Ansh with coding portion due to lack of work to do.
+- completed the code for the analysis frontend connection.
+- Frontend analysis is majority setup and only need to be integrated
+- No one had clashing work
+- Debugged some prior tests
+
+
+## What didnt go well
+- I was supposed to work this Mithish this week, He started and copleted the work alone by Wednesday which is good. I should have asked eariler how i could have helped
+- Misjudged the amount of time it would take to do the task preventing me from writing tests for last weeks and this weeks code.
+- Although the team communicated well we missed a meeting due to all of us being busy this week.
+- Could have started work eariler this week
+
+## Coding
+Coded in react and python this week in connecting the backend to frontend, this was my first time doing the linking. Learnt a lot on how the systems are connected and seperated. 
+
+### PR initiated
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/317
+
+## PR reviewed
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/298
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/301
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/304
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/315
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/319
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/324
+
+
+## Issues
+https://github.com/COSC-499-W2025/capstone-project-team-6/issues/316
+
+## plan for next week
+- start my work earlier in the week
+- complete the tests cases that have been delayed by me
+- complete the integration of the project analysis
+- look to small bugs in the system
+- team goal - get a stable working version of the frontend so that only polishes are left.
 
 
 # Mithish Ravisankar Geetha
