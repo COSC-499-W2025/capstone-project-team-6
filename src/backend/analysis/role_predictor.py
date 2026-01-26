@@ -69,30 +69,46 @@ def predict_developer_role(project_data: Dict) -> RolePrediction:
         RolePrediction with predicted role, confidence, and reasoning
     """
     
-    # Extract key data for analysis
-    languages = project_data.get("languages", {})
-    frameworks = project_data.get("frameworks", [])
-    total_files = project_data.get("total_files", 0)
-    code_files = project_data.get("code_files", 0) 
-    test_files = project_data.get("test_files", 0)
+    # Validate and extract key data for analysis
+    def safe_get_int(data: Dict, key: str, default: int = 0) -> int:
+        value = data.get(key, default)
+        return int(value) if isinstance(value, (int, float)) and value >= 0 else default
     
+    def safe_get_bool(data: Dict, key: str, default: bool = False) -> bool:
+        value = data.get(key, default)
+        return bool(value) if isinstance(value, (bool, int)) else default
+    
+    def safe_get_dict(data: Dict, key: str) -> Dict:
+        value = data.get(key, {})
+        return value if isinstance(value, dict) else {}
+    
+    def safe_get_list(data: Dict, key: str) -> List:
+        value = data.get(key, [])
+        return value if isinstance(value, (list, tuple)) else []
+    
+    languages = safe_get_dict(project_data, "languages")
+    frameworks = safe_get_list(project_data, "frameworks")
+    total_files = safe_get_int(project_data, "total_files")
+    code_files = safe_get_int(project_data, "code_files")
+    test_files = safe_get_int(project_data, "test_files")
+
     # Infrastructure indicators
-    has_docker = project_data.get("has_docker", False)
-    has_ci_cd = project_data.get("has_ci_cd", False)
-    
+    has_docker = safe_get_bool(project_data, "has_docker")
+    has_ci_cd = safe_get_bool(project_data, "has_ci_cd")
+
     # Git analysis
-    git_analysis = project_data.get("git_analysis", {})
-    total_commits = git_analysis.get("total_commits", 0)
-    total_contributors = git_analysis.get("total_contributors", 1)
-    
+    git_analysis = safe_get_dict(project_data, "git_analysis")
+    total_commits = safe_get_int(git_analysis, "total_commits")
+    total_contributors = max(safe_get_int(git_analysis, "total_contributors", 1), 1)
+
     # OOP/Code quality metrics
-    oop_analysis = project_data.get("oop_analysis", {})
-    java_oop = project_data.get("java_oop_analysis", {})
-    cpp_oop = project_data.get("cpp_oop_analysis", {})
-    
+    oop_analysis = safe_get_dict(project_data, "oop_analysis")
+    java_oop = safe_get_dict(project_data, "java_oop_analysis")
+    cpp_oop = safe_get_dict(project_data, "cpp_oop_analysis")
+
     # Composite score data
-    score_data = project_data.get("score_data", {})
-    composite_score = score_data.get("composite_score", 0) if score_data else 0
+    score_data = safe_get_dict(project_data, "score_data")
+    composite_score = safe_get_int(score_data, "composite_score") if score_data else 0
     
     # Calculate role-specific indicators
     indicators = _calculate_role_indicators(
@@ -100,7 +116,7 @@ def predict_developer_role(project_data: Dict) -> RolePrediction:
         has_docker, has_ci_cd, total_commits, total_contributors,
         oop_analysis, java_oop, cpp_oop, composite_score
     )
-    
+
     # Score each role
     role_scores = {}
     reasoning_points = []
@@ -350,6 +366,17 @@ def _calculate_role_indicators(
     """
     
     indicators = {}
+    
+    # Validate and normalize input data
+    if not isinstance(languages, dict):
+        languages = {}
+    if not isinstance(frameworks, (list, tuple)):
+        frameworks = []
+        
+    # Ensure all values are valid
+    languages = {str(k): int(v) if isinstance(v, (int, float)) else 0 
+                for k, v in languages.items() if isinstance(k, str)}
+    frameworks = [str(fw) for fw in frameworks if isinstance(fw, str)]
     
     # Language diversity
     num_languages = len(languages)
