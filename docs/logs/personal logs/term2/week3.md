@@ -84,4 +84,64 @@ What didn’t go as smoothly was that the initial PR implementing all the API en
 
 # Mohamed Sakr
 
+## Date Ranges
+
+January 19 - January 25
+![Mohamed Week 3](/docs/logs/personal%20logs/term2/mohamedW3T2.png)
+
+## Weekly recap goals
+- Ship built-in consent revocation and enforce consent gating on analyze/login.
+- Align CLI outputs and tests to keep consent workflows stable.
+- Harden prompts to avoid stdin capture failures during automated runs.
+- Prevent duplicate project analyses by scoping dedup per-user with overwrite semantics.
+- Tested project thumbnails and frontend demos
+
+## What was done
+
+**Coding tasks**
+- Added consent revocation to `mda consent --update`, persisting revoked state and disabling AI-powered features.
+- Restored first-time login consent gate; block login when consent is denied.
+- Enforced consent requirement before running `analyze`; made JSON save prompt EOF-safe.
+- Scoped project dedup to `(project_name, project_path, owner_username)` with upserted children and safe migrations to avoid cross-user overwrite.
+- Added owner-aware upsert path that clears/reinserts child tables (languages, frameworks, contributions, blame, resume items) so latest run fully replaces prior data.
+- Hardened migrations: drop/recreate unique index during normalization, guard legacy analyses from deletion when no projects exist.
+
+**Testing or debugging tasks**
+- Updated CLI integration tests to reflect consent flows and current analyze output strings.
+- Investigated pytest stdin capture crashes; adjusted prompt handling to avoid EOF errors under capture.
+- Added high-coverage reanalysis tests (upsert refresh, null-path normalization, per-user separation) to prevent duplicate projects and ensure latest-run wins without cross-user collisions.
+- Covered owner-scoped dedup (same name/path different users keep separate rows) and same-user overwrite (row id reused, children refreshed, obsolete analyses cleaned safely).
+
+**Reviewing or collaboration tasks**
+- Reviewed thumbnail backend feature (DB migration, helper fns, upload/get/delete endpoints, project detail thumbnail_url). Found re-uploads leave old files, path safety could be tighter, and file-type check is extension-only.
+- Ran `python -m pytest src/tests/api_test/test_project_thumbnails.py -v` (system Python; venv path missing) — 9 tests passed.
+
+## How this builds up on last weeks work
+- Extends prior consent/privacy work by adding revocation and enforcing gates before analysis.
+- Keeps integration coverage aligned with evolving CLI outputs to reduce regressions.
+- Extends earlier analysis storage work by making dedup multi-tenant aware and resilient through migrations and tests (including legacy schemas and empty-project edge cases).
+
+## What went well
+- Consent flows now clearly support both opt-in and opt-out, with matching tests.
+- Prompt handling is more resilient in automated test environments.
+- Reanalysis dedup now behaves correctly per user, and tests guard against regression; child tables refresh cleanly on overwrite.
+
+## What didn't go well
+- Pytest runs intermittently crash in sandbox due to stdin capture/segfault; needs follow-up outside sandbox.
+- Migration for the new unique key needed iterative fixes to avoid legacy data loss; still need broader validation on seeded data.
+
+## Plan for next week
+- Add documentation for consent management and edge cases around analyze gating.
+- Validate the per-user dedup migration on fresh and legacy databases and document rollback steps; add a short ops runbook for the unique-index rebuild.
+- Refactor as needed after all major milestone 2 requirements are met
+
+## PR's initiated
+
+- #313 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/313
+- #315 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/315
+
+## PR's reviewed
+
+- #306 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/306
+- #317 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/317 (First review) 
 
