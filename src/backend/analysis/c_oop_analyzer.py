@@ -159,7 +159,12 @@ class COOPAnalyzer:
         self.malloc_checked_functions: Set[str] = set()
         self.free_checked_functions: Set[str] = set()
 
-    def analyze_file(self, content: str, filename: str = "temp.c", include_dirs: Optional[List[str]] = None) -> COOPAnalysis:
+    def analyze_file(
+        self,
+        content: str,
+        filename: str = "temp.c",
+        include_dirs: Optional[List[str]] = None,
+    ) -> COOPAnalysis:
         """
         analyze a single C file.
 
@@ -215,7 +220,17 @@ class COOPAnalyzer:
                         # Ignore errors about system headers not being found
                         if "file not found" in diag.spelling.lower():
                             # Check if it's a system header (angle brackets)
-                            if any(h in diag.spelling for h in ["<", "stdlib", "stdio", "string", "stddef", "stdint"]):
+                            if any(
+                                h in diag.spelling
+                                for h in [
+                                    "<",
+                                    "stdlib",
+                                    "stdio",
+                                    "string",
+                                    "stddef",
+                                    "stdint",
+                                ]
+                            ):
                                 continue
                         print(f"Parse error: {diag.spelling}")
 
@@ -325,7 +340,10 @@ class COOPAnalyzer:
             try:
                 if canonical.kind == TypeKind.POINTER:
                     pointee = canonical.get_pointee()
-                    if pointee.kind in (TypeKind.FUNCTIONPROTO, TypeKind.FUNCTIONNOPROTO):
+                    if pointee.kind in (
+                        TypeKind.FUNCTIONPROTO,
+                        TypeKind.FUNCTIONNOPROTO,
+                    ):
                         is_fp = True
             except Exception:
                 pass

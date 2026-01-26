@@ -194,7 +194,12 @@ def test_user_specific_storage_and_queries(temp_analysis_db):
     """Ensure analyses are stored and filtered by username."""
     # Store analyses for two different users
     alice_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, analysis_uuid="uuid-alice", username="alice")
-    bob_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, analysis_uuid="uuid-bob", username="bob")
+
+    # Use a distinct project_path to avoid deduplication across users
+    bob_payload = json.loads(json.dumps(SAMPLE_PAYLOAD))
+    bob_payload["projects"][0]["project_path"] = "/workspace/my_project_bob"
+    bob_payload["analysis_metadata"]["zip_file"] = "path/to/project_bob.zip"
+    bob_id = adb.record_analysis("non_llm", bob_payload, analysis_uuid="uuid-bob", username="bob")
 
     # Username is persisted
     assert adb.get_analysis(alice_id)["username"] == "alice"
@@ -210,9 +215,9 @@ def test_user_specific_storage_and_queries(temp_analysis_db):
     assert adb.get_analysis_by_uuid("uuid-alice", "alice") is not None
     assert adb.get_analysis_by_uuid("uuid-alice", "bob") is None
 
-    # Zip lookups are user-scoped
+    # Zip lookups are user-scoped (each user has their own zip)
     assert adb.get_analysis_by_zip_file("path/to/project.zip", "alice") is not None
-    assert adb.get_analysis_by_zip_file("path/to/project.zip", "bob") is not None
+    assert adb.get_analysis_by_zip_file("path/to/project_bob.zip", "bob") is not None
     assert adb.get_analysis_by_zip_file("path/to/project.zip", "carol") is None
 
     # Reports are user-scoped
@@ -221,7 +226,7 @@ def test_user_specific_storage_and_queries(temp_analysis_db):
 
     # Deletion by zip is user-scoped
     assert adb.delete_analyses_by_zip_file("path/to/project.zip", "carol") == 0
-    assert adb.delete_analyses_by_zip_file("path/to/project.zip", "bob") == 1
+    assert adb.delete_analyses_by_zip_file("path/to/project_bob.zip", "bob") == 1
     assert adb.get_analysis_by_zip_file("path/to/project.zip", "bob") is None
 
     # Unsafe calls without username should be rejected
@@ -346,17 +351,29 @@ def test_project_analysis_stored_in_db(temp_analysis_db):
             (frontend["id"],),
         ).fetchall()
         assert len(frontend_langs) == 3
-        assert {row["language"] for row in frontend_langs} == {"javascript", "css", "html"}
+        assert {row["language"] for row in frontend_langs} == {
+            "javascript",
+            "css",
+            "html",
+        }
         backend_frameworks = conn.execute(
             "SELECT framework FROM project_frameworks WHERE project_id = ?",
             (backend["id"],),
         ).fetchall()
-        assert {row["framework"] for row in backend_frameworks} == {"Flask", "SQLAlchemy"}
+        assert {row["framework"] for row in backend_frameworks} == {
+            "Flask",
+            "SQLAlchemy",
+        }
         backend_deps = conn.execute(
             "SELECT dependency FROM project_dependencies WHERE project_id = ? AND ecosystem = 'python'",
             (backend["id"],),
         ).fetchall()
-        assert {row["dependency"] for row in backend_deps} == {"flask", "sqlalchemy", "pytest", "black"}
+        assert {row["dependency"] for row in backend_deps} == {
+            "flask",
+            "sqlalchemy",
+            "pytest",
+            "black",
+        }
 
 
 def test_git_extended_fields_persisted(temp_analysis_db):
@@ -425,7 +442,12 @@ def test_git_extended_fields_persisted(temp_analysis_db):
                 },
                 "contribution_volume": {"alice@example.com": 50, "bob@example.com": 10},
                 "activity_breakdown": {
-                    "alice@example.com": {"code": 40, "test": 5, "docs": 5, "design": 1},
+                    "alice@example.com": {
+                        "code": 40,
+                        "test": 5,
+                        "docs": 5,
+                        "design": 1,
+                    },
                     "bob@example.com": {"code": 10},
                 },
                 "directory_depth": 2,
@@ -575,35 +597,99 @@ def test_get_analysis_report_not_found(temp_analysis_db):
 
 
 def test_store_and_get_resume_items(temp_analysis_db):
-    """Test storing and retrieving resume items."""
+    """Unit test: store_resume_item + get_resume_items_for_project_id (no record_analysis side effects)."""
+
+    # 1) Create a user (temp_analysis_db fixture already does this for "alice")
+    username = "alice"
+
+    # 2) Insert a minimal analysis row
+    with adb.get_connection() as conn:
+        # NOTE: adjust column list if your schema requires more NOT NULL fields.
+        cur = conn.execute(
+            """
+            INSERT INTO analyses (
+                analysis_uuid,
+                analysis_type,
+                zip_file,
+                analysis_timestamp,
+                total_projects,
+                username,
+                raw_json
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "unit-test-uuid",
+                "non_llm",
+                "unit.zip",
+                "2026-01-01T00:00:00",
+                1,
+                username,
+                '{"analysis_metadata":{},"projects":[],"summary":{}}',
+            ),
+        )
+        analysis_id = cur.lastrowid
+
+        # 3) Insert a minimal project row tied to that analysis
+        cur = conn.execute(
+            """
+            INSERT INTO projects (
+                analysis_id,
+                project_name,
+                project_path,
+                primary_language,
+                total_files,
+                has_tests
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                analysis_id,
+                "test_project",
+                "test_project",
+                "python",
+                1,
+                0,
+            ),
+        )
+        project_id = cur.lastrowid
+        conn.commit()
+
+    # 4) Now test ONLY the functions we care about
     project_name = "test_project"
-    resume_text = "Test Project\nTechnologies: Python, Django\n  • Built amazing features"
+    resume_text = "Built a thing"
 
-    adb.store_resume_item(project_name, resume_text)
+    adb.store_resume_item(analysis_id, project_id, project_name, resume_text, bullet_order=0)
 
-    items = adb.get_resume_items_for_project(project_name)
+    items = adb.get_resume_items_for_project_id(project_id)
 
     assert len(items) == 1
+    assert items[0]["analysis_id"] == analysis_id
+    assert items[0]["project_id"] == project_id
     assert items[0]["project_name"] == project_name
     assert items[0]["resume_text"] == resume_text
+    assert items[0]["bullet_order"] == 0
 
 
 def test_get_resume_items_for_project_not_found(temp_analysis_db):
-    """Test retrieving resume items for a project that doesn't exist."""
-    items = adb.get_resume_items_for_project("nonexistent_project")
-    assert len(items) == 0
+    """Test retrieving resume items for a project_id that doesn't exist."""
+    items = adb.get_resume_items_for_project_id(999999)
+    assert items == []
 
 
 def test_store_resume_item_validates_input(temp_analysis_db):
-    """Test that store_resume_item validates required inputs."""
-    with pytest.raises(ValueError, match="project_name and resume_text are required"):
-        adb.store_resume_item("", "some text")
+    payload = {
+        "analysis_metadata": {"zip_file": "x.zip", "analysis_timestamp": "now", "total_projects": 1},
+        "projects": [{"project_name": "test_project", "project_path": "test_project", "primary_language": "python"}],
+    }
+    analysis_id = adb.record_analysis("non_llm", payload, username="alice")
+    project_id = adb.get_projects_for_analysis(analysis_id)[0]["id"]
 
-    with pytest.raises(ValueError, match="project_name and resume_text are required"):
-        adb.store_resume_item("project", "")
+    with pytest.raises(ValueError, match="resume_text is required"):
+        adb.store_resume_item(analysis_id, project_id, "test_project", "")
 
-    with pytest.raises(ValueError, match="project_name and resume_text are required"):
-        adb.store_resume_item(None, "some text")
+    with pytest.raises(ValueError, match="resume_text is required"):
+        adb.store_resume_item(analysis_id, project_id, "test_project", "   ")
 
 
 def test_project_skills_table_created(temp_analysis_db):
@@ -967,3 +1053,268 @@ def test_project_skills_uniqueness(temp_analysis_db):
 
         # Each skill should appear only once (enforced by primary key)
         assert len(skill_names) == len(set(skill_names))
+
+
+# --- Re-analysis / deduplication tests ---
+
+
+def _make_payload(
+    *,
+    project_name: str,
+    project_path: str | None,
+    total_files: int,
+    languages: dict[str, int],
+    frameworks: list[str],
+    contribution_volume: dict[str, int] | None = None,
+    blame_summary: dict[str, int] | None = None,
+) -> dict:
+    return {
+        "analysis_metadata": {
+            "zip_file": "dup.zip",
+            "analysis_timestamp": "2025-12-31T00:00:00Z",
+            "total_projects": 1,
+        },
+        "summary": {
+            "total_files": total_files,
+            "total_size_bytes": total_files * 10,
+            "total_size_mb": float(total_files),
+            "languages_used": list(languages.keys()),
+            "frameworks_used": frameworks,
+        },
+        "projects": [
+            {
+                "project_name": project_name,
+                "project_path": project_path,
+                "primary_language": next(iter(languages)),
+                "languages": languages,
+                "frameworks": frameworks,
+                "dependencies": {},
+                "total_files": total_files,
+                "total_size": total_files * 10,
+                "code_files": total_files,
+                "test_files": 0,
+                "doc_files": 0,
+                "config_files": 0,
+                "has_tests": False,
+                "has_readme": True,
+                "has_ci_cd": False,
+                "has_docker": False,
+                "is_git_repo": False,
+                "contribution_volume": contribution_volume or {},
+                "blame_summary": blame_summary or {},
+            }
+        ],
+    }
+
+
+def test_reanalysis_upserts_project_and_children(temp_analysis_db):
+    """Same project re-analysis should overwrite project + children, not duplicate."""
+    first = _make_payload(
+        project_name="dup",
+        project_path="apps/dup",
+        total_files=5,
+        languages={"python": 5},
+        frameworks=["Flask"],
+        contribution_volume={"a@example.com": 1},
+        blame_summary={"a@example.com": 2},
+    )
+    second = _make_payload(
+        project_name="dup",
+        project_path="apps/dup",
+        total_files=10,
+        languages={"javascript": 10},
+        frameworks=["React"],
+        contribution_volume={"a@example.com": 10},
+        blame_summary={"a@example.com": 20},
+    )
+
+    first_id = adb.record_analysis("non_llm", first)
+    first_project = adb.get_projects_for_analysis(first_id)[0]
+
+    second_id = adb.record_analysis("non_llm", second)
+    projects = adb.get_projects_for_analysis(second_id)
+    assert len(projects) == 1
+    updated = projects[0]
+
+    # Same row id reused (upsert), values replaced
+    assert updated["id"] == first_project["id"]
+    assert updated["total_files"] == 10
+    assert updated["primary_language"] == "javascript"
+
+    # Children replaced, not accumulated
+    with adb.get_connection() as conn:
+        langs = conn.execute(
+            "SELECT language, file_count FROM project_languages WHERE project_id = ?",
+            (updated["id"],),
+        ).fetchall()
+        assert {(row["language"], row["file_count"]) for row in langs} == {("javascript", 10)}
+
+        frameworks = conn.execute(
+            "SELECT framework FROM project_frameworks WHERE project_id = ?",
+            (updated["id"],),
+        ).fetchall()
+        assert {row["framework"] for row in frameworks} == {"React"}
+
+        contrib = conn.execute(
+            "SELECT lines_changed FROM project_contribution_volume WHERE project_id = ?",
+            (updated["id"],),
+        ).fetchall()
+        assert [row["lines_changed"] for row in contrib] == [10]
+
+        blame = conn.execute(
+            "SELECT surviving_lines FROM project_blame_summary WHERE project_id = ?",
+            (updated["id"],),
+        ).fetchall()
+        assert [row["surviving_lines"] for row in blame] == [20]
+
+        # Only the latest analysis should survive after reanalysis of same project
+        analyses_count = conn.execute("SELECT COUNT(*) AS c FROM analyses").fetchone()["c"]
+        assert analyses_count == 1
+
+
+def test_reanalysis_normalizes_null_path(temp_analysis_db):
+    """None and empty project_path should be treated as the same key for dedupe."""
+    first = _make_payload(
+        project_name="nop",
+        project_path=None,
+        total_files=3,
+        languages={"python": 3},
+        frameworks=[],
+    )
+    second = _make_payload(
+        project_name="nop",
+        project_path="",
+        total_files=7,
+        languages={"go": 7},
+        frameworks=[],
+    )
+
+    adb.record_analysis("non_llm", first)
+    adb.record_analysis("non_llm", second)
+
+    with adb.get_connection() as conn:
+        projects = conn.execute("SELECT project_path, total_files FROM projects").fetchall()
+        assert len(projects) == 1
+        assert projects[0]["project_path"] == ""  # normalized
+        assert projects[0]["total_files"] == 7
+        analyses_count = conn.execute("SELECT COUNT(*) AS c FROM analyses").fetchone()["c"]
+        assert analyses_count == 1
+
+
+def test_reanalysis_preserves_other_projects_and_analyses(temp_analysis_db):
+    """Reanalyzing one project should not delete analyses still referenced by other projects."""
+    base_payload = {
+        "analysis_metadata": {
+            "zip_file": "multi.zip",
+            "analysis_timestamp": "2025-12-01T00:00:00Z",
+            "total_projects": 2,
+        },
+        "projects": [
+            {"project_name": "A", "project_path": "a", "primary_language": "py", "languages": {"py": 1}, "total_files": 1},
+            {"project_name": "B", "project_path": "b", "primary_language": "js", "languages": {"js": 2}, "total_files": 2},
+        ],
+        "summary": {"total_files": 3, "total_size_bytes": 30, "total_size_mb": 3.0},
+    }
+    analysis1 = adb.record_analysis("non_llm", base_payload)
+
+    updated_a = _make_payload(
+        project_name="A",
+        project_path="a",
+        total_files=5,
+        languages={"rust": 5},
+        frameworks=[],
+    )
+    analysis2 = adb.record_analysis("non_llm", updated_a)
+
+    with adb.get_connection() as conn:
+        # Both projects should exist; A updated, B untouched
+        projects = conn.execute("SELECT project_name, total_files, analysis_id FROM projects").fetchall()
+        assert len(projects) == 2
+        totals = {row["project_name"]: row["total_files"] for row in projects}
+        assert totals["A"] == 5
+        assert totals["B"] == 2
+
+        # Analyses: both remain because B still references analysis1
+        analyses = conn.execute("SELECT id FROM analyses ORDER BY id").fetchall()
+        assert [row["id"] for row in analyses] == [analysis1, analysis2]
+
+
+def test_reanalysis_scoped_per_user_independent(temp_analysis_db):
+    """Same project name/path for different users should not overwrite each other."""
+    payload_alice = _make_payload(
+        project_name="same",
+        project_path="shared/path",
+        total_files=3,
+        languages={"python": 3},
+        frameworks=["Flask"],
+    )
+    payload_bob = _make_payload(
+        project_name="same",
+        project_path="shared/path",
+        total_files=7,
+        languages={"javascript": 7},
+        frameworks=["React"],
+    )
+
+    alice_analysis = adb.record_analysis("non_llm", payload_alice, username="alice")
+    bob_analysis = adb.record_analysis("non_llm", payload_bob, username="bob")
+
+    with adb.get_connection() as conn:
+        projects = conn.execute(
+            "SELECT project_name, project_path, owner_username, total_files, primary_language FROM projects ORDER BY owner_username"
+        ).fetchall()
+        assert len(projects) == 2
+        assert (projects[0]["owner_username"], projects[0]["total_files"], projects[0]["primary_language"]) == (
+            "alice",
+            3,
+            "python",
+        )
+        assert (projects[1]["owner_username"], projects[1]["total_files"], projects[1]["primary_language"]) == (
+            "bob",
+            7,
+            "javascript",
+        )
+
+        # Each analysis keeps its own project row
+        assert len(adb.get_projects_for_analysis(alice_analysis)) == 1
+        assert len(adb.get_projects_for_analysis(bob_analysis)) == 1
+
+
+def test_reanalysis_overwrites_same_user_only(temp_analysis_db):
+    """Within a user, same project name/path should overwrite to the latest run."""
+    first = _make_payload(
+        project_name="sameuser",
+        project_path="shared/path2",
+        total_files=2,
+        languages={"python": 2},
+        frameworks=["Flask"],
+    )
+    second = _make_payload(
+        project_name="sameuser",
+        project_path="shared/path2",
+        total_files=6,
+        languages={"go": 6},
+        frameworks=["Gin"],
+    )
+
+    first_id = adb.record_analysis("non_llm", first, username="alice")
+    first_project = adb.get_projects_for_analysis(first_id)[0]
+
+    second_id = adb.record_analysis("non_llm", second, username="alice")
+    projects = adb.get_projects_for_analysis(second_id)
+    assert len(projects) == 1
+    updated = projects[0]
+    assert updated["id"] == first_project["id"]
+    assert updated["total_files"] == 6
+    assert updated["primary_language"] == "go"
+
+    with adb.get_connection() as conn:
+        langs = conn.execute(
+            "SELECT language, file_count FROM project_languages WHERE project_id = ?",
+            (updated["id"],),
+        ).fetchall()
+        assert {(row["language"], row["file_count"]) for row in langs} == {("go", 6)}
+
+        # Only latest Alice analysis should remain for that project key
+        analyses_count = conn.execute("SELECT COUNT(*) AS c FROM analyses").fetchone()["c"]
+        assert analyses_count == 1

@@ -6,6 +6,12 @@ import SignupPage from './pages/auth/SignupPage';
 import ConsentPage from './pages/auth/ConsentPage';
 import Dashboard from './pages/Dashboard';
 import ProjectsPage from './ProjectsPage';
+import AnalyzePage from './pages/AnalyzePage';
+import CuratePage from './pages/CuratePage';
+import Upload from './pages/Upload';
+import Portfolio from './pages/Portfolio';
+import Resume from './pages/Resume';
+import Settings from './pages/Settings';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -44,6 +50,54 @@ function App() {
             element={
               <ProtectedRoute>
                 <ProjectsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/analyze"
+            element={
+              <ProtectedRoute>
+                <AnalyzePage />
+              </ProtectedRoute>
+            }
+          />   
+          <Route  
+            path="/upload"
+            element={
+              <ProtectedRoute>
+                <Upload />
+              </ProtectedRoute>
+            }
+          />
+          <route
+            path="/curate"
+            element={
+              <ProtectedRoute>
+                <CuratePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/portfolio"
+            element={
+              <ProtectedRoute>
+                <Portfolio />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/resume"
+            element={
+              <ProtectedRoute>
+                <Resume />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <Settings />
               </ProtectedRoute>
             }
           />

@@ -168,11 +168,12 @@ def get_user_projects(user_id: str) -> List[Dict[str, Any]]:
                    COALESCE(pcc.project_end_date, p.project_end_date) as effective_project_end_date,
                    pcc.correction_timestamp
             FROM projects p
-            JOIN analyses a ON a.id = p.analysis_id 
+            JOIN analyses a ON a.id = p.analysis_id
             LEFT JOIN project_chronology_corrections pcc ON pcc.project_id = p.id AND pcc.user_id = ?
+            WHERE a.username = ?
         """
 
-        rows = conn.execute(query, (user_id,)).fetchall()
+        rows = conn.execute(query, (user_id, user_id)).fetchall()
 
         projects = []
         for row in rows:
@@ -352,7 +353,14 @@ def save_comparison_attributes(user_id: str, attributes: List[str]) -> bool:
                     ?
                 )
             """,
-                (user_id, json.dumps(attributes), user_id, user_id, user_id, datetime.now().isoformat()),
+                (
+                    user_id,
+                    json.dumps(attributes),
+                    user_id,
+                    user_id,
+                    user_id,
+                    datetime.now().isoformat(),
+                ),
             )
 
             conn.commit()

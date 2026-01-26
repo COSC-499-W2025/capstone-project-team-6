@@ -447,7 +447,11 @@ class TestSummarizeTopRankedProjects:
         import json
 
         report = {
-            "analysis_metadata": {"zip_file": zip_file_path, "analysis_timestamp": timestamp, "total_projects": len(projects)},
+            "analysis_metadata": {
+                "zip_file": zip_file_path,
+                "analysis_timestamp": timestamp,
+                "total_projects": len(projects),
+            },
             "projects": projects,
             "summary": {
                 "total_files": sum(p.get("total_files", 0) for p in projects),
@@ -497,14 +501,25 @@ class TestSummarizeTopRankedProjects:
         assert "RANK #1" in captured.out
 
     def test_summarize_with_multiple_projects(
-        self, mock_analysis_db, sample_project_data, sample_project_data_high_score, sample_project_data_low_score, capsys
+        self,
+        mock_analysis_db,
+        sample_project_data,
+        sample_project_data_high_score,
+        sample_project_data_low_score,
+        capsys,
     ):
         """Test summarize with multiple projects - should rank by score."""
         from backend.analysis.analyze import summarize_top_ranked_projects
 
         zip_path = "/test/multi.zip"
         self.create_analysis_in_db(
-            mock_analysis_db, zip_path, [sample_project_data, sample_project_data_high_score, sample_project_data_low_score]
+            mock_analysis_db,
+            zip_path,
+            [
+                sample_project_data,
+                sample_project_data_high_score,
+                sample_project_data_low_score,
+            ],
         )
 
         summarize_top_ranked_projects(limit=10, zip_file_path=zip_path, username=self.TEST_USERNAME)
@@ -605,7 +620,15 @@ class TestSummarizeTopRankedProjects:
                 (analysis_uuid, analysis_type, zip_file, analysis_timestamp, total_projects, raw_json, username)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                ("invalid-uuid", "non_llm", zip_path, "2025-11-30T10:00:00", 1, "invalid json", self.TEST_USERNAME),
+                (
+                    "invalid-uuid",
+                    "non_llm",
+                    zip_path,
+                    "2025-11-30T10:00:00",
+                    1,
+                    "invalid json",
+                    self.TEST_USERNAME,
+                ),
             )
             conn.commit()
 
@@ -697,7 +720,12 @@ class TestSummarizeTopRankedProjects:
             "primary_language": "java",
             "total_files": 20,
             "code_files": 15,
-            "java_oop_analysis": {"total_classes": 8, "interface_count": 3, "solid_score": 4.5, "oop_score": 5},
+            "java_oop_analysis": {
+                "total_classes": 8,
+                "interface_count": 3,
+                "solid_score": 4.5,
+                "oop_score": 5,
+            },
         }
 
         self.create_analysis_in_db(mock_analysis_db, zip_path, [java_project])
@@ -721,7 +749,11 @@ class TestSummarizeTopRankedProjects:
             "primary_language": "cpp",
             "total_files": 25,
             "code_files": 20,
-            "cpp_oop_analysis": {"total_classes": 10, "template_classes": 2, "virtual_methods": 15},
+            "cpp_oop_analysis": {
+                "total_classes": 10,
+                "template_classes": 2,
+                "virtual_methods": 15,
+            },
         }
 
         self.create_analysis_in_db(mock_analysis_db, zip_path, [cpp_project])

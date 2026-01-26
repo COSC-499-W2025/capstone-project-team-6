@@ -127,7 +127,10 @@ class TestAuthentication:
 
     def test_login_nonexistent_user(self, client):
         """Test login fails for nonexistent user."""
-        response = client.post("/api/auth/login", json={"username": "nonexistent_user_xyz", "password": "password123"})
+        response = client.post(
+            "/api/auth/login",
+            json={"username": "nonexistent_user_xyz", "password": "password123"},
+        )
         assert response.status_code == 401
 
 
@@ -163,7 +166,7 @@ class TestRequestValidation:
 
     def test_invalid_json(self, client):
         """Test endpoints reject invalid JSON."""
-        response = client.post("/api/auth/signup", data="not json", headers={"Content-Type": "application/json"})
+        response = client.post("/api/auth/signup", content="not json", headers={"Content-Type": "application/json"})
         assert response.status_code == 422
 
     def test_missing_auth_header(self, client):
