@@ -82,6 +82,10 @@
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/313  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/308  
 
+- **Issues:**  
+<img width="673" height="191" alt="image" src="https://github.com/user-attachments/assets/9428aa1f-115e-4a69-8fe8-273fc36e9159" />
+
+
 ---
 
 ### Aakash Tirathdas (**aakash-tir**)
@@ -103,7 +107,10 @@
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/324  
 
 - **Issues:**  
-  - https://github.com/COSC-499-W2025/capstone-project-team-6/issues/316  
+  - https://github.com/COSC-499-W2025/capstone-project-team-6/issues/316
+  
+<img width="821" height="89" alt="image" src="https://github.com/user-attachments/assets/122cfbfa-485a-4774-9161-213b799f77ff" />
+
 
 ---
 
@@ -127,6 +134,10 @@
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/311  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/304  
 
+- **Issues:**  
+
+<img width="477" height="199" alt="image" src="https://github.com/user-attachments/assets/7f76f548-6421-4b9f-b514-316cf27a02ef" />
+
 ---
 
 ### Ansh Rastogi (**anshr18**)
@@ -149,6 +160,9 @@
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/313  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/301  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/324  
+
+- **Issues:**  
+<img width="646" height="199" alt="image" src="https://github.com/user-attachments/assets/92c66f68-3b2d-4230-bf22-55077e995d61" />
 
 ---
 
@@ -174,6 +188,10 @@
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/315  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/319  
 
+- **Issues:**  
+<img width="806" height="392" alt="image" src="https://github.com/user-attachments/assets/af29a9aa-095a-441b-b533-5a84a4247f09" />
+
+
 ---
 
 ### Mohamed Sakr (**mgjim101**)
@@ -195,6 +213,10 @@
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/306  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/317  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/322  
+
+- **Issues:**
+  
+<img width="616" height="201" alt="image" src="https://github.com/user-attachments/assets/18ac95ed-f5cc-47e2-b62a-5f11cc46b105" />
 
 ---
 
@@ -254,5 +276,6 @@
 
 ## Project Burnup Chart
 
-*(Not provided for this reporting period.)*
+<img width="1813" height="946" alt="image" src="https://github.com/user-attachments/assets/6795877c-1f1f-4334-a2e1-55ae91b1b220" />
+
 
