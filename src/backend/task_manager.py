@@ -5,7 +5,9 @@ Handles asynchronous analysis tasks with status tracking and file management.
 """
 
 import asyncio
+import contextlib
 import hashlib
+import io
 import json
 import logging
 import shutil
@@ -82,21 +84,101 @@ class FileManager:
                 sha256_hash.update(chunk)
         return sha256_hash.hexdigest()
 
+    '''
     def store_file_permanently(self, temp_path: Path, file_hash: str = None) -> Path:
-        """Move file from temp to permanent storage with deduplication."""
+        """Store file in permanent storage with deduplication.
+
+        IMPORTANT:
+        - If the file is in our temp upload directory, we can move/delete it.
+        - If it's a user-provided path elsewhere, we MUST NOT delete/move it.
+          We copy it instead.
+
+          This change was made as the whole zip file was moved to temp and made it look like the file was permenently deleted.
+        """
         if not file_hash:
             file_hash = self.calculate_file_hash(temp_path)
 
-        # Use hash as filename to ensure deduplication
         permanent_path = self.permanent_dir / f"{file_hash}.zip"
 
-        if not permanent_path.exists():
-            shutil.move(str(temp_path), str(permanent_path))
-            logger.info(f"File stored permanently: {permanent_path}")
-        else:
-            # File already exists, remove temporary file
-            temp_path.unlink()
+        if permanent_path.exists():
+            # already stored; only delete source if it's our temp file
+            try:
+                if temp_path.resolve().is_relative_to(self.temp_dir.resolve()):
+                    temp_path.unlink(missing_ok=True)
+            except Exception:
+                pass
             logger.info(f"Duplicate file detected, using existing: {permanent_path}")
+            return permanent_path
+
+        # Decide whether we can safely delete the source
+        can_delete_source = False
+        try:
+            can_delete_source = temp_path.resolve().is_relative_to(self.temp_dir.resolve())
+        except Exception:
+            can_delete_source = False
+
+        if can_delete_source:
+            # safe: uploaded temp file
+            shutil.move(str(temp_path), str(permanent_path))
+            logger.info(f"File moved to permanent storage: {permanent_path}")
+        else:
+            # safe: user file (do not remove from their computer)
+            shutil.copy2(str(temp_path), str(permanent_path))
+            logger.info(f"File copied to permanent storage (source preserved): {permanent_path}")
+
+        return permanent_path
+    '''
+
+    def store_file_permanently(
+        self,
+        temp_path: Path,
+        file_hash: str = None,
+        *,
+        preserve_source: bool | None = None,
+    ) -> Path:
+        """
+        Store file in permanent storage with deduplication.
+
+        preserve_source:
+          - None: auto-detect (preserve if NOT in self.temp_dir)
+          - True: always preserve original (copy)
+          - False: safe to delete/move original (move; and delete if dedup hit)
+
+        Rationale:
+          - Uploaded temp files should be removable.
+          - User-provided paths (fixed path projects) must not be deleted.
+        """
+        if not file_hash:
+            file_hash = self.calculate_file_hash(temp_path)
+
+        permanent_path = self.permanent_dir / f"{file_hash}.zip"
+
+        # Decide behavior if not explicitly provided
+        if preserve_source is None:
+            try:
+                # If it's inside our temp upload dir, we can delete/move it.
+                preserve_source = not temp_path.resolve().is_relative_to(self.temp_dir.resolve())
+            except Exception:
+                # Conservative default: preserve
+                preserve_source = True
+
+        # If already stored, dedup: optionally remove the source if allowed
+        if permanent_path.exists():
+            if not preserve_source:
+                try:
+                    temp_path.unlink(missing_ok=True)
+                except Exception:
+                    pass
+            logger.info(f"Duplicate file detected, using existing: {permanent_path}")
+            return permanent_path
+
+        # First time storing
+        if preserve_source:
+            shutil.copy2(str(temp_path), str(permanent_path))
+            logger.info(f"File copied to permanent storage (source preserved): {permanent_path}")
+        else:
+            shutil.move(str(temp_path), str(permanent_path))
+            logger.info(f"File moved to permanent storage: {permanent_path}")
 
         return permanent_path
 
@@ -217,6 +299,7 @@ class TaskManager:
         finally:
             task.updated_at = datetime.now()
 
+    '''
     async def _process_new_portfolio(self, task: TaskInfo) -> Dict[str, Any]:
         """Process a new portfolio upload.
 
@@ -242,7 +325,7 @@ class TaskManager:
         task.progress = 80
 
         # Store analysis in database
-        analysis_id = record_analysis(task.analysis_type or "non_llm", analysis_result)
+        analysis_id = record_analysis(task.analysis_type or "non_llm", analysis_result, username=task.username)
         task.progress = 90
 
         return {
@@ -251,6 +334,90 @@ class TaskManager:
             "total_projects": len(analysis_result.get("projects", [])),
             "file_hash": task.file_hash,
         }
+    '''
+
+    async def _process_new_portfolio(self, task: TaskInfo) -> Dict[str, Any]:
+        """Process a new portfolio upload (webapp pipeline).
+
+        Option B:
+        - Always run non-LLM analysis + store it for this user.
+        - If user has consent, run LLM analysis + store it for this user.
+        - LLM failures do not fail the whole task.
+        """
+        from backend.database import check_user_consent
+
+        from .analysis.llm_pipeline import run_gemini_analysis
+        from .analysis_database import get_analysis, record_analysis
+        from .cli import analyze_folder
+
+        await asyncio.sleep(1)
+        task.progress = 50
+
+        if not task.file_path:
+            raise ValueError("Task file_path is missing")
+        file_path = Path(task.file_path)
+        loop = asyncio.get_event_loop()
+
+        # 1) NON-LLM ANALYSIS (always)
+        analysis_result = await loop.run_in_executor(_executor, analyze_folder, file_path)
+        task.progress = 80
+
+        analysis_id = record_analysis(task.analysis_type or "non_llm", analysis_result, username=task.username)
+        row = get_analysis(analysis_id)
+        analysis_uuid = row["analysis_uuid"] if row and "analysis_uuid" in row else None
+
+        task.progress = 90
+
+        result_payload: Dict[str, Any] = {
+            "analysis_id": analysis_id,
+            "analysis_uuid": analysis_uuid,
+            "total_projects": len(analysis_result.get("projects", [])),
+            "file_hash": task.file_hash,
+            "llm_ran": False,
+            "llm_analysis_id": None,
+            "llm_error": None,
+        }
+
+        # 2) LLM ANALYSIS (only if consent)
+        try:
+            has_consented = check_user_consent(task.username)
+        except Exception as e:
+            has_consented = False
+            result_payload["llm_error"] = f"Consent check failed: {e}"
+
+        if has_consented:
+            task.progress = 92
+            try:
+                # Choose active features
+                active_features = ["architecture", "complexity", "security", "skills", "domain", "resume"]
+
+                # Run LLM analysis
+                llm_results = await loop.run_in_executor(
+                    _executor,
+                    run_gemini_analysis,
+                    file_path,
+                    active_features,
+                    None,  # prompt_override
+                    None,  # progress_callback
+                )
+
+                task.progress = 97
+
+                # Store LLM under same user
+                llm_results["non_llm_results"] = analysis_result
+                llm_analysis_id = record_analysis("llm", llm_results, username=task.username)
+
+                result_payload["llm_ran"] = True
+                result_payload["llm_analysis_id"] = llm_analysis_id
+                result_payload["llm_error"] = None
+
+            except Exception as e:
+                # do NOT fail entire task if LLM fails
+                result_payload["llm_ran"] = False
+                result_payload["llm_error"] = str(e)
+
+        task.progress = 99
+        return result_payload
 
     async def _process_incremental_upload(self, task: TaskInfo) -> Dict[str, Any]:
         """Process an incremental upload to existing portfolio."""

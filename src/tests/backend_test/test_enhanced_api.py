@@ -232,17 +232,23 @@ class TestFileManager:
         test_content = b"identical content for dedup test"
 
         # Create two files with identical content
-        test_file1 = Path(tempfile.mktemp(suffix=".zip"))
-        test_file2 = Path(tempfile.mktemp(suffix=".zip"))
-        test_file1.write_bytes(test_content)
-        test_file2.write_bytes(test_content)
+        # Create two files with identical content (safe temp creation)
+        fd1, p1 = tempfile.mkstemp(suffix=".zip")
+        fd2, p2 = tempfile.mkstemp(suffix=".zip")
+        Path(p1).write_bytes(test_content)
+        Path(p2).write_bytes(test_content)
+        test_file1 = Path(p1)
+        test_file2 = Path(p2)
+
+        import os
+
+        os.close(fd1)
+        os.close(fd2)
 
         try:
             # Store first file
-            permanent_path1 = self.file_manager.store_file_permanently(test_file1)
-
-            # Store second file (should deduplicate)
-            permanent_path2 = self.file_manager.store_file_permanently(test_file2)
+            permanent_path1 = self.file_manager.store_file_permanently(test_file1, preserve_source=False)
+            permanent_path2 = self.file_manager.store_file_permanently(test_file2, preserve_source=False)
 
             assert permanent_path1 == permanent_path2, "Should deduplicate identical files"
             assert not test_file2.exists(), "Duplicate should be removed"

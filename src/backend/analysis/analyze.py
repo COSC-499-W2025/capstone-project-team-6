@@ -137,7 +137,11 @@ def calculate_contribution_score(project: Dict[str, Any], user_email: Optional[s
 
     if not is_collaborative:
         # Solo project - full credit
-        return {"score": 30.0, "level": "Solo Project", "justification": "100% individual contribution"}
+        return {
+            "score": 30.0,
+            "level": "Solo Project",
+            "justification": "100% individual contribution",
+        }
 
     # Collaborative project
     user_percentage = 0
@@ -182,7 +186,7 @@ def calculate_contribution_score(project: Dict[str, Any], user_email: Optional[s
     return {
         "score": score,
         "level": level,
-        "justification": f"{user_percentage:.1f}% of commits" if user_percentage > 0 else "Contribution percentage unknown",
+        "justification": (f"{user_percentage:.1f}% of commits" if user_percentage > 0 else "Contribution percentage unknown"),
     }
 
 
@@ -211,7 +215,11 @@ def calculate_recency_score(project: Dict[str, Any]) -> Dict[str, Any]:
         last_commit = project.get("last_modified_date")
 
     if not last_commit:
-        return {"score": 3.0, "period": "Unknown", "justification": "No date information available"}
+        return {
+            "score": 3.0,
+            "period": "Unknown",
+            "justification": "No date information available",
+        }
 
     days_ago = calculate_days_since(last_commit)
 
@@ -231,7 +239,11 @@ def calculate_recency_score(project: Dict[str, Any]) -> Dict[str, Any]:
         score = 3.0
         period = f"{days_ago // 365} year(s) ago"
 
-    return {"score": score, "period": period, "justification": f"Last activity: {period}"}
+    return {
+        "score": score,
+        "period": period,
+        "justification": f"Last activity: {period}",
+    }
 
 
 def calculate_scale_score(project: Dict[str, Any]) -> Dict[str, Any]:
@@ -389,7 +401,9 @@ def calculate_duration_score(project: Dict[str, Any], user_email: Optional[str] 
 
 
 def calculate_composite_score(
-    project: Dict[str, Any], user_email: Optional[str] = None, use_enhanced_ranking: bool = True
+    project: Dict[str, Any],
+    user_email: Optional[str] = None,
+    use_enhanced_ranking: bool = True,
 ) -> Dict[str, Any]:
     """
     Calculate a comprehensive composite score for a project using a balanced multi-factor approach.
@@ -825,9 +839,9 @@ def calculate_composite_score(
         enhanced_justification = {
             "code_architecture": "; ".join(arch_justification)
             + (" | " + "; ".join(architecture_details) if architecture_details else ""),
-            "code_quality": "; ".join(quality_details) if quality_details else "No quality metrics",
-            "project_maturity": "; ".join(maturity_details) if maturity_details else "No maturity indicators",
-            "algorithmic_quality": "; ".join(algorithmic_details) if algorithmic_details else "No algorithmic analysis",
+            "code_quality": ("; ".join(quality_details) if quality_details else "No quality metrics"),
+            "project_maturity": ("; ".join(maturity_details) if maturity_details else "No maturity indicators"),
+            "algorithmic_quality": ("; ".join(algorithmic_details) if algorithmic_details else "No algorithmic analysis"),
             "individual_contribution": f"{contribution_data['level']} - {contribution_data['justification']}",
             "recency": recency_data["justification"],
             "project_scale": f"{scale_data['scale']} - {scale_data['justification']}",
@@ -852,9 +866,9 @@ def calculate_composite_score(
         legacy_justification = {
             "code_architecture": "; ".join(arch_justification)
             + (" | " + "; ".join(architecture_details) if architecture_details else ""),
-            "code_quality": "; ".join(quality_details) if quality_details else "No quality metrics",
-            "project_maturity": "; ".join(maturity_details) if maturity_details else "No maturity indicators",
-            "algorithmic_quality": "; ".join(algorithmic_details) if algorithmic_details else "No algorithmic analysis",
+            "code_quality": ("; ".join(quality_details) if quality_details else "No quality metrics"),
+            "project_maturity": ("; ".join(maturity_details) if maturity_details else "No maturity indicators"),
+            "algorithmic_quality": ("; ".join(algorithmic_details) if algorithmic_details else "No algorithmic analysis"),
         }
         if user_justification:
             legacy_justification["target_user"] = "; ".join(user_justification)
@@ -964,7 +978,8 @@ def summarize_top_ranked_projects(
     # Convert back to list and sort by composite score (descending)
     projects_with_scores = list(unique_projects.values())
     projects_with_scores.sort(
-        key=lambda x: x["score_data"].get("adjusted_score", x["score_data"]["composite_score"]), reverse=True
+        key=lambda x: x["score_data"].get("adjusted_score", x["score_data"]["composite_score"]),
+        reverse=True,
     )
 
     # Display top projects
@@ -1513,7 +1528,10 @@ def main():
                         "total_classes": 0,
                     }
                 except Exception as e:
-                    report["projects"][i]["cpp_oop_analysis"] = {"error": str(e), "total_classes": 0}
+                    report["projects"][i]["cpp_oop_analysis"] = {
+                        "error": str(e),
+                        "total_classes": 0,
+                    }
 
             # C Analysis (note: .c files are classified as cpp in project_analyzer)
             # So we check for cpp language and run C analyzer too
@@ -1568,7 +1586,10 @@ def main():
                             "total_classes": 0,
                         }
                     except Exception as e:
-                        report["projects"][i]["cpp_oop_analysis"] = {"error": str(e), "total_classes": 0}
+                        report["projects"][i]["cpp_oop_analysis"] = {
+                            "error": str(e),
+                            "total_classes": 0,
+                        }
 
                 # C Analysis (note: .c files are classified as cpp in project_analyzer)
                 # So we check for cpp language and run C analyzer too
@@ -1793,7 +1814,11 @@ def main():
 
                 if java_oop.get("annotations"):
                     print(f"\nAnnotations (top 5):")
-                    for anno, count in sorted(java_oop["annotations"].items(), key=lambda x: x[1], reverse=True)[:5]:
+                    for anno, count in sorted(
+                        java_oop["annotations"].items(),
+                        key=lambda x: x[1],
+                        reverse=True,
+                    )[:5]:
                         print(f"  @{anno}: {count}")
 
                 if java_oop.get("design_patterns"):
@@ -2020,7 +2045,10 @@ def main():
                 existing_resume_items = get_resume_items_for_project(project_name)
 
                 if existing_resume_items and not regenerate_all:
-                    resume_items_by_project[project_name] = {"text": existing_resume_items[0]["resume_text"], "cached": True}
+                    resume_items_by_project[project_name] = {
+                        "text": existing_resume_items[0]["resume_text"],
+                        "cached": True,
+                    }
                 else:
                     projects_needing_resume.append(project)
 
@@ -2068,7 +2096,10 @@ def main():
                         # Delete old resume item if regenerating
                         if regenerate_all:
                             with get_connection() as conn:
-                                conn.execute("DELETE FROM resume_items WHERE project_name = ?", (project_name,))
+                                conn.execute(
+                                    "DELETE FROM resume_items WHERE project_name = ?",
+                                    (project_name,),
+                                )
                                 conn.commit()
 
                         store_resume_item(project_name, resume_entry)

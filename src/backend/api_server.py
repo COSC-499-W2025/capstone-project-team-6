@@ -25,6 +25,15 @@ from backend.analysis_database import (
 from backend.analysis_database import init_db as init_analysis_db
 from backend.analysis_database import record_analysis
 from backend.database import authenticate_user, check_user_consent, create_user
+# Import routers from modular API structure
+from backend.api.analysis import router as analysis_router
+from backend.api.auth import router as auth_router
+from backend.api.health import router as health_router
+from backend.api.portfolios import router as portfolios_router
+from backend.api.projects import router as projects_router
+from backend.api.resume import router as resume_router
+from backend.api.tasks import router as tasks_router
+from backend.curation import init_curation_tables
 from backend.database import init_db as init_user_db
 from backend.database import save_user_consent
 from backend.task_manager import (TaskType, cleanup_background_tasks,
@@ -33,6 +42,7 @@ from backend.task_manager import (TaskType, cleanup_background_tasks,
 # Initialize databases
 init_user_db()
 init_analysis_db()
+init_curation_tables()
 
 app = FastAPI(
     title="FastAPI",

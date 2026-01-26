@@ -1,5 +1,6 @@
 """Task management API endpoints."""
 
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -19,8 +20,9 @@ class TaskStatusResponse(BaseModel):
     task_type: str
     username: str
     filename: str
-    created_at: str
-    updated_at: str
+    created_at: datetime
+    updated_at: datetime
+    progress: int = 0
     error: Optional[str] = None
     result: Optional[Dict[str, Any]] = None
 
@@ -29,7 +31,7 @@ class TaskStatusResponse(BaseModel):
 async def get_task_status(task_id: str, username: str = Depends(verify_token)):
     """Get status of a specific task."""
     task_manager = get_task_manager()
-    task = task_manager.get_task(task_id)
+    task = task_manager.get_task_status(task_id)
 
     if not task:
         raise HTTPException(
@@ -54,6 +56,7 @@ async def get_task_status(task_id: str, username: str = Depends(verify_token)):
         updated_at=task.updated_at,
         error=task.error,
         result=task.result,
+        progress=task.progress,
     )
 
 
@@ -84,6 +87,7 @@ async def list_user_tasks(
             updated_at=task.updated_at,
             error=task.error,
             result=task.result,
+            progress=task.progress,
         )
         for task in sorted_tasks
     ]

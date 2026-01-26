@@ -21,7 +21,18 @@ def _detect_project_type(project: Dict[str, Any]) -> str:
     for deps_list in dependencies.values():
         all_deps.extend([d.lower() for d in deps_list])
 
-    web_frameworks = {"flask", "django", "fastapi", "express", "react", "vue", "angular", "next.js", "spring", "rails"}
+    web_frameworks = {
+        "flask",
+        "django",
+        "fastapi",
+        "express",
+        "react",
+        "vue",
+        "angular",
+        "next.js",
+        "spring",
+        "rails",
+    }
     if any(fw.lower() in web_frameworks for fw in frameworks):
         if any("api" in dep or "rest" in dep or "graphql" in dep for dep in all_deps):
             return "api"
@@ -30,11 +41,28 @@ def _detect_project_type(project: Dict[str, Any]) -> str:
     if "click" in all_deps or "argparse" in all_deps or "typer" in all_deps:
         return "cli_tool"
 
-    ml_deps = {"numpy", "pandas", "scikit-learn", "tensorflow", "pytorch", "keras", "matplotlib", "seaborn"}
+    ml_deps = {
+        "numpy",
+        "pandas",
+        "scikit-learn",
+        "tensorflow",
+        "pytorch",
+        "keras",
+        "matplotlib",
+        "seaborn",
+    }
     if any(dep in ml_deps for dep in all_deps):
         return "data_science"
 
-    db_deps = {"sqlalchemy", "django-orm", "sequelize", "typeorm", "prisma", "mongodb", "redis"}
+    db_deps = {
+        "sqlalchemy",
+        "django-orm",
+        "sequelize",
+        "typeorm",
+        "prisma",
+        "mongodb",
+        "redis",
+    }
     if any(dep in db_deps for dep in all_deps):
         return "backend"
 
@@ -289,7 +317,17 @@ def _generate_tech_items(project: Dict[str, Any], project_name: str, project_typ
         )
 
     # Database integration
-    db_keywords = {"sqlalchemy", "django-orm", "sequelize", "typeorm", "prisma", "mongodb", "redis", "postgresql", "mysql"}
+    db_keywords = {
+        "sqlalchemy",
+        "django-orm",
+        "sequelize",
+        "typeorm",
+        "prisma",
+        "mongodb",
+        "redis",
+        "postgresql",
+        "mysql",
+    }
     db_deps = [d for d in all_deps if any(kw in d.lower() for kw in db_keywords)]
     if db_deps:
         items.append(
@@ -470,7 +508,20 @@ def generate_formatted_resume_entry(project: Dict[str, Any]) -> str:
     # Build tech stack
     tech_stack = languages + frameworks
     notable_deps = [
-        d for d in all_deps if any(kw in d.lower() for kw in ["fastapi", "django", "flask", "react", "vue", "express", "spring"])
+        d
+        for d in all_deps
+        if any(
+            kw in d.lower()
+            for kw in [
+                "fastapi",
+                "django",
+                "flask",
+                "react",
+                "vue",
+                "express",
+                "spring",
+            ]
+        )
     ]
     tech_stack.extend(notable_deps[:3])
 
