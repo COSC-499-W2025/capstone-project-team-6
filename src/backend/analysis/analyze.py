@@ -38,8 +38,9 @@ from backend.analysis_database import (count_analyses_by_zip_file,
                                        get_all_analyses_by_zip_file,
                                        get_analysis_by_zip_file,
                                        get_analysis_report, get_connection,
-                                       get_resume_items_for_project_id, init_db,
-                                       record_analysis, store_resume_item)
+                                       get_resume_items_for_project_id,
+                                       init_db, record_analysis,
+                                       store_resume_item)
 
 
 def print_separator(title=""):

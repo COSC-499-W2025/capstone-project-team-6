@@ -290,7 +290,7 @@ def init_db() -> None:
             """
         )
 
-        # Resume items 
+        # Resume items
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS resume_items (
@@ -309,25 +309,17 @@ def init_db() -> None:
         existing = {row["name"] for row in conn.execute("PRAGMA table_info(resume_items)")}
 
         if "analysis_id" not in existing:
-            conn.execute(
-                "ALTER TABLE resume_items ADD COLUMN analysis_id INTEGER REFERENCES analyses(id) ON DELETE CASCADE;"
-            )
+            conn.execute("ALTER TABLE resume_items ADD COLUMN analysis_id INTEGER REFERENCES analyses(id) ON DELETE CASCADE;")
         if "project_id" not in existing:
-            conn.execute(
-                "ALTER TABLE resume_items ADD COLUMN project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE;"
-            )
+            conn.execute("ALTER TABLE resume_items ADD COLUMN project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE;")
         if "project_name" not in existing:
             conn.execute("ALTER TABLE resume_items ADD COLUMN project_name TEXT;")
         if "bullet_order" not in existing:
             conn.execute("ALTER TABLE resume_items ADD COLUMN bullet_order INTEGER;")
 
         # index for quick fetch per project/analysis
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_resume_items_project ON resume_items(project_id, bullet_order);"
-        )
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_resume_items_analysis ON resume_items(analysis_id);"
-        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_resume_items_project ON resume_items(project_id, bullet_order);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_resume_items_analysis ON resume_items(analysis_id);")
 
         conn.commit()
 
@@ -759,7 +751,7 @@ def record_analysis(
             try:
                 from .analysis.resume_generator import _generate_project_items
 
-                bullets = _generate_project_items(project) 
+                bullets = _generate_project_items(project)
                 for idx, bullet in enumerate(bullets):
                     if not bullet or not bullet.strip():
                         continue
@@ -797,11 +789,13 @@ def record_analysis(
 
             # Generate portfolio item and store skills_exercised
             try:
-                from .analysis.portfolio_item_generator import generate_portfolio_item
+                from .analysis.portfolio_item_generator import \
+                    generate_portfolio_item
+
                 portfolio_item = generate_portfolio_item(project)
                 skills_exercised = portfolio_item.get("skills_exercised", []) or []
 
-                # Store skills 
+                # Store skills
                 for skill in skills_exercised:
                     conn.execute(
                         """
@@ -1144,6 +1138,7 @@ def delete_analyses_by_zip_file(zip_file: str, username: Optional[str] = None) -
         logging.error(f"Error deleting analyses for {zip_file}: {e}")
         raise
 
+
 def store_resume_item(
     analysis_id: int,
     project_id: int,
@@ -1163,6 +1158,7 @@ def store_resume_item(
             (analysis_id, project_id, project_name, resume_text.strip(), bullet_order),
         )
         conn.commit()
+
 
 def get_all_resume_items(username: Optional[str] = None) -> List[sqlite3.Row]:
     """
@@ -1190,11 +1186,13 @@ def get_all_resume_items(username: Optional[str] = None) -> List[sqlite3.Row]:
             """
         ).fetchall()
 
+
 def get_resume_items_for_project(project_id: int) -> List[sqlite3.Row]:
     """
     Backwards-compatible alias for older code/tests.
     """
     return get_resume_items_for_project_id(project_id)
+
 
 def get_resume_items_for_project_id(project_id: int) -> List[sqlite3.Row]:
     with get_connection() as conn:
@@ -1208,6 +1206,7 @@ def get_resume_items_for_project_id(project_id: int) -> List[sqlite3.Row]:
             (project_id,),
         ).fetchall()
 
+
 def get_resume_items_for_analysis(analysis_id: int) -> List[sqlite3.Row]:
     with get_connection() as conn:
         return conn.execute(
@@ -1219,7 +1218,8 @@ def get_resume_items_for_analysis(analysis_id: int) -> List[sqlite3.Row]:
             """,
             (analysis_id,),
         ).fetchall()
-    
+
+
 def get_portfolio_item_for_project(project_id: int) -> Optional[dict]:
     with get_connection() as conn:
         row = conn.execute(
@@ -1237,6 +1237,7 @@ def get_portfolio_item_for_project(project_id: int) -> Optional[dict]:
         ).fetchone()
 
         return dict(row) if row else None
+
 
 def delete_resume_item(item_id: int) -> None:
     with get_connection() as conn:

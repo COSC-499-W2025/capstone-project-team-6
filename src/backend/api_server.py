@@ -14,17 +14,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
-from backend.analysis_database import (
-    delete_analysis,
-    get_all_analyses_for_user,
-    get_analysis_by_uuid,
-    get_projects_for_user,
-    get_resume_items_for_project_id,
-    get_portfolio_item_for_project,
-)
+from backend.analysis_database import (delete_analysis,
+                                       get_all_analyses_for_user,
+                                       get_analysis_by_uuid,
+                                       get_portfolio_item_for_project,
+                                       get_projects_for_user,
+                                       get_resume_items_for_project_id)
 from backend.analysis_database import init_db as init_analysis_db
 from backend.analysis_database import record_analysis
-from backend.database import authenticate_user, check_user_consent, create_user
 # Import routers from modular API structure
 from backend.api.analysis import router as analysis_router
 from backend.api.auth import router as auth_router
@@ -34,6 +31,7 @@ from backend.api.projects import router as projects_router
 from backend.api.resume import router as resume_router
 from backend.api.tasks import router as tasks_router
 from backend.curation import init_curation_tables
+from backend.database import authenticate_user, check_user_consent, create_user
 from backend.database import init_db as init_user_db
 from backend.database import save_user_consent
 from backend.task_manager import (TaskType, cleanup_background_tasks,
@@ -536,6 +534,7 @@ async def list_projects(username: str = Depends(verify_token)) -> List[Dict[str,
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve projects: {str(e)}",
         )
+
 
 @app.get("/api/projects/{project_id}/resume-items")
 async def get_project_resume_items(

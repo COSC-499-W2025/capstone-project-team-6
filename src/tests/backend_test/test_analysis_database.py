@@ -595,6 +595,7 @@ def test_get_analysis_report_not_found(temp_analysis_db):
     report = adb.get_analysis_report("/nonexistent/path.zip", "alice")
     assert report is None
 
+
 def test_store_and_get_resume_items(temp_analysis_db):
     """Unit test: store_resume_item + get_resume_items_for_project_id (no record_analysis side effects)."""
 
@@ -668,6 +669,7 @@ def test_store_and_get_resume_items(temp_analysis_db):
     assert items[0]["project_name"] == project_name
     assert items[0]["resume_text"] == resume_text
     assert items[0]["bullet_order"] == 0
+
 
 def test_get_resume_items_for_project_not_found(temp_analysis_db):
     """Test retrieving resume items for a project_id that doesn't exist."""

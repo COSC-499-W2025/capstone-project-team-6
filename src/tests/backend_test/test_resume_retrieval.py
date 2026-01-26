@@ -165,9 +165,7 @@ class TestResumeFilteringLogic:
         a1, p1, n1 = _create_analysis_with_one_project("Project1")
         a2, p2, n2 = _create_analysis_with_one_project("Project2")
 
-        projects = [{"id": p1, "project_name": n1}, {"id": p2, "project_name": n2}
-
-        ]
+        projects = [{"id": p1, "project_name": n1}, {"id": p2, "project_name": n2}]
         resume_items_by_project = {}
         projects_needing_resume = []
 
