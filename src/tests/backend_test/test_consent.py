@@ -85,7 +85,10 @@ def test_database_consent_storage(temp_db, test_user):
 
     # Check consent was saved
     with get_connection() as conn:
-        record = conn.execute("SELECT has_consented, consent_date FROM user_consent WHERE username = ?", (username,)).fetchone()
+        record = conn.execute(
+            "SELECT has_consented, consent_date FROM user_consent WHERE username = ?",
+            (username,),
+        ).fetchone()
 
     assert record is not None
     assert record["has_consented"] == 1
@@ -148,7 +151,10 @@ def test_consent_foreign_key_constraint(temp_db):
     with pytest.raises(Exception) as exc_info:
         with get_connection() as conn:
             conn.execute("PRAGMA foreign_keys = ON;")
-            conn.execute("INSERT INTO user_consent (username, has_consented) VALUES (?, ?)", (username, True))
+            conn.execute(
+                "INSERT INTO user_consent (username, has_consented) VALUES (?, ?)",
+                (username, True),
+            )
             conn.commit()
 
     assert "FOREIGN KEY constraint failed" in str(exc_info.value)

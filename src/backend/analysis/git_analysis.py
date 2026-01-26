@@ -366,7 +366,11 @@ class GitAnalyzer:
                     continue
 
                 if normalized_email not in email_to_data:
-                    email_to_data[normalized_email] = {"names": [], "commit_count": 0, "original_email": email}
+                    email_to_data[normalized_email] = {
+                        "names": [],
+                        "commit_count": 0,
+                        "original_email": email,
+                    }
 
                 email_to_data[normalized_email]["names"].append(name)
                 email_to_data[normalized_email]["commit_count"] += commit_count
@@ -631,7 +635,17 @@ class GitAnalyzer:
             return "docs"
 
         # Design assets
-        design_exts = {"drawio", "png", "jpg", "jpeg", "svg", "fig", "pptx", "key", "psd"}
+        design_exts = {
+            "drawio",
+            "png",
+            "jpg",
+            "jpeg",
+            "svg",
+            "fig",
+            "pptx",
+            "key",
+            "psd",
+        }
         if ext in design_exts or any(token in lower for token in ["/design/", "/ux/"]):
             return "design"
 
@@ -729,7 +743,12 @@ class GitAnalyzer:
 
         semantic_summary_output = {email: asdict(stats) for email, stats in semantic_summary.items()}
 
-        return language_breakdown, semantic_summary_output, contribution_volume, activity_breakdown
+        return (
+            language_breakdown,
+            semantic_summary_output,
+            contribution_volume,
+            activity_breakdown,
+        )
 
     def get_code_ownership(self) -> tuple[List[FileOwnership], Dict[str, int]]:
         """
@@ -869,7 +888,10 @@ class GitAnalyzer:
         """
         TODO
         """
-        return {"status": "not_implemented", "message": "API integration coming in future version"}
+        return {
+            "status": "not_implemented",
+            "message": "API integration coming in future version",
+        }
 
 
 class GitAnalysisExporter:

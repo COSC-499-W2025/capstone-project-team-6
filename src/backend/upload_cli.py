@@ -121,7 +121,12 @@ def upload_multiple_files(file_paths: List[Path], url: str):
                         click.echo(click.style(f"  ✓ {result['original_filename']}", fg="green"))
                         click.echo(f"    Saved as: {result['filename']} ({result['size_mb']} MB)")
                     else:
-                        click.echo(click.style(f"  ✗ {result['filename']}: {result['message']}", fg="red"))
+                        click.echo(
+                            click.style(
+                                f"  ✗ {result['filename']}: {result['message']}",
+                                fg="red",
+                            )
+                        )
 
                 if data["failed"] > 0:
                     sys.exit(1)

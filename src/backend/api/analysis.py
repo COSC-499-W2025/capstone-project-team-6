@@ -41,7 +41,11 @@ class AnalysisResponse(BaseModel):
     status_url: str
 
 
-@router.post("/portfolios/{portfolio_id}/reanalyze", status_code=202, response_model=AnalysisResponse)
+@router.post(
+    "/portfolios/{portfolio_id}/reanalyze",
+    status_code=202,
+    response_model=AnalysisResponse,
+)
 async def reanalyze_portfolio(
     portfolio_id: str,
     analysis_type: str = Form("llm", description="Analysis type: llm or non_llm"),

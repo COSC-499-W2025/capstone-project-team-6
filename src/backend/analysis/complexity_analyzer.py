@@ -593,12 +593,21 @@ class JavaComplexityAnalyzer:
     def check_streams(self) -> None:
         """Detect use of Java Streams API (modern, functional approach)."""
         stream_patterns = [
-            (r"\.stream\(\)", "Stream API used (modern, functional programming approach)"),
-            (r"\.parallelStream\(\)", "Parallel stream used (efficient for large datasets)"),
+            (
+                r"\.stream\(\)",
+                "Stream API used (modern, functional programming approach)",
+            ),
+            (
+                r"\.parallelStream\(\)",
+                "Parallel stream used (efficient for large datasets)",
+            ),
             (r"\.filter\(", "Stream filter operation (declarative data processing)"),
             (r"\.map\(", "Stream map operation (functional transformation)"),
             (r"\.reduce\(", "Stream reduce operation (efficient aggregation)"),
-            (r"\.collect\(Collectors\.", "Stream collectors used (efficient collection building)"),
+            (
+                r"\.collect\(Collectors\.",
+                "Stream collectors used (efficient collection building)",
+            ),
         ]
 
         for line_no, line in enumerate(self.source_lines, start=1):
@@ -622,7 +631,10 @@ class JavaComplexityAnalyzer:
             (r"Collections\.sort\s*\(", "Collections.sort used"),
             (r"Arrays\.sort\s*\(", "Arrays.sort used"),
             (r"\.sorted\s*\(", "Stream sorted operation used"),
-            (r"Comparator\.\w+", "Custom Comparator used (demonstrates sort optimization awareness)"),
+            (
+                r"Comparator\.\w+",
+                "Custom Comparator used (demonstrates sort optimization awareness)",
+            ),
         ]
 
         for line_no, line in enumerate(self.source_lines, start=1):

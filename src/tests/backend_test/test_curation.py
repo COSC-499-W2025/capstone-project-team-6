@@ -63,9 +63,15 @@ def setup_test_db(tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def sample_projects():
+def sample_projects(request):
     """Create sample project data for testing."""
     import uuid
+
+    # Get user_id from test parameter or use default
+    user_id = getattr(request, "param", None)
+    if user_id is None:
+        # Generate unique user_id for this fixture instance
+        user_id = f"test_user_{uuid.uuid4().hex[:8]}"
 
     # Create analysis record with unique UUID
     analysis_data = {
@@ -75,17 +81,27 @@ def sample_projects():
         "analysis_timestamp": datetime(2024, 1, 15, 10, 0, 0).isoformat(),
         "total_projects": 2,
         "raw_json": json.dumps({"test": "data"}),
+        "username": user_id,
     }
 
     with db.get_connection() as conn:
         conn.execute("PRAGMA foreign_keys = ON;")
 
+        # Create user if it doesn't exist
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO users (username, password_hash)
+            VALUES (?, ?)
+        """,
+            (user_id, "test_hash"),
+        )
+
         # Insert analysis
         cursor = conn.execute(
             """
-            INSERT INTO analyses 
-            (analysis_uuid, analysis_type, zip_file, analysis_timestamp, total_projects, raw_json)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO analyses
+            (analysis_uuid, analysis_type, zip_file, analysis_timestamp, total_projects, raw_json, username)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 analysis_data["analysis_uuid"],
@@ -94,6 +110,7 @@ def sample_projects():
                 analysis_data["analysis_timestamp"],
                 analysis_data["total_projects"],
                 analysis_data["raw_json"],
+                analysis_data["username"],
             ),
         )
 
@@ -193,21 +210,31 @@ def sample_projects():
                     "INSERT INTO project_languages (project_id, language, file_count) VALUES (?, ?, ?)",
                     (project_id, "Python", 18),
                 )
-                conn.execute("INSERT INTO project_frameworks (project_id, framework) VALUES (?, ?)", (project_id, "Flask"))
+                conn.execute(
+                    "INSERT INTO project_frameworks (project_id, framework) VALUES (?, ?)",
+                    (project_id, "Flask"),
+                )
             elif project_data["project_name"] == "MobileApp":
                 conn.execute(
                     "INSERT INTO project_languages (project_id, language, file_count) VALUES (?, ?, ?)",
                     (project_id, "JavaScript", 28),
                 )
-                conn.execute("INSERT INTO project_frameworks (project_id, framework) VALUES (?, ?)", (project_id, "React Native"))
+                conn.execute(
+                    "INSERT INTO project_frameworks (project_id, framework) VALUES (?, ?)",
+                    (project_id, "React Native"),
+                )
             elif project_data["project_name"] == "DataPipeline":
                 conn.execute(
-                    "INSERT INTO project_languages (project_id, language, file_count) VALUES (?, ?, ?)", (project_id, "Go", 12)
+                    "INSERT INTO project_languages (project_id, language, file_count) VALUES (?, ?, ?)",
+                    (project_id, "Go", 12),
                 )
-                conn.execute("INSERT INTO project_frameworks (project_id, framework) VALUES (?, ?)", (project_id, "Gin"))
+                conn.execute(
+                    "INSERT INTO project_frameworks (project_id, framework) VALUES (?, ?)",
+                    (project_id, "Gin"),
+                )
 
         conn.commit()
-        return project_ids
+        return {"user_id": user_id, "project_ids": project_ids}
 
 
 class TestDateValidation:
@@ -234,15 +261,18 @@ class TestChronologyCorrection:
 
     def test_save_chronology_correction(self, sample_projects):
         """Test saving chronology corrections."""
-        project_ids = sample_projects
-        user_id = f"test_user_{project_ids[0]}"  # Unique user ID per test
+        project_ids = sample_projects["project_ids"]
+        user_id = sample_projects["user_id"]
 
         # Save correction
         new_commit_date = "2024-02-01T10:00:00"
         new_start_date = "2023-11-01T00:00:00"
 
         success = save_chronology_correction(
-            project_ids[0], user_id, last_commit_date=new_commit_date, project_start_date=new_start_date
+            project_ids[0],
+            user_id,
+            last_commit_date=new_commit_date,
+            project_start_date=new_start_date,
         )
 
         assert success
@@ -263,15 +293,17 @@ class TestChronologyCorrection:
     def test_save_chronology_correction_invalid_project(self):
         """Test saving correction for non-existent project."""
         success = save_chronology_correction(
-            999999, "test_user_invalid", last_commit_date="2024-02-01T10:00:00"  # Non-existent project ID
+            999999,
+            "test_user_invalid",
+            last_commit_date="2024-02-01T10:00:00",  # Non-existent project ID
         )
 
         assert not success
 
     def test_get_user_projects_with_corrections(self, sample_projects):
         """Test getting user projects with chronology corrections applied."""
-        project_ids = sample_projects
-        user_id = f"test_user_corrected_{project_ids[0]}"
+        project_ids = sample_projects["project_ids"]
+        user_id = sample_projects["user_id"]
 
         # Save corrections for first project
         new_commit_date = "2024-03-01T15:00:00"
@@ -330,7 +362,7 @@ class TestComparisonAttributes:
 
     def test_format_project_comparison(self, sample_projects):
         """Test formatting project comparison table."""
-        user_id = f"test_user_format_{sample_projects[0]}"
+        user_id = sample_projects["user_id"]
 
         # Set specific comparison attributes
         attributes = ["total_files", "has_tests", "primary_language"]
@@ -356,8 +388,8 @@ class TestShowcaseProjects:
 
     def test_save_showcase_projects_valid(self, sample_projects):
         """Test saving valid showcase project selection."""
-        project_ids = sample_projects
-        user_id = f"test_user_showcase_valid_{project_ids[0]}"
+        project_ids = sample_projects["project_ids"]
+        user_id = sample_projects["user_id"]
 
         # Select first 2 projects
         selected_ids = project_ids[:2]
@@ -371,15 +403,15 @@ class TestShowcaseProjects:
 
     def test_save_showcase_projects_too_many(self, sample_projects):
         """Test saving too many showcase projects (>3)."""
-        project_ids = sample_projects + [999]  # 4 projects
-        user_id = f"test_user_showcase_too_many_{sample_projects[0]}"
+        project_ids = sample_projects["project_ids"] + [999]  # 4 projects
+        user_id = sample_projects["user_id"]
 
         success = save_showcase_projects(user_id, project_ids)
         assert not success
 
     def test_save_showcase_projects_invalid_id(self, sample_projects):
         """Test saving showcase projects with invalid ID."""
-        user_id = f"test_user_showcase_invalid_{sample_projects[0]}"
+        user_id = sample_projects["user_id"]
         invalid_ids = [999999]  # Non-existent project ID
 
         success = save_showcase_projects(user_id, invalid_ids)
@@ -387,8 +419,8 @@ class TestShowcaseProjects:
 
     def test_get_showcase_projects(self, sample_projects):
         """Test getting showcase projects with full details."""
-        project_ids = sample_projects
-        user_id = f"test_user_get_showcase_{project_ids[0]}"
+        project_ids = sample_projects["project_ids"]
+        user_id = sample_projects["user_id"]
 
         # Select showcase projects
         selected_ids = project_ids[:2]
@@ -424,8 +456,8 @@ class TestCurationIntegration:
 
     def test_full_curation_workflow(self, sample_projects):
         """Test complete curation workflow."""
-        project_ids = sample_projects
-        user_id = f"test_user_workflow_{project_ids[0]}"
+        project_ids = sample_projects["project_ids"]
+        user_id = sample_projects["user_id"]
 
         # 1. Correct chronology
         new_date = "2024-04-01T10:00:00"
@@ -459,7 +491,7 @@ class TestCurationIntegration:
 
     def test_multiple_users_isolation(self, sample_projects):
         """Test that different users' curation settings are isolated."""
-        project_ids = sample_projects
+        project_ids = sample_projects["project_ids"]
         user1_id = f"user1_isolation_{project_ids[0]}"
         user2_id = f"user2_isolation_{project_ids[0]}"
 

@@ -41,7 +41,12 @@ def store_document(file_name, file_type, category, extracted_text):
     db: Session = SessionLocal()
     try:
         # Create new document entry
-        doc = Document(file_name=file_name, file_type=file_type, category=category, extracted_text=extracted_text)
+        doc = Document(
+            file_name=file_name,
+            file_type=file_type,
+            category=category,
+            extracted_text=extracted_text,
+        )
         db.add(doc)
         db.commit()
         db.refresh(doc)

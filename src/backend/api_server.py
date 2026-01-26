@@ -14,11 +14,13 @@ from backend.api.portfolios import router as portfolios_router
 from backend.api.projects import router as projects_router
 from backend.api.resume import router as resume_router
 from backend.api.tasks import router as tasks_router
+from backend.curation import init_curation_tables
 from backend.database import init_db as init_user_db
 
 # Initialize databases
 init_user_db()
 init_analysis_db()
+init_curation_tables()
 
 # Create FastAPI app
 app = FastAPI(

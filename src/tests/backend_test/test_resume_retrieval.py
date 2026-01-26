@@ -142,7 +142,10 @@ class TestResumeFilteringLogic:
             existing_resume_items = get_resume_items_for_project(project_name)
 
             if existing_resume_items:
-                resume_items_by_project[project_name] = {"text": existing_resume_items[0]["resume_text"], "cached": True}
+                resume_items_by_project[project_name] = {
+                    "text": existing_resume_items[0]["resume_text"],
+                    "cached": True,
+                }
             else:
                 projects_needing_resume.append(project)
 
@@ -166,7 +169,10 @@ class TestResumeFilteringLogic:
             existing_resume_items = get_resume_items_for_project(project_name)
 
             if existing_resume_items:
-                resume_items_by_project[project_name] = {"text": existing_resume_items[0]["resume_text"], "cached": True}
+                resume_items_by_project[project_name] = {
+                    "text": existing_resume_items[0]["resume_text"],
+                    "cached": True,
+                }
             else:
                 projects_needing_resume.append(project)
 
@@ -190,7 +196,10 @@ class TestResumeFilteringLogic:
             existing_resume_items = get_resume_items_for_project(project_name)
 
             if existing_resume_items:
-                resume_items_by_project[project_name] = {"text": existing_resume_items[0]["resume_text"], "cached": True}
+                resume_items_by_project[project_name] = {
+                    "text": existing_resume_items[0]["resume_text"],
+                    "cached": True,
+                }
             else:
                 projects_needing_resume.append(project)
 
@@ -217,7 +226,10 @@ class TestResumeFilteringLogic:
             existing_resume_items = get_resume_items_for_project(project_name)
 
             if existing_resume_items and not regenerate_all:
-                resume_items_by_project[project_name] = {"text": existing_resume_items[0]["resume_text"], "cached": True}
+                resume_items_by_project[project_name] = {
+                    "text": existing_resume_items[0]["resume_text"],
+                    "cached": True,
+                }
             else:
                 projects_needing_resume.append(project)
         assert len(resume_items_by_project) == 0
