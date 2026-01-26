@@ -20,8 +20,9 @@ const Dashboard = () => {
     const fetchDashboardData = async () => {
       try {
         // Fetch projects data
-        const projectsResponse = await projectsAPI.getProjects();
-        const projects = projectsResponse.projects || [];
+        const projectsData = await projectsAPI.getProjects();
+        // Handle both array and object with projects property
+        const projects = Array.isArray(projectsData) ? projectsData : (projectsData?.projects || []);
 
         // Fetch skills data
         const skillsResponse = await api.get('/skills');

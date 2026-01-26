@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.analysis_database import init_db as init_analysis_db
+from backend.curation import init_curation_tables
 
 # Import routers from modular API structure
 from backend.api.analysis import router as analysis_router
@@ -20,6 +21,7 @@ from backend.database import init_db as init_user_db
 # Initialize databases
 init_user_db()
 init_analysis_db()
+init_curation_tables()
 
 # Create FastAPI app
 app = FastAPI(
