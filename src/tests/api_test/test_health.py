@@ -22,7 +22,7 @@ class TestHealthEndpoints:
     def test_health_check_success(self):
         """Test health check returns healthy status."""
         response = client.get("/api/health")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "healthy"
@@ -33,7 +33,7 @@ class TestHealthEndpoints:
         """Test health check returns ISO formatted timestamp."""
         response = client.get("/api/health")
         data = response.json()
-        
+
         # Verify timestamp format
         timestamp = data["timestamp"]
         assert "T" in timestamp  # ISO format includes T
@@ -42,7 +42,7 @@ class TestHealthEndpoints:
     def test_root_endpoint_success(self):
         """Test root endpoint returns API information."""
         response = client.get("/")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["name"] == "MDA Portfolio API"
@@ -54,7 +54,7 @@ class TestHealthEndpoints:
         """Test root endpoint returns all required fields."""
         response = client.get("/")
         data = response.json()
-        
+
         required_fields = ["name", "version", "docs", "health"]
         for field in required_fields:
             assert field in data
@@ -76,5 +76,5 @@ class TestHealthEndpoints:
         """Test health check version matches root endpoint."""
         health_response = client.get("/api/health")
         root_response = client.get("/")
-        
+
         assert health_response.json()["version"] == root_response.json()["version"]

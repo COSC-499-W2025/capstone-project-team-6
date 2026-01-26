@@ -42,7 +42,6 @@ def auth_token():
 class TestResumeEndpoints:
     """Test suite for resume endpoints."""
 
-
     def test_generate_resume_unauthorized(self):
         """Test generating resume without auth fails."""
         response = client.post(
@@ -54,12 +53,11 @@ class TestResumeEndpoints:
         )
         assert response.status_code == 403
 
-
     def test_generate_resume_multiple_portfolios(self, auth_token):
         """Test generating resume from multiple portfolios (implementation incomplete)."""
         token, username = auth_token
         portfolio_ids = [str(uuid.uuid4()), str(uuid.uuid4())]
-        
+
         response = client.post(
             "/api/resume/generate",
             headers={"Authorization": f"Bearer {token}"},
@@ -68,11 +66,9 @@ class TestResumeEndpoints:
                 "format": "markdown",
             },
         )
-        
+
         # Currently returns 500 because generate_resume function doesn't exist
         assert response.status_code == 500
-
-
 
     def test_get_resume_list_unauthorized(self):
         """Test getting resume list without auth."""
@@ -84,21 +80,16 @@ class TestResumeEndpoints:
         """Test getting specific resume by ID (not implemented)."""
         token, _ = auth_token
         resume_id = str(uuid.uuid4())
-        
+
         response = client.get(
             f"/api/resume/{resume_id}",
             headers={"Authorization": f"Bearer {token}"},
         )
-        
+
         assert response.status_code == 501
 
- 
-
-    
     def test_delete_resume_unauthorized(self):
         """Test deleting resume without auth."""
         resume_id = str(uuid.uuid4())
         response = client.delete(f"/api/resume/{resume_id}")
         assert response.status_code == 405
-
-    

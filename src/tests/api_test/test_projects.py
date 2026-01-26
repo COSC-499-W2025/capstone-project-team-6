@@ -45,7 +45,7 @@ class TestProjectsEndpoints:
     def test_list_projects_success(self, mock_get_projects, auth_token):
         """Test listing user projects."""
         token, username = auth_token
-        
+
         mock_get_projects.return_value = [
             {
                 "id": 1,
@@ -54,12 +54,12 @@ class TestProjectsEndpoints:
                 "total_files": 10,
             }
         ]
-        
+
         response = client.get(
             "/api/projects",
             headers={"Authorization": f"Bearer {token}"},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["username"] == username
@@ -85,12 +85,12 @@ class TestProjectsEndpoints:
         """Test listing projects returns empty list for new user."""
         token, username = auth_token
         mock_get_projects.return_value = []
-        
+
         response = client.get(
             "/api/projects",
             headers={"Authorization": f"Bearer {token}"},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["total_projects"] == 0
@@ -102,7 +102,7 @@ class TestProjectsEndpoints:
         token, username = auth_token
         portfolio_uuid = str(uuid.uuid4())
         project_path = "test_project"
-        
+
         mock_get_analysis.return_value = {
             "analysis_uuid": portfolio_uuid,
             "projects": [
@@ -113,12 +113,12 @@ class TestProjectsEndpoints:
                 }
             ],
         }
-        
+
         response = client.get(
             f"/api/projects/{portfolio_uuid}:{project_path}",
             headers={"Authorization": f"Bearer {token}"},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["name"] == "Test Project"
@@ -127,12 +127,12 @@ class TestProjectsEndpoints:
     def test_get_project_detail_invalid_format(self, auth_token):
         """Test getting project with invalid ID format fails."""
         token, _ = auth_token
-        
+
         response = client.get(
             "/api/projects/invalid-id-format",
             headers={"Authorization": f"Bearer {token}"},
         )
-        
+
         assert response.status_code == 400
         assert "Invalid project_id format" in response.json()["detail"]
 
@@ -141,13 +141,13 @@ class TestProjectsEndpoints:
         """Test getting project from non-existent portfolio fails."""
         token, _ = auth_token
         mock_get_analysis.return_value = None
-        
+
         portfolio_uuid = str(uuid.uuid4())
         response = client.get(
             f"/api/projects/{portfolio_uuid}:test_project",
             headers={"Authorization": f"Bearer {token}"},
         )
-        
+
         assert response.status_code == 404
         assert "not found" in response.json()["detail"]
 
@@ -156,24 +156,24 @@ class TestProjectsEndpoints:
         """Test getting non-existent project fails."""
         token, _ = auth_token
         portfolio_uuid = str(uuid.uuid4())
-        
+
         mock_get_analysis.return_value = {
             "analysis_uuid": portfolio_uuid,
             "projects": [{"name": "Other", "path": "other"}],
         }
-        
+
         response = client.get(
             f"/api/projects/{portfolio_uuid}:nonexistent",
             headers={"Authorization": f"Bearer {token}"},
         )
-        
+
         assert response.status_code == 404
 
     @patch("backend.api.projects.get_user_projects")
     def test_get_aggregated_skills(self, mock_get_projects, auth_token):
         """Test getting aggregated skills."""
         token, username = auth_token
-        
+
         mock_get_projects.return_value = [
             {
                 "name": "Project1",
@@ -184,18 +184,18 @@ class TestProjectsEndpoints:
                 "metadata": {"skills": ["Python", "React"]},
             },
         ]
-        
+
         response = client.get(
             "/api/skills",
             headers={"Authorization": f"Bearer {token}"},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["username"] == username
         assert data["total_skills"] == 3
         assert len(data["skills"]) == 3
-        
+
         # Python should appear in 2 projects
         python_skill = next(s for s in data["skills"] if s["skill"] == "Python")
         assert python_skill["count"] == 2
@@ -205,14 +205,13 @@ class TestProjectsEndpoints:
         """Test getting skills with no projects."""
         token, username = auth_token
         mock_get_projects.return_value = []
-        
+
         response = client.get(
             "/api/skills",
             headers={"Authorization": f"Bearer {token}"},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["total_skills"] == 0
         assert data["skills"] == []
-

@@ -226,8 +226,6 @@ class TestTasksEndpoints:
 
         assert response.status_code == 404
 
-
-
     @patch("backend.api.tasks.get_task_manager")
     def test_task_with_error(self, mock_get_manager, auth_token):
         """Test getting task that has an error."""

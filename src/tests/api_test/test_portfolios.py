@@ -45,7 +45,7 @@ class TestPortfoliosEndpoints:
     def test_list_portfolios_success(self, mock_get_analyses, auth_token):
         """Test listing user portfolios."""
         token, username = auth_token
-        
+
         mock_get_analyses.return_value = [
             {
                 "analysis_uuid": str(uuid.uuid4()),
@@ -55,12 +55,12 @@ class TestPortfoliosEndpoints:
                 "analysis_type": "llm",
             }
         ]
-        
+
         response = client.get(
             "/api/portfolios",
             headers={"Authorization": f"Bearer {token}"},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 1
@@ -78,12 +78,12 @@ class TestPortfoliosEndpoints:
         """Test listing portfolios returns empty list for new user."""
         token, username = auth_token
         mock_get_analyses.return_value = []
-        
+
         response = client.get(
             "/api/portfolios",
             headers={"Authorization": f"Bearer {token}"},
         )
-        
+
         assert response.status_code == 200
         assert response.json() == []
 
@@ -92,7 +92,7 @@ class TestPortfoliosEndpoints:
         """Test getting portfolio details."""
         token, username = auth_token
         portfolio_id = str(uuid.uuid4())
-        
+
         mock_get_analysis.return_value = {
             "analysis_uuid": portfolio_id,
             "analysis_type": "llm",
@@ -103,12 +103,12 @@ class TestPortfoliosEndpoints:
             "skills": [],
             "summary": {},
         }
-        
+
         response = client.get(
             f"/api/portfolios/{portfolio_id}",
             headers={"Authorization": f"Bearer {token}"},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["analysis_uuid"] == portfolio_id
@@ -120,13 +120,13 @@ class TestPortfoliosEndpoints:
         """Test getting non-existent portfolio fails."""
         token, _ = auth_token
         mock_get_analysis.return_value = None
-        
+
         portfolio_id = str(uuid.uuid4())
         response = client.get(
             f"/api/portfolios/{portfolio_id}",
             headers={"Authorization": f"Bearer {token}"},
         )
-        
+
         assert response.status_code == 404
         assert "not found" in response.json()["detail"]
 
@@ -135,7 +135,7 @@ class TestPortfoliosEndpoints:
         """Test portfolio alias endpoint works."""
         token, username = auth_token
         portfolio_id = str(uuid.uuid4())
-        
+
         mock_get_analysis.return_value = {
             "analysis_uuid": portfolio_id,
             "analysis_type": "llm",
@@ -145,12 +145,12 @@ class TestPortfoliosEndpoints:
             "projects": [],
             "skills": [],
         }
-        
+
         response = client.get(
             f"/api/portfolio/{portfolio_id}",
             headers={"Authorization": f"Bearer {token}"},
         )
-        
+
         assert response.status_code == 200
 
     def test_delete_portfolio_unauthorized(self):
@@ -163,13 +163,13 @@ class TestPortfoliosEndpoints:
     def test_save_consent_success(self, mock_check_consent, auth_token):
         """Test saving user consent."""
         token, username = auth_token
-        
+
         response = client.post(
             "/api/user/consent",
             headers={"Authorization": f"Bearer {token}"},
             json={"has_consented": True},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["has_consented"] is True
@@ -180,12 +180,12 @@ class TestPortfoliosEndpoints:
         """Test getting user consent status."""
         token, username = auth_token
         mock_check_consent.return_value = True
-        
+
         response = client.get(
             "/api/user/consent",
             headers={"Authorization": f"Bearer {token}"},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["has_consented"] is True

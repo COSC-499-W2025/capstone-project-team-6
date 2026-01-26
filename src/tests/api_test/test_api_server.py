@@ -27,13 +27,14 @@ class TestAPIServer:
         """Test CORS middleware is configured."""
         assert len(app.user_middleware) > 0
         from starlette.middleware.cors import CORSMiddleware
+
         assert app.user_middleware is not None
 
     def test_routers_included(self):
         """Test all routers are included."""
         # Get all routes
         routes = [route.path for route in app.routes]
-        
+
         # Check key routes from each router
         assert "/api/health" in routes
         assert "/" in routes
@@ -48,13 +49,13 @@ class TestAPIServer:
     def test_openapi_docs_available(self):
         """Test OpenAPI documentation is available."""
         client = TestClient(app)
-        
+
         response = client.get("/docs")
         assert response.status_code == 200
-        
+
         response = client.get("/redoc")
         assert response.status_code == 200
-        
+
         response = client.get("/openapi.json")
         assert response.status_code == 200
         data = response.json()
@@ -65,14 +66,14 @@ class TestAPIServer:
         client = TestClient(app)
         response = client.get("/openapi.json")
         openapi_spec = response.json()
-        
+
         # Get all tags used in paths
         tags_used = set()
         for path_data in openapi_spec["paths"].values():
             for method_data in path_data.values():
                 if "tags" in method_data:
                     tags_used.update(method_data["tags"])
-        
+
         # Check expected tags exist
         expected_tags = {
             "Health",
@@ -90,7 +91,7 @@ class TestAPIServer:
         # This test verifies the import and initialization don't raise errors
         from backend.analysis_database import get_db_path
         from backend.database import get_db_path as get_user_db_path
-        
+
         assert get_db_path() is not None
         assert get_user_db_path() is not None
 
@@ -104,35 +105,35 @@ class TestAPIServer:
     def test_authentication_required_endpoints(self):
         """Test that protected endpoints require authentication."""
         client = TestClient(app)
-        
+
         protected_endpoints = [
             ("/api/projects", "GET"),
             ("/api/portfolios", "GET"),
             ("/api/tasks", "GET"),
             ("/api/skills", "GET"),
         ]
-        
+
         for path, method in protected_endpoints:
             if method == "GET":
                 response = client.get(path)
             else:
                 response = client.post(path)
-            
+
             # Should return 403 (Forbidden) without auth
             assert response.status_code == 403
 
     def test_api_versioning(self):
         """Test API version is consistent."""
         client = TestClient(app)
-        
+
         # Check version in health endpoint
         health_response = client.get("/api/health")
         assert health_response.json()["version"] == "2.0.0"
-        
+
         # Check version in root endpoint
         root_response = client.get("/")
         assert root_response.json()["version"] == "2.0.0"
-        
+
         # Check version in OpenAPI spec
         openapi_response = client.get("/openapi.json")
         assert openapi_response.json()["info"]["version"] == "2.0.0"
@@ -169,7 +170,7 @@ class TestAPIServerErrorHandling:
         """Test CORS headers are present in responses."""
         client = TestClient(app)
         response = client.get("/api/health")
-        
+
         # Check for CORS headers
         assert "access-control-allow-origin" in response.headers or response.status_code == 200
 
@@ -180,13 +181,13 @@ class TestAPIServerPerformance:
     def test_concurrent_health_checks(self):
         """Test server handles concurrent requests."""
         client = TestClient(app)
-        
+
         # Make multiple concurrent requests
         responses = []
         for _ in range(10):
             response = client.get("/api/health")
             responses.append(response)
-        
+
         # All should succeed
         for response in responses:
             assert response.status_code == 200
@@ -194,11 +195,12 @@ class TestAPIServerPerformance:
     def test_response_time_acceptable(self):
         """Test health endpoint responds quickly."""
         import time
+
         client = TestClient(app)
-        
+
         start = time.time()
         response = client.get("/api/health")
         elapsed = time.time() - start
-        
+
         assert response.status_code == 200
         assert elapsed < 1.0  # Should respond in less than 1 second
