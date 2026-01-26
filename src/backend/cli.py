@@ -1198,11 +1198,11 @@ def main() -> int:
                 return 1
 
             # Handle consent for first-time users
-            # if not handle_first_time_consent(args.username):
-            #    # User is authenticated but denied consent
-            #    print("\nDenied Consent.")
-            #    print("You can update your consent later using 'mda consent --update'")
-            #    return 1
+            if not handle_first_time_consent(args.username):
+                # User is authenticated but denied consent
+                print("\nDenied Consent.")
+                print("You can update your consent later using 'mda consent --update'")
+                return 1
 
             # Save session for future commands
             save_session(args.username)
@@ -1232,13 +1232,19 @@ def main() -> int:
                 return 0
 
             if args.update:
+                print("\nConsent Update")
+                print("------------------")
+
                 if has_consented:
-                    print("\nYou have already provided consent.")
-                    print("To revoke consent, contact support.")
+                    choice = input("You have already provided consent. Do you want to revoke consent? (y/n): ").strip().lower()
+                    if choice in ("y", "yes"):
+                        save_user_consent(username, False)
+                        print("\nConsent revoked. AI-powered features have been disabled.")
+                    else:
+                        print("\nConsent remains active. No changes made.")
                     return 0
 
-                print("\nConsent Required")
-                print("------------------")
+                print("Consent Required")
                 if ask_for_consent():
                     save_user_consent(username, True)
                     print("\nThank you for providing consent!")
@@ -1257,12 +1263,12 @@ def main() -> int:
                 return 1
 
             username = session["username"]
-            # if not check_user_consent(username):
-            #    print("\nPlease provide consent before analyzing files")
-            #    print("Run 'mda consent --update' to view and accept the consent form")
-            #    return 1
-
             has_consented = check_user_consent(username)
+
+            if not has_consented:
+                print("\nPlease provide consent before analyzing files")
+                print("Run 'mda consent --update' to view and accept the consent form")
+                return 1
 
             llm_features_requested = (
                 args.all
@@ -1654,11 +1660,14 @@ def main() -> int:
 
                 # Prompt to save JSON output
                 print("\n" + "=" * 70)
-                response = (
-                    input("Would you like to save the full analysis as JSON? (y/N): ")
-                    .strip()
-                    .lower()
-                )
+                try:
+                    response = (
+                        input("Would you like to save the full analysis as JSON? (y/N): ")
+                        .strip()
+                        .lower()
+                    )
+                except (EOFError, OSError):
+                    response = "n"
                 if response in ["y", "yes"]:
                     import json
                     from datetime import datetime

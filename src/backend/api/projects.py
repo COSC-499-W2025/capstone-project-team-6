@@ -1,8 +1,5 @@
 """Project-related API endpoints."""
 
-from typing import Any, Dict, List
-
-import os
 import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -11,12 +8,10 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from backend.analysis_database import (
-    get_analysis_by_uuid,
-    get_project_by_path_and_portfolio,
-    get_project_thumbnail,
-    update_project_thumbnail,
-)
+from backend.analysis_database import (get_analysis_by_uuid,
+                                       get_project_by_path_and_portfolio,
+                                       get_project_thumbnail,
+                                       update_project_thumbnail)
 from backend.api.auth import verify_token
 from backend.curation import get_user_projects
 
@@ -216,6 +211,9 @@ async def upload_project_thumbnail(
     # Create thumbnails directory if it doesn't exist
     THUMBNAIL_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
+    # Get old thumbnail path before uploading new one
+    old_thumbnail_path = project_db_row["thumbnail_image_path"]
+
     # Generate unique filename to avoid conflicts
     unique_filename = f"{uuid.uuid4()}{file_ext}"
     file_path = THUMBNAIL_UPLOAD_DIR / unique_filename
@@ -240,6 +238,16 @@ async def upload_project_thumbnail(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update project thumbnail in database",
         )
+
+    # Delete old thumbnail file to prevent orphaned files
+    if old_thumbnail_path:
+        old_full_path = Path(__file__).parent.parent / old_thumbnail_path
+        if old_full_path.exists():
+            try:
+                old_full_path.unlink()
+            except Exception:
+                # Log but don't fail - the new thumbnail was uploaded successfully
+                pass
 
     thumbnail_url = f"/api/projects/{project_id}/thumbnail"
 
