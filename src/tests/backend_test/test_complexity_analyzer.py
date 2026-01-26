@@ -287,7 +287,11 @@ class TestComplexityReport:
         # Add good practices
         report.add_insight(
             ComplexityInsight(
-                file_path="test.py", line_number=1, complexity_type="set_operations", severity="good_practice", description="Set"
+                file_path="test.py",
+                line_number=1,
+                complexity_type="set_operations",
+                severity="good_practice",
+                description="Set",
             )
         )
         report.add_insight(
@@ -303,7 +307,11 @@ class TestComplexityReport:
         # Add bad practice
         report.add_insight(
             ComplexityInsight(
-                file_path="test.py", line_number=3, complexity_type="nested_loops", severity="suggestion", description="Loop"
+                file_path="test.py",
+                line_number=3,
+                complexity_type="nested_loops",
+                severity="suggestion",
+                description="Loop",
             )
         )
 
@@ -886,7 +894,11 @@ class TestJavaScoreCalculation:
         report = ComplexityReport(total_files_analyzed=1)
 
         # Add Java good practices
-        for pattern in ["stream_operations", "efficient_data_structure", "string_builder"]:
+        for pattern in [
+            "stream_operations",
+            "efficient_data_structure",
+            "string_builder",
+        ]:
             report.add_insight(
                 ComplexityInsight(
                     file_path="Test.java",

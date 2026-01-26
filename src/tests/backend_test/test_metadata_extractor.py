@@ -432,7 +432,9 @@ class TestEdgeCases:
         with MetadataExtractor(TEST_ZIP_PATH) as extractor:
             # Try to parse a file that doesn't exist
             result = extractor._parse_dependency_file(
-                "nonexistent_file.txt", "nonexistent_file.txt", {"nonexistent_file.txt": r"test"}
+                "nonexistent_file.txt",
+                "nonexistent_file.txt",
+                {"nonexistent_file.txt": r"test"},
             )
             assert result == []
 

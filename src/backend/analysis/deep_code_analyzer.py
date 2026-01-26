@@ -454,7 +454,10 @@ def analyze_project_deep(zip_path: Path, project_path: str = "") -> Dict:
 
 
 def generate_comprehensive_report(
-    zip_path: Path, output_path: Optional[Path] = None, target_user_email: Optional[str] = None, quick_mode: bool = False
+    zip_path: Path,
+    output_path: Optional[Path] = None,
+    target_user_email: Optional[str] = None,
+    quick_mode: bool = False,
 ) -> Dict:
     """
     Generate a comprehensive analysis report combining all analysis phases.
@@ -493,7 +496,10 @@ def generate_comprehensive_report(
                     report["projects"][i]["oop_analysis"] = deep_analysis["oop_analysis"]
                 except Exception as e:
                     # If deep analysis fails, add error info
-                    report["projects"][i]["oop_analysis"] = {"error": str(e), "total_classes": 0}
+                    report["projects"][i]["oop_analysis"] = {
+                        "error": str(e),
+                        "total_classes": 0,
+                    }
 
                 # Phase 4: Add complexity analysis (Python & Java)
                 try:
@@ -522,7 +528,10 @@ def generate_comprehensive_report(
                             "insights_count": len(complexity_report.insights),
                         }
                 except Exception as e:
-                    report["projects"][i]["complexity_analysis"] = {"error": str(e), "optimization_score": 0}
+                    report["projects"][i]["complexity_analysis"] = {
+                        "error": str(e),
+                        "optimization_score": 0,
+                    }
 
             if "java" in project.get("languages", {}):
                 try:
@@ -537,7 +546,10 @@ def generate_comprehensive_report(
                     }
                 except Exception as e:
                     # If deep analysis fails, add error info
-                    report["projects"][i]["java_oop_analysis"] = {"error": str(e), "total_classes": 0}
+                    report["projects"][i]["java_oop_analysis"] = {
+                        "error": str(e),
+                        "total_classes": 0,
+                    }
     # Save to file if requested
     if output_path:
         import json

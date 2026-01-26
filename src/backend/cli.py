@@ -190,7 +190,10 @@ def analyze_folder(path: Path, target_user_email: Optional[str] = None, quick_mo
                         "total_classes": 0,
                     }
                 except Exception as e:
-                    report["projects"][i]["cpp_oop_analysis"] = {"error": str(e), "total_classes": 0}
+                    report["projects"][i]["cpp_oop_analysis"] = {
+                        "error": str(e),
+                        "total_classes": 0,
+                    }
 
             # C Analysis (note: .c files are classified as cpp in project_analyzer)
             # So we check for cpp language and run C analyzer too
@@ -214,7 +217,11 @@ def analyze_folder(path: Path, target_user_email: Optional[str] = None, quick_mo
             try:
                 from .analysis.git_analysis import analyze_project
 
-                git_result = analyze_project(analysis_dir, target_user_email=target_user_email, export_to_file=False)
+                git_result = analyze_project(
+                    analysis_dir,
+                    target_user_email=target_user_email,
+                    export_to_file=False,
+                )
                 # Add git analysis to first project (assuming single project)
                 if report["projects"]:
                     report["projects"][0]["git_analysis"] = git_result.to_dict()
@@ -240,7 +247,11 @@ def analyze_folder(path: Path, target_user_email: Optional[str] = None, quick_mo
                         # Run git analysis
                         from .analysis.git_analysis import analyze_project
 
-                        git_result = analyze_project(git_root, target_user_email=target_user_email, export_to_file=False)
+                        git_result = analyze_project(
+                            git_root,
+                            target_user_email=target_user_email,
+                            export_to_file=False,
+                        )
                         if report["projects"]:
                             report["projects"][0]["git_analysis"] = git_result.to_dict()
             except Exception as e:
@@ -558,7 +569,9 @@ def display_analysis(results: dict) -> None:
                     print(f"   Contributors with changes: {len(contribution_volume)}")
                     # Show top contributors by lines changed
                     sorted_contributors = sorted(
-                        contribution_volume.items(), key=lambda x: x[1] if isinstance(x[1], (int, float)) else 0, reverse=True
+                        contribution_volume.items(),
+                        key=lambda x: x[1] if isinstance(x[1], (int, float)) else 0,
+                        reverse=True,
                     )[:3]
                     print(f"   Top contributors by lines:")
                     for email, lines in sorted_contributors:
@@ -604,7 +617,9 @@ def display_analysis(results: dict) -> None:
                     print(f"   Total surviving lines: {total_surviving}")
                     if len(blame_summary) > 1:
                         sorted_blame = sorted(
-                            blame_summary.items(), key=lambda x: x[1] if isinstance(x[1], (int, float)) else 0, reverse=True
+                            blame_summary.items(),
+                            key=lambda x: x[1] if isinstance(x[1], (int, float)) else 0,
+                            reverse=True,
                         )[:3]
                         print(f"   Top code owners:")
                         for email, lines in sorted_blame:
@@ -612,33 +627,65 @@ def display_analysis(results: dict) -> None:
                                 percentage = (lines / total_surviving * 100) if total_surviving > 0 else 0
                                 print(f"      • {email}: {lines} lines ({percentage:.1f}%)")
 
-        # Contribution Ranking Scores (if calculated)
-        # Note: These scores are typically calculated in analyze.py's summarize_top_ranked_projects
-        # but we can calculate them here if needed for display
-        if project.get("target_user_email"):
-            try:
-                from analysis.analyze import calculate_composite_score
+        # Enhanced Contribution Ranking Scores
+        try:
+            from analysis.analyze import calculate_composite_score
 
-                score_data = calculate_composite_score(project)
-                if score_data:
-                    print(f"\nContribution Ranking Scores:")
-                    print(f"   Composite Score: {score_data.get('composite_score', 0):.2f}/100.0")
-                    user_score = score_data.get("user_contribution_score", 0.0)
-                    if user_score > 0:
-                        print(f"   User Contribution Boost: {user_score:.2f}/20.0")
-                        print(f"   Adjusted Score: {score_data.get('adjusted_score', 0):.2f}")
-                    breakdown = score_data.get("breakdown", {})
-                    justification = score_data.get("justification", {})
-                    if breakdown:
-                        print(f"   Score Breakdown:")
-                        print(f"      • Code Architecture: {breakdown.get('code_architecture', 0):.2f}/30.0")
-                        print(f"      • Code Quality: {breakdown.get('code_quality', 0):.2f}/25.0")
-                        print(f"      • Project Maturity: {breakdown.get('project_maturity', 0):.2f}/25.0")
-                        print(f"      • Algorithmic Quality: {breakdown.get('algorithmic_quality', 0):.2f}/20.0")
-                    if justification.get("target_user"):
-                        print(f"   Contribution Justification: {justification['target_user']}")
-            except Exception:
-                pass  # Silently fail if calculation is not available
+            user_email = project.get("target_user_email")
+            score_data = calculate_composite_score(project, user_email=user_email)
+
+            if score_data:
+                print(f"\n{'=' * 60}")
+                print(f"  ENHANCED CONTRIBUTION RANKING")
+                print(f"{'=' * 60}")
+
+                # Overall scores
+                composite_score = score_data.get("composite_score", 0)
+                category = score_data.get("category", "N/A")
+                print(f"\nFinal Score: {composite_score:.2f}/100.0 ({category})")
+
+                user_score = score_data.get("user_contribution_score", 0.0)
+                if user_score > 0:
+                    print(f"User Contribution Boost: +{user_score:.2f}/20.0")
+                    print(f"Adjusted Score: {score_data.get('adjusted_score', 0):.2f}/100.0")
+
+                # Breakdown by factor
+                breakdown = score_data.get("breakdown", {})
+                justification = score_data.get("justification", {})
+
+                if breakdown:
+                    print(f"\nScore Breakdown:")
+                    print(f"\n  Base Factors (45% weight):")
+                    print(f"    • Code Architecture:     {breakdown.get('code_architecture', 0):>6.2f}/30.0")
+                    print(f"    • Code Quality:          {breakdown.get('code_quality', 0):>6.2f}/25.0")
+                    print(f"    • Project Maturity:      {breakdown.get('project_maturity', 0):>6.2f}/25.0")
+                    print(f"    • Algorithmic Quality:   {breakdown.get('algorithmic_quality', 0):>6.2f}/20.0")
+
+                    # Enhanced factors
+                    if "individual_contribution" in breakdown:
+                        print(f"\n  Enhanced Factors (55% weight):")
+                        print(f"    • Individual Contribution: {breakdown.get('individual_contribution', 0):>6.2f}/30.0")
+                        print(f"    • Recency:                 {breakdown.get('recency', 0):>6.2f}/15.0")
+                        print(f"    • Project Scale:           {breakdown.get('project_scale', 0):>6.2f}/10.0")
+                        print(f"    • Collaboration Diversity: {breakdown.get('collaboration_diversity', 0):>6.2f}/10.0")
+                        print(f"    • Activity Duration:       {breakdown.get('activity_duration', 0):>6.2f}/10.0")
+
+                # Show justifications for enhanced factors
+                if justification and "individual_contribution" in justification:
+                    print(f"\nEnhanced Ranking Details:")
+                    print(f"  • Contribution: {justification.get('individual_contribution', 'N/A')}")
+                    print(f"  • Recency: {justification.get('recency', 'N/A')}")
+                    print(f"  • Scale: {justification.get('project_scale', 'N/A')}")
+                    print(f"  • Collaboration: {justification.get('collaboration_diversity', 'N/A')}")
+                    print(f"  • Duration: {justification.get('activity_duration', 'N/A')}")
+
+                if user_email and justification.get("target_user"):
+                    print(f"\n  Target User Analysis:")
+                    print(f"    {justification['target_user']}")
+
+                print(f"{'=' * 60}\n")
+        except Exception as e:
+            print(f"\nWarning: Could not calculate enhanced ranking: {e}")
 
         # Complexity Analysis (Python)
         complexity_analysis = project.get("complexity_analysis", {})
@@ -678,7 +725,11 @@ def display_analysis(results: dict) -> None:
                         good_practices.append(f"{key.replace('_', ' ').title()}: {summary[key]}")
 
                 # Issues
-                for key in ["nested_loops", "inefficient_lookup", "inefficient_membership_test"]:
+                for key in [
+                    "nested_loops",
+                    "inefficient_lookup",
+                    "inefficient_membership_test",
+                ]:
                     if summary.get(key, 0) > 0:
                         issues.append(f"{key.replace('_', ' ').title()}: {summary[key]}")
 
@@ -932,11 +983,27 @@ def main() -> int:
 
     # LLM arguments merged into analyze
     analyze_parser.add_argument("--prompt", help="Custom analysis prompt for AI (requires consent)")
-    analyze_parser.add_argument("--architecture", action="store_true", help="AI: Deep analysis of patterns and anti-patterns")
-    analyze_parser.add_argument("--security", action="store_true", help="AI: Logic-based security and defensive coding")
-    analyze_parser.add_argument("--skills", action="store_true", help="AI: Infer soft skills and testing maturity")
+    analyze_parser.add_argument(
+        "--architecture",
+        action="store_true",
+        help="AI: Deep analysis of patterns and anti-patterns",
+    )
+    analyze_parser.add_argument(
+        "--security",
+        action="store_true",
+        help="AI: Logic-based security and defensive coding",
+    )
+    analyze_parser.add_argument(
+        "--skills",
+        action="store_true",
+        help="AI: Infer soft skills and testing maturity",
+    )
     analyze_parser.add_argument("--domain", action="store_true", help="AI: Domain-specific best practices")
-    analyze_parser.add_argument("--resume", action="store_true", help="AI: Generate resume and portfolio artifacts")
+    analyze_parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="AI: Generate resume and portfolio artifacts",
+    )
     analyze_parser.add_argument("--all", action="store_true", help="AI: Enable all deep analysis features")
 
     # Analyze-essay command
@@ -945,7 +1012,11 @@ def main() -> int:
 
     # Timeline command
     timeline_parser = subparsers.add_parser("timeline", help="Show chronological timelines from stored analyses")
-    timeline_parser.add_argument("type", choices=["projects", "skills", "all-skills"], help="Timeline type to display")
+    timeline_parser.add_argument(
+        "type",
+        choices=["projects", "skills", "all-skills"],
+        help="Timeline type to display",
+    )
 
     # Curation command
     curate_parser = subparsers.add_parser("curate", help="Curate project information and presentation")
@@ -1004,11 +1075,11 @@ def main() -> int:
                 return 1
 
             # Handle consent for first-time users
-            # if not handle_first_time_consent(args.username):
-            #    # User is authenticated but denied consent
-            #    print("\nDenied Consent.")
-            #    print("You can update your consent later using 'mda consent --update'")
-            #    return 1
+            if not handle_first_time_consent(args.username):
+                # User is authenticated but denied consent
+                print("\nDenied Consent.")
+                print("You can update your consent later using 'mda consent --update'")
+                return 1
 
             # Save session for future commands
             save_session(args.username)
@@ -1038,13 +1109,19 @@ def main() -> int:
                 return 0
 
             if args.update:
+                print("\nConsent Update")
+                print("------------------")
+
                 if has_consented:
-                    print("\nYou have already provided consent.")
-                    print("To revoke consent, contact support.")
+                    choice = input("You have already provided consent. Do you want to revoke consent? (y/n): ").strip().lower()
+                    if choice in ("y", "yes"):
+                        save_user_consent(username, False)
+                        print("\nConsent revoked. AI-powered features have been disabled.")
+                    else:
+                        print("\nConsent remains active. No changes made.")
                     return 0
 
-                print("\nConsent Required")
-                print("------------------")
+                print("Consent Required")
                 if ask_for_consent():
                     save_user_consent(username, True)
                     print("\nThank you for providing consent!")
@@ -1061,12 +1138,12 @@ def main() -> int:
                 return 1
 
             username = session["username"]
-            # if not check_user_consent(username):
-            #    print("\nPlease provide consent before analyzing files")
-            #    print("Run 'mda consent --update' to view and accept the consent form")
-            #    return 1
-
             has_consented = check_user_consent(username)
+
+            if not has_consented:
+                print("\nPlease provide consent before analyzing files")
+                print("Run 'mda consent --update' to view and accept the consent form")
+                return 1
 
             llm_features_requested = (
                 args.all or args.prompt or args.architecture or args.security or args.skills or args.domain or args.resume
@@ -1116,7 +1193,31 @@ def main() -> int:
 
                     # Store analysis in database
                     try:
-                        from .analysis_database import record_analysis
+                        import json
+
+                        from .analysis_database import (get_analysis,
+                                                        get_connection,
+                                                        record_analysis)
+
+                        analysis_id = None
+                        analysis_uuid = None
+
+                        if not has_consented:
+                            analysis_id = record_analysis("non_llm", results, username=username)
+                            row = get_analysis(analysis_id)
+                            if row:
+                                analysis_uuid = row["analysis_uuid"]
+                                # Stored UUID in results metadata for consistency
+                                results.setdefault("analysis_metadata", {})["analysis_uuid"] = analysis_uuid
+                                print(f"\nAnalysis saved to database (ID: {analysis_id}, UUID: {analysis_uuid})")
+                            else:
+                                print(f"\nAnalysis saved to database (ID: {analysis_id})")
+
+                        else:
+                            print("\n[i] Standard analysis complete. Proceeding with AI analysis...")
+
+                            # temporary UUID for tracking (NOT written to DB)
+                            import uuid
 
                         analysis_id = record_analysis("non_llm", results, username=username)
                         analysis_uuid = results.get("analysis_metadata", {}).get("analysis_uuid", "unknown")
@@ -1143,7 +1244,9 @@ def main() -> int:
 
                                     print(f"\n[*] Analyzing additional projects from: {additional_path}")
                                     new_results = analyze_folder(
-                                        additional_path, target_user_email=args.user_email, quick_mode=True
+                                        additional_path,
+                                        target_user_email=args.user_email,
+                                        quick_mode=True,
                                     )
 
                                     # Merge with existing results
@@ -1174,7 +1277,11 @@ def main() -> int:
                                                    total_projects = ?,
                                                    analysis_timestamp = datetime('now')
                                                WHERE analysis_uuid = ?""",
-                                            (json.dumps(results), len(existing_projects), analysis_uuid),
+                                            (
+                                                json.dumps(results),
+                                                len(existing_projects),
+                                                analysis_uuid,
+                                            ),
                                         )
                                         conn.commit()
 
@@ -1203,7 +1310,12 @@ def main() -> int:
                         for proj in report.get("projects", []):
                             score_data = calculate_composite_score(proj)
                             aggregated_projects.append(
-                                {"project": proj, "score_data": score_data, "analysis_timestamp": ts, "zip_file": zip_file}
+                                {
+                                    "project": proj,
+                                    "score_data": score_data,
+                                    "analysis_timestamp": ts,
+                                    "zip_file": zip_file,
+                                }
                             )
                     if aggregated_projects:
                         aggregated_projects.sort(
@@ -1239,14 +1351,21 @@ def main() -> int:
                             temp_llm_zip = create_temp_zip(path)
                             llm_target_path = temp_llm_zip
                         except Exception as e:
-                            print(f"❌ Failed to create zip for AI analysis: {e}")
+                            print(f" Failed to create zip for AI analysis: {e}")
                             has_consented = False  # Abort LLM part
 
                     if has_consented:
                         # Collect active features
                         active_features = []
                         if args.all:
-                            active_features = ["architecture", "complexity", "security", "skills", "domain", "resume"]
+                            active_features = [
+                                "architecture",
+                                "complexity",
+                                "security",
+                                "skills",
+                                "domain",
+                                "resume",
+                            ]
                         else:
                             if args.architecture:
                                 active_features.append("architecture")
@@ -1301,30 +1420,46 @@ def main() -> int:
 
                             console = Console()
                             console.print()
-                            console.print(Panel.fit("[bold white]Gemini Deep Code Analysis[/bold white]", style="blue"))
+                            console.print(
+                                Panel.fit(
+                                    "[bold white]Gemini Deep Code Analysis[/bold white]",
+                                    style="blue",
+                                )
+                            )
 
                             llm_summary = llm_results.get("llm_summary")
                             llm_error = llm_results.get("llm_error")
 
                             if llm_error:
-                                console.print(Panel(f"[bold red]Error:[/bold red]\n{llm_error}", style="red"))
+                                console.print(
+                                    Panel(
+                                        f"[bold red]Error:[/bold red]\n{llm_error}",
+                                        style="red",
+                                    )
+                                )
                             elif llm_summary:
                                 md = Markdown(llm_summary)
                                 console.print(
-                                    Panel(md, title="[bold green]AI-Powered Insights[/bold green]", border_style="green")
+                                    Panel(
+                                        md,
+                                        title="[bold green]AI-Powered Insights[/bold green]",
+                                        border_style="green",
+                                    )
                                 )
 
                             # Store LLM analysis in database
                             try:
                                 from .analysis_database import record_analysis
 
-                                llm_analysis_id = record_analysis("llm", llm_results, username=username)
-                                print(f"\n📊 AI analysis saved to database (ID: {llm_analysis_id})")
+                                llm_results["non_llm_results"] = results
+                                llm_id = record_analysis("llm", llm_results, username=username)
+                                print(f"\n AI analysis saved to database (ID: {llm_id})")
+
                             except Exception as db_error:
-                                print(f"\n⚠️  Warning: Could not save AI results: {db_error}")
+                                print(f"\n Warning: Could not save AI results: {db_error}")
 
                         except Exception as e:
-                            print(f"\n❌ AI analysis failed: {e}")
+                            print(f"\nAI analysis failed: {e}")
                             # Don't fail the whole command, standard analysis succeeded
 
                         finally:
@@ -1338,7 +1473,10 @@ def main() -> int:
 
                 # Prompt to save JSON output
                 print("\n" + "=" * 70)
-                response = input("Would you like to save the full analysis as JSON? (y/N): ").strip().lower()
+                try:
+                    response = input("Would you like to save the full analysis as JSON? (y/N): ").strip().lower()
+                except (EOFError, OSError):
+                    response = "n"
                 if response in ["y", "yes"]:
                     import json
                     from datetime import datetime
@@ -1363,9 +1501,9 @@ def main() -> int:
                         output_path = Path(filename)
                         with open(output_path, "w", encoding="utf-8") as f:
                             json.dump(final_results, f, indent=2, ensure_ascii=False)
-                        print(f"✅ Analysis saved to: {output_path.absolute()}")
+                        print(f"Analysis saved to: {output_path.absolute()}")
                     except Exception as e:
-                        print(f"❌ Error saving JSON file: {e}")
+                        print(f"Error saving JSON file: {e}")
 
                 try:
                     # Generate resume highlights
@@ -1587,9 +1725,11 @@ def main() -> int:
                         current_date = skill_entry.first_exercised_date
                         print(f"\n{current_date}:")
 
-                    skill_type_label = {"language": "Language", "framework": "Framework", "detailed_skill": "Skill"}.get(
-                        skill_entry.skill_type, "Skill"
-                    )
+                    skill_type_label = {
+                        "language": "Language",
+                        "framework": "Framework",
+                        "detailed_skill": "Skill",
+                    }.get(skill_entry.skill_type, "Skill")
 
                     print(f"  {i}. [{skill_type_label}] {skill_entry.skill}")
                     print(f"     First used in: {skill_entry.project_name}")

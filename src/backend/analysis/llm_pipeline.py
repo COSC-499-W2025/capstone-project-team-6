@@ -39,7 +39,14 @@ IGNORED_PATH_KEYWORDS = (
     ".vscode/",
     "__MACOSX/",
 )
-IGNORED_FILE_NAMES = {".env", ".env.local", ".env.example", ".DS_Store", "package-lock.json", "yarn.lock"}
+IGNORED_FILE_NAMES = {
+    ".env",
+    ".env.local",
+    ".env.example",
+    ".DS_Store",
+    "package-lock.json",
+    "yarn.lock",
+}
 IGNORED_FILE_NAMES_LOWER = {name.lower() for name in IGNORED_FILE_NAMES}
 
 # --- PROMPT MODULES DEFINITION ---
@@ -216,7 +223,10 @@ def run_gemini_analysis(
                         "total_classes": 0,
                     }
                 except Exception as e:
-                    report["projects"][i]["cpp_oop_analysis"] = {"error": str(e), "total_classes": 0}
+                    report["projects"][i]["cpp_oop_analysis"] = {
+                        "error": str(e),
+                        "total_classes": 0,
+                    }
 
             # C Analysis (note: .c files are classified as cpp in project_analyzer)
             if "cpp" in project.get("languages", {}) or "c" in project.get("languages", {}):
@@ -312,7 +322,11 @@ def run_gemini_analysis(
                 update_progress(pipeline_current, 100, msg)
 
             uploaded_files_refs = client.upload_batch(files_to_ingest, progress_callback=upload_progress_adapter)
-            update_progress(50, 100, f"Successfully uploaded {len(uploaded_files_refs)} files to Gemini.")
+            update_progress(
+                50,
+                100,
+                f"Successfully uploaded {len(uploaded_files_refs)} files to Gemini.",
+            )
 
             # 5. Generate Prompt (Base + Features)
             offline_summary = _summarize_offline_report(report)
@@ -427,13 +441,34 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Run Gemini Analysis on a ZIP file.")
     parser.add_argument("zip_path", type=Path, help="Path to the ZIP file to analyze")
-    parser.add_argument("--prompt", type=str, help="Optional custom prompt (overrides all)", default=None)
-    parser.add_argument("--json", action="store_true", help="Output raw JSON instead of formatted report")
+    parser.add_argument(
+        "--prompt",
+        type=str,
+        help="Optional custom prompt (overrides all)",
+        default=None,
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output raw JSON instead of formatted report",
+    )
 
     # Feature Flags
-    parser.add_argument("--architecture", action="store_true", help="Deep analysis of patterns and anti-patterns")
-    parser.add_argument("--complexity", action="store_true", help="Algorithmic intent and Big O gap analysis")
-    parser.add_argument("--security", action="store_true", help="Logic-based security and defensive coding")
+    parser.add_argument(
+        "--architecture",
+        action="store_true",
+        help="Deep analysis of patterns and anti-patterns",
+    )
+    parser.add_argument(
+        "--complexity",
+        action="store_true",
+        help="Algorithmic intent and Big O gap analysis",
+    )
+    parser.add_argument(
+        "--security",
+        action="store_true",
+        help="Logic-based security and defensive coding",
+    )
     parser.add_argument("--skills", action="store_true", help="Infer soft skills and testing maturity")
     parser.add_argument("--domain", action="store_true", help="Domain-specific best practices")
     parser.add_argument("--resume", action="store_true", help="Generate resume and portfolio artifacts")
@@ -444,7 +479,14 @@ if __name__ == "__main__":
     # Collect active features
     active_features = []
     if args.all:
-        active_features = ["architecture", "complexity", "security", "skills", "domain", "resume"]
+        active_features = [
+            "architecture",
+            "complexity",
+            "security",
+            "skills",
+            "domain",
+            "resume",
+        ]
     else:
         if args.architecture:
             active_features.append("architecture")
@@ -517,12 +559,25 @@ if __name__ == "__main__":
         stats_table.add_row("Gemini Files", str(meta.get("gemini_file_count", 0)))
         stats_table.add_row("Analysis Mode", report.get("analysis_mode", "Standard"))
 
-        console.print(Panel(stats_table, title="[bold]Project Statistics[/bold]", border_style="cyan"))
+        console.print(
+            Panel(
+                stats_table,
+                title="[bold]Project Statistics[/bold]",
+                border_style="cyan",
+            )
+        )
 
         llm_text = report.get("llm_summary", "No analysis generated.")
         md = Markdown(llm_text)
 
-        console.print(Panel(md, title="[bold green]AI-Powered Insights[/bold green]", border_style="green", padding=(1, 2)))
+        console.print(
+            Panel(
+                md,
+                title="[bold green]AI-Powered Insights[/bold green]",
+                border_style="green",
+                padding=(1, 2),
+            )
+        )
 
         if report.get("llm_error"):
             console.print(

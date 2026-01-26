@@ -283,7 +283,11 @@ class CppOOPAnalyzer:
         elif access == AccessSpecifier.PUBLIC:
             self.analysis.public_fields += 1
 
-        field_info = {"name": field_name, "access": self._access_to_string(access), "type": cursor.type.spelling}
+        field_info = {
+            "name": field_name,
+            "access": self._access_to_string(access),
+            "type": cursor.type.spelling,
+        }
 
         if class_name in self.classes:
             self.classes[class_name].fields.append(field_info)

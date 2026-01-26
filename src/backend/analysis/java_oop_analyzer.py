@@ -204,7 +204,9 @@ class JavaOOPAnalyzer:
         self.analysis.interface_count += 1
 
         class_info = ClassInfo(
-            name=node.name, is_interface=True, is_generic=node.type_parameters is not None and len(node.type_parameters) > 0
+            name=node.name,
+            is_interface=True,
+            is_generic=node.type_parameters is not None and len(node.type_parameters) > 0,
         )
 
         if class_info.is_generic:
@@ -661,7 +663,14 @@ def calculate_solid_score(analysis: JavaOOPAnalysis) -> float:
         elif analysis.interface_count > 0:
             score += 0.3
     di_indicators = 0
-    di_annotations = ["Autowired", "Inject", "Component", "Service", "Repository", "Bean"]
+    di_annotations = [
+        "Autowired",
+        "Inject",
+        "Component",
+        "Service",
+        "Repository",
+        "Bean",
+    ]
     for anno in di_annotations:
         if anno in analysis.annotations:
             di_indicators += 1

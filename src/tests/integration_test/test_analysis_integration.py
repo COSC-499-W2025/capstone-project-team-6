@@ -450,7 +450,8 @@ class TestDatabaseStorageIntegration:
 
         # Mock record_analysis to raise an error
         with patch("sys.argv", ["cli", "analyze", str(sample_python_project_zip)]), patch(
-            "backend.analysis_database.record_analysis", side_effect=Exception("DB Error")
+            "backend.analysis_database.record_analysis",
+            side_effect=Exception("DB Error"),
         ), patch("sys.stdout", new=StringIO()) as fake_out:
             result = main()
             output = fake_out.getvalue()
@@ -531,7 +532,11 @@ class TestLLMPipelineIntegration:
         ) as mock_llm, patch("sys.stdout", new=StringIO()) as fake_out:
             # Setup mock return value
             mock_llm.return_value = {
-                "analysis_metadata": {"analysis_uuid": "test-uuid", "zip_file": "test.zip", "analysis_timestamp": "2025-01-01"},
+                "analysis_metadata": {
+                    "analysis_uuid": "test-uuid",
+                    "zip_file": "test.zip",
+                    "analysis_timestamp": "2025-01-01",
+                },
                 "summary": {},
                 "llm_summary": "Mock AI analysis: The code demonstrates good OOP practices.",
                 "projects": [],
@@ -561,12 +566,25 @@ class TestLLMPipelineIntegration:
         custom_prompt = "Analyze code quality"
 
         # Mock the LLM pipeline
-        with patch("sys.argv", ["cli", "analyze-llm", str(sample_python_project_zip), "--prompt", custom_prompt]), patch(
+        with patch(
+            "sys.argv",
+            [
+                "cli",
+                "analyze-llm",
+                str(sample_python_project_zip),
+                "--prompt",
+                custom_prompt,
+            ],
+        ), patch(
             "backend.analysis.llm_pipeline.run_gemini_analysis"
         ) as mock_llm, patch("sys.stdout", new=StringIO()):
             # Setup mock return value
             mock_llm.return_value = {
-                "analysis_metadata": {"analysis_uuid": "test-uuid", "zip_file": "test.zip", "analysis_timestamp": "2025-01-01"},
+                "analysis_metadata": {
+                    "analysis_uuid": "test-uuid",
+                    "zip_file": "test.zip",
+                    "analysis_timestamp": "2025-01-01",
+                },
                 "summary": {},
                 "llm_summary": "Quality analysis result",
                 "projects": [],
@@ -595,7 +613,11 @@ class TestLLMPipelineIntegration:
         ) as mock_llm, patch("sys.stdout", new=StringIO()) as fake_out:
             # Setup mock to return error
             mock_llm.return_value = {
-                "analysis_metadata": {"analysis_uuid": "test-uuid", "zip_file": "test.zip", "analysis_timestamp": "2025-01-01"},
+                "analysis_metadata": {
+                    "analysis_uuid": "test-uuid",
+                    "zip_file": "test.zip",
+                    "analysis_timestamp": "2025-01-01",
+                },
                 "summary": {},
                 "llm_error": "Google Cloud libraries not installed",
                 "projects": [],
