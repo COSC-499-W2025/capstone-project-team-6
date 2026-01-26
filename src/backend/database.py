@@ -55,9 +55,7 @@ def get_connection() -> sqlite3.Connection:
 
     db_path = get_db_path()
     _ensure_parent_dir(db_path)
-    conn = sqlite3.connect(
-        db_path, detect_types=sqlite3.PARSE_DECLTYPES, check_same_thread=False
-    )
+    conn = sqlite3.connect(db_path, detect_types=sqlite3.PARSE_DECLTYPES, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     try:
         yield conn
@@ -166,9 +164,7 @@ def check_user_consent(username: str) -> bool:
         bool: True if user has consented, False otherwise
     """
     with get_connection() as conn:
-        result = conn.execute(
-            "SELECT has_consented FROM user_consent WHERE username = ?", (username,)
-        ).fetchone()
+        result = conn.execute("SELECT has_consented FROM user_consent WHERE username = ?", (username,)).fetchone()
         return bool(result["has_consented"]) if result else False
 
 

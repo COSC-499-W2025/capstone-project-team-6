@@ -21,13 +21,11 @@ sys.path.insert(0, str(SRC))
 
 from backend import analysis_database as db
 from backend.curation import init_curation_tables
-from backend.curation_cli import (
-    curate_chronology_interactive,
-    curate_comparison_attributes_interactive,
-    curate_showcase_projects_interactive,
-    display_curation_status,
-    display_showcase_summary,
-)
+from backend.curation_cli import (curate_chronology_interactive,
+                                  curate_comparison_attributes_interactive,
+                                  curate_showcase_projects_interactive,
+                                  display_curation_status,
+                                  display_showcase_summary)
 
 
 @pytest.fixture(autouse=True)
@@ -206,15 +204,11 @@ class TestChronologyInteractive:
 
         # Should contain an error message about invalid project number
         assert "Please enter a number between 1 and" in output
-        assert (
-            "Invalid selection" in output or "Please enter a number between" in output
-        )
+        assert "Invalid selection" in output or "Please enter a number between" in output
 
     def test_chronology_no_projects(self):
         """Test chronology correction with no projects."""
-        with patch("sys.stdout", new=StringIO()) as fake_out, patch(
-            "builtins.input", side_effect=["q"]
-        ):
+        with patch("sys.stdout", new=StringIO()) as fake_out, patch("builtins.input", side_effect=["q"]):
             curate_chronology_interactive("test_user")
             output = fake_out.getvalue()
 
@@ -245,7 +239,8 @@ class TestChronologyInteractive:
         assert "✅ Comparison attributes saved successfully!" in output
 
         # Verify all attributes were saved
-        from backend.curation import ATTRIBUTE_DESCRIPTIONS, get_user_curation_settings
+        from backend.curation import (ATTRIBUTE_DESCRIPTIONS,
+                                      get_user_curation_settings)
 
         settings = get_user_curation_settings("test_user")
         assert len(settings.comparison_attributes) == len(ATTRIBUTE_DESCRIPTIONS)
@@ -384,17 +379,13 @@ class TestStatusDisplay:
         project_ids = sample_projects["project_ids"]
 
         # Set up some curation data
-        from backend.curation import (
-            save_chronology_correction,
-            save_comparison_attributes,
-            save_showcase_projects,
-        )
+        from backend.curation import (save_chronology_correction,
+                                      save_comparison_attributes,
+                                      save_showcase_projects)
 
         save_comparison_attributes(user_id, ["total_files", "has_tests"])
         save_showcase_projects(user_id, [project_ids[0]])
-        save_chronology_correction(
-            project_ids[0], user_id, last_commit_date="2024-05-01T10:00:00"
-        )
+        save_chronology_correction(project_ids[0], user_id, last_commit_date="2024-05-01T10:00:00")
 
         with patch("sys.stdout", new=StringIO()) as fake_out:
             display_curation_status(user_id)

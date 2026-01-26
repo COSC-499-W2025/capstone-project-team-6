@@ -310,9 +310,7 @@ def _generate_architecture_description(analysis: dict, quality: dict) -> str:
 
     # Basic tier
     else:
-        tier_text = (
-            f"{base}, demonstrating foundational object-oriented design principles."
-        )
+        tier_text = f"{base}, demonstrating foundational object-oriented design principles."
 
     # Git metadata
     is_git = analysis.get("is_git_repo", False)
@@ -407,9 +405,7 @@ def _generate_contributions_summary(analysis: dict, quality: dict) -> str:
     if c_fp_fields > 0:
         contrib.append(f"building {c_fp_fields} function-pointer based components")
     if c_memory_pairs > 0:
-        contrib.append(
-            f"maintaining {c_memory_pairs} constructor/destructor memory-safety pairs"
-        )
+        contrib.append(f"maintaining {c_memory_pairs} constructor/destructor memory-safety pairs")
     if c_patterns:
         name = ", ".join(c_patterns)
         plural = "pattern" if len(c_patterns) == 1 else "patterns"
@@ -481,9 +477,7 @@ def _generate_detailed_git_contribution_summary(analysis: dict) -> str:
             total_lines = user_semantic.get("total_lines_changed", 0)
 
             if substantial > 0 or trivial > 0:
-                git_details.append(
-                    f"made {substantial} substantial and {trivial} trivial commits"
-                )
+                git_details.append(f"made {substantial} substantial and {trivial} trivial commits")
             if total_lines > 0:
                 git_details.append(f"changed {total_lines} total lines")
 
@@ -502,40 +496,24 @@ def _generate_detailed_git_contribution_summary(analysis: dict) -> str:
                 git_details.append(f"contributed across: {', '.join(activity_parts)}")
 
         if user_surviving_lines is not None and user_surviving_lines > 0:
-            total_surviving = sum(
-                v for v in blame_summary.values() if isinstance(v, (int, float))
-            )
+            total_surviving = sum(v for v in blame_summary.values() if isinstance(v, (int, float)))
             if total_surviving > 0:
                 percentage = (user_surviving_lines / total_surviving) * 100
-                git_details.append(
-                    f"owns {user_surviving_lines} surviving lines ({percentage:.1f}% of codebase)"
-                )
+                git_details.append(f"owns {user_surviving_lines} surviving lines ({percentage:.1f}% of codebase)")
 
     # Add overall contribution statistics if available
     if contribution_volume:
-        total_lines_changed = sum(
-            v for v in contribution_volume.values() if isinstance(v, (int, float))
-        )
+        total_lines_changed = sum(v for v in contribution_volume.values() if isinstance(v, (int, float)))
         if total_lines_changed > 0:
-            git_details.append(
-                f"total project changes: {total_lines_changed} lines across all contributors"
-            )
+            git_details.append(f"total project changes: {total_lines_changed} lines across all contributors")
 
     if semantic_summary:
         total_substantial = sum(
-            stats.get("substantial_commits", 0)
-            for stats in semantic_summary.values()
-            if isinstance(stats, dict)
+            stats.get("substantial_commits", 0) for stats in semantic_summary.values() if isinstance(stats, dict)
         )
-        total_trivial = sum(
-            stats.get("trivial_commits", 0)
-            for stats in semantic_summary.values()
-            if isinstance(stats, dict)
-        )
+        total_trivial = sum(stats.get("trivial_commits", 0) for stats in semantic_summary.values() if isinstance(stats, dict))
         if total_substantial > 0 or total_trivial > 0:
-            git_details.append(
-                f"project-wide: {total_substantial} substantial and {total_trivial} trivial commits"
-            )
+            git_details.append(f"project-wide: {total_substantial} substantial and {total_trivial} trivial commits")
 
     if git_details:
         return " " + ". ".join(git_details) + "."
@@ -705,9 +683,7 @@ def generate_portfolio_item(analysis: dict) -> dict:
         opening = f"{project_name} is a software project developed using {langs_str}."
 
     if optimization_score >= 50:
-        opening += (
-            " It features algorithmic optimization to improve runtime performance."
-        )
+        opening += " It features algorithmic optimization to improve runtime performance."
     elif optimization_score >= 25:
         opening += " It incorporates performance-aware development practices."
 
@@ -721,31 +697,21 @@ def generate_portfolio_item(analysis: dict) -> dict:
 
     # Algorithmic optimization narrative
     if optimization_score >= 75:
-        summary.append(
-            "The project demonstrates strong algorithmic optimization with a focus on high-performance execution."
-        )
+        summary.append("The project demonstrates strong algorithmic optimization with a focus on high-performance execution.")
     elif optimization_score >= 50:
-        summary.append(
-            "The codebase includes meaningful algorithmic refinements that improve computational efficiency."
-        )
+        summary.append("The codebase includes meaningful algorithmic refinements that improve computational efficiency.")
     elif optimization_score >= 25:
         summary.append(
             "The implementation reflects basic performance-oriented improvements guided by algorithmic considerations."
         )
     elif optimization_score > 0:
-        summary.append(
-            "Some sections of the project incorporate minor optimization techniques."
-        )
+        summary.append("Some sections of the project incorporate minor optimization techniques.")
 
     if analysis.get("has_tests") and analysis.get("test_coverage_estimate") != "none":
-        summary.append(
-            f"Test coverage is estimated as {analysis.get('test_coverage_estimate')}."
-        )
+        summary.append(f"Test coverage is estimated as {analysis.get('test_coverage_estimate')}.")
 
     if skills:
-        summary.append(
-            f"This project demonstrates {', '.join(skills[:5])}, among other skills."
-        )
+        summary.append(f"This project demonstrates {', '.join(skills[:5])}, among other skills.")
 
     text_summary = " ".join(summary)
 
@@ -753,9 +719,7 @@ def generate_portfolio_item(analysis: dict) -> dict:
     commits = analysis.get("total_commits", 0)
     branches = analysis.get("branch_count", 0)
     authors = analysis.get("commit_authors", [])
-    if analysis.get("is_git_repo", False) and (
-        commits > 0 or branches > 1 or len(authors) > 1
-    ):
+    if analysis.get("is_git_repo", False) and (commits > 0 or branches > 1 or len(authors) > 1):
         text_summary += (
             f" The repository includes {commits} commits across {branches} branches "
             f"from {len(authors)} contributor(s), demonstrating active version-controlled development."

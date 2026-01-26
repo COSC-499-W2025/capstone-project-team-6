@@ -25,17 +25,13 @@ backend_dir = src_dir / "backend"
 sys.path.insert(0, str(src_dir))
 sys.path.insert(0, str(backend_dir))
 
-from analysis.analyze import (
-    calculate_collaboration_score,
-    calculate_composite_score,
-    calculate_contribution_score,
-    calculate_days_since,
-    calculate_duration_days,
-    calculate_duration_score,
-    calculate_recency_score,
-    calculate_scale_score,
-    categorize_score,
-)
+from analysis.analyze import (calculate_collaboration_score,
+                              calculate_composite_score,
+                              calculate_contribution_score,
+                              calculate_days_since, calculate_duration_days,
+                              calculate_duration_score,
+                              calculate_recency_score, calculate_scale_score,
+                              categorize_score)
 
 
 class TestDateHelpers:
@@ -487,10 +483,7 @@ class TestEnhancedCompositeScore:
 
         # Scores should be different because contribution percentages differ
         assert result1["composite_score"] != result2["composite_score"]
-        assert (
-            result1["breakdown"]["individual_contribution"]
-            > result2["breakdown"]["individual_contribution"]
-        )
+        assert result1["breakdown"]["individual_contribution"] > result2["breakdown"]["individual_contribution"]
 
     def test_weighted_calculation(self):
         """Test that weights are applied correctly."""

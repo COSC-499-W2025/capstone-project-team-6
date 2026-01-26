@@ -152,9 +152,7 @@ class COOPAnalyzer:
         self.functions: Dict[str, Dict] = {}
         self.declared_structs: Set[str] = set()
         self.defined_structs: Set[str] = set()
-        self.header_only_structs: Set[str] = (
-            set()
-        )  # Structs declared in .h but not defined in .c
+        self.header_only_structs: Set[str] = set()  # Structs declared in .h but not defined in .c
         self.create_functions: Set[str] = set()
         self.destroy_functions: Set[str] = set()
         self.function_pointer_typedefs: Set[str] = set()
@@ -200,9 +198,7 @@ class COOPAnalyzer:
             suffix = ".h" if filename.endswith(".h") else ".c"
 
             # Write to temp file and get path
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=suffix, delete=False
-            ) as f:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=suffix, delete=False) as f:
                 f.write(content)
                 temp_path = f.name
 
@@ -353,9 +349,7 @@ class COOPAnalyzer:
                 pass
 
             # Fallback: spelling like "void (*)(int, void *)"
-            spelling = getattr(canonical, "spelling", "") or getattr(
-                underlying, "spelling", ""
-            )
+            spelling = getattr(canonical, "spelling", "") or getattr(underlying, "spelling", "")
             if "(*" in spelling:
                 is_fp = True
 
@@ -502,11 +496,7 @@ class COOPAnalyzer:
                 self.create_functions.add(func_name)
 
             # destructors
-            if (
-                func_name.endswith("_destroy")
-                or func_name.endswith("_free")
-                or func_name.endswith("_delete")
-            ):
+            if func_name.endswith("_destroy") or func_name.endswith("_free") or func_name.endswith("_delete"):
                 self.destroy_functions.add(func_name)
 
         # MEMORY MANAGEMENT DETECTION
@@ -681,10 +671,7 @@ class COOPAnalyzer:
             return False
         # 1) If the type spelling is a known function-pointer typedef, we're done
         spelling = getattr(type_obj, "spelling", "") or ""
-        if (
-            hasattr(self, "function_pointer_typedefs")
-            and spelling in self.function_pointer_typedefs
-        ):
+        if hasattr(self, "function_pointer_typedefs") and spelling in self.function_pointer_typedefs:
             return True
         # 2) Canonical pointer-to-function detection via libclang
         try:
@@ -841,10 +828,7 @@ class COOPAnalyzer:
                 # Check if any function pointer fields suggest callbacks
                 # This is a simplified check - in practice, you'd examine field names
                 # For now, we'll use the presence of function pointers + certain struct names
-                if any(
-                    keyword in struct_name.lower()
-                    for keyword in ["event", "listener", "observer", "callback"]
-                ):
+                if any(keyword in struct_name.lower() for keyword in ["event", "listener", "observer", "callback"]):
                     patterns.add("Observer")
                     break
 
@@ -929,14 +913,8 @@ def analyze_c_project(zip_path: Path, project_path: str = "") -> Dict:
                                         if item.endswith((".c", ".h")):
                                             code_paths.append(item)
                                     elif isinstance(item, dict):
-                                        path = (
-                                            item.get("path")
-                                            or item.get("relative_path")
-                                            or item.get("file_path")
-                                        )
-                                        if isinstance(path, str) and path.endswith(
-                                            (".c", ".h")
-                                        ):
+                                        path = item.get("path") or item.get("relative_path") or item.get("file_path")
+                                        if isinstance(path, str) and path.endswith((".c", ".h")):
                                             code_paths.append(path)
                 except Exception as e:
                     print(f"Warning: FileClassifier failed: {e}")
@@ -1048,11 +1026,7 @@ def calculate_oop_score(analysis: COOPAnalysis) -> int:
     if analysis.design_patterns or analysis.oop_style_naming_count > 5:
         score += 1
 
-    if (
-        score >= 3
-        and analysis.constructor_destructor_pairs > 0
-        and analysis.opaque_pointer_structs > 0
-    ):
+    if score >= 3 and analysis.constructor_destructor_pairs > 0 and analysis.opaque_pointer_structs > 0:
         score += 1
     return min(score, 6)
 
@@ -1167,9 +1141,7 @@ def calculate_memory_safety_score(analysis: COOPAnalysis) -> float:
     # +5: balanced malloc/free usage
     if analysis.malloc_usage > 0:
         if analysis.free_usage > 0:
-            ratio = (
-                min(analysis.free_usage, analysis.malloc_usage) / analysis.malloc_usage
-            )
+            ratio = min(analysis.free_usage, analysis.malloc_usage) / analysis.malloc_usage
             score += 5.0 * ratio
 
     return score

@@ -27,9 +27,7 @@ class Document(Base):
     file_type = Column(String)
     category = Column(String)
     extracted_text = Column(String)
-    chunks = relationship(
-        "DocumentChunk", back_populates="document", cascade="all, delete"
-    )
+    chunks = relationship("DocumentChunk", back_populates="document", cascade="all, delete")
 
 
 class DocumentChunk(Base):

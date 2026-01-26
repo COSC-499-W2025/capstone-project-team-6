@@ -29,9 +29,7 @@ class ComplexityInsight:
 
     file_path: str
     line_number: int
-    complexity_type: (
-        str  # e.g., "nested_loops", "inefficient_lookup", "good_optimization"
-    )
+    complexity_type: str  # e.g., "nested_loops", "inefficient_lookup", "good_optimization"
     severity: str  # "info", "suggestion", "good_practice"
     description: str
     code_snippet: Optional[str] = None
@@ -103,9 +101,7 @@ class ComplexityAnalyzer(ast.NodeVisitor):
         self.source_lines = source_code.splitlines()
         self.insights: List[ComplexityInsight] = []
         self.loop_depth = 0  # Track nested loop depth
-        self.function_locals: Set[str] = (
-            set()
-        )  # Track local variables in current function
+        self.function_locals: Set[str] = set()  # Track local variables in current function
 
     def get_line(self, line_no: int) -> str:
         """Get source code line by number (1-indexed)."""
@@ -147,10 +143,7 @@ class ComplexityAnalyzer(ast.NodeVisitor):
                         if isinstance(child.comparators[0], ast.Name):
                             var_name = child.comparators[0].id
                             # Heuristic: if variable name suggests it's a list
-                            if any(
-                                hint in var_name.lower()
-                                for hint in ["list", "array", "items"]
-                            ):
+                            if any(hint in var_name.lower() for hint in ["list", "array", "items"]):
                                 self.insights.append(
                                     ComplexityInsight(
                                         file_path=self.file_path,
@@ -435,13 +428,9 @@ def format_report(report: ComplexityReport, verbose: bool = False) -> str:
     if report.optimization_score >= 75:
         lines.append("Assessment: Strong awareness of algorithmic optimization [OK]")
     elif report.optimization_score >= 50:
-        lines.append(
-            "Assessment: Moderate awareness, some optimization opportunities exist"
-        )
+        lines.append("Assessment: Moderate awareness, some optimization opportunities exist")
     else:
-        lines.append(
-            "Assessment: Limited optimization awareness, review suggestions below"
-        )
+        lines.append("Assessment: Limited optimization awareness, review suggestions below")
 
     lines.append("\n" + "-" * 70)
     lines.append("SUMMARY")
@@ -497,9 +486,7 @@ def format_report(report: ComplexityReport, verbose: bool = False) -> str:
             lines.append(f"\n[File] {file_path}")
             for insight in by_file[file_path]:
                 icon = "[+]" if insight.severity == "good_practice" else "[!]"
-                lines.append(
-                    f"  {icon} Line {insight.line_number}: {insight.description}"
-                )
+                lines.append(f"  {icon} Line {insight.line_number}: {insight.description}")
                 if insight.code_snippet:
                     lines.append(f"     Code: {insight.code_snippet}")
 
@@ -556,9 +543,7 @@ class JavaComplexityAnalyzer:
 
                 # If we're already in a loop, this is nested
                 if current_depth >= 2:
-                    complexity = (
-                        "O(n²)" if current_depth == 2 else f"O(n^{current_depth})"
-                    )
+                    complexity = "O(n²)" if current_depth == 2 else f"O(n^{current_depth})"
                     self.insights.append(
                         ComplexityInsight(
                             file_path=self.file_path,
@@ -775,9 +760,7 @@ def analyze_java_project(java_files: List[Tuple[str, str]]) -> ComplexityReport:
     return report
 
 
-def analyze_project(
-    files: List[Tuple[str, str]], language: str = "auto"
-) -> ComplexityReport:
+def analyze_project(files: List[Tuple[str, str]], language: str = "auto") -> ComplexityReport:
     """
     Analyze files in a project for complexity patterns.
     """

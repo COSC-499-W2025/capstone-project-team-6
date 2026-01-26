@@ -180,9 +180,7 @@ class MyClass:
             output_path = Path(tmp.name)
 
         try:
-            report = generate_comprehensive_report(
-                sample_python_zip, output_path=output_path
-            )
+            report = generate_comprehensive_report(sample_python_zip, output_path=output_path)
 
             # Check that file was created
             assert output_path.exists()
@@ -444,9 +442,7 @@ class TestSummarizeTopRankedProjects:
             "frameworks": [],
         }
 
-    def create_analysis_in_db(
-        self, analysis_db, zip_file_path, projects, timestamp="2025-11-30T10:00:00"
-    ):
+    def create_analysis_in_db(self, analysis_db, zip_file_path, projects, timestamp="2025-11-30T10:00:00"):
         """Helper to create an analysis record in the database."""
         import json
 
@@ -460,9 +456,7 @@ class TestSummarizeTopRankedProjects:
             "summary": {
                 "total_files": sum(p.get("total_files", 0) for p in projects),
                 "total_size_bytes": 1000000,
-                "languages_used": list(
-                    set(p.get("primary_language", "") for p in projects)
-                ),
+                "languages_used": list(set(p.get("primary_language", "") for p in projects)),
             },
         }
 
@@ -486,25 +480,19 @@ class TestSummarizeTopRankedProjects:
         """Test summarize when no analyses exist for specific zip file."""
         from backend.analysis.analyze import summarize_top_ranked_projects
 
-        summarize_top_ranked_projects(
-            limit=10, zip_file_path="/nonexistent.zip", username=self.TEST_USERNAME
-        )
+        summarize_top_ranked_projects(limit=10, zip_file_path="/nonexistent.zip", username=self.TEST_USERNAME)
 
         captured = capsys.readouterr()
         assert "No analyses found for" in captured.out
 
-    def test_summarize_with_single_project(
-        self, mock_analysis_db, sample_project_data, capsys
-    ):
+    def test_summarize_with_single_project(self, mock_analysis_db, sample_project_data, capsys):
         """Test summarize with a single project."""
         from backend.analysis.analyze import summarize_top_ranked_projects
 
         zip_path = "/test/project.zip"
         self.create_analysis_in_db(mock_analysis_db, zip_path, [sample_project_data])
 
-        summarize_top_ranked_projects(
-            limit=10, zip_file_path=zip_path, username=self.TEST_USERNAME
-        )
+        summarize_top_ranked_projects(limit=10, zip_file_path=zip_path, username=self.TEST_USERNAME)
 
         captured = capsys.readouterr()
         assert "TOP RANKED PROJECTS SUMMARY" in captured.out
@@ -534,9 +522,7 @@ class TestSummarizeTopRankedProjects:
             ],
         )
 
-        summarize_top_ranked_projects(
-            limit=10, zip_file_path=zip_path, username=self.TEST_USERNAME
-        )
+        summarize_top_ranked_projects(limit=10, zip_file_path=zip_path, username=self.TEST_USERNAME)
 
         captured = capsys.readouterr()
         output = captured.out
@@ -550,9 +536,7 @@ class TestSummarizeTopRankedProjects:
             high_score_index < low_score_index and test_project_index < low_score_index
         )
 
-    def test_summarize_keeps_higher_score_on_duplicate(
-        self, mock_analysis_db, sample_project_data, capsys
-    ):
+    def test_summarize_keeps_higher_score_on_duplicate(self, mock_analysis_db, sample_project_data, capsys):
         """Test that when deduplicating, the higher score is kept."""
         from backend.analysis.analyze import summarize_top_ranked_projects
 
@@ -565,22 +549,16 @@ class TestSummarizeTopRankedProjects:
         project_high = sample_project_data.copy()
         project_high["oop_analysis"]["oop_score"] = 6
         project_high["oop_analysis"]["solid_score"] = 5.0
-        self.create_analysis_in_db(
-            mock_analysis_db, zip_path, [project_low, project_high]
-        )
+        self.create_analysis_in_db(mock_analysis_db, zip_path, [project_low, project_high])
 
-        summarize_top_ranked_projects(
-            limit=10, zip_file_path=zip_path, username=self.TEST_USERNAME
-        )
+        summarize_top_ranked_projects(limit=10, zip_file_path=zip_path, username=self.TEST_USERNAME)
 
         captured = capsys.readouterr()
         output = captured.out
 
         assert output.count("TestProject") == 1
 
-    def test_summarize_keeps_most_recent_on_tie(
-        self, mock_analysis_db, sample_project_data, capsys
-    ):
+    def test_summarize_keeps_most_recent_on_tie(self, mock_analysis_db, sample_project_data, capsys):
         """Test that when scores are equal, most recent timestamp is kept."""
         from backend.analysis.analyze import summarize_top_ranked_projects
 
@@ -591,16 +569,10 @@ class TestSummarizeTopRankedProjects:
         project1["oop_analysis"]["oop_score"] = 4
         project2["oop_analysis"]["oop_score"] = 4
 
-        self.create_analysis_in_db(
-            mock_analysis_db, zip_path, [project1], "2025-11-30T04:00:00"
-        )
-        self.create_analysis_in_db(
-            mock_analysis_db, zip_path, [project2], "2025-11-30T06:30:00"
-        )
+        self.create_analysis_in_db(mock_analysis_db, zip_path, [project1], "2025-11-30T04:00:00")
+        self.create_analysis_in_db(mock_analysis_db, zip_path, [project2], "2025-11-30T06:30:00")
 
-        summarize_top_ranked_projects(
-            limit=10, zip_file_path=zip_path, username=self.TEST_USERNAME
-        )
+        summarize_top_ranked_projects(limit=10, zip_file_path=zip_path, username=self.TEST_USERNAME)
 
         captured = capsys.readouterr()
         output = captured.out
@@ -608,9 +580,7 @@ class TestSummarizeTopRankedProjects:
         assert output.count("TestProject") == 1
         assert "2025-11-30T06:30:00" in output
 
-    def test_summarize_filters_by_zip_file(
-        self, mock_analysis_db, sample_project_data, capsys
-    ):
+    def test_summarize_filters_by_zip_file(self, mock_analysis_db, sample_project_data, capsys):
         """Test that summarize can filter by zip file path."""
         from backend.analysis.analyze import summarize_top_ranked_projects
 
@@ -626,9 +596,7 @@ class TestSummarizeTopRankedProjects:
         self.create_analysis_in_db(mock_analysis_db, zip_path1, [project1])
         self.create_analysis_in_db(mock_analysis_db, zip_path2, [project2])
 
-        summarize_top_ranked_projects(
-            limit=10, zip_file_path=zip_path1, username=self.TEST_USERNAME
-        )
+        summarize_top_ranked_projects(limit=10, zip_file_path=zip_path1, username=self.TEST_USERNAME)
 
         captured = capsys.readouterr()
         output = captured.out
@@ -667,9 +635,7 @@ class TestSummarizeTopRankedProjects:
         valid_project = {"project_name": "ValidProject", "project_path": "/valid"}
         self.create_analysis_in_db(mock_analysis_db, zip_path, [valid_project])
 
-        summarize_top_ranked_projects(
-            limit=10, zip_file_path=zip_path, username=self.TEST_USERNAME
-        )
+        summarize_top_ranked_projects(limit=10, zip_file_path=zip_path, username=self.TEST_USERNAME)
 
         captured = capsys.readouterr()
         output = captured.out
@@ -677,9 +643,7 @@ class TestSummarizeTopRankedProjects:
         assert "ValidProject" in output
         assert "Warning" in captured.out or "Could not parse" in captured.out
 
-    def test_summarize_handles_missing_analysis_fields(
-        self, mock_analysis_db, sample_project_data, capsys
-    ):
+    def test_summarize_handles_missing_analysis_fields(self, mock_analysis_db, sample_project_data, capsys):
         """Test that summarize handles analyses with missing timestamp/zip_file fields."""
         import json
 
@@ -708,26 +672,20 @@ class TestSummarizeTopRankedProjects:
             )
             conn.commit()
 
-        summarize_top_ranked_projects(
-            limit=10, zip_file_path=zip_path, username=self.TEST_USERNAME
-        )
+        summarize_top_ranked_projects(limit=10, zip_file_path=zip_path, username=self.TEST_USERNAME)
 
         captured = capsys.readouterr()
         output = captured.out
 
         assert "TestProject" in output
 
-    def test_summarize_displays_score_breakdown(
-        self, mock_analysis_db, sample_project_data, capsys
-    ):
+    def test_summarize_displays_score_breakdown(self, mock_analysis_db, sample_project_data, capsys):
         """Test that summarize displays score breakdown correctly."""
         from backend.analysis.analyze import summarize_top_ranked_projects
 
         zip_path = "/test/breakdown.zip"
         self.create_analysis_in_db(mock_analysis_db, zip_path, [sample_project_data])
-        summarize_top_ranked_projects(
-            limit=10, zip_file_path=zip_path, username=self.TEST_USERNAME
-        )
+        summarize_top_ranked_projects(limit=10, zip_file_path=zip_path, username=self.TEST_USERNAME)
 
         captured = capsys.readouterr()
         output = captured.out
@@ -738,18 +696,14 @@ class TestSummarizeTopRankedProjects:
         assert "Project Maturity" in output
         assert "Algorithmic Quality" in output
 
-    def test_summarize_displays_health_indicators(
-        self, mock_analysis_db, sample_project_data, capsys
-    ):
+    def test_summarize_displays_health_indicators(self, mock_analysis_db, sample_project_data, capsys):
         """Test that summarize displays project health indicators."""
         from backend.analysis.analyze import summarize_top_ranked_projects
 
         zip_path = "/test/health.zip"
         self.create_analysis_in_db(mock_analysis_db, zip_path, [sample_project_data])
 
-        summarize_top_ranked_projects(
-            limit=10, zip_file_path=zip_path, username=self.TEST_USERNAME
-        )
+        summarize_top_ranked_projects(limit=10, zip_file_path=zip_path, username=self.TEST_USERNAME)
         captured = capsys.readouterr()
         output = captured.out
         assert "Project Health Indicators" in output
@@ -776,9 +730,7 @@ class TestSummarizeTopRankedProjects:
 
         self.create_analysis_in_db(mock_analysis_db, zip_path, [java_project])
 
-        summarize_top_ranked_projects(
-            limit=10, zip_file_path=zip_path, username=self.TEST_USERNAME
-        )
+        summarize_top_ranked_projects(limit=10, zip_file_path=zip_path, username=self.TEST_USERNAME)
 
         captured = capsys.readouterr()
         output = captured.out
@@ -806,9 +758,7 @@ class TestSummarizeTopRankedProjects:
 
         self.create_analysis_in_db(mock_analysis_db, zip_path, [cpp_project])
 
-        summarize_top_ranked_projects(
-            limit=10, zip_file_path=zip_path, username=self.TEST_USERNAME
-        )
+        summarize_top_ranked_projects(limit=10, zip_file_path=zip_path, username=self.TEST_USERNAME)
 
         captured = capsys.readouterr()
         output = captured.out
@@ -816,9 +766,7 @@ class TestSummarizeTopRankedProjects:
         assert "CppProject" in output
         assert "C++:" in output or "classes" in output
 
-    def test_summarize_all_zip_files(
-        self, mock_analysis_db, sample_project_data, capsys
-    ):
+    def test_summarize_all_zip_files(self, mock_analysis_db, sample_project_data, capsys):
         """Test summarize without zip_file_path filter (all files)."""
         from backend.analysis.analyze import summarize_top_ranked_projects
 

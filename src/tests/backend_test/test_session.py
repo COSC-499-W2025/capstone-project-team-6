@@ -6,7 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from src.backend.session import SESSION_FILE, clear_session, get_session, save_session
+from src.backend.session import (SESSION_FILE, clear_session, get_session,
+                                 save_session)
 
 
 @pytest.fixture

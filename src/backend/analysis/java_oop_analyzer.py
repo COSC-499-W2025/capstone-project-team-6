@@ -93,9 +93,7 @@ class ClassInfo:
     has_private_constructor: bool = False
     static_methods: List[str] = field(default_factory=list)
     static_fields: List[str] = field(default_factory=list)
-    method_signatures: Dict[str, int] = field(
-        default_factory=lambda: defaultdict(int)
-    )  # method_name -> count
+    method_signatures: Dict[str, int] = field(default_factory=lambda: defaultdict(int))  # method_name -> count
 
 
 class JavaOOPAnalyzer:
@@ -165,8 +163,7 @@ class JavaOOPAnalyzer:
         class_info = ClassInfo(
             name=node.name,
             is_abstract="abstract" in (node.modifiers or []),
-            is_generic=node.type_parameters is not None
-            and len(node.type_parameters) > 0,
+            is_generic=node.type_parameters is not None and len(node.type_parameters) > 0,
         )
         # Check if nested: parent in path should be another ClassDeclaration
         for parent_node in path:
@@ -198,9 +195,7 @@ class JavaOOPAnalyzer:
             for anno in node.annotations:
                 anno_name = anno.name
                 class_info.annotations.append(anno_name)
-                self.analysis.annotations[anno_name] = (
-                    self.analysis.annotations.get(anno_name, 0) + 1
-                )
+                self.analysis.annotations[anno_name] = self.analysis.annotations.get(anno_name, 0) + 1
 
         self.classes[node.name] = class_info
 
@@ -211,8 +206,7 @@ class JavaOOPAnalyzer:
         class_info = ClassInfo(
             name=node.name,
             is_interface=True,
-            is_generic=node.type_parameters is not None
-            and len(node.type_parameters) > 0,
+            is_generic=node.type_parameters is not None and len(node.type_parameters) > 0,
         )
 
         if class_info.is_generic:
@@ -282,9 +276,7 @@ class JavaOOPAnalyzer:
 
                 # Track all annotations
                 anno_name = anno.name
-                self.analysis.annotations[anno_name] = (
-                    self.analysis.annotations.get(anno_name, 0) + 1
-                )
+                self.analysis.annotations[anno_name] = self.analysis.annotations.get(anno_name, 0) + 1
 
     def _analyze_field(self, node: javalang.tree.FieldDeclaration, path):
         """Analyze a field declaration."""
@@ -297,9 +289,7 @@ class JavaOOPAnalyzer:
                     class_name = parent.name
                     if class_name in self.classes:
                         for declarator in node.declarators:
-                            self.classes[class_name].static_fields.append(
-                                declarator.name
-                            )
+                            self.classes[class_name].static_fields.append(declarator.name)
                     break
 
         # Count by access modifier
@@ -389,15 +379,11 @@ class JavaOOPAnalyzer:
         # 2. Static getInstance/instance method OR static field of same type
         if class_info.has_private_constructor:
             has_instance_method = any(
-                method.lower() in ["getinstance", "instance", "get"]
-                for method in class_info.static_methods
+                method.lower() in ["getinstance", "instance", "get"] for method in class_info.static_methods
             )
 
             # Look for static instance field
-            has_instance_field = any(
-                field.lower() in ["instance", "singleton"]
-                for field in class_info.static_fields
-            )
+            has_instance_field = any(field.lower() in ["instance", "singleton"] for field in class_info.static_fields)
 
             if has_instance_method or has_instance_field:
                 return True
@@ -438,9 +424,7 @@ def analyze_java_project(zip_path: Path, project_path: str = "") -> Dict:
     Perform deep OOP analysis on a Java project in a ZIP file.
     """
     if MetadataExtractor is None or FileClassifier is None:
-        raise ImportError(
-            "MetadataExtractor and FileClassifier are required for project analysis"
-        )
+        raise ImportError("MetadataExtractor and FileClassifier are required for project analysis")
 
     with MetadataExtractor(zip_path) as extractor:
         metadata = extractor.extract_project_metadata(project_path)
@@ -462,9 +446,7 @@ def analyze_java_project(zip_path: Path, project_path: str = "") -> Dict:
 
                 combined_analysis.total_classes += file_analysis.total_classes
                 combined_analysis.interface_count += file_analysis.interface_count
-                combined_analysis.abstract_classes.extend(
-                    file_analysis.abstract_classes
-                )
+                combined_analysis.abstract_classes.extend(file_analysis.abstract_classes)
                 combined_analysis.enum_count += file_analysis.enum_count
 
                 combined_analysis.private_methods += file_analysis.private_methods
@@ -476,12 +458,8 @@ def analyze_java_project(zip_path: Path, project_path: str = "") -> Dict:
                 combined_analysis.protected_fields += file_analysis.protected_fields
                 combined_analysis.public_fields += file_analysis.public_fields
 
-                combined_analysis.classes_with_inheritance += (
-                    file_analysis.classes_with_inheritance
-                )
-                combined_analysis.inheritance_depth = max(
-                    combined_analysis.inheritance_depth, file_analysis.inheritance_depth
-                )
+                combined_analysis.classes_with_inheritance += file_analysis.classes_with_inheritance
+                combined_analysis.inheritance_depth = max(combined_analysis.inheritance_depth, file_analysis.inheritance_depth)
                 combined_analysis.override_count += file_analysis.override_count
                 combined_analysis.method_overloads += file_analysis.method_overloads
 
@@ -490,13 +468,9 @@ def analyze_java_project(zip_path: Path, project_path: str = "") -> Dict:
                 combined_analysis.anonymous_classes += file_analysis.anonymous_classes
                 combined_analysis.lambda_count += file_analysis.lambda_count
 
-                combined_analysis.getter_setter_pairs += (
-                    file_analysis.getter_setter_pairs
-                )
+                combined_analysis.getter_setter_pairs += file_analysis.getter_setter_pairs
                 for anno, count in file_analysis.annotations.items():
-                    combined_analysis.annotations[anno] = (
-                        combined_analysis.annotations.get(anno, 0) + count
-                    )
+                    combined_analysis.annotations[anno] = combined_analysis.annotations.get(anno, 0) + count
                 for pattern in file_analysis.design_patterns:
                     if pattern not in combined_analysis.design_patterns:
                         combined_analysis.design_patterns.append(pattern)
@@ -560,15 +534,8 @@ def calculate_oop_score(analysis: JavaOOPAnalysis) -> int:
 
     # 4. Encapsulation
     # Check if majority of fields are private and methods are reasonably encapsulated
-    total_fields = (
-        analysis.private_fields + analysis.protected_fields + analysis.public_fields
-    )
-    total_methods = (
-        analysis.private_methods
-        + analysis.protected_methods
-        + analysis.public_methods
-        + analysis.package_methods
-    )
+    total_fields = analysis.private_fields + analysis.protected_fields + analysis.public_fields
+    total_methods = analysis.private_methods + analysis.protected_methods + analysis.public_methods + analysis.package_methods
 
     if total_fields > 0:
         private_field_ratio = analysis.private_fields / total_fields
@@ -637,12 +604,7 @@ def calculate_solid_score(analysis: JavaOOPAnalysis) -> float:
     is_large_project = total_entities >= 10
 
     if analysis.total_classes > 0:
-        total_methods = (
-            analysis.public_methods
-            + analysis.private_methods
-            + analysis.protected_methods
-            + analysis.package_methods
-        )
+        total_methods = analysis.public_methods + analysis.private_methods + analysis.protected_methods + analysis.package_methods
         avg_methods = total_methods / max(analysis.total_classes, 1)
 
         if is_small_project:
@@ -674,9 +636,7 @@ def calculate_solid_score(analysis: JavaOOPAnalysis) -> float:
             score += 0.4
 
     if analysis.classes_with_inheritance > 0:
-        override_ratio = analysis.override_count / max(
-            analysis.classes_with_inheritance, 1
-        )
+        override_ratio = analysis.override_count / max(analysis.classes_with_inheritance, 1)
         if override_ratio >= 1.0:  # At least 1 override per inheriting class
             score += 1.0
         elif analysis.override_count > 0:
@@ -835,13 +795,9 @@ if __name__ == "__main__":
         print("=" * 70)
         print("JAVA OOP ANALYZER - Usage")
         print("=" * 70)
-        print(
-            "\nUsage: python src/backend/analysis/java_oop_analyzer.py <path_to_file.java>"
-        )
+        print("\nUsage: python src/backend/analysis/java_oop_analyzer.py <path_to_file.java>")
         print("\nExample:")
-        print(
-            "  python src/backend/analysis/java_oop_analyzer.py src/main/java/User.java"
-        )
+        print("  python src/backend/analysis/java_oop_analyzer.py src/main/java/User.java")
         print("  python src/backend/analysis/java_oop_analyzer.py ~/MyClass.java")
         print("\nNote: Requires 'javalang' library. Install with:")
         print("  pip install javalang")

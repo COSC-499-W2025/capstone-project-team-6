@@ -191,9 +191,7 @@ class TaskManager:
 
             # Store file permanently (with deduplication)
             temp_path = Path(task.file_path)
-            permanent_path = self.file_manager.store_file_permanently(
-                temp_path, task.file_hash
-            )
+            permanent_path = self.file_manager.store_file_permanently(temp_path, task.file_hash)
             task.file_path = str(permanent_path)
             task.progress = 30
 
@@ -249,9 +247,7 @@ class TaskManager:
 
         return {
             "analysis_id": analysis_id,
-            "analysis_uuid": analysis_result.get("analysis_metadata", {}).get(
-                "analysis_uuid"
-            ),
+            "analysis_uuid": analysis_result.get("analysis_metadata", {}).get("analysis_uuid"),
             "total_projects": len(analysis_result.get("projects", [])),
             "file_hash": task.file_hash,
         }
@@ -286,9 +282,7 @@ class TaskManager:
 
         # Deduplicate by project path
         existing_paths = {p.get("project_path") for p in existing_projects}
-        added_projects = [
-            p for p in new_projects if p.get("project_path") not in existing_paths
-        ]
+        added_projects = [p for p in new_projects if p.get("project_path") not in existing_paths]
 
         merged_projects = existing_projects + added_projects
 
@@ -314,8 +308,7 @@ class TaskManager:
         task.progress = 90
 
         logger.info(
-            f"Incremental upload {task.task_id}: "
-            f"added {len(added_projects)} projects, total now {len(merged_projects)}"
+            f"Incremental upload {task.task_id}: " f"added {len(added_projects)} projects, total now {len(merged_projects)}"
         )
 
         return {
@@ -356,13 +349,8 @@ class TaskManager:
                 "total_projects": len(merged_projects),
                 "skills": merged_skills,
                 "languages": merged_langs,
-                "total_files": (
-                    existing_meta.get("total_files", 0) + new_meta.get("total_files", 0)
-                ),
-                "total_lines_of_code": (
-                    existing_meta.get("total_lines_of_code", 0)
-                    + new_meta.get("total_lines_of_code", 0)
-                ),
+                "total_files": (existing_meta.get("total_files", 0) + new_meta.get("total_files", 0)),
+                "total_lines_of_code": (existing_meta.get("total_lines_of_code", 0) + new_meta.get("total_lines_of_code", 0)),
                 "last_updated": datetime.now().isoformat(),
             }
         )
@@ -379,10 +367,7 @@ class TaskManager:
         to_remove = []
 
         for task_id, task in self.tasks.items():
-            if (
-                task.status in [TaskStatus.COMPLETED, TaskStatus.FAILED]
-                and task.updated_at.timestamp() < cutoff_time
-            ):
+            if task.status in [TaskStatus.COMPLETED, TaskStatus.FAILED] and task.updated_at.timestamp() < cutoff_time:
                 to_remove.append(task_id)
 
         for task_id in to_remove:

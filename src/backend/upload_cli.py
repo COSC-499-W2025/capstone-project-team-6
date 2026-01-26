@@ -76,17 +76,11 @@ def upload_single_file(file_path: Path, url: str, endpoint: str):
                 click.echo(f"  Path: {data['path']}")
             else:
                 error_detail = response.json().get("detail", "Unknown error")
-                click.echo(
-                    click.style(
-                        f"\n✗ Upload failed: {error_detail}", fg="red", bold=True
-                    )
-                )
+                click.echo(click.style(f"\n✗ Upload failed: {error_detail}", fg="red", bold=True))
                 sys.exit(1)
 
     except httpx.ConnectError:
-        click.echo(
-            click.style(f"\n✗ Error: Could not connect to {url}", fg="red", bold=True)
-        )
+        click.echo(click.style(f"\n✗ Error: Could not connect to {url}", fg="red", bold=True))
         click.echo("Make sure the backend server is running:")
         click.echo("  cd src/backend")
         click.echo("  uvicorn main:app --reload")
@@ -124,14 +118,8 @@ def upload_multiple_files(file_paths: List[Path], url: str):
                 click.echo("\nResults:")
                 for result in data["results"]:
                     if result["status"] == "success":
-                        click.echo(
-                            click.style(
-                                f"  ✓ {result['original_filename']}", fg="green"
-                            )
-                        )
-                        click.echo(
-                            f"    Saved as: {result['filename']} ({result['size_mb']} MB)"
-                        )
+                        click.echo(click.style(f"  ✓ {result['original_filename']}", fg="green"))
+                        click.echo(f"    Saved as: {result['filename']} ({result['size_mb']} MB)")
                     else:
                         click.echo(
                             click.style(
@@ -144,17 +132,11 @@ def upload_multiple_files(file_paths: List[Path], url: str):
                     sys.exit(1)
             else:
                 error_detail = response.json().get("detail", "Unknown error")
-                click.echo(
-                    click.style(
-                        f"\n✗ Upload failed: {error_detail}", fg="red", bold=True
-                    )
-                )
+                click.echo(click.style(f"\n✗ Upload failed: {error_detail}", fg="red", bold=True))
                 sys.exit(1)
 
     except httpx.ConnectError:
-        click.echo(
-            click.style(f"\n✗ Error: Could not connect to {url}", fg="red", bold=True)
-        )
+        click.echo(click.style(f"\n✗ Error: Could not connect to {url}", fg="red", bold=True))
         click.echo("Make sure the backend server is running:")
         click.echo("  cd src/backend")
         click.echo("  uvicorn main:app --reload")
@@ -172,15 +154,9 @@ def health(url: str):
         with httpx.Client(timeout=5.0) as client:
             response = client.get(f"{url}/api/health")
             if response.status_code == 200:
-                click.echo(
-                    click.style(f"✓ Backend is healthy at {url}", fg="green", bold=True)
-                )
+                click.echo(click.style(f"✓ Backend is healthy at {url}", fg="green", bold=True))
             else:
-                click.echo(
-                    click.style(
-                        f"✗ Backend returned status {response.status_code}", fg="red"
-                    )
-                )
+                click.echo(click.style(f"✗ Backend returned status {response.status_code}", fg="red"))
                 sys.exit(1)
     except httpx.ConnectError:
         click.echo(click.style(f"✗ Could not connect to {url}", fg="red", bold=True))

@@ -25,11 +25,9 @@ dotenv_mock = MagicMock()
 sys.modules["dotenv"] = dotenv_mock
 
 # Now safe to import backend modules
-from backend.analysis.llm_pipeline import (
-    _should_ignore_path,
-    _summarize_offline_report,
-    run_gemini_analysis,
-)
+from backend.analysis.llm_pipeline import (_should_ignore_path,
+                                           _summarize_offline_report,
+                                           run_gemini_analysis)
 from backend.gemini_file_search import GeminiFileSearchClient
 
 # ==========================================
@@ -88,9 +86,7 @@ class TestGeminiClient:
         monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "my-gcp-project")
 
         client = GeminiFileSearchClient()
-        mock_genai.Client.assert_called_with(
-            vertexai=True, project="my-gcp-project", location="us-central1"
-        )
+        mock_genai.Client.assert_called_with(vertexai=True, project="my-gcp-project", location="us-central1")
         assert client.model_name == "gemini-1.5-pro-002"
 
     def test_upload_batch_lifecycle(self, mock_genai):
@@ -159,13 +155,9 @@ class TestLLMPipeline:
         mocks = SimpleNamespace()
 
         # Use patchers to avoid 'mocker' fixture dependency
-        self.report_patcher = patch(
-            "backend.analysis.llm_pipeline.generate_comprehensive_report"
-        )
+        self.report_patcher = patch("backend.analysis.llm_pipeline.generate_comprehensive_report")
         self.classifier_patcher = patch("backend.analysis.llm_pipeline.FileClassifier")
-        self.client_patcher = patch(
-            "backend.analysis.llm_pipeline.GeminiFileSearchClient"
-        )
+        self.client_patcher = patch("backend.analysis.llm_pipeline.GeminiFileSearchClient")
 
         mocks.report_gen = self.report_patcher.start()
         mocks.classifier = self.classifier_patcher.start()
@@ -192,9 +184,7 @@ class TestLLMPipeline:
         }
 
         # Mock Classifier (Context Manager and File Reading)
-        mock_classifier_instance = (
-            mock_deps.classifier.return_value.__enter__.return_value
-        )
+        mock_classifier_instance = mock_deps.classifier.return_value.__enter__.return_value
         mock_classifier_instance.classify_project.return_value = {
             "files": {
                 "code": {"python": [{"path": "app.py"}]},
@@ -208,9 +198,7 @@ class TestLLMPipeline:
         # Mock ZIP reading
         mock_zip = MagicMock()
         mock_zip.read.return_value = b"import flask"  # Valid content
-        mock_zip.__enter__.return_value = (
-            mock_zip  # Ensure context manager returns self
-        )
+        mock_zip.__enter__.return_value = mock_zip  # Ensure context manager returns self
         mock_classifier_instance.zip_file = mock_zip
 
         # Mock Gemini Client
@@ -239,9 +227,7 @@ class TestLLMPipeline:
         assert "## Gemini Analysis Result" == result["llm_summary"]
 
         # C. Verify Cleanup (CRITICAL)
-        mock_client_instance.cleanup_files.assert_called_once_with(
-            ["file_ref_1", "file_ref_2"]
-        )
+        mock_client_instance.cleanup_files.assert_called_once_with(["file_ref_1", "file_ref_2"])
 
     def test_pipeline_handles_client_error(self, mock_deps, tmp_path):
         """Test that errors in Gemini initialization are caught gracefully."""
@@ -270,9 +256,7 @@ class TestLLMPipeline:
 
         # Mock Classifier
         mock_classifier = mock_deps.classifier.return_value.__enter__.return_value
-        mock_classifier.classify_project.return_value = {
-            "files": {"code": {"c": [{"path": "huge_binary.bin"}]}}
-        }
+        mock_classifier.classify_project.return_value = {"files": {"code": {"c": [{"path": "huge_binary.bin"}]}}}
 
         # Mock ZIP Read -> Return 5MB bytes
         mock_zip = MagicMock()

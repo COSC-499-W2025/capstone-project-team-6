@@ -42,13 +42,10 @@ import pytest
 
 try:
     # Try direct import first (if running from project root)
-    from backend.analysis.git_analysis import (
-        ContributorStats,
-        GitAnalysisExporter,
-        GitAnalysisResult,
-        GitAnalyzer,
-        analyze_project,
-    )
+    from backend.analysis.git_analysis import (ContributorStats,
+                                               GitAnalysisExporter,
+                                               GitAnalysisResult, GitAnalyzer,
+                                               analyze_project)
 except ImportError:
     # Add src directory to path and try again
     # Get the project root (go up from tests/backend_test to src, then to project root)
@@ -59,19 +56,15 @@ except ImportError:
     sys.path.insert(0, str(src_dir))
 
     try:
-        from src.backend.analysis.git_analysis import (
-            ContributorStats,
-            GitAnalysisExporter,
-            GitAnalysisResult,
-            GitAnalyzer,
-            analyze_project,
-        )
+        from src.backend.analysis.git_analysis import (ContributorStats,
+                                                       GitAnalysisExporter,
+                                                       GitAnalysisResult,
+                                                       GitAnalyzer,
+                                                       analyze_project)
     except ImportError as e:
         print(f"Error importing git_analysis module: {e}")
         print(f"Test directory: {test_dir}")
-        print(
-            f"Looking for module at: {src_dir / 'src' / 'backend' / 'analysis' / 'git_analysis.py'}"
-        )
+        print(f"Looking for module at: {src_dir / 'src' / 'backend' / 'analysis' / 'git_analysis.py'}")
         print("\nExpected project structure:")
         print("project_root/")
         print("├── src/")
@@ -128,9 +121,7 @@ def init_git_repo(repo_path):
     run_git_command(repo_path, "config", "user.email", "test@example.com")
 
 
-def create_commit(
-    repo_path, author_name, author_email, message, filename=None, content=None
-):
+def create_commit(repo_path, author_name, author_email, message, filename=None, content=None):
     """
     Create a commit with specified author.
 
@@ -329,9 +320,7 @@ def multi_branch_repo(temp_dir):
     init_git_repo(repo_path)
 
     # Create initial commit on main/master
-    create_commit(
-        repo_path, "Alice Developer", "alice@example.com", "Initial commit", "README.md"
-    )
+    create_commit(repo_path, "Alice Developer", "alice@example.com", "Initial commit", "README.md")
 
     # Create additional branches
     create_branch(repo_path, "feature/test")
@@ -350,9 +339,7 @@ def remote_repo(temp_dir):
     init_git_repo(repo_path)
 
     # Create initial commit
-    create_commit(
-        repo_path, "Alice Developer", "alice@example.com", "Initial commit", "README.md"
-    )
+    create_commit(repo_path, "Alice Developer", "alice@example.com", "Initial commit", "README.md")
 
     # Add remote
     setup_git_remote(repo_path, "origin", "https://github.com/user/repo.git")
@@ -1153,9 +1140,7 @@ def test_code_ownership_dominant_author(ownership_repo):
     assert "service.py" in ownership
     service_owner = ownership["service.py"]
     assert service_owner.dominant_email in {"alice@owner.com", "bob@owner.com"}
-    assert (
-        service_owner.ownership_percentage >= 40.0
-    )  # dominant lines should be majority
+    assert service_owner.ownership_percentage >= 40.0  # dominant lines should be majority
 
 
 def test_blame_summary_matches_total_lines(ownership_repo):
@@ -1175,10 +1160,7 @@ def test_contribution_volume_counts(language_mix_repo):
 
     assert result.contribution_volume.get("alice@backend.com", 0) > 0
     assert result.contribution_volume.get("bob@frontend.com", 0) > 0
-    assert (
-        result.contribution_volume["alice@backend.com"]
-        != result.contribution_volume["bob@frontend.com"]
-    )
+    assert result.contribution_volume["alice@backend.com"] != result.contribution_volume["bob@frontend.com"]
 
 
 def test_language_mapping_multi_language_repo(multi_language_repo):

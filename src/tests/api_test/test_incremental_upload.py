@@ -162,15 +162,13 @@ class TestTaskManagerIncrementalUpload:
         with patch(
             "backend.analysis_database.get_analysis_by_uuid",
             return_value=existing_portfolio,
-        ), patch("backend.cli.analyze_folder", return_value=new_analysis), patch(
-            "backend.analysis_database.get_connection"
-        ) as mock_conn:
+        ), patch(
+            "backend.cli.analyze_folder", return_value=new_analysis
+        ), patch("backend.analysis_database.get_connection") as mock_conn:
 
             # Mock database connection with proper execute().fetchone() chain
             mock_cursor = MagicMock()
-            mock_cursor.fetchone.return_value = {
-                "raw_json": json.dumps(existing_portfolio)
-            }
+            mock_cursor.fetchone.return_value = {"raw_json": json.dumps(existing_portfolio)}
 
             mock_conn_obj = MagicMock()
             mock_conn_obj.__enter__ = MagicMock(return_value=mock_conn_obj)
@@ -241,9 +239,9 @@ class TestTaskManagerIncrementalUpload:
         with patch(
             "backend.analysis_database.get_analysis_by_uuid",
             return_value=existing_portfolio,
-        ), patch("backend.cli.analyze_folder", return_value=new_analysis), patch(
-            "backend.analysis_database.get_connection"
-        ) as mock_conn:
+        ), patch(
+            "backend.cli.analyze_folder", return_value=new_analysis
+        ), patch("backend.analysis_database.get_connection") as mock_conn:
 
             mock_conn_obj = MagicMock()
             mock_conn_obj.__enter__ = MagicMock(return_value=mock_conn_obj)
@@ -264,11 +262,7 @@ class TestTaskManagerIncrementalUpload:
             assert mock_conn_obj.commit.called
 
             # Verify UPDATE query was executed
-            update_calls = [
-                call
-                for call in mock_conn_obj.execute.call_args_list
-                if "UPDATE" in str(call)
-            ]
+            update_calls = [call for call in mock_conn_obj.execute.call_args_list if "UPDATE" in str(call)]
             assert len(update_calls) > 0
 
 

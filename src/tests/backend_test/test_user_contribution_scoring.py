@@ -13,7 +13,8 @@ for p in (SRC_DIR, SRC_DIR.parent):
     if str(p) not in sys.path:
         sys.path.insert(0, str(p))
 
-from src.backend.analysis.analyze import calculate_composite_score  # noqa: E402
+from src.backend.analysis.analyze import \
+    calculate_composite_score  # noqa: E402
 
 
 def test_user_contribution_boost_applied():

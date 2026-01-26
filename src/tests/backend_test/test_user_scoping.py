@@ -50,12 +50,8 @@ def test_username_column_exists_after_init(temp_db):
 
 def test_record_and_list_are_user_scoped(temp_db):
     """Users only see their own analyses."""
-    adb.record_analysis(
-        "non_llm", _payload("uuid-a"), username="alice", analysis_uuid="uuid-a"
-    )
-    adb.record_analysis(
-        "non_llm", _payload("uuid-b"), username="bob", analysis_uuid="uuid-b"
-    )
+    adb.record_analysis("non_llm", _payload("uuid-a"), username="alice", analysis_uuid="uuid-a")
+    adb.record_analysis("non_llm", _payload("uuid-b"), username="bob", analysis_uuid="uuid-b")
 
     alice_list = {a["analysis_uuid"] for a in adb.get_all_analyses_for_user("alice")}
     bob_list = {b["analysis_uuid"] for b in adb.get_all_analyses_for_user("bob")}
@@ -66,18 +62,14 @@ def test_record_and_list_are_user_scoped(temp_db):
 
 def test_get_analysis_by_uuid_requires_owner(temp_db):
     """Fetching by UUID enforces ownership when username is provided."""
-    adb.record_analysis(
-        "non_llm", _payload("uuid-a"), username="alice", analysis_uuid="uuid-a"
-    )
+    adb.record_analysis("non_llm", _payload("uuid-a"), username="alice", analysis_uuid="uuid-a")
     assert adb.get_analysis_by_uuid("uuid-a", "alice") is not None
     assert adb.get_analysis_by_uuid("uuid-a", "bob") is None
 
 
 def test_delete_analysis_requires_owner(temp_db):
     """Deletion is blocked for non-owners and succeeds for owners."""
-    adb.record_analysis(
-        "non_llm", _payload("uuid-a"), username="alice", analysis_uuid="uuid-a"
-    )
+    adb.record_analysis("non_llm", _payload("uuid-a"), username="alice", analysis_uuid="uuid-a")
     assert adb.delete_analysis("uuid-a", "bob") is False
     assert adb.delete_analysis("uuid-a", "alice") is True
     assert adb.get_analysis_by_uuid("uuid-a", "alice") is None

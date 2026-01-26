@@ -112,10 +112,7 @@ def test_record_analysis_persists_all_entities(temp_analysis_db):
     assert analysis_row["analysis_uuid"] == "uuid-1234"
     assert analysis_row["analysis_type"] == "llm"
     assert analysis_row["total_projects"] == 1
-    assert (
-        json.loads(analysis_row["raw_json"])["projects"][0]["project_name"]
-        == "my_project"
-    )
+    assert json.loads(analysis_row["raw_json"])["projects"][0]["project_name"] == "my_project"
     assert json.loads(analysis_row["summary_languages"]) == ["python", "javascript"]
     assert json.loads(analysis_row["summary_frameworks"]) == ["Django", "React"]
     assert analysis_row["summary_total_size_mb"] == pytest.approx(0.5)
@@ -187,9 +184,7 @@ def test_record_analysis_validates_input(temp_analysis_db):
     with pytest.raises(ValueError, match="analysis_type"):
         adb.record_analysis("unexpected", SAMPLE_PAYLOAD)
 
-    minimal_payload = {
-        "analysis_metadata": {"zip_file": "x.zip", "analysis_timestamp": "now"}
-    }
+    minimal_payload = {"analysis_metadata": {"zip_file": "x.zip", "analysis_timestamp": "now"}}
     analysis_id = adb.record_analysis("non_llm", minimal_payload)
     analysis_row = adb.get_analysis(analysis_id)
     assert analysis_row["total_projects"] == 0
@@ -198,17 +193,13 @@ def test_record_analysis_validates_input(temp_analysis_db):
 def test_user_specific_storage_and_queries(temp_analysis_db):
     """Ensure analyses are stored and filtered by username."""
     # Store analyses for two different users
-    alice_id = adb.record_analysis(
-        "non_llm", SAMPLE_PAYLOAD, analysis_uuid="uuid-alice", username="alice"
-    )
+    alice_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, analysis_uuid="uuid-alice", username="alice")
 
     # Use a distinct project_path to avoid deduplication across users
     bob_payload = json.loads(json.dumps(SAMPLE_PAYLOAD))
     bob_payload["projects"][0]["project_path"] = "/workspace/my_project_bob"
     bob_payload["analysis_metadata"]["zip_file"] = "path/to/project_bob.zip"
-    bob_id = adb.record_analysis(
-        "non_llm", bob_payload, analysis_uuid="uuid-bob", username="bob"
-    )
+    bob_id = adb.record_analysis("non_llm", bob_payload, analysis_uuid="uuid-bob", username="bob")
 
     # Username is persisted
     assert adb.get_analysis(alice_id)["username"] == "alice"
@@ -483,9 +474,7 @@ def test_git_extended_fields_persisted(temp_analysis_db):
     assert project["target_user_last_commit"] == "2024-02-14T12:00:00+00:00"
 
     with adb.get_connection() as conn:
-        remotes = conn.execute(
-            "SELECT url FROM project_remote_urls WHERE project_id = ?", (project["id"],)
-        ).fetchall()
+        remotes = conn.execute("SELECT url FROM project_remote_urls WHERE project_id = ?", (project["id"],)).fetchall()
         assert {row["url"] for row in remotes} == {"https://example.com/repo.git"}
 
         ownership = conn.execute(
@@ -517,9 +506,7 @@ def test_git_extended_fields_persisted(temp_analysis_db):
             """,
             (project["id"],),
         ).fetchall()
-        assert {
-            (row["email"], row["language"], row["lines_changed"]) for row in lang_bd
-        } == {
+        assert {(row["email"], row["language"], row["lines_changed"]) for row in lang_bd} == {
             ("alice@example.com", "Python", 50),
             ("bob@example.com", "Python", 10),
         }
@@ -555,10 +542,7 @@ def test_git_extended_fields_persisted(temp_analysis_db):
             """,
             (project["id"],),
         ).fetchall()
-        assert {
-            (row["email"], row["activity_type"], row["lines_changed"])
-            for row in activity
-        } == {
+        assert {(row["email"], row["activity_type"], row["lines_changed"]) for row in activity} == {
             ("alice@example.com", "code", 40),
             ("alice@example.com", "test", 5),
             ("alice@example.com", "docs", 5),
@@ -572,9 +556,7 @@ def test_get_analysis_by_zip_file(temp_analysis_db):
     zip_file_path = "/path/to/test_project.zip"
 
     analysis_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, username="alice")
-    analysis = adb.get_analysis_by_zip_file(
-        SAMPLE_PAYLOAD["analysis_metadata"]["zip_file"], "alice"
-    )
+    analysis = adb.get_analysis_by_zip_file(SAMPLE_PAYLOAD["analysis_metadata"]["zip_file"], "alice")
 
     assert analysis is not None
     assert analysis["id"] == analysis_id
@@ -597,9 +579,7 @@ def test_get_analysis_report(temp_analysis_db):
     analysis_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, username="alice")
 
     # Retrieve report
-    report = adb.get_analysis_report(
-        SAMPLE_PAYLOAD["analysis_metadata"]["zip_file"], "alice"
-    )
+    report = adb.get_analysis_report(SAMPLE_PAYLOAD["analysis_metadata"]["zip_file"], "alice")
 
     assert report is not None
     assert report["analysis_metadata"]["zip_file"] == "path/to/project.zip"
@@ -619,9 +599,7 @@ def test_get_analysis_report_not_found(temp_analysis_db):
 def test_store_and_get_resume_items(temp_analysis_db):
     """Test storing and retrieving resume items."""
     project_name = "test_project"
-    resume_text = (
-        "Test Project\nTechnologies: Python, Django\n  • Built amazing features"
-    )
+    resume_text = "Test Project\nTechnologies: Python, Django\n  • Built amazing features"
 
     adb.store_resume_item(project_name, resume_text)
 
@@ -654,9 +632,7 @@ def test_project_skills_table_created(temp_analysis_db):
     """Test that project_skills table is created during initialization."""
     with adb.get_connection() as conn:
         # Check if table exists
-        tables = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='project_skills'"
-        ).fetchall()
+        tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='project_skills'").fetchall()
         assert len(tables) == 1
         assert tables[0]["name"] == "project_skills"
 
@@ -742,9 +718,7 @@ def test_project_skills_stored_during_analysis(temp_analysis_db):
         assert any("Django" in skill for skill in skill_names)
 
         # Should include Python OOP-related skills
-        assert any(
-            "Python" in skill or "python" in skill.lower() for skill in skill_names
-        )
+        assert any("Python" in skill or "python" in skill.lower() for skill in skill_names)
 
         # Should include testing skills
         assert any("test" in skill.lower() or "Test" in skill for skill in skill_names)

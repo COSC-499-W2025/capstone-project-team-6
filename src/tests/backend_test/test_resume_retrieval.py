@@ -17,11 +17,9 @@ sys.path.insert(0, str(src_dir))
 sys.path.insert(0, str(backend_dir))
 
 import backend.analysis_database as adb
-from backend.analysis_database import (
-    get_connection,
-    get_resume_items_for_project,
-    store_resume_item,
-)
+from backend.analysis_database import (get_connection,
+                                       get_resume_items_for_project,
+                                       store_resume_item)
 
 pytest_plugins = ["tests.backend_test.test_analysis_database"]
 
@@ -90,16 +88,12 @@ class TestResumeRetrieval:
 
     def test_store_resume_item_empty_project_name(self, temp_analysis_db):
         """Test storing résumé item with empty project name raises ValueError"""
-        with pytest.raises(
-            ValueError, match="project_name and resume_text are required"
-        ):
+        with pytest.raises(ValueError, match="project_name and resume_text are required"):
             store_resume_item("", "Some text")
 
     def test_store_resume_item_empty_resume_text(self, temp_analysis_db):
         """Test storing résumé item with empty resume text raises ValueError"""
-        with pytest.raises(
-            ValueError, match="project_name and resume_text are required"
-        ):
+        with pytest.raises(ValueError, match="project_name and resume_text are required"):
             store_resume_item("ProjectName", "")
 
 
@@ -121,9 +115,7 @@ class TestResumeRegeneration:
             assert items[0]["resume_text"] == old_resume
         for project_name, _, new_resume in projects:
             with get_connection() as conn:
-                conn.execute(
-                    "DELETE FROM resume_items WHERE project_name = ?", (project_name,)
-                )
+                conn.execute("DELETE FROM resume_items WHERE project_name = ?", (project_name,))
                 conn.commit()
             store_resume_item(project_name, new_resume)
         for project_name, _, new_resume in projects:
@@ -167,9 +159,7 @@ class TestResumeFilteringLogic:
             {"project_name": "Project2"},
         ]
         for project in projects:
-            store_resume_item(
-                project["project_name"], f"Resume for {project['project_name']}"
-            )
+            store_resume_item(project["project_name"], f"Resume for {project['project_name']}")
 
         resume_items_by_project = {}
         projects_needing_resume = []
@@ -225,9 +215,7 @@ class TestResumeFilteringLogic:
             {"project_name": "Project2"},
         ]
         for project in projects:
-            store_resume_item(
-                project["project_name"], f"Resume for {project['project_name']}"
-            )
+            store_resume_item(project["project_name"], f"Resume for {project['project_name']}")
 
         regenerate_all = True
         resume_items_by_project = {}

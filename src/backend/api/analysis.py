@@ -92,9 +92,7 @@ async def reanalyze_portfolio(
 
 @router.post("/quick", status_code=200)
 async def quick_analysis(
-    file: UploadFile = File(
-        ..., description="ZIP file to analyze (not stored as portfolio)"
-    ),
+    file: UploadFile = File(..., description="ZIP file to analyze (not stored as portfolio)"),
     analysis_type: str = Form("non_llm", description="Analysis type: llm or non_llm"),
     username: str = Depends(verify_token),
 ):

@@ -61,9 +61,7 @@ class TestAuthentication:
 
         username = f"newuser_{random.randint(1000, 9999)}"
 
-        response = client.post(
-            "/api/auth/signup", json={"username": username, "password": "password123"}
-        )
+        response = client.post("/api/auth/signup", json={"username": username, "password": "password123"})
 
         assert response.status_code == 201
         data = response.json()
@@ -73,16 +71,12 @@ class TestAuthentication:
 
     def test_signup_short_password(self, client):
         """Test signup rejects password less than 6 characters."""
-        response = client.post(
-            "/api/auth/signup", json={"username": "testuser", "password": "12345"}
-        )
+        response = client.post("/api/auth/signup", json={"username": "testuser", "password": "12345"})
         assert response.status_code == 422  # Validation error
 
     def test_signup_short_username(self, client):
         """Test signup rejects username less than 3 characters."""
-        response = client.post(
-            "/api/auth/signup", json={"username": "ab", "password": "password123"}
-        )
+        response = client.post("/api/auth/signup", json={"username": "ab", "password": "password123"})
         assert response.status_code == 422  # Validation error
 
     def test_signup_duplicate_user(self, client):
@@ -92,15 +86,11 @@ class TestAuthentication:
         username = f"dupuser_{random.randint(1000, 9999)}"
 
         # Create user first time
-        response1 = client.post(
-            "/api/auth/signup", json={"username": username, "password": "password123"}
-        )
+        response1 = client.post("/api/auth/signup", json={"username": username, "password": "password123"})
         assert response1.status_code == 201
 
         # Try to create same user again
-        response2 = client.post(
-            "/api/auth/signup", json={"username": username, "password": "password123"}
-        )
+        response2 = client.post("/api/auth/signup", json={"username": username, "password": "password123"})
         assert response2.status_code == 409  # Conflict
 
     def test_login_success(self, client):
@@ -111,14 +101,10 @@ class TestAuthentication:
         password = "password123"
 
         # Create user first
-        client.post(
-            "/api/auth/signup", json={"username": username, "password": password}
-        )
+        client.post("/api/auth/signup", json={"username": username, "password": password})
 
         # Try to login
-        response = client.post(
-            "/api/auth/login", json={"username": username, "password": password}
-        )
+        response = client.post("/api/auth/login", json={"username": username, "password": password})
 
         assert response.status_code == 200
         data = response.json()
@@ -133,14 +119,10 @@ class TestAuthentication:
         username = f"wrongpass_{random.randint(1000, 9999)}"
 
         # Create user
-        client.post(
-            "/api/auth/signup", json={"username": username, "password": "correctpass"}
-        )
+        client.post("/api/auth/signup", json={"username": username, "password": "correctpass"})
 
         # Try to login with wrong password
-        response = client.post(
-            "/api/auth/login", json={"username": username, "password": "wrongpass"}
-        )
+        response = client.post("/api/auth/login", json={"username": username, "password": "wrongpass"})
         assert response.status_code == 401  # Unauthorized
 
     def test_login_nonexistent_user(self, client):
@@ -194,9 +176,7 @@ class TestRequestValidation:
 
     def test_invalid_token_format(self, client):
         """Test endpoints reject invalid token format."""
-        response = client.post(
-            "/api/auth/logout", headers={"Authorization": "Bearer invalid_token_xyz"}
-        )
+        response = client.post("/api/auth/logout", headers={"Authorization": "Bearer invalid_token_xyz"})
         assert response.status_code == 401  # Unauthorized
 
 
@@ -210,9 +190,7 @@ class TestPortfolioEndpoints:
 
     def test_list_portfolios_with_invalid_token(self, client):
         """Test portfolio list rejects invalid token."""
-        response = client.get(
-            "/api/portfolios", headers={"Authorization": "Bearer fake_token"}
-        )
+        response = client.get("/api/portfolios", headers={"Authorization": "Bearer fake_token"})
         assert response.status_code == 401
 
 

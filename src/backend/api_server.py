@@ -6,8 +6,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.analysis_database import init_db as init_analysis_db
-from backend.curation import init_curation_tables
-
 # Import routers from modular API structure
 from backend.api.analysis import router as analysis_router
 from backend.api.auth import router as auth_router
@@ -16,6 +14,7 @@ from backend.api.portfolios import router as portfolios_router
 from backend.api.projects import router as projects_router
 from backend.api.resume import router as resume_router
 from backend.api.tasks import router as tasks_router
+from backend.curation import init_curation_tables
 from backend.database import init_db as init_user_db
 
 # Initialize databases

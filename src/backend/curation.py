@@ -196,9 +196,7 @@ def get_user_projects(user_id: str) -> List[Dict[str, Any]]:
                 (project["id"],),
             ).fetchall()
 
-            project["languages"] = {
-                lang["language"]: lang["file_count"] for lang in languages
-            }
+            project["languages"] = {lang["language"]: lang["file_count"] for lang in languages}
             project["frameworks"] = [fw["framework"] for fw in frameworks]
 
             projects.append(project)
@@ -211,10 +209,7 @@ def get_user_projects(user_id: str) -> List[Dict[str, Any]]:
             # Sort by date , moved order section from database query to here
             projects.sort(
                 key=lambda x: (
-                    x["effective_last_commit_date"]
-                    or x["effective_last_modified_date"]
-                    or x["analysis_timestamp"]
-                    or ""
+                    x["effective_last_commit_date"] or x["effective_last_modified_date"] or x["analysis_timestamp"] or ""
                 )
             )
 
@@ -235,9 +230,7 @@ def save_chronology_correction(
             conn.execute("PRAGMA foreign_keys = ON;")
 
             # Validate project exists
-            project = conn.execute(
-                "SELECT id FROM projects WHERE id = ?", (project_id,)
-            ).fetchone()
+            project = conn.execute("SELECT id FROM projects WHERE id = ?", (project_id,)).fetchone()
             if not project:
                 return False
 
@@ -337,9 +330,7 @@ def save_comparison_attributes(user_id: str, attributes: List[str]) -> bool:
     """Save user's preferred comparison attributes."""
     try:
         # Validate attributes
-        valid_attributes = set(
-            DEFAULT_COMPARISON_ATTRIBUTES + list(ATTRIBUTE_DESCRIPTIONS.keys())
-        )
+        valid_attributes = set(DEFAULT_COMPARISON_ATTRIBUTES + list(ATTRIBUTE_DESCRIPTIONS.keys()))
         invalid = set(attributes) - valid_attributes
         if invalid:
             raise ValueError(f"Invalid attributes: {invalid}")
@@ -390,9 +381,7 @@ def save_showcase_projects(user_id: str, project_ids: List[int]) -> bool:
             conn.execute("PRAGMA foreign_keys = ON;")
 
             for pid in project_ids:
-                project = conn.execute(
-                    "SELECT id FROM projects WHERE id = ?", (pid,)
-                ).fetchone()
+                project = conn.execute("SELECT id FROM projects WHERE id = ?", (pid,)).fetchone()
                 if not project:
                     raise ValueError(f"Project {pid} not found")
 
@@ -555,9 +544,7 @@ def get_showcase_projects(user_id: str) -> List[Dict[str, Any]]:
                 (project["id"],),
             ).fetchall()
 
-            project["languages"] = {
-                lang["language"]: lang["file_count"] for lang in languages
-            }
+            project["languages"] = {lang["language"]: lang["file_count"] for lang in languages}
             project["frameworks"] = [fw["framework"] for fw in frameworks]
 
             projects.append(project)
@@ -575,9 +562,7 @@ def get_available_skills_alphabetical() -> List[str]:
     all_skill_entries = get_all_skills_chronological()
 
     # Each entry is expected to have a `.skill` attribute (based on existing usage patterns)
-    skills = sorted(
-        {entry.skill for entry in all_skill_entries if getattr(entry, "skill", None)}
-    )
+    skills = sorted({entry.skill for entry in all_skill_entries if getattr(entry, "skill", None)})
 
     return skills
 

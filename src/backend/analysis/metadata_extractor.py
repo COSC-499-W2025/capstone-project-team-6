@@ -68,9 +68,7 @@ class ProjectMetadata:
 
     # Technology stack detection
     frameworks: List[str] = field(default_factory=list)
-    dependencies: Dict[str, List[str]] = field(
-        default_factory=dict
-    )  # package_manager -> packages
+    dependencies: Dict[str, List[str]] = field(default_factory=dict)  # package_manager -> packages
 
     # Project structure insights
     has_tests: bool = False
@@ -82,15 +80,11 @@ class ProjectMetadata:
     # Git information (if available)
     is_git_repo: bool = False
     contributors: List[Dict[str, Any]] = field(default_factory=list)
-    commit_authors: List[str] = field(
-        default_factory=list
-    )  # List of contributor email addresses
+    commit_authors: List[str] = field(default_factory=list)  # List of contributor email addresses
     branch_count: int = 0  # Number of branches in the repository
     total_commits: int = 0
     last_commit_date: Optional[str] = None
-    last_modified_date: Optional[str] = (
-        None  # Most recent file modification timestamp from ZIP
-    )
+    last_modified_date: Optional[str] = None  # Most recent file modification timestamp from ZIP
 
     # Complexity indicators
     directory_depth: int = 0
@@ -299,9 +293,7 @@ class MetadataExtractor:
                     continue
             else:
                 # For root project, exclude excluded directories
-                if "/" in normalized and self._is_excluded_directory(
-                    normalized.split("/")[0]
-                ):
+                if "/" in normalized and self._is_excluded_directory(normalized.split("/")[0]):
                     continue
 
             # Check if it's a code file
@@ -391,9 +383,7 @@ class MetadataExtractor:
 
         return final_projects if final_projects else [""]
 
-    def extract_dependencies(
-        self, project_path: str, config_files: List[Dict]
-    ) -> Dict[str, List[str]]:
+    def extract_dependencies(self, project_path: str, config_files: List[Dict]) -> Dict[str, List[str]]:
         # Extract dependencies from configuration files.
         # Returns a dictionary mapping package manager to list of dependencies
 
@@ -413,9 +403,7 @@ class MetadataExtractor:
 
         return dict(dependencies)
 
-    def _parse_dependency_file(
-        self, file_path: str, filename: str, patterns: Dict[str, str]
-    ) -> List[str]:
+    def _parse_dependency_file(self, file_path: str, filename: str, patterns: Dict[str, str]) -> List[str]:
         # Parse a specific dependency file.
         # Returns a list of dependency names found in the file.
 
@@ -488,9 +476,7 @@ class MetadataExtractor:
 
         return list(set(detected_frameworks))
 
-    def _read_file_content(
-        self, file_path: str, max_size: int = 100000
-    ) -> Optional[str]:
+    def _read_file_content(self, file_path: str, max_size: int = 100000) -> Optional[str]:
         # Read file content from ZIP.
         # Returns the content of the file or None if not found or too large.
 
@@ -624,11 +610,7 @@ class MetadataExtractor:
 
         return None
 
-    def parse_git_log(
-        self, project_path: str
-    ) -> tuple[
-        Dict[str, ContributorInfo], int, Optional[str], Optional[Dict[str, Any]]
-    ]:
+    def parse_git_log(self, project_path: str) -> tuple[Dict[str, ContributorInfo], int, Optional[str], Optional[Dict[str, Any]]]:
         # Parse git log if .git directory is present in the ZIP.
         # Returns a tuple of (contributors dict, total commits, last_commit_date, git_details)
 
@@ -671,45 +653,27 @@ class MetadataExtractor:
                         self.zip_file.extract(member, temp_project_path)
 
                 # Point to the extracted project directory
-                extracted_path = (
-                    temp_project_path / project_path
-                    if project_path
-                    else temp_project_path
-                )
+                extracted_path = temp_project_path / project_path if project_path else temp_project_path
 
                 if (extracted_path / ".git").exists():
                     analyzer = GitAnalyzer(str(extracted_path))
 
                     if analyzer.check_git_available() and analyzer.check_git_repo():
-                        git_result = analyzer.analyze(
-                            target_user_email=self.target_user_email
-                        )
+                        git_result = analyzer.analyze(target_user_email=self.target_user_email)
                         git_details = git_result.to_dict()
                         total_commits = git_result.total_commits
                         last_commit_date = (
-                            git_result.last_commit_date
-                            or git_result.project_end_date
-                            or git_result.project_start_date
+                            git_result.last_commit_date or git_result.project_end_date or git_result.project_start_date
                         )
 
                         # Normalize contributors for downstream compatibility
                         for contributor in git_result.contributors or []:
-                            data = (
-                                contributor
-                                if isinstance(contributor, dict)
-                                else asdict(contributor)
-                            )
+                            data = contributor if isinstance(contributor, dict) else asdict(contributor)
                             email = data.get("email") or ""
                             name = data.get("name") or ""
-                            commits = (
-                                data.get("commit_count") or data.get("commits") or 0
-                            )
-                            first_commit = data.get("first_commit_date") or data.get(
-                                "first_commit"
-                            )
-                            last_commit = data.get("last_commit_date") or data.get(
-                                "last_commit"
-                            )
+                            commits = data.get("commit_count") or data.get("commits") or 0
+                            first_commit = data.get("first_commit_date") or data.get("first_commit")
+                            last_commit = data.get("last_commit_date") or data.get("last_commit")
 
                             contributors[email] = ContributorInfo(
                                 name=name,
@@ -749,17 +713,13 @@ class MetadataExtractor:
         metadata.target_user_email = self.target_user_email
 
         # Count files by category
-        metadata.code_files = sum(
-            len(files_list) for files_list in files["code"].values()
-        )
+        metadata.code_files = sum(len(files_list) for files_list in files["code"].values())
         metadata.test_files = len(files["tests"])
         metadata.doc_files = len(files["docs"])
         metadata.config_files = len(files["configs"])
 
         # Language statistics
-        language_counts = {
-            lang: len(file_list) for lang, file_list in files["code"].items()
-        }
+        language_counts = {lang: len(file_list) for lang, file_list in files["code"].items()}
         metadata.languages = language_counts
 
         if language_counts:
@@ -767,25 +727,17 @@ class MetadataExtractor:
 
         # Project structure indicators
         metadata.has_tests = metadata.test_files > 0
-        metadata.has_readme = any(
-            "readme" in f["filename"].lower() for f in files["docs"]
-        )
+        metadata.has_readme = any("readme" in f["filename"].lower() for f in files["docs"])
         metadata.has_docker = any(
-            "dockerfile" in f["filename"].lower()
-            or "docker-compose" in f["filename"].lower()
-            for f in files["configs"]
+            "dockerfile" in f["filename"].lower() or "docker-compose" in f["filename"].lower() for f in files["configs"]
         )
         metadata.has_ci_cd = self.check_ci_cd(files)
 
         # Test coverage estimate
-        metadata.test_coverage_estimate = self.estimate_test_coverage(
-            metadata.code_files, metadata.test_files
-        )
+        metadata.test_coverage_estimate = self.estimate_test_coverage(metadata.code_files, metadata.test_files)
 
         # Extract dependencies
-        metadata.dependencies = self.extract_dependencies(
-            project_path, files["configs"]
-        )
+        metadata.dependencies = self.extract_dependencies(project_path, files["configs"])
 
         # Detect frameworks
         metadata.frameworks = self.detect_frameworks(project_path, files)
@@ -795,17 +747,13 @@ class MetadataExtractor:
         metadata.largest_file = self.find_largest_file(files)
 
         # Git analysis (if available)
-        contributors, total_commits, last_commit_date, git_details = self.parse_git_log(
-            project_path
-        )
+        contributors, total_commits, last_commit_date, git_details = self.parse_git_log(project_path)
         metadata.is_git_repo = total_commits > 0 or self._check_git_files(project_path)
         metadata.total_commits = total_commits
         metadata.last_commit_date = last_commit_date
         metadata.contributors = [c.to_dict() for c in contributors.values()]
         # Extract commit_authors from contributors (list of email addresses)
-        metadata.commit_authors = (
-            [c.email for c in contributors.values()] if contributors else []
-        )
+        metadata.commit_authors = [c.email for c in contributors.values()] if contributors else []
 
         if git_details:
             # Extract branch count from git analysis
@@ -838,9 +786,7 @@ class MetadataExtractor:
 
             target_user_stats = git_details.get("target_user_stats") or {}
             # Persist target user email even if analyzer matched a different casing
-            metadata.target_user_email = (
-                target_user_stats.get("email") or self.target_user_email
-            )
+            metadata.target_user_email = target_user_stats.get("email") or self.target_user_email
             metadata.target_user_stats = target_user_stats or None
 
         # Get last modified date from ZIP file metadata (fallback when git is not available)
@@ -856,10 +802,7 @@ class MetadataExtractor:
         for file_path in self.zip_file.namelist():
             normalized = file_path.replace("\\", "/")
             for indicator in git_indicators:
-                if (
-                    normalized.startswith(prefix + indicator)
-                    or normalized == prefix.rstrip("/") + "/" + indicator
-                ):
+                if normalized.startswith(prefix + indicator) or normalized == prefix.rstrip("/") + "/" + indicator:
                     return True
 
         return False
@@ -902,19 +845,9 @@ class MetadataExtractor:
             "summary": {
                 "total_files": sum(p["total_files"] for p in projects_metadata),
                 "total_size_bytes": sum(p["total_size"] for p in projects_metadata),
-                "total_size_mb": round(
-                    sum(p["total_size"] for p in projects_metadata) / (1024 * 1024), 2
-                ),
-                "languages_used": list(
-                    set(
-                        lang
-                        for p in projects_metadata
-                        for lang in p["languages"].keys()
-                    )
-                ),
-                "frameworks_used": list(
-                    set(fw for p in projects_metadata for fw in p["frameworks"])
-                ),
+                "total_size_mb": round(sum(p["total_size"] for p in projects_metadata) / (1024 * 1024), 2),
+                "languages_used": list(set(lang for p in projects_metadata for lang in p["languages"].keys())),
+                "frameworks_used": list(set(fw for p in projects_metadata for fw in p["frameworks"])),
             },
         }
 

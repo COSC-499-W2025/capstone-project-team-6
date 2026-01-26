@@ -9,7 +9,6 @@ These tests verify the complete authentication flow across multiple components:
 """
 
 import json
-
 # Import backend modules
 import sys
 from pathlib import Path
@@ -24,9 +23,7 @@ from backend import database, session
 class TestSignupIntegration:
     """Integration tests for user signup functionality."""
 
-    def test_successful_signup_creates_user_and_session(
-        self, isolated_test_env, temp_session_file
-    ):
+    def test_successful_signup_creates_user_and_session(self, isolated_test_env, temp_session_file):
         """
         Test 1: Successful signup creates user in database and session file.
 
@@ -50,9 +47,7 @@ class TestSignupIntegration:
         assert user_record is not None, "User should exist in database"
         assert user_record["username"] == username
         assert user_record["password_hash"] != password, "Password should be hashed"
-        assert (
-            len(user_record["password_hash"]) > 20
-        ), "Hash should be substantial length"
+        assert len(user_record["password_hash"]) > 20, "Hash should be substantial length"
 
         # Step 3: Authenticate user (creates session)
         auth_success = database.authenticate_user(username, password)
@@ -64,18 +59,14 @@ class TestSignupIntegration:
         # Step 5: Verify session contents
         session_data = json.loads(temp_session_file.read_text())
         assert session_data["logged_in"] is True, "User should be logged in"
-        assert (
-            session_data["username"] == username
-        ), "Session should contain correct username"
+        assert session_data["username"] == username, "Session should contain correct username"
 
         # Step 6: Verify get_session() returns correct data
         retrieved_session = session.get_session()
         assert retrieved_session["logged_in"] is True
         assert retrieved_session["username"] == username
 
-    def test_duplicate_signup_prevents_creation(
-        self, isolated_test_env, temp_session_file
-    ):
+    def test_duplicate_signup_prevents_creation(self, isolated_test_env, temp_session_file):
         """
         Test 2: Attempting to signup with existing username fails.
 
@@ -107,9 +98,7 @@ class TestSignupIntegration:
 
         # Step 5: Verify only one entry in database
         with database.get_connection() as conn:
-            count = conn.execute(
-                "SELECT COUNT(*) as count FROM users WHERE username = ?", (username,)
-            ).fetchone()["count"]
+            count = conn.execute("SELECT COUNT(*) as count FROM users WHERE username = ?", (username,)).fetchone()["count"]
             assert count == 1, "Should only have one user entry"
 
         # Step 6: Verify no session created (since we didn't authenticate)
@@ -138,9 +127,7 @@ class TestSignupIntegration:
 
         # Step 3: Verify no users created
         with database.get_connection() as conn:
-            count = conn.execute("SELECT COUNT(*) as count FROM users").fetchone()[
-                "count"
-            ]
+            count = conn.execute("SELECT COUNT(*) as count FROM users").fetchone()["count"]
             assert count == 0, "No users should be created"
 
     def test_signup_with_special_characters_in_username(self, isolated_test_env):
@@ -183,9 +170,7 @@ class TestSignupIntegration:
 class TestLoginIntegration:
     """Integration tests for user login functionality."""
 
-    def test_successful_login_creates_session(
-        self, isolated_test_env, temp_session_file
-    ):
+    def test_successful_login_creates_session(self, isolated_test_env, temp_session_file):
         """
         Test 5: Successful login creates session file with correct data.
 
@@ -211,9 +196,7 @@ class TestLoginIntegration:
         auth_success = database.authenticate_user(username, password)
 
         # Step 4: Verify authentication succeeded
-        assert (
-            auth_success is True
-        ), "Authentication should succeed with correct credentials"
+        assert auth_success is True, "Authentication should succeed with correct credentials"
 
         # Step 5: Verify session file created
         assert temp_session_file.exists(), "Session file should be created after login"
@@ -251,9 +234,7 @@ class TestLoginIntegration:
         assert auth_success is False, "Authentication should fail with wrong password"
 
         # Step 5: Verify no session file created
-        assert (
-            not temp_session_file.exists()
-        ), "Session file should not be created on failed login"
+        assert not temp_session_file.exists(), "Session file should not be created on failed login"
 
         # Step 6: Verify session state shows not logged in
         session_data = session.get_session()
@@ -293,9 +274,7 @@ class TestLoginIntegration:
         session_data = session.get_session()
         assert session_data["logged_in"] is False
 
-    def test_login_overwrites_previous_session(
-        self, isolated_test_env, temp_session_file, mock_users
-    ):
+    def test_login_overwrites_previous_session(self, isolated_test_env, temp_session_file, mock_users):
         """
         Test 8: Logging in as a different user overwrites previous session.
 
@@ -332,23 +311,17 @@ class TestLoginIntegration:
         # Step 5: Verify session file content
         file_content = json.loads(temp_session_file.read_text())
         assert file_content["username"] == "bob"
-        assert "alice" not in json.dumps(
-            file_content
-        ), "Alice should not be in session anymore"
+        assert "alice" not in json.dumps(file_content), "Alice should not be in session anymore"
 
 
 class TestHelpers:
     """Helper tests to verify test infrastructure works correctly."""
 
-    def test_isolated_test_env_provides_clean_state(
-        self, isolated_test_env, temp_db, temp_session_file
-    ):
+    def test_isolated_test_env_provides_clean_state(self, isolated_test_env, temp_db, temp_session_file):
         """Verify that isolated_test_env fixture provides clean state."""
         # Database should be empty
         with database.get_connection() as conn:
-            count = conn.execute("SELECT COUNT(*) as count FROM users").fetchone()[
-                "count"
-            ]
+            count = conn.execute("SELECT COUNT(*) as count FROM users").fetchone()["count"]
             assert count == 0, "Database should be empty"
 
         # Session file should not exist

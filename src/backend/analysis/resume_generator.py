@@ -105,9 +105,7 @@ def _generate_project_items(project: Dict[str, Any]) -> List[str]:
     return items
 
 
-def _generate_opening_item(
-    project: Dict[str, Any], project_name: str, project_type: str
-) -> Optional[str]:
+def _generate_opening_item(project: Dict[str, Any], project_name: str, project_type: str) -> Optional[str]:
     primary_lang = project.get("primary_language", "")
     code_files = project.get("code_files", 0)
     frameworks = project.get("frameworks", [])
@@ -138,9 +136,7 @@ def _generate_opening_item(
         return f"Developed {project_name}, a {type_name} in {primary_lang}{framework_context}, delivering focused functionality through modular design."
 
 
-def _generate_architecture_items(
-    project: Dict[str, Any], project_name: str, project_type: str
-) -> List[str]:
+def _generate_architecture_items(project: Dict[str, Any], project_name: str, project_type: str) -> List[str]:
     """Generate architecture and design pattern items."""
     items = []
 
@@ -152,9 +148,7 @@ def _generate_architecture_items(
         if total_classes > 0:
             features = []
             if oop.get("inheritance_depth", 0) >= 3:
-                features.append(
-                    f"multi-level inheritance hierarchies ({oop['inheritance_depth']} levels)"
-                )
+                features.append(f"multi-level inheritance hierarchies ({oop['inheritance_depth']} levels)")
             elif oop.get("inheritance_depth", 0) > 0:
                 features.append("inheritance-based design")
 
@@ -167,9 +161,7 @@ def _generate_architecture_items(
             private = oop.get("private_methods", 0)
             protected = oop.get("protected_methods", 0)
             if private + protected > 10:
-                features.append(
-                    f"strong encapsulation ({private + protected} private/protected methods)"
-                )
+                features.append(f"strong encapsulation ({private + protected} private/protected methods)")
             elif private + protected > 0:
                 features.append("encapsulation patterns")
             if oop.get("properties_count", 0) > 5:
@@ -186,9 +178,7 @@ def _generate_architecture_items(
                 items.append(
                     f"Structured {project_name} using object-oriented design with {total_classes} classes and modular architecture for scalability."
                 )
-    if "java_oop_analysis" in project and "error" not in project.get(
-        "java_oop_analysis", {}
-    ):
+    if "java_oop_analysis" in project and "error" not in project.get("java_oop_analysis", {}):
         java = project["java_oop_analysis"]
         total_types = java.get("total_classes", 0) + java.get("interface_count", 0)
 
@@ -201,21 +191,15 @@ def _generate_architecture_items(
                 features.append(f"{patterns_str} design patterns")
 
             if java.get("interface_count", 0) >= 5:
-                features.append(
-                    f"{java['interface_count']} interfaces for contract-based design"
-                )
+                features.append(f"{java['interface_count']} interfaces for contract-based design")
             elif java.get("interface_count", 0) > 0:
                 features.append("interface-based architecture")
 
             if java.get("generic_classes", 0) > 0:
-                features.append(
-                    f"generic programming ({java['generic_classes']} generic classes)"
-                )
+                features.append(f"generic programming ({java['generic_classes']} generic classes)")
 
             if java.get("lambda_count", 0) > 10:
-                features.append(
-                    f"functional programming ({java['lambda_count']} lambda expressions)"
-                )
+                features.append(f"functional programming ({java['lambda_count']} lambda expressions)")
             if java.get("private_fields", 0) > java.get("public_fields", 0) * 2:
                 features.append("SOLID principles")
 
@@ -242,16 +226,12 @@ def _generate_architecture_items(
     return items
 
 
-def _generate_optimization_items(
-    project: Dict[str, Any], project_name: str
-) -> List[str]:
+def _generate_optimization_items(project: Dict[str, Any], project_name: str) -> List[str]:
     """Generate items based on complexity and optimization analysis."""
     items = []
 
     # Complexity analysis
-    if "complexity_analysis" in project and "error" not in project.get(
-        "complexity_analysis", {}
-    ):
+    if "complexity_analysis" in project and "error" not in project.get("complexity_analysis", {}):
         complexity = project["complexity_analysis"]
         score = complexity.get("optimization_score", 0)
         insights_count = complexity.get("insights_count", 0)
@@ -291,9 +271,7 @@ def _generate_optimization_items(
     return items
 
 
-def _generate_tech_items(
-    project: Dict[str, Any], project_name: str, project_type: str
-) -> List[str]:
+def _generate_tech_items(project: Dict[str, Any], project_name: str, project_type: str) -> List[str]:
     items = []
 
     languages = list(project.get("languages", {}).keys())
@@ -391,9 +369,7 @@ def _generate_quality_items(project: Dict[str, Any], project_name: str) -> List[
                 f"Configured CI/CD pipeline through which automated testing is enabled, enabling continuous integration and deployment with quality gates."
             )
         else:
-            items.append(
-                f"Set up CI/CD infrastructure, automating build and deployment processes for efficient release cycles."
-            )
+            items.append(f"Set up CI/CD infrastructure, automating build and deployment processes for efficient release cycles.")
 
     # Code quality tools
     dependencies = project.get("dependencies", {})
@@ -462,9 +438,7 @@ def _generate_scale_items(project: Dict[str, Any], project_name: str) -> List[st
     return items
 
 
-def _generate_unique_items(
-    project: Dict[str, Any], project_name: str, project_type: str
-) -> List[str]:
+def _generate_unique_items(project: Dict[str, Any], project_name: str, project_type: str) -> List[str]:
     """Generate items highlighting unique project characteristics."""
     items = []
 
@@ -557,9 +531,7 @@ def generate_formatted_resume_entry(project: Dict[str, Any]) -> str:
     tech_stack = [t for t in tech_stack if t]
     tech_line = ""
     if tech_stack:
-        tech_line = "Technologies: " + ", ".join(
-            sorted(set(tech_stack))[:10]
-        )  # Limit to top 10
+        tech_line = "Technologies: " + ", ".join(sorted(set(tech_stack))[:10])  # Limit to top 10
 
     # Bullet formatting
     bullet_str = ""

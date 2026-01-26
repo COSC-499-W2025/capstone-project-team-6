@@ -10,19 +10,11 @@ import zipfile
 from pathlib import Path
 from typing import Optional
 
-from src.backend.curation_cli import (
-    curate_project_rank_interactive,
-    curate_skills_highlight_interactive,
-)
+from src.backend.curation_cli import (curate_project_rank_interactive,
+                                      curate_skills_highlight_interactive)
 
-from . import (
-    Folder_traversal_fs,
-    MDAShell,
-    UserAlreadyExistsError,
-    authenticate_user,
-    create_user,
-    initialize,
-)
+from . import (Folder_traversal_fs, MDAShell, UserAlreadyExistsError,
+               authenticate_user, create_user, initialize)
 from .analysis.analyze import calculate_composite_score
 from .analysis.deep_code_analyzer import generate_comprehensive_report
 from .analysis.document_analyzer import DocumentAnalysis, analyze_document
@@ -135,9 +127,7 @@ def create_temp_zip(directory: Path) -> Path:
     return temp_zip
 
 
-def analyze_folder(
-    path: Path, target_user_email: Optional[str] = None, quick_mode: bool = False
-) -> dict:
+def analyze_folder(path: Path, target_user_email: Optional[str] = None, quick_mode: bool = False) -> dict:
     """Analyze a folder or ZIP file using the comprehensive analysis pipeline.
 
     Args:
@@ -181,9 +171,7 @@ def analyze_folder(
         else:
             print(f"Running quick analysis (skipping heavy git operations)...")
 
-        report = generate_comprehensive_report(
-            zip_path, target_user_email=target_user_email, quick_mode=quick_mode
-        )
+        report = generate_comprehensive_report(zip_path, target_user_email=target_user_email, quick_mode=quick_mode)
 
         # Add C++ and C analysis to the report
         for i, project in enumerate(report["projects"]):
@@ -195,9 +183,7 @@ def analyze_folder(
                     from .analysis.cpp_oop_analyzer import analyze_cpp_project
 
                     cpp_analysis = analyze_cpp_project(zip_path, project_path)
-                    report["projects"][i]["cpp_oop_analysis"] = cpp_analysis[
-                        "cpp_oop_analysis"
-                    ]
+                    report["projects"][i]["cpp_oop_analysis"] = cpp_analysis["cpp_oop_analysis"]
                 except ImportError:
                     report["projects"][i]["cpp_oop_analysis"] = {
                         "error": "C++ analyzer not available (libclang not installed)",
@@ -211,18 +197,14 @@ def analyze_folder(
 
             # C Analysis (note: .c files are classified as cpp in project_analyzer)
             # So we check for cpp language and run C analyzer too
-            if "cpp" in project.get("languages", {}) or "c" in project.get(
-                "languages", {}
-            ):
+            if "cpp" in project.get("languages", {}) or "c" in project.get("languages", {}):
                 try:
                     from .analysis.c_oop_analyzer import analyze_c_project
 
                     c_analysis = analyze_c_project(zip_path, project_path)
                     # Only add if we found C-style code
                     if c_analysis["c_oop_analysis"].get("total_structs", 0) > 0:
-                        report["projects"][i]["c_oop_analysis"] = c_analysis[
-                            "c_oop_analysis"
-                        ]
+                        report["projects"][i]["c_oop_analysis"] = c_analysis["c_oop_analysis"]
                 except ImportError:
                     pass  # C analyzer optional
                 except Exception as e:
@@ -354,9 +336,7 @@ def display_analysis(results: dict) -> None:
         languages = project.get("languages", {})
         if languages:
             print(f"\nLanguages:")
-            for lang, count in sorted(
-                languages.items(), key=lambda x: x[1], reverse=True
-            ):
+            for lang, count in sorted(languages.items(), key=lambda x: x[1], reverse=True):
                 print(f"   • {lang}: {count} files")
 
         # Frameworks
@@ -384,9 +364,7 @@ def display_analysis(results: dict) -> None:
         has_docker = project.get("has_docker", False)
 
         print(f"\nProject Health:")
-        print(
-            f"   {'[x]' if has_tests else '[ ]'} Tests: {project.get('test_files', 0)} test files"
-        )
+        print(f"   {'[x]' if has_tests else '[ ]'} Tests: {project.get('test_files', 0)} test files")
         print(f"   {'[x]' if has_readme else '[ ]'} README")
         print(f"   {'[x]' if has_ci_cd else '[ ]'} CI/CD")
         print(f"   {'[x]' if has_docker else '[ ]'} Docker")
@@ -405,11 +383,7 @@ def display_analysis(results: dict) -> None:
             activity_breakdown = project.get("activity_breakdown", {})
             lines_changed = contribution_volume.get(target_user_email)
             surviving_lines = blame_summary.get(target_user_email)
-            commit_count = (
-                target_user_stats.get("commit_count")
-                or target_user_stats.get("commits")
-                or 0
-            )
+            commit_count = target_user_stats.get("commit_count") or target_user_stats.get("commits") or 0
             commit_share = target_user_stats.get("percentage") or 0
 
             print("\nTarget User Contribution:")
@@ -418,14 +392,10 @@ def display_analysis(results: dict) -> None:
             if lines_changed is not None:
                 print(f"   Lines changed: {lines_changed}")
             if surviving_lines is not None:
-                total_surviving = sum(
-                    v for v in blame_summary.values() if isinstance(v, (int, float))
-                )
+                total_surviving = sum(v for v in blame_summary.values() if isinstance(v, (int, float)))
                 if total_surviving > 0:
                     percentage = (surviving_lines / total_surviving) * 100
-                    print(
-                        f"   Surviving lines: {surviving_lines} ({percentage:.1f}% of codebase)"
-                    )
+                    print(f"   Surviving lines: {surviving_lines} ({percentage:.1f}% of codebase)")
                 else:
                     print(f"   Surviving lines: {surviving_lines}")
 
@@ -436,9 +406,7 @@ def display_analysis(results: dict) -> None:
                 substantial = user_semantic.get("substantial_commits", 0)
                 total_lines_semantic = user_semantic.get("total_lines_changed", 0)
                 if trivial > 0 or substantial > 0:
-                    print(
-                        f"   Commit breakdown: {substantial} substantial, {trivial} trivial commits"
-                    )
+                    print(f"   Commit breakdown: {substantial} substantial, {trivial} trivial commits")
                 if total_lines_semantic > 0:
                     print(f"   Total lines changed (semantic): {total_lines_semantic}")
 
@@ -471,9 +439,7 @@ def display_analysis(results: dict) -> None:
             private = oop.get("private_methods", 0)
             protected = oop.get("protected_methods", 0)
             if private > 0 or protected > 0:
-                print(
-                    f"   Encapsulation: {private} private, {protected} protected methods"
-                )
+                print(f"   Encapsulation: {private} private, {protected} protected methods")
 
             properties = oop.get("properties_count", 0)
             if properties > 0:
@@ -502,9 +468,7 @@ def display_analysis(results: dict) -> None:
             private = java_oop.get("private_methods", 0)
             protected = java_oop.get("protected_methods", 0)
             if private > 0 or protected > 0:
-                print(
-                    f"   Encapsulation: {private} private, {protected} protected methods"
-                )
+                print(f"   Encapsulation: {private} private, {protected} protected methods")
 
             inheritance = java_oop.get("classes_with_inheritance", 0)
             if inheritance > 0:
@@ -513,15 +477,11 @@ def display_analysis(results: dict) -> None:
             overrides = java_oop.get("override_count", 0)
             overloads_java = java_oop.get("method_overloads", 0)
             if overrides > 0 or overloads_java > 0:
-                print(
-                    f"   Polymorphism: {overrides} overrides, {overloads_java} overloads"
-                )
+                print(f"   Polymorphism: {overrides} overrides, {overloads_java} overloads")
 
         # OOP Analysis (for C++ projects)
         cpp_oop = project.get("cpp_oop_analysis", {})
-        if cpp_oop and (
-            cpp_oop.get("total_classes", 0) > 0 or cpp_oop.get("struct_count", 0) > 0
-        ):
+        if cpp_oop and (cpp_oop.get("total_classes", 0) > 0 or cpp_oop.get("struct_count", 0) > 0):
             print(f"\nOOP Analysis (C++):")
             print(f"   Classes: {cpp_oop.get('total_classes', 0)}")
             print(f"   Structs: {cpp_oop.get('struct_count', 0)}")
@@ -533,9 +493,7 @@ def display_analysis(results: dict) -> None:
             private = cpp_oop.get("private_methods", 0)
             protected = cpp_oop.get("protected_methods", 0)
             if private > 0 or protected > 0:
-                print(
-                    f"   Encapsulation: {private} private, {protected} protected methods"
-                )
+                print(f"   Encapsulation: {private} private, {protected} protected methods")
 
             virtual = cpp_oop.get("virtual_methods", 0)
             if virtual > 0:
@@ -570,9 +528,7 @@ def display_analysis(results: dict) -> None:
 
             constructors = c_oop.get("constructor_destructor_pairs", 0)
             if constructors > 0:
-                print(
-                    f"   Memory Management: {constructors} constructor/destructor pairs"
-                )
+                print(f"   Memory Management: {constructors} constructor/destructor pairs")
 
         # Git Analysis
         git_analysis = project.get("git_analysis", {})
@@ -602,21 +558,12 @@ def display_analysis(results: dict) -> None:
         contribution_volume = project.get("contribution_volume", {})
         blame_summary = project.get("blame_summary", {})
 
-        if (
-            semantic_summary
-            or activity_breakdown
-            or contribution_volume
-            or blame_summary
-        ):
+        if semantic_summary or activity_breakdown or contribution_volume or blame_summary:
             print(f"\nDetailed Contribution Analysis:")
 
             # Show overall contribution volume
             if contribution_volume:
-                total_lines = sum(
-                    v
-                    for v in contribution_volume.values()
-                    if isinstance(v, (int, float))
-                )
+                total_lines = sum(v for v in contribution_volume.values() if isinstance(v, (int, float)))
                 print(f"   Total lines changed: {total_lines}")
                 if len(contribution_volume) > 1:
                     print(f"   Contributors with changes: {len(contribution_volume)}")
@@ -629,50 +576,26 @@ def display_analysis(results: dict) -> None:
                     print(f"   Top contributors by lines:")
                     for email, lines in sorted_contributors:
                         if isinstance(lines, (int, float)) and lines > 0:
-                            percentage = (
-                                (lines / total_lines * 100) if total_lines > 0 else 0
-                            )
+                            percentage = (lines / total_lines * 100) if total_lines > 0 else 0
                             print(f"      • {email}: {lines} lines ({percentage:.1f}%)")
 
             # Show semantic summary (trivial vs substantial)
             if semantic_summary:
                 total_substantial = sum(
-                    stats.get("substantial_commits", 0)
-                    for stats in semantic_summary.values()
-                    if isinstance(stats, dict)
+                    stats.get("substantial_commits", 0) for stats in semantic_summary.values() if isinstance(stats, dict)
                 )
                 total_trivial = sum(
-                    stats.get("trivial_commits", 0)
-                    for stats in semantic_summary.values()
-                    if isinstance(stats, dict)
+                    stats.get("trivial_commits", 0) for stats in semantic_summary.values() if isinstance(stats, dict)
                 )
                 if total_substantial > 0 or total_trivial > 0:
-                    print(
-                        f"   Commit quality: {total_substantial} substantial, {total_trivial} trivial commits"
-                    )
+                    print(f"   Commit quality: {total_substantial} substantial, {total_trivial} trivial commits")
 
             # Show activity breakdown summary
             if activity_breakdown:
-                total_code = sum(
-                    act.get("code", 0)
-                    for act in activity_breakdown.values()
-                    if isinstance(act, dict)
-                )
-                total_test = sum(
-                    act.get("test", 0)
-                    for act in activity_breakdown.values()
-                    if isinstance(act, dict)
-                )
-                total_docs = sum(
-                    act.get("docs", 0)
-                    for act in activity_breakdown.values()
-                    if isinstance(act, dict)
-                )
-                total_design = sum(
-                    act.get("design", 0)
-                    for act in activity_breakdown.values()
-                    if isinstance(act, dict)
-                )
+                total_code = sum(act.get("code", 0) for act in activity_breakdown.values() if isinstance(act, dict))
+                total_test = sum(act.get("test", 0) for act in activity_breakdown.values() if isinstance(act, dict))
+                total_docs = sum(act.get("docs", 0) for act in activity_breakdown.values() if isinstance(act, dict))
+                total_design = sum(act.get("design", 0) for act in activity_breakdown.values() if isinstance(act, dict))
 
                 activity_parts = []
                 if total_code > 0:
@@ -689,9 +612,7 @@ def display_analysis(results: dict) -> None:
 
             # Show blame summary (surviving lines)
             if blame_summary:
-                total_surviving = sum(
-                    v for v in blame_summary.values() if isinstance(v, (int, float))
-                )
+                total_surviving = sum(v for v in blame_summary.values() if isinstance(v, (int, float)))
                 if total_surviving > 0:
                     print(f"   Total surviving lines: {total_surviving}")
                     if len(blame_summary) > 1:
@@ -703,14 +624,8 @@ def display_analysis(results: dict) -> None:
                         print(f"   Top code owners:")
                         for email, lines in sorted_blame:
                             if isinstance(lines, (int, float)) and lines > 0:
-                                percentage = (
-                                    (lines / total_surviving * 100)
-                                    if total_surviving > 0
-                                    else 0
-                                )
-                                print(
-                                    f"      • {email}: {lines} lines ({percentage:.1f}%)"
-                                )
+                                percentage = (lines / total_surviving * 100) if total_surviving > 0 else 0
+                                print(f"      • {email}: {lines} lines ({percentage:.1f}%)")
 
         # Enhanced Contribution Ranking Scores
         try:
@@ -807,9 +722,7 @@ def display_analysis(results: dict) -> None:
                     "memoization",
                 ]:
                     if summary.get(key, 0) > 0:
-                        good_practices.append(
-                            f"{key.replace('_', ' ').title()}: {summary[key]}"
-                        )
+                        good_practices.append(f"{key.replace('_', ' ').title()}: {summary[key]}")
 
                 # Issues
                 for key in [
@@ -818,9 +731,7 @@ def display_analysis(results: dict) -> None:
                     "inefficient_membership_test",
                 ]:
                     if summary.get(key, 0) > 0:
-                        issues.append(
-                            f"{key.replace('_', ' ').title()}: {summary[key]}"
-                        )
+                        issues.append(f"{key.replace('_', ' ').title()}: {summary[key]}")
 
                 if good_practices:
                     print(f"   Good Practices Found:")
@@ -904,9 +815,7 @@ def display_document_analysis(analysis: DocumentAnalysis) -> None:
 
     print(f"\nAcademic Indicators:")
     print(f"   {'[x]' if wm.has_formal_tone else '[ ]'} Formal tone maintained")
-    print(
-        f"   {'[x]' if wm.has_technical_vocabulary else '[ ]'} Technical vocabulary used appropriately"
-    )
+    print(f"   {'[x]' if wm.has_technical_vocabulary else '[ ]'} Technical vocabulary used appropriately")
 
     # Document Structure
     print("\n" + "-" * 70)
@@ -915,9 +824,7 @@ def display_document_analysis(analysis: DocumentAnalysis) -> None:
 
     struct = analysis.structure_analysis
     print(f"Structure Quality: {struct.structure_quality.replace('_', ' ').title()}")
-    print(
-        f"   {'[x]' if struct.has_introduction else '[ ]'} Clear introduction section"
-    )
+    print(f"   {'[x]' if struct.has_introduction else '[ ]'} Clear introduction section")
     print(f"   {'[x]' if struct.has_conclusion else '[ ]'} Strong conclusion section")
 
     if struct.paragraph_count > 0:
@@ -937,17 +844,11 @@ def display_document_analysis(analysis: DocumentAnalysis) -> None:
         print("\nSuggested Resume Bullets:")
         # Generate formatted resume bullets
         if cit.in_text_count >= 10 and wm.page_estimate >= 3:
-            print(
-                f'   • "Conducted academic research and authored {wm.page_estimate:.0f}-page paper with'
-            )
-            print(
-                f'      {cit.in_text_count} peer-reviewed citations using {cit.style} format"'
-            )
+            print(f'   • "Conducted academic research and authored {wm.page_estimate:.0f}-page paper with')
+            print(f'      {cit.in_text_count} peer-reviewed citations using {cit.style} format"')
 
         if wm.flesch_kincaid_grade and wm.flesch_kincaid_grade >= 16:
-            print(
-                f'   • "Demonstrated advanced writing proficiency (Grade {int(wm.flesch_kincaid_grade)}+ reading'
-            )
+            print(f'   • "Demonstrated advanced writing proficiency (Grade {int(wm.flesch_kincaid_grade)}+ reading')
             print(f'      level) in formal academic contexts"')
 
         if wm.has_formal_tone and wm.has_technical_vocabulary:
@@ -972,9 +873,7 @@ def analyze_essay(file_path: Path) -> DocumentAnalysis:
     text = extract_text(str(file_path))
 
     if not text or len(text.strip()) < 100:
-        raise ValueError(
-            "Could not extract sufficient text from document. File may be empty or unsupported format."
-        )
+        raise ValueError("Could not extract sufficient text from document. File may be empty or unsupported format.")
 
     # Analyze the document
     analysis = analyze_document(str(file_path), text)
@@ -1005,9 +904,7 @@ def analyze_complexity(zip_path: Path, verbose: bool = False) -> int:
         for directory, info in project_results.items():
             if info.is_project:
                 # Check if it has Python files (heuristic: check for .py indicator)
-                if any(
-                    "py" in indicator.lower() for indicator in info.indicators_found
-                ):
+                if any("py" in indicator.lower() for indicator in info.indicators_found):
                     python_projects.append(directory)
 
         if not python_projects:
@@ -1056,9 +953,7 @@ def main() -> int:
     from .shell import MDAShell
 
     parser = argparse.ArgumentParser(description="Mining Digital Artifacts CLI")
-    parser.add_argument(
-        "--interactive", "-i", action="store_true", help="Start in interactive mode"
-    )
+    parser.add_argument("--interactive", "-i", action="store_true", help="Start in interactive mode")
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
     # Login command
@@ -1084,14 +979,10 @@ def main() -> int:
         dest="user_email",
         help="Git email used to attribute and rank contributions for the requesting user",
     )
-    analyze_parser.add_argument(
-        "--verbose", "-v", action="store_true", help="Show detailed complexity findings"
-    )
+    analyze_parser.add_argument("--verbose", "-v", action="store_true", help="Show detailed complexity findings")
 
     # LLM arguments merged into analyze
-    analyze_parser.add_argument(
-        "--prompt", help="Custom analysis prompt for AI (requires consent)"
-    )
+    analyze_parser.add_argument("--prompt", help="Custom analysis prompt for AI (requires consent)")
     analyze_parser.add_argument(
         "--architecture",
         action="store_true",
@@ -1107,30 +998,20 @@ def main() -> int:
         action="store_true",
         help="AI: Infer soft skills and testing maturity",
     )
-    analyze_parser.add_argument(
-        "--domain", action="store_true", help="AI: Domain-specific best practices"
-    )
+    analyze_parser.add_argument("--domain", action="store_true", help="AI: Domain-specific best practices")
     analyze_parser.add_argument(
         "--resume",
         action="store_true",
         help="AI: Generate resume and portfolio artifacts",
     )
-    analyze_parser.add_argument(
-        "--all", action="store_true", help="AI: Enable all deep analysis features"
-    )
+    analyze_parser.add_argument("--all", action="store_true", help="AI: Enable all deep analysis features")
 
     # Analyze-essay command
-    essay_parser = subparsers.add_parser(
-        "analyze-essay", help="Analyze an essay or document"
-    )
-    essay_parser.add_argument(
-        "path", help="Path to the document file (.txt, .pdf, .docx, .md)"
-    )
+    essay_parser = subparsers.add_parser("analyze-essay", help="Analyze an essay or document")
+    essay_parser.add_argument("path", help="Path to the document file (.txt, .pdf, .docx, .md)")
 
     # Timeline command
-    timeline_parser = subparsers.add_parser(
-        "timeline", help="Show chronological timelines from stored analyses"
-    )
+    timeline_parser = subparsers.add_parser("timeline", help="Show chronological timelines from stored analyses")
     timeline_parser.add_argument(
         "type",
         choices=["projects", "skills", "all-skills"],
@@ -1138,52 +1019,30 @@ def main() -> int:
     )
 
     # Curation command
-    curate_parser = subparsers.add_parser(
-        "curate", help="Curate project information and presentation"
-    )
-    curate_subparsers = curate_parser.add_subparsers(
-        dest="curate_type", help="Curation options"
-    )
+    curate_parser = subparsers.add_parser("curate", help="Curate project information and presentation")
+    curate_subparsers = curate_parser.add_subparsers(dest="curate_type", help="Curation options")
 
     # Chronology correction
-    chrono_parser = curate_subparsers.add_parser(
-        "chronology", help="Correct project dates and chronology"
-    )
+    chrono_parser = curate_subparsers.add_parser("chronology", help="Correct project dates and chronology")
 
     # Comparison attributes
-    comparison_parser = curate_subparsers.add_parser(
-        "comparison", help="Select attributes for project comparison"
-    )
+    comparison_parser = curate_subparsers.add_parser("comparison", help="Select attributes for project comparison")
 
     # Project re-ranking
-    rerank_parser = curate_subparsers.add_parser(
-        "rerank", help="Allows the rer-ranking of projects based on your preference"
-    )
+    rerank_parser = curate_subparsers.add_parser("rerank", help="Allows the rer-ranking of projects based on your preference")
 
-    skills_parser = curate_subparsers.add_parser(
-        "skills-highlight", help="Select up to 10 skills to highlight"
-    )
+    skills_parser = curate_subparsers.add_parser("skills-highlight", help="Select up to 10 skills to highlight")
 
     # Showcase projects
-    showcase_parser = curate_subparsers.add_parser(
-        "showcase", help="Select top 3 projects to showcase"
-    )
+    showcase_parser = curate_subparsers.add_parser("showcase", help="Select top 3 projects to showcase")
 
     # Status overview
-    status_parser = curate_subparsers.add_parser(
-        "status", help="Show current curation settings"
-    )
+    status_parser = curate_subparsers.add_parser("status", help="Show current curation settings")
 
     # Consent command
-    consent_parser = subparsers.add_parser(
-        "consent", help="View or update consent status"
-    )
-    consent_parser.add_argument(
-        "--status", action="store_true", help="Check current consent status"
-    )
-    consent_parser.add_argument(
-        "--update", action="store_true", help="Update consent status"
-    )
+    consent_parser = subparsers.add_parser("consent", help="View or update consent status")
+    consent_parser.add_argument("--status", action="store_true", help="Check current consent status")
+    consent_parser.add_argument("--update", action="store_true", help="Update consent status")
 
     args = parser.parse_args()
 
@@ -1269,9 +1128,7 @@ def main() -> int:
                     return 0
                 else:
                     save_user_consent(username, False)
-                    print(
-                        "\nYou have not provided consent. Some features will be limited."
-                    )
+                    print("\nYou have not provided consent. Some features will be limited.")
                     return 1
 
         elif args.command == "analyze":
@@ -1289,13 +1146,7 @@ def main() -> int:
                 return 1
 
             llm_features_requested = (
-                args.all
-                or args.prompt
-                or args.architecture
-                or args.security
-                or args.skills
-                or args.domain
-                or args.resume
+                args.all or args.prompt or args.architecture or args.security or args.skills or args.domain or args.resume
             )
 
             path = Path(args.path)
@@ -1311,14 +1162,10 @@ def main() -> int:
                     print(f"\n[*] Analyzing Python code complexity in: {path.name}")
                     return analyze_complexity(path, args.verbose)
                 elif args.complexity:
-                    print(
-                        "\n❌ Traditional complexity analysis requires a ZIP file. Continuing with standard analysis..."
-                    )
+                    print("\n❌ Traditional complexity analysis requires a ZIP file. Continuing with standard analysis...")
 
             # Validate path type
-            if not path.is_dir() and not (
-                path.is_file() and path.suffix.lower() == ".zip"
-            ):
+            if not path.is_dir() and not (path.is_file() and path.suffix.lower() == ".zip"):
                 print(f"\nPath must be a directory or ZIP file: {path}")
                 return 1
 
@@ -1340,9 +1187,7 @@ def main() -> int:
             try:
                 for target_path in targets:
                     print(f"\n[*] Analyzing: {target_path}")
-                    results = analyze_folder(
-                        target_path, target_user_email=args.user_email
-                    )
+                    results = analyze_folder(target_path, target_user_email=args.user_email)
                     display_analysis(results)
                     batch_results.append(results)
 
@@ -1374,46 +1219,30 @@ def main() -> int:
                             # temporary UUID for tracking (NOT written to DB)
                             import uuid
 
-                        analysis_id = record_analysis(
-                            "non_llm", results, username=username
-                        )
-                        analysis_uuid = results.get("analysis_metadata", {}).get(
-                            "analysis_uuid", "unknown"
-                        )
-                        print(
-                            f"\nAnalysis saved to database (ID: {analysis_id}, UUID: {analysis_uuid})"
-                        )
+                        analysis_id = record_analysis("non_llm", results, username=username)
+                        analysis_uuid = results.get("analysis_metadata", {}).get("analysis_uuid", "unknown")
+                        print(f"\nAnalysis saved to database (ID: {analysis_id}, UUID: {analysis_uuid})")
 
                         # Ask if user wants to add more projects incrementally
                         while True:
                             try:
                                 response = (
-                                    input(
-                                        "\n"
-                                        + "=" * 70
-                                        + "\nWould you like to add more projects to this portfolio? (y/N): "
-                                    )
+                                    input("\n" + "=" * 70 + "\nWould you like to add more projects to this portfolio? (y/N): ")
                                     .strip()
                                     .lower()
                                 )
                                 if response in ["y", "yes"]:
-                                    additional_path = input(
-                                        "Enter path to additional ZIP file or folder: "
-                                    ).strip()
+                                    additional_path = input("Enter path to additional ZIP file or folder: ").strip()
                                     if not additional_path:
                                         print("No path provided, skipping...")
                                         break
 
                                     additional_path = Path(additional_path).expanduser()
                                     if not additional_path.exists():
-                                        print(
-                                            f"Error: Path does not exist: {additional_path}"
-                                        )
+                                        print(f"Error: Path does not exist: {additional_path}")
                                         continue
 
-                                    print(
-                                        f"\n[*] Analyzing additional projects from: {additional_path}"
-                                    )
+                                    print(f"\n[*] Analyzing additional projects from: {additional_path}")
                                     new_results = analyze_folder(
                                         additional_path,
                                         target_user_email=args.user_email,
@@ -1425,27 +1254,21 @@ def main() -> int:
                                     new_projects = new_results.get("projects", [])
 
                                     # Deduplicate by project_path
-                                    existing_paths = {
-                                        p.get("project_path") for p in existing_projects
-                                    }
+                                    existing_paths = {p.get("project_path") for p in existing_projects}
                                     added_count = 0
                                     for proj in new_projects:
-                                        if (
-                                            proj.get("project_path")
-                                            not in existing_paths
-                                        ):
+                                        if proj.get("project_path") not in existing_paths:
                                             existing_projects.append(proj)
                                             added_count += 1
 
                                     results["projects"] = existing_projects
-                                    results["analysis_metadata"]["total_projects"] = (
-                                        len(existing_projects)
-                                    )
+                                    results["analysis_metadata"]["total_projects"] = len(existing_projects)
 
                                     # Update database
                                     import json
 
-                                    from .analysis_database import get_connection
+                                    from .analysis_database import \
+                                        get_connection
 
                                     with get_connection() as conn:
                                         conn.execute(
@@ -1462,12 +1285,8 @@ def main() -> int:
                                         )
                                         conn.commit()
 
-                                    print(
-                                        f"\n✓ Added {added_count} new project(s) to portfolio"
-                                    )
-                                    print(
-                                        f"✓ Total projects now: {len(existing_projects)}"
-                                    )
+                                    print(f"\n✓ Added {added_count} new project(s) to portfolio")
+                                    print(f"✓ Total projects now: {len(existing_projects)}")
                                     print(f"✓ Portfolio UUID: {analysis_uuid}")
                                 else:
                                     break
@@ -1500,41 +1319,27 @@ def main() -> int:
                             )
                     if aggregated_projects:
                         aggregated_projects.sort(
-                            key=lambda x: x["score_data"].get(
-                                "adjusted_score", x["score_data"]["composite_score"]
-                            ),
+                            key=lambda x: x["score_data"].get("adjusted_score", x["score_data"]["composite_score"]),
                             reverse=True,
                         )
                         print("\n" + "=" * 78)
-                        print(
-                            f"  CONTRIBUTION-AWARE RANKING (target: {args.user_email})"
-                        )
+                        print(f"  CONTRIBUTION-AWARE RANKING (target: {args.user_email})")
                         print("=" * 78)
                         for idx, item in enumerate(aggregated_projects, 1):
                             proj = item["project"]
                             score = item["score_data"]
-                            adjusted = score.get(
-                                "adjusted_score", score["composite_score"]
-                            )
+                            adjusted = score.get("adjusted_score", score["composite_score"])
                             user_score = score.get("user_contribution_score", 0.0)
-                            print(
-                                f"\nRANK #{idx}: {proj.get('project_name', 'Unknown Project')}"
-                            )
+                            print(f"\nRANK #{idx}: {proj.get('project_name', 'Unknown Project')}")
                             print(f"  Source: {item['zip_file']}")
-                            print(
-                                f"  Adjusted Score: {adjusted:.2f} (User boost: {user_score:.2f})"
-                            )
+                            print(f"  Adjusted Score: {adjusted:.2f} (User boost: {user_score:.2f})")
                             print(f"  Composite Score: {score['composite_score']:.2f}")
                             if user_score == 0.0:
-                                print(
-                                    "  Target user contribution: none detected for this project"
-                                )
+                                print("  Target user contribution: none detected for this project")
 
                 # 2. Check Consent for LLM Analysis
                 if has_consented:
-                    print(
-                        "\n[+] Consent verified. Proceeding with AI-powered analysis..."
-                    )
+                    print("\n[+] Consent verified. Proceeding with AI-powered analysis...")
 
                     # Prepare ZIP for LLM if input was a directory
                     llm_target_path = path
@@ -1576,15 +1381,13 @@ def main() -> int:
                                 active_features.append("resume")
 
                         try:
-                            from rich.progress import (
-                                BarColumn,
-                                Progress,
-                                SpinnerColumn,
-                                TaskProgressColumn,
-                                TextColumn,
-                            )
+                            from rich.progress import (BarColumn, Progress,
+                                                       SpinnerColumn,
+                                                       TaskProgressColumn,
+                                                       TextColumn)
 
-                            from .analysis.llm_pipeline import run_gemini_analysis
+                            from .analysis.llm_pipeline import \
+                                run_gemini_analysis
 
                             print(f"[*] Running Gemini analysis on: {llm_target_path}")
 
@@ -1596,17 +1399,11 @@ def main() -> int:
                                 TaskProgressColumn(),
                                 transient=True,
                             ) as progress:
-                                task = progress.add_task(
-                                    "Analyzing with AI...", total=100
-                                )
+                                task = progress.add_task("Analyzing with AI...", total=100)
 
                                 def cli_progress_callback(current, total, msg):
-                                    percent = (
-                                        (current / total) * 100 if total > 0 else 0
-                                    )
-                                    progress.update(
-                                        task, completed=percent, description=msg
-                                    )
+                                    percent = (current / total) * 100 if total > 0 else 0
+                                    progress.update(task, completed=percent, description=msg)
 
                                 llm_results = run_gemini_analysis(
                                     llm_target_path,
@@ -1672,18 +1469,12 @@ def main() -> int:
 
                 else:
                     print("\n[i] AI-powered analysis skipped (No consent provided).")
-                    print(
-                        "    Run 'mda consent --update' to enable deep code insights."
-                    )
+                    print("    Run 'mda consent --update' to enable deep code insights.")
 
                 # Prompt to save JSON output
                 print("\n" + "=" * 70)
                 try:
-                    response = (
-                        input("Would you like to save the full analysis as JSON? (y/N): ")
-                        .strip()
-                        .lower()
-                    )
+                    response = input("Would you like to save the full analysis as JSON? (y/N): ").strip().lower()
                 except (EOFError, OSError):
                     response = "n"
                 if response in ["y", "yes"]:
@@ -1691,20 +1482,14 @@ def main() -> int:
                     from datetime import datetime
 
                     # decide which dictionary to use
-                    final_results = (
-                        llm_results
-                        if "llm_results" in locals() and llm_features_requested
-                        else results
-                    )
+                    final_results = llm_results if "llm_results" in locals() and llm_features_requested else results
 
                     # Generate filename based on project name and timestamp
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     is_llm = "llm_results" in locals() and llm_features_requested
                     default_filename = f"analysis_{timestamp}.json"
 
-                    filename = input(
-                        f"Enter filename (default: {default_filename}): "
-                    ).strip()
+                    filename = input(f"Enter filename (default: {default_filename}): ").strip()
                     if not filename:
                         filename = default_filename
 
@@ -1727,9 +1512,8 @@ def main() -> int:
                     print_resume_items(results)
 
                     # Generate portfolio items (separate from resume)
-                    from .analysis.portfolio_item_generator import (
-                        generate_portfolio_item,
-                    )
+                    from .analysis.portfolio_item_generator import \
+                        generate_portfolio_item
 
                     print("\n" + "=" * 70)
                     print("  GENERATED PORTFOLIO ITEMS")
@@ -1740,9 +1524,7 @@ def main() -> int:
                             portfolio_item = generate_portfolio_item(project)
 
                             print(f"\n{'━' * 70}")
-                            print(
-                                f"PROJECT: {portfolio_item.get('project_name', 'Unknown')}"
-                            )
+                            print(f"PROJECT: {portfolio_item.get('project_name', 'Unknown')}")
                             print(f"{'━' * 70}")
 
                             # Project statistics
@@ -1857,11 +1639,9 @@ def main() -> int:
 
         elif args.command == "timeline":
             # No login/consent required to view previously stored aggregate timelines
-            from .analysis.chronology import (
-                get_all_skills_chronological,
-                get_projects_timeline,
-                get_skills_timeline,
-            )
+            from .analysis.chronology import (get_all_skills_chronological,
+                                              get_projects_timeline,
+                                              get_skills_timeline)
 
             try:
                 init_db()
@@ -1975,9 +1755,7 @@ def main() -> int:
                     curate_project_rank_interactive,
                     curate_showcase_projects_interactive,
                     curate_skills_highlight_interactive,
-                    display_curation_status,
-                    display_showcase_summary,
-                )
+                    display_curation_status, display_showcase_summary)
 
                 init_db()
                 init_curation_tables()
@@ -2011,9 +1789,7 @@ def main() -> int:
                 print("  mda curate showcase    - Choose top 3 projects")
                 print("  mda curate status      - Show current settings")
                 print("  mda curate rerank      - Re-rank projects")
-                print(
-                    "  mda curate skills-highlight - Choose up to 10 skills to display"
-                )
+                print("  mda curate skills-highlight - Choose up to 10 skills to display")
 
                 return 1
 

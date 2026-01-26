@@ -11,10 +11,8 @@ Or directly:
 import sys
 from pathlib import Path
 
-from analysis.resume_generator import (
-    generate_formatted_resume_entry,
-    generate_full_resume,
-)
+from analysis.resume_generator import (generate_formatted_resume_entry,
+                                       generate_full_resume)
 
 # Add parent directories to path to allow imports
 current_dir = Path(__file__).parent
@@ -33,13 +31,9 @@ from analysis.metadata_extractor import MetadataExtractor
 def main():
     """Main entry point for metadata extraction CLI."""
     if len(sys.argv) < 2:
-        print(
-            "Usage: python -m src.backend.analysis.run_metadata_extractor <zip_path> [output_path]"
-        )
+        print("Usage: python -m src.backend.analysis.run_metadata_extractor <zip_path> [output_path]")
         print("\nExample:")
-        print(
-            "  python -m src.backend.analysis.run_metadata_extractor test_project.zip output.json"
-        )
+        print("  python -m src.backend.analysis.run_metadata_extractor test_project.zip output.json")
         sys.exit(1)
 
     zip_path = Path(sys.argv[1])
@@ -85,9 +79,7 @@ def main():
         print(f"\n{i}. {project['project_name']}")
         print(f"   Path: {project['project_path'] or '(root)'}")
         print(f"   Primary Language: {project['primary_language'] or 'N/A'}")
-        print(
-            f"   Files: {project['total_files']} ({project['code_files']} code, {project['test_files']} tests)"
-        )
+        print(f"   Files: {project['total_files']} ({project['code_files']} code, {project['test_files']} tests)")
         print(f"   Test Coverage: {project['test_coverage_estimate']}")
 
         if project["frameworks"]:
