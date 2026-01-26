@@ -104,7 +104,9 @@ class ZipFileSystem(FileSystemInterface):
                 self.dir_map[parent] = []
 
             # Only add if not already present (avoid duplicates)
-            if not any(child.filename.rstrip("/") == path for child in self.dir_map[parent]):
+            if not any(
+                child.filename.rstrip("/") == path for child in self.dir_map[parent]
+            ):
                 self.dir_map[parent].append(info)
 
     def iterdir(self, path: str) -> Iterator[FileSystemEntry]:
@@ -357,7 +359,9 @@ class ProjectHeuristics:
         return all_indicators
 
 
-def calculate_project_score_fs(fs: FileSystemInterface, directory_path: str) -> tuple[float, List[str], bool, int]:
+def calculate_project_score_fs(
+    fs: FileSystemInterface, directory_path: str
+) -> tuple[float, List[str], bool, int]:
     """
     Calculate a project score for a directory using a file system interface.
     Works with both regular file systems and ZIP archives.
@@ -463,7 +467,9 @@ def Folder_traversal_fs(root_path: Union[str, Path]) -> Dict[str, DirectoryNode]
         current_node = node_info[current_dir_str]
 
         # Score this directory
-        score, indicators, has_files, subdir_count = calculate_project_score_fs(fs, current_dir_str)
+        score, indicators, has_files, subdir_count = calculate_project_score_fs(
+            fs, current_dir_str
+        )
 
         # Populate the data into the node
         current_node.score = score
@@ -483,7 +489,9 @@ def Folder_traversal_fs(root_path: Union[str, Path]) -> Dict[str, DirectoryNode]
                     if item.is_dir():
                         # Score this immediate child to detect nested projects
                         child_path_str = item.path_str
-                        child_score, child_indicators, child_has_files, _ = calculate_project_score_fs(fs, child_path_str)
+                        child_score, child_indicators, child_has_files, _ = (
+                            calculate_project_score_fs(fs, child_path_str)
+                        )
 
                         # If potential project fill in details
                         if child_score >= ProjectHeuristics.PROJECT_THRESHOLD:
@@ -551,7 +559,10 @@ def Folder_traversal_fs(root_path: Union[str, Path]) -> Dict[str, DirectoryNode]
                             break
                     else:
                         # For regular paths
-                        if Path(child_path_str).parent == Path(path_str) and child_node.is_project:
+                        if (
+                            Path(child_path_str).parent == Path(path_str)
+                            and child_node.is_project
+                        ):
                             child_node.is_project = False
                             break
 

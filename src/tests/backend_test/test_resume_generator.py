@@ -11,15 +11,17 @@ backend_dir = src_dir / "backend"
 sys.path.insert(0, str(src_dir))
 sys.path.insert(0, str(backend_dir))
 
-from backend.analysis.resume_generator import (_detect_project_type,
-                                               _generate_architecture_items,
-                                               _generate_opening_item,
-                                               _generate_project_items,
-                                               _generate_tech_items,
-                                               format_resume_items,
-                                               generate_formatted_resume_entry,
-                                               generate_full_resume,
-                                               generate_resume_items)
+from backend.analysis.resume_generator import (
+    _detect_project_type,
+    _generate_architecture_items,
+    _generate_opening_item,
+    _generate_project_items,
+    _generate_tech_items,
+    format_resume_items,
+    generate_formatted_resume_entry,
+    generate_full_resume,
+    generate_resume_items,
+)
 
 
 def test_detect_web_app():
@@ -103,7 +105,9 @@ def test_database_integration():
         "dependencies": {"pip": ["sqlalchemy", "flask"]},
     }
     items = _generate_tech_items(project, "TestProject", "application")
-    assert any("database" in item.lower() or "sqlalchemy" in item.lower() for item in items)
+    assert any(
+        "database" in item.lower() or "sqlalchemy" in item.lower() for item in items
+    )
 
 
 def test_complete_project():

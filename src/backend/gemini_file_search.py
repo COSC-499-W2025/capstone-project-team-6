@@ -33,11 +33,17 @@ class GeminiFileSearchClient:
             logger.info("Initialized Gemini Client in AI Studio mode.")
         elif self.project_id:
             # Vertex AI Mode (ADC / Service Account)
-            self.client = genai.Client(vertexai=True, project=self.project_id, location=self.location)
+            self.client = genai.Client(
+                vertexai=True, project=self.project_id, location=self.location
+            )
             self.model_name = "gemini-1.5-pro-002"
-            logger.info(f"Initialized Gemini Client in Vertex AI mode ({self.project_id}).")
+            logger.info(
+                f"Initialized Gemini Client in Vertex AI mode ({self.project_id})."
+            )
         else:
-            raise ValueError("No valid credentials found. Set GOOGLE_API_KEY or GOOGLE_CLOUD_PROJECT.")
+            raise ValueError(
+                "No valid credentials found. Set GOOGLE_API_KEY or GOOGLE_CLOUD_PROJECT."
+            )
 
     def upload_batch(
         self,
@@ -84,7 +90,9 @@ class GeminiFileSearchClient:
                     # Note: We pass the 'file' argument (path to file), NOT 'path'
                     uploaded_file = self.client.files.upload(
                         file=temp_file_path,
-                        config=types.UploadFileConfig(display_name=rel_path, mime_type="text/plain"),
+                        config=types.UploadFileConfig(
+                            display_name=rel_path, mime_type="text/plain"
+                        ),
                     )
                     uploaded_files.append(uploaded_file)
 
@@ -113,14 +121,18 @@ class GeminiFileSearchClient:
                 # Poll until ready or failed
                 while current_file.state.name == "PROCESSING":
                     if progress_callback:
-                        progress_callback(current_step, total_steps, f"Processing {f.display_name}...")
+                        progress_callback(
+                            current_step, total_steps, f"Processing {f.display_name}..."
+                        )
                     time.sleep(1)
                     current_file = self.client.files.get(name=f.name)
 
                 if current_file.state.name == "ACTIVE":
                     active_files.append(current_file)
                 else:
-                    logger.error(f"File {f.display_name} failed processing: {current_file.state.name}")
+                    logger.error(
+                        f"File {f.display_name} failed processing: {current_file.state.name}"
+                    )
             except Exception as e:
                 logger.error(f"Error checking state for {f.name}: {e}")
 

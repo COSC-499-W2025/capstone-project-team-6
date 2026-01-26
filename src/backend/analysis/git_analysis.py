@@ -112,7 +112,9 @@ class GitAnalysisResult:
     code_ownership: List[Dict] = field(default_factory=list)
     blame_summary: Dict[str, int] = field(default_factory=dict)
     language_breakdown: Dict[str, Dict[str, int]] = field(default_factory=dict)
-    semantic_summary: Dict[str, Dict[str, Union[int, str]]] = field(default_factory=dict)
+    semantic_summary: Dict[str, Dict[str, Union[int, str]]] = field(
+        default_factory=dict
+    )
     contribution_volume: Dict[str, int] = field(default_factory=dict)
     activity_breakdown: Dict[str, Dict[str, int]] = field(default_factory=dict)
     project_start_date: Optional[str] = None
@@ -127,16 +129,23 @@ class GitAnalysisResult:
         # convert contributorstats objects to dicts
         # check if these feilds are filled in before data extraction
         if self.contributors:
-            result["contributors"] = [asdict(c) if not isinstance(c, dict) else c for c in self.contributors]
+            result["contributors"] = [
+                asdict(c) if not isinstance(c, dict) else c for c in self.contributors
+            ]
         if self.target_user_stats:
             result["target_user_stats"] = (
-                asdict(self.target_user_stats) if not isinstance(self.target_user_stats, dict) else self.target_user_stats
+                asdict(self.target_user_stats)
+                if not isinstance(self.target_user_stats, dict)
+                else self.target_user_stats
             )
         if self.code_ownership:
-            result["code_ownership"] = [asdict(c) if not isinstance(c, dict) else c for c in self.code_ownership]
+            result["code_ownership"] = [
+                asdict(c) if not isinstance(c, dict) else c for c in self.code_ownership
+            ]
         if self.semantic_summary:
             result["semantic_summary"] = {
-                k: (asdict(v) if not isinstance(v, dict) else v) for k, v in self.semantic_summary.items()
+                k: (asdict(v) if not isinstance(v, dict) else v)
+                for k, v in self.semantic_summary.items()
             }
         return result
 
@@ -157,7 +166,9 @@ class GitAnalyzer:
         self.project_path = Path(project_path).resolve()
         self.git_dir = self.project_path / ".git"
 
-    def analyze(self, target_user_email: Optional[str] = None, use_remote_api: bool = False) -> GitAnalysisResult:
+    def analyze(
+        self, target_user_email: Optional[str] = None, use_remote_api: bool = False
+    ) -> GitAnalysisResult:
         """
         Perform complete Git analysis on the project.
 
@@ -238,7 +249,9 @@ class GitAnalyzer:
 
         # target user stats if email provided
         if target_user_email and result.contributors:
-            result.target_user_stats = self.find_target_user_stats(result.contributors, target_user_email)
+            result.target_user_stats = self.find_target_user_stats(
+                result.contributors, target_user_email
+            )
 
         # branch information
         try:
@@ -266,7 +279,9 @@ class GitAnalyzer:
         Check if Git command-line tool is available on the system.
         """
         try:
-            result = subprocess.run(["git", "--version"], capture_output=True, text=True, timeout=5)
+            result = subprocess.run(
+                ["git", "--version"], capture_output=True, text=True, timeout=5
+            )
             return result.returncode == 0
         except (subprocess.SubprocessError, FileNotFoundError):
             return False
@@ -366,7 +381,11 @@ class GitAnalyzer:
                     continue
 
                 if normalized_email not in email_to_data:
-                    email_to_data[normalized_email] = {"names": [], "commit_count": 0, "original_email": email}
+                    email_to_data[normalized_email] = {
+                        "names": [],
+                        "commit_count": 0,
+                        "original_email": email,
+                    }
 
                 email_to_data[normalized_email]["names"].append(name)
                 email_to_data[normalized_email]["commit_count"] += commit_count
@@ -399,13 +418,17 @@ class GitAnalyzer:
         # calc percent
         if total_commits > 0:
             for contributor in contributors:
-                contributor.percentage = round((contributor.commit_count / total_commits) * 100, 2)
+                contributor.percentage = round(
+                    (contributor.commit_count / total_commits) * 100, 2
+                )
 
         contributors.sort(key=lambda x: x.commit_count, reverse=True)
 
         return contributors
 
-    def get_author_commit_dates(self, email: str) -> tuple[Optional[str], Optional[str]]:
+    def get_author_commit_dates(
+        self, email: str
+    ) -> tuple[Optional[str], Optional[str]]:
         """
         Get first and last commit dates for a specific author in one Git call.
 
@@ -631,7 +654,17 @@ class GitAnalyzer:
             return "docs"
 
         # Design assets
-        design_exts = {"drawio", "png", "jpg", "jpeg", "svg", "fig", "pptx", "key", "psd"}
+        design_exts = {
+            "drawio",
+            "png",
+            "jpg",
+            "jpeg",
+            "svg",
+            "fig",
+            "pptx",
+            "key",
+            "psd",
+        }
         if ext in design_exts or any(token in lower for token in ["/design/", "/ux/"]):
             return "design"
 
@@ -648,7 +681,9 @@ class GitAnalyzer:
             contribution_volume: {email: total_lines_changed}
             activity_breakdown: {email: {"code": int, "test": int, "docs": int, "design": int}}
         """
-        output = self.run_git_command(["log", "--all", "--numstat", "--format=%H|%an|%ae|%s"])
+        output = self.run_git_command(
+            ["log", "--all", "--numstat", "--format=%H|%an|%ae|%s"]
+        )
         if not output:
             return {}, {}, {}, {}
 
@@ -676,13 +711,18 @@ class GitAnalyzer:
                     email=current_email,
                 ),
             )
-            is_trivial_keyword = any(k in current_message.lower() for k in ["typo", "docs", "readme", "comment", "fmt"])
+            is_trivial_keyword = any(
+                k in current_message.lower()
+                for k in ["typo", "docs", "readme", "comment", "fmt"]
+            )
             if lines_changed_this_commit <= 5 or is_trivial_keyword:
                 stats.trivial_commits += 1
             else:
                 stats.substantial_commits += 1
             stats.total_lines_changed += lines_changed_this_commit
-            contribution_volume[normalized_email] = contribution_volume.get(normalized_email, 0) + lines_changed_this_commit
+            contribution_volume[normalized_email] = (
+                contribution_volume.get(normalized_email, 0) + lines_changed_this_commit
+            )
 
         for line in output.splitlines():
             if "|" in line and line.count("|") >= 3 and not line.startswith(" "):
@@ -714,22 +754,33 @@ class GitAnalyzer:
             lines_changed_this_commit += lines_changed
 
             language = self.get_language_from_filename(filename)
-            normalized_email = self.normalize_email(current_email) if current_email else "unknown"
+            normalized_email = (
+                self.normalize_email(current_email) if current_email else "unknown"
+            )
             if self.is_noreply_email(normalized_email):
                 continue
             author_langs = language_breakdown.setdefault(normalized_email, {})
             author_langs[language] = author_langs.get(language, 0) + lines_changed
 
             activity = self.classify_activity(filename)
-            author_activity = activity_breakdown.setdefault(normalized_email, {"code": 0, "test": 0, "docs": 0, "design": 0})
+            author_activity = activity_breakdown.setdefault(
+                normalized_email, {"code": 0, "test": 0, "docs": 0, "design": 0}
+            )
             author_activity[activity] = author_activity.get(activity, 0) + lines_changed
 
         # final commit
         commit_complete()
 
-        semantic_summary_output = {email: asdict(stats) for email, stats in semantic_summary.items()}
+        semantic_summary_output = {
+            email: asdict(stats) for email, stats in semantic_summary.items()
+        }
 
-        return language_breakdown, semantic_summary_output, contribution_volume, activity_breakdown
+        return (
+            language_breakdown,
+            semantic_summary_output,
+            contribution_volume,
+            activity_breakdown,
+        )
 
     def get_code_ownership(self) -> tuple[List[FileOwnership], Dict[str, int]]:
         """
@@ -738,7 +789,9 @@ class GitAnalyzer:
         Returns:
             (ownership_list, blame_summary)
         """
-        file_list_output = self.run_git_command(["ls-tree", "-r", "--name-only", "HEAD"])
+        file_list_output = self.run_git_command(
+            ["ls-tree", "-r", "--name-only", "HEAD"]
+        )
         if not file_list_output:
             return [], {}
 
@@ -760,7 +813,9 @@ class GitAnalyzer:
                     normalized_email = self.normalize_email(email)
                     if self.is_noreply_email(normalized_email):
                         continue
-                    author_counts[normalized_email] = author_counts.get(normalized_email, 0) + 1
+                    author_counts[normalized_email] = (
+                        author_counts.get(normalized_email, 0) + 1
+                    )
                     if current_author_name:
                         author_names[normalized_email] = current_author_name
                 elif line.startswith("author "):
@@ -843,7 +898,9 @@ class GitAnalyzer:
 
         return list(urls)
 
-    def find_target_user_stats(self, contributors: List[ContributorStats], target_email: str) -> Optional[ContributorStats]:
+    def find_target_user_stats(
+        self, contributors: List[ContributorStats], target_email: str
+    ) -> Optional[ContributorStats]:
         """
         Find statistics for a specific user by email.
 
@@ -869,7 +926,10 @@ class GitAnalyzer:
         """
         TODO
         """
-        return {"status": "not_implemented", "message": "API integration coming in future version"}
+        return {
+            "status": "not_implemented",
+            "message": "API integration coming in future version",
+        }
 
 
 class GitAnalysisExporter:
@@ -882,7 +942,9 @@ class GitAnalysisExporter:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    def export_to_json(self, result: GitAnalysisResult, filename: Optional[str] = None) -> Path:
+    def export_to_json(
+        self, result: GitAnalysisResult, filename: Optional[str] = None
+    ) -> Path:
 
         # Generate filename
         if filename is None:
@@ -926,7 +988,9 @@ def analyze_project(
 
     """
     analyzer = GitAnalyzer(project_path)
-    result = analyzer.analyze(target_user_email=target_user_email, use_remote_api=use_remote_api)
+    result = analyzer.analyze(
+        target_user_email=target_user_email, use_remote_api=use_remote_api
+    )
 
     if export_to_file:
         exporter = GitAnalysisExporter(output_dir)

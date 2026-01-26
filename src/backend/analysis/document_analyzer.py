@@ -160,7 +160,9 @@ class CitationDetector:
                 analysis.confidence = "low"
 
             # Check consistency (no other style has more than 30% of the max)
-            other_counts = [count for style, count in style_scores.items() if style != max_style[0]]
+            other_counts = [
+                count for style, count in style_scores.items() if style != max_style[0]
+            ]
             if not other_counts or max(other_counts) < max_style[1] * 0.3:
                 analysis.has_consistent_style = True
 
@@ -270,17 +272,25 @@ class WritingMetricsCalculator:
         # Readability metrics (if textstat is available)
         if textstat:
             try:
-                metrics.flesch_kincaid_grade = round(textstat.flesch_kincaid_grade(self.text), 1)
-                metrics.flesch_reading_ease = round(textstat.flesch_reading_ease(self.text), 1)
+                metrics.flesch_kincaid_grade = round(
+                    textstat.flesch_kincaid_grade(self.text), 1
+                )
+                metrics.flesch_reading_ease = round(
+                    textstat.flesch_reading_ease(self.text), 1
+                )
 
                 # Reading level description
                 grade = metrics.flesch_kincaid_grade
                 if grade >= 16:
-                    metrics.reading_level_description = "Grade 16+ (College Senior/Graduate)"
+                    metrics.reading_level_description = (
+                        "Grade 16+ (College Senior/Graduate)"
+                    )
                 elif grade >= 13:
                     metrics.reading_level_description = f"Grade {int(grade)} (College)"
                 elif grade >= 9:
-                    metrics.reading_level_description = f"Grade {int(grade)} (High School)"
+                    metrics.reading_level_description = (
+                        f"Grade {int(grade)} (High School)"
+                    )
                 else:
                     metrics.reading_level_description = f"Grade {int(grade)}"
             except Exception:
@@ -386,16 +396,28 @@ class StructureAnalyzer:
 
         if self.paragraphs:
             word_counts = [len(p.split()) for p in self.paragraphs]
-            analysis.avg_paragraph_length = round(sum(word_counts) / len(word_counts), 0)
+            analysis.avg_paragraph_length = round(
+                sum(word_counts) / len(word_counts), 0
+            )
 
         # Check for introduction and conclusion
-        analysis.has_introduction = self._has_section(self.INTRO_KEYWORDS, first_third=True)
-        analysis.has_conclusion = self._has_section(self.CONCLUSION_KEYWORDS, last_third=True)
+        analysis.has_introduction = self._has_section(
+            self.INTRO_KEYWORDS, first_third=True
+        )
+        analysis.has_conclusion = self._has_section(
+            self.CONCLUSION_KEYWORDS, last_third=True
+        )
 
         # Determine structure quality
-        if analysis.has_introduction and analysis.has_conclusion and analysis.paragraph_count >= 10:
+        if (
+            analysis.has_introduction
+            and analysis.has_conclusion
+            and analysis.paragraph_count >= 10
+        ):
             analysis.structure_quality = "well-organized"
-        elif (analysis.has_introduction or analysis.has_conclusion) and analysis.paragraph_count >= 5:
+        elif (
+            analysis.has_introduction or analysis.has_conclusion
+        ) and analysis.paragraph_count >= 5:
             analysis.structure_quality = "good"
         else:
             analysis.structure_quality = "basic"
@@ -416,7 +438,9 @@ class StructureAnalyzer:
 
         return paragraphs
 
-    def _has_section(self, keywords: List[str], first_third: bool = False, last_third: bool = False) -> bool:
+    def _has_section(
+        self, keywords: List[str], first_third: bool = False, last_third: bool = False
+    ) -> bool:
         """Check if a section (intro/conclusion) exists based on keywords.
 
         Args:
@@ -501,25 +525,40 @@ class DocumentAnalyzer:
 
                 if count >= 10:
                     pages = int(analysis.writing_metrics.page_estimate)
-                    highlights.append(f"Authored {pages}-page research paper with {count} scholarly citations")
+                    highlights.append(
+                        f"Authored {pages}-page research paper with {count} scholarly citations"
+                    )
 
         # Writing level
         if analysis.writing_metrics.flesch_kincaid_grade:
             grade = analysis.writing_metrics.flesch_kincaid_grade
             if grade >= 16:
-                highlights.append("Academic writing at advanced level (Grade 16+ reading level)")
+                highlights.append(
+                    "Academic writing at advanced level (Grade 16+ reading level)"
+                )
             elif grade >= 13:
-                highlights.append(f"College-level academic writing (Grade {int(grade)} reading level)")
+                highlights.append(
+                    f"College-level academic writing (Grade {int(grade)} reading level)"
+                )
 
         # Academic skills
-        if analysis.writing_metrics.has_formal_tone and analysis.writing_metrics.has_technical_vocabulary:
-            highlights.append("Demonstrated strong research and analytical writing skills")
-            highlights.append("Maintained formal academic tone with technical vocabulary")
+        if (
+            analysis.writing_metrics.has_formal_tone
+            and analysis.writing_metrics.has_technical_vocabulary
+        ):
+            highlights.append(
+                "Demonstrated strong research and analytical writing skills"
+            )
+            highlights.append(
+                "Maintained formal academic tone with technical vocabulary"
+            )
 
         # Structure skills
         if analysis.structure_analysis.structure_quality == "well-organized":
             para_count = analysis.structure_analysis.paragraph_count
-            highlights.append(f"Structured complex ideas across {para_count} well-organized paragraphs")
+            highlights.append(
+                f"Structured complex ideas across {para_count} well-organized paragraphs"
+            )
 
         # General research skills if paper has good metrics
         if (
@@ -528,7 +567,9 @@ class DocumentAnalyzer:
             and analysis.structure_analysis.has_introduction
             and analysis.structure_analysis.has_conclusion
         ):
-            highlights.append("Developed strong analytical and research skills through evidence-based academic writing")
+            highlights.append(
+                "Developed strong analytical and research skills through evidence-based academic writing"
+            )
 
         return highlights
 

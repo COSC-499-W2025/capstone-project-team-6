@@ -16,11 +16,13 @@ from pathlib import Path
 
 import pytest
 
-from backend.analysis.complexity_analyzer import (ComplexityInsight,
-                                                  ComplexityReport,
-                                                  analyze_python_file,
-                                                  analyze_python_project,
-                                                  format_report)
+from backend.analysis.complexity_analyzer import (
+    ComplexityInsight,
+    ComplexityReport,
+    analyze_python_file,
+    analyze_python_project,
+    format_report,
+)
 from backend.analysis.project_analyzer import FileClassifier
 
 
@@ -40,7 +42,9 @@ def find_duplicates(arr):
         insights = analyze_python_file("test.py", code)
 
         # Should detect nested loops
-        nested_loop_insights = [i for i in insights if i.complexity_type == "nested_loops"]
+        nested_loop_insights = [
+            i for i in insights if i.complexity_type == "nested_loops"
+        ]
         assert len(nested_loop_insights) >= 1
         assert "O(n²)" in nested_loop_insights[0].description
 
@@ -55,7 +59,9 @@ def triple_loop(matrix):
 """
         insights = analyze_python_file("test.py", code)
 
-        nested_loop_insights = [i for i in insights if i.complexity_type == "nested_loops"]
+        nested_loop_insights = [
+            i for i in insights if i.complexity_type == "nested_loops"
+        ]
         # Should detect at least 2 nested loop warnings (depth 2 and depth 3)
         assert len(nested_loop_insights) >= 2
 
@@ -105,7 +111,9 @@ def process_items(items):
 """
         insights = analyze_python_file("test.py", code)
 
-        comp_insights = [i for i in insights if i.complexity_type == "list_comprehension"]
+        comp_insights = [
+            i for i in insights if i.complexity_type == "list_comprehension"
+        ]
         assert len(comp_insights) >= 1
         assert comp_insights[0].severity == "good_practice"
 
@@ -117,7 +125,9 @@ def sum_squares(n):
 """
         insights = analyze_python_file("test.py", code)
 
-        gen_insights = [i for i in insights if i.complexity_type == "generator_expression"]
+        gen_insights = [
+            i for i in insights if i.complexity_type == "generator_expression"
+        ]
         assert len(gen_insights) >= 1
         assert gen_insights[0].severity == "good_practice"
 
@@ -180,7 +190,9 @@ def check_items(data_list, search_items):
 """
         insights = analyze_python_file("test.py", code)
 
-        inefficient = [i for i in insights if "inefficient" in i.complexity_type.lower()]
+        inefficient = [
+            i for i in insights if "inefficient" in i.complexity_type.lower()
+        ]
         # Should suggest using set or dict
         assert len(inefficient) >= 1
 
@@ -287,7 +299,11 @@ class TestComplexityReport:
         # Add good practices
         report.add_insight(
             ComplexityInsight(
-                file_path="test.py", line_number=1, complexity_type="set_operations", severity="good_practice", description="Set"
+                file_path="test.py",
+                line_number=1,
+                complexity_type="set_operations",
+                severity="good_practice",
+                description="Set",
             )
         )
         report.add_insight(
@@ -303,7 +319,11 @@ class TestComplexityReport:
         # Add bad practice
         report.add_insight(
             ComplexityInsight(
-                file_path="test.py", line_number=3, complexity_type="nested_loops", severity="suggestion", description="Loop"
+                file_path="test.py",
+                line_number=3,
+                complexity_type="nested_loops",
+                severity="suggestion",
+                description="Loop",
             )
         )
 
@@ -538,7 +558,9 @@ public class Test {
         from backend.analysis.complexity_analyzer import analyze_java_file
 
         insights = analyze_java_file("Test.java", code)
-        nested_loop_insights = [i for i in insights if i.complexity_type == "nested_loops"]
+        nested_loop_insights = [
+            i for i in insights if i.complexity_type == "nested_loops"
+        ]
         assert len(nested_loop_insights) >= 1
         assert "O(n²)" in nested_loop_insights[0].description
 
@@ -556,7 +578,9 @@ public class Test {
         from backend.analysis.complexity_analyzer import analyze_java_file
 
         insights = analyze_java_file("Test.java", code)
-        hashset_insights = [i for i in insights if i.complexity_type == "efficient_data_structure"]
+        hashset_insights = [
+            i for i in insights if i.complexity_type == "efficient_data_structure"
+        ]
         assert len(hashset_insights) >= 1
         assert any("HashSet" in i.description for i in hashset_insights)
         assert hashset_insights[0].severity == "good_practice"
@@ -577,7 +601,9 @@ public class Test {
         from backend.analysis.complexity_analyzer import analyze_java_file
 
         insights = analyze_java_file("Test.java", code)
-        hashmap_insights = [i for i in insights if i.complexity_type == "efficient_data_structure"]
+        hashmap_insights = [
+            i for i in insights if i.complexity_type == "efficient_data_structure"
+        ]
         assert len(hashmap_insights) >= 1
         assert any("HashMap" in i.description for i in hashmap_insights)
 
@@ -596,7 +622,9 @@ public class Test {
         from backend.analysis.complexity_analyzer import analyze_java_file
 
         insights = analyze_java_file("Test.java", code)
-        stream_insights = [i for i in insights if i.complexity_type == "stream_operations"]
+        stream_insights = [
+            i for i in insights if i.complexity_type == "stream_operations"
+        ]
         assert len(stream_insights) >= 3  # stream(), filter(), map(), collect()
         assert all(i.severity == "good_practice" for i in stream_insights)
 
@@ -676,7 +704,9 @@ public class Test {
         from backend.analysis.complexity_analyzer import analyze_java_file
 
         insights = analyze_java_file("Test.java", code)
-        inefficient_insights = [i for i in insights if i.complexity_type == "inefficient_string_concat"]
+        inefficient_insights = [
+            i for i in insights if i.complexity_type == "inefficient_string_concat"
+        ]
         assert len(inefficient_insights) >= 1
         assert "StringBuilder" in inefficient_insights[0].description
         assert inefficient_insights[0].severity == "suggestion"
@@ -695,7 +725,9 @@ public class Test {
         from backend.analysis.complexity_analyzer import analyze_java_file
 
         insights = analyze_java_file("Test.java", code)
-        concurrent_insights = [i for i in insights if i.complexity_type == "concurrent_collection"]
+        concurrent_insights = [
+            i for i in insights if i.complexity_type == "concurrent_collection"
+        ]
         assert len(concurrent_insights) >= 1
         assert "Thread-safe" in concurrent_insights[0].description
 
@@ -755,7 +787,9 @@ public class Test {
         from backend.analysis.complexity_analyzer import analyze_java_file
 
         insights = analyze_java_file("Test.java", code)
-        nested_loop_insights = [i for i in insights if i.complexity_type == "nested_loops"]
+        nested_loop_insights = [
+            i for i in insights if i.complexity_type == "nested_loops"
+        ]
         # Should detect multiple levels of nesting
         assert len(nested_loop_insights) >= 2
 
@@ -841,7 +875,9 @@ public class Helper {
         assert len(report.insights) >= 2
         # Should have both Python and Java patterns
         assert any("set" in i.complexity_type.lower() for i in report.insights)
-        assert any("efficient_data_structure" in i.complexity_type for i in report.insights)
+        assert any(
+            "efficient_data_structure" in i.complexity_type for i in report.insights
+        )
 
     def test_analyze_project_python_only(self):
         """Test analyzing Python-only project with auto-detect."""
@@ -880,13 +916,19 @@ class TestJavaScoreCalculation:
 
     def test_score_with_java_good_practices(self):
         """Test score increases with Java good practices."""
-        from backend.analysis.complexity_analyzer import (ComplexityInsight,
-                                                          ComplexityReport)
+        from backend.analysis.complexity_analyzer import (
+            ComplexityInsight,
+            ComplexityReport,
+        )
 
         report = ComplexityReport(total_files_analyzed=1)
 
         # Add Java good practices
-        for pattern in ["stream_operations", "efficient_data_structure", "string_builder"]:
+        for pattern in [
+            "stream_operations",
+            "efficient_data_structure",
+            "string_builder",
+        ]:
             report.add_insight(
                 ComplexityInsight(
                     file_path="Test.java",
@@ -902,8 +944,10 @@ class TestJavaScoreCalculation:
 
     def test_score_with_java_bad_practices(self):
         """Test score decreases with Java inefficiencies."""
-        from backend.analysis.complexity_analyzer import (ComplexityInsight,
-                                                          ComplexityReport)
+        from backend.analysis.complexity_analyzer import (
+            ComplexityInsight,
+            ComplexityReport,
+        )
 
         report = ComplexityReport(total_files_analyzed=1)
 

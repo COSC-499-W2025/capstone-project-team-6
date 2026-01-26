@@ -42,10 +42,13 @@ import pytest
 
 try:
     # Try direct import first (if running from project root)
-    from backend.analysis.git_analysis import (ContributorStats,
-                                               GitAnalysisExporter,
-                                               GitAnalysisResult, GitAnalyzer,
-                                               analyze_project)
+    from backend.analysis.git_analysis import (
+        ContributorStats,
+        GitAnalysisExporter,
+        GitAnalysisResult,
+        GitAnalyzer,
+        analyze_project,
+    )
 except ImportError:
     # Add src directory to path and try again
     # Get the project root (go up from tests/backend_test to src, then to project root)
@@ -56,15 +59,19 @@ except ImportError:
     sys.path.insert(0, str(src_dir))
 
     try:
-        from src.backend.analysis.git_analysis import (ContributorStats,
-                                                       GitAnalysisExporter,
-                                                       GitAnalysisResult,
-                                                       GitAnalyzer,
-                                                       analyze_project)
+        from src.backend.analysis.git_analysis import (
+            ContributorStats,
+            GitAnalysisExporter,
+            GitAnalysisResult,
+            GitAnalyzer,
+            analyze_project,
+        )
     except ImportError as e:
         print(f"Error importing git_analysis module: {e}")
         print(f"Test directory: {test_dir}")
-        print(f"Looking for module at: {src_dir / 'src' / 'backend' / 'analysis' / 'git_analysis.py'}")
+        print(
+            f"Looking for module at: {src_dir / 'src' / 'backend' / 'analysis' / 'git_analysis.py'}"
+        )
         print("\nExpected project structure:")
         print("project_root/")
         print("├── src/")
@@ -94,7 +101,13 @@ def run_git_command(repo_path, *args):
         Command output or None if failed
     """
     try:
-        result = subprocess.run(["git"] + list(args), cwd=repo_path, capture_output=True, text=True, timeout=10)
+        result = subprocess.run(
+            ["git"] + list(args),
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
         if result.returncode == 0:
             return result.stdout.strip()
         return None
@@ -115,7 +128,9 @@ def init_git_repo(repo_path):
     run_git_command(repo_path, "config", "user.email", "test@example.com")
 
 
-def create_commit(repo_path, author_name, author_email, message, filename=None, content=None):
+def create_commit(
+    repo_path, author_name, author_email, message, filename=None, content=None
+):
     """
     Create a commit with specified author.
 
@@ -260,7 +275,13 @@ def solo_project_repo(temp_dir):
     author_email = "alice@example.com"
 
     for i in range(5):
-        create_commit(repo_path, author_name, author_email, f"Commit {i+1} by Alice", f"file{i+1}.txt")
+        create_commit(
+            repo_path,
+            author_name,
+            author_email,
+            f"Commit {i+1} by Alice",
+            f"file{i+1}.txt",
+        )
 
     yield repo_path
 
@@ -286,7 +307,13 @@ def collab_project_repo(temp_dir):
     commit_num = 1
     for name, email, count in authors:
         for i in range(count):
-            create_commit(repo_path, name, email, f"Commit {commit_num} by {name.split()[0]}", f"file{commit_num}.txt")
+            create_commit(
+                repo_path,
+                name,
+                email,
+                f"Commit {commit_num} by {name.split()[0]}",
+                f"file{commit_num}.txt",
+            )
             commit_num += 1
 
     yield repo_path
@@ -302,7 +329,9 @@ def multi_branch_repo(temp_dir):
     init_git_repo(repo_path)
 
     # Create initial commit on main/master
-    create_commit(repo_path, "Alice Developer", "alice@example.com", "Initial commit", "README.md")
+    create_commit(
+        repo_path, "Alice Developer", "alice@example.com", "Initial commit", "README.md"
+    )
 
     # Create additional branches
     create_branch(repo_path, "feature/test")
@@ -321,7 +350,9 @@ def remote_repo(temp_dir):
     init_git_repo(repo_path)
 
     # Create initial commit
-    create_commit(repo_path, "Alice Developer", "alice@example.com", "Initial commit", "README.md")
+    create_commit(
+        repo_path, "Alice Developer", "alice@example.com", "Initial commit", "README.md"
+    )
 
     # Add remote
     setup_git_remote(repo_path, "origin", "https://github.com/user/repo.git")
@@ -441,14 +472,70 @@ def multi_language_repo(temp_dir):
     repo_path.mkdir()
     init_git_repo(repo_path)
 
-    create_commit(repo_path, "Poly Dev", "poly@dev.com", "Add python", "script.py", content="print('hi')\nprint('bye')\n")
-    create_commit(repo_path, "Poly Dev", "poly@dev.com", "Add typescript", "ui.tsx", content="export const X = 1;\n")
-    create_commit(repo_path, "Poly Dev", "poly@dev.com", "Add css", "styles.css", content="body { color: red; }\n")
-    create_commit(repo_path, "Poly Dev", "poly@dev.com", "Add go", "main.go", content="package main\nfunc main() {}\n")
-    create_commit(repo_path, "Poly Dev", "poly@dev.com", "Add rust", "lib.rs", content="fn main() {}\n")
-    create_commit(repo_path, "Poly Dev", "poly@dev.com", "Add yaml", "cfg.yaml", content="a: 1\nb: 2\n")
-    create_commit(repo_path, "Poly Dev", "poly@dev.com", "Add json", "data.json", content='{"a":1}\n')
-    create_commit(repo_path, "Poly Dev", "poly@dev.com", "Add dockerfile", "Dockerfile", content="FROM scratch\n")
+    create_commit(
+        repo_path,
+        "Poly Dev",
+        "poly@dev.com",
+        "Add python",
+        "script.py",
+        content="print('hi')\nprint('bye')\n",
+    )
+    create_commit(
+        repo_path,
+        "Poly Dev",
+        "poly@dev.com",
+        "Add typescript",
+        "ui.tsx",
+        content="export const X = 1;\n",
+    )
+    create_commit(
+        repo_path,
+        "Poly Dev",
+        "poly@dev.com",
+        "Add css",
+        "styles.css",
+        content="body { color: red; }\n",
+    )
+    create_commit(
+        repo_path,
+        "Poly Dev",
+        "poly@dev.com",
+        "Add go",
+        "main.go",
+        content="package main\nfunc main() {}\n",
+    )
+    create_commit(
+        repo_path,
+        "Poly Dev",
+        "poly@dev.com",
+        "Add rust",
+        "lib.rs",
+        content="fn main() {}\n",
+    )
+    create_commit(
+        repo_path,
+        "Poly Dev",
+        "poly@dev.com",
+        "Add yaml",
+        "cfg.yaml",
+        content="a: 1\nb: 2\n",
+    )
+    create_commit(
+        repo_path,
+        "Poly Dev",
+        "poly@dev.com",
+        "Add json",
+        "data.json",
+        content='{"a":1}\n',
+    )
+    create_commit(
+        repo_path,
+        "Poly Dev",
+        "poly@dev.com",
+        "Add dockerfile",
+        "Dockerfile",
+        content="FROM scratch\n",
+    )
 
     return repo_path
 
@@ -518,7 +605,13 @@ def test_empty_directory(temp_dir):
 def test_solo_project_single_commit(temp_git_repo):
     """Test analysis of solo project with a single commit."""
     # Create one commit
-    create_commit(temp_git_repo, "Alice Developer", "alice@example.com", "Initial commit", "README.md")
+    create_commit(
+        temp_git_repo,
+        "Alice Developer",
+        "alice@example.com",
+        "Initial commit",
+        "README.md",
+    )
 
     analyzer = GitAnalyzer(temp_git_repo)
     result = analyzer.analyze()
@@ -666,11 +759,23 @@ def test_unequal_contributions(temp_git_repo):
     """Test 80/20 contribution split scenario."""
     # Alice: 8 commits (80%)
     for i in range(8):
-        create_commit(temp_git_repo, "Alice Developer", "alice@example.com", f"Alice commit {i+1}", f"file{i+1}.txt")
+        create_commit(
+            temp_git_repo,
+            "Alice Developer",
+            "alice@example.com",
+            f"Alice commit {i+1}",
+            f"file{i+1}.txt",
+        )
 
     # Bob: 2 commits (20%)
     for i in range(2):
-        create_commit(temp_git_repo, "Bob Contributor", "bob@example.com", f"Bob commit {i+1}", f"bob_file{i+1}.txt")
+        create_commit(
+            temp_git_repo,
+            "Bob Contributor",
+            "bob@example.com",
+            f"Bob commit {i+1}",
+            f"bob_file{i+1}.txt",
+        )
 
     analyzer = GitAnalyzer(temp_git_repo)
     result = analyzer.analyze()
@@ -742,7 +847,13 @@ def test_target_user_stats_populated(collab_project_repo):
 def test_single_branch_main(temp_git_repo):
     """Test repository with only 'main' branch."""
     # Create commit to establish branch
-    create_commit(temp_git_repo, "Alice Developer", "alice@example.com", "Initial commit", "README.md")
+    create_commit(
+        temp_git_repo,
+        "Alice Developer",
+        "alice@example.com",
+        "Initial commit",
+        "README.md",
+    )
 
     # Rename to main if it's master
     run_git_command(temp_git_repo, "branch", "-M", "main")
@@ -757,7 +868,13 @@ def test_single_branch_main(temp_git_repo):
 def test_single_branch_master(temp_git_repo):
     """Test repository with only 'master' branch."""
     # Create commit to establish branch
-    create_commit(temp_git_repo, "Alice Developer", "alice@example.com", "Initial commit", "README.md")
+    create_commit(
+        temp_git_repo,
+        "Alice Developer",
+        "alice@example.com",
+        "Initial commit",
+        "README.md",
+    )
 
     analyzer = GitAnalyzer(temp_git_repo)
     result = analyzer.analyze()
@@ -828,7 +945,13 @@ def test_corrupted_git_repo(temp_dir):
 
 def test_special_characters_in_name(temp_git_repo):
     """Test contributor with special characters in name."""
-    create_commit(temp_git_repo, "José García-Müller", "jose@example.com", "Commit with special chars", "file1.txt")
+    create_commit(
+        temp_git_repo,
+        "José García-Müller",
+        "jose@example.com",
+        "Commit with special chars",
+        "file1.txt",
+    )
 
     analyzer = GitAnalyzer(temp_git_repo)
     result = analyzer.analyze()
@@ -840,9 +963,21 @@ def test_special_characters_in_name(temp_git_repo):
 def test_multiple_emails_same_author(temp_git_repo):
     """Test author with multiple email addresses (treated as different contributors)."""
     # Same person, different emails
-    create_commit(temp_git_repo, "Alice Developer", "alice@work.com", "Commit from work", "file1.txt")
+    create_commit(
+        temp_git_repo,
+        "Alice Developer",
+        "alice@work.com",
+        "Commit from work",
+        "file1.txt",
+    )
 
-    create_commit(temp_git_repo, "Alice Developer", "alice@personal.com", "Commit from home", "file2.txt")
+    create_commit(
+        temp_git_repo,
+        "Alice Developer",
+        "alice@personal.com",
+        "Commit from home",
+        "file2.txt",
+    )
 
     analyzer = GitAnalyzer(temp_git_repo)
     result = analyzer.analyze()
@@ -854,8 +989,20 @@ def test_multiple_emails_same_author(temp_git_repo):
 def test_github_noreply_email_normalization(temp_git_repo):
     """GitHub noreply aliases with numeric prefixes should be collapsed."""
     # canonical and numeric-prefixed noreply for same user
-    create_commit(temp_git_repo, "Noreply User", "35599203+mgjim101@users.noreply.github.com", "Commit 1", "a.txt")
-    create_commit(temp_git_repo, "Noreply User", "mgjim101@users.noreply.github.com", "Commit 2", "b.txt")
+    create_commit(
+        temp_git_repo,
+        "Noreply User",
+        "35599203+mgjim101@users.noreply.github.com",
+        "Commit 1",
+        "a.txt",
+    )
+    create_commit(
+        temp_git_repo,
+        "Noreply User",
+        "mgjim101@users.noreply.github.com",
+        "Commit 2",
+        "b.txt",
+    )
 
     analyzer = GitAnalyzer(temp_git_repo)
     result = analyzer.analyze()
@@ -867,7 +1014,13 @@ def test_github_noreply_email_normalization(temp_git_repo):
 
 def test_noreply_emails_excluded(temp_git_repo):
     """Pure noreply contributors should be excluded from stats."""
-    create_commit(temp_git_repo, "Noreply User", "12345+bot@users.noreply.github.com", "Commit 1", "a.txt")
+    create_commit(
+        temp_git_repo,
+        "Noreply User",
+        "12345+bot@users.noreply.github.com",
+        "Commit 1",
+        "a.txt",
+    )
     analyzer = GitAnalyzer(temp_git_repo)
     result = analyzer.analyze()
 
@@ -1000,7 +1153,9 @@ def test_code_ownership_dominant_author(ownership_repo):
     assert "service.py" in ownership
     service_owner = ownership["service.py"]
     assert service_owner.dominant_email in {"alice@owner.com", "bob@owner.com"}
-    assert service_owner.ownership_percentage >= 40.0  # dominant lines should be majority
+    assert (
+        service_owner.ownership_percentage >= 40.0
+    )  # dominant lines should be majority
 
 
 def test_blame_summary_matches_total_lines(ownership_repo):
@@ -1020,7 +1175,10 @@ def test_contribution_volume_counts(language_mix_repo):
 
     assert result.contribution_volume.get("alice@backend.com", 0) > 0
     assert result.contribution_volume.get("bob@frontend.com", 0) > 0
-    assert result.contribution_volume["alice@backend.com"] != result.contribution_volume["bob@frontend.com"]
+    assert (
+        result.contribution_volume["alice@backend.com"]
+        != result.contribution_volume["bob@frontend.com"]
+    )
 
 
 def test_language_mapping_multi_language_repo(multi_language_repo):
@@ -1029,7 +1187,16 @@ def test_language_mapping_multi_language_repo(multi_language_repo):
     result = analyzer.analyze()
 
     langs = result.language_breakdown.get("poly@dev.com", {})
-    expected = ["Python", "TypeScript", "CSS", "Go", "Rust", "YAML", "JSON", "Dockerfile"]
+    expected = [
+        "Python",
+        "TypeScript",
+        "CSS",
+        "Go",
+        "Rust",
+        "YAML",
+        "JSON",
+        "Dockerfile",
+    ]
 
     for lang in expected:
         assert lang in langs, f"Missing language bucket: {lang}"

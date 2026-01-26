@@ -39,7 +39,14 @@ IGNORED_PATH_KEYWORDS = (
     ".vscode/",
     "__MACOSX/",
 )
-IGNORED_FILE_NAMES = {".env", ".env.local", ".env.example", ".DS_Store", "package-lock.json", "yarn.lock"}
+IGNORED_FILE_NAMES = {
+    ".env",
+    ".env.local",
+    ".env.example",
+    ".DS_Store",
+    "package-lock.json",
+    "yarn.lock",
+}
 IGNORED_FILE_NAMES_LOWER = {name.lower() for name in IGNORED_FILE_NAMES}
 
 # --- PROMPT MODULES DEFINITION ---
@@ -209,24 +216,33 @@ def run_gemini_analysis(
                     from .cpp_oop_analyzer import analyze_cpp_project
 
                     cpp_analysis = analyze_cpp_project(zip_path, project_path)
-                    report["projects"][i]["cpp_oop_analysis"] = cpp_analysis["cpp_oop_analysis"]
+                    report["projects"][i]["cpp_oop_analysis"] = cpp_analysis[
+                        "cpp_oop_analysis"
+                    ]
                 except ImportError:
                     report["projects"][i]["cpp_oop_analysis"] = {
                         "error": "C++ analyzer not available (libclang not installed)",
                         "total_classes": 0,
                     }
                 except Exception as e:
-                    report["projects"][i]["cpp_oop_analysis"] = {"error": str(e), "total_classes": 0}
+                    report["projects"][i]["cpp_oop_analysis"] = {
+                        "error": str(e),
+                        "total_classes": 0,
+                    }
 
             # C Analysis (note: .c files are classified as cpp in project_analyzer)
-            if "cpp" in project.get("languages", {}) or "c" in project.get("languages", {}):
+            if "cpp" in project.get("languages", {}) or "c" in project.get(
+                "languages", {}
+            ):
                 try:
                     from .c_oop_analyzer import analyze_c_project
 
                     c_analysis = analyze_c_project(zip_path, project_path)
                     # Only add if we found C-style code
                     if c_analysis["c_oop_analysis"].get("total_structs", 0) > 0:
-                        report["projects"][i]["c_oop_analysis"] = c_analysis["c_oop_analysis"]
+                        report["projects"][i]["c_oop_analysis"] = c_analysis[
+                            "c_oop_analysis"
+                        ]
                 except ImportError:
                     pass  # C analyzer optional
                 except Exception as e:
@@ -285,7 +301,9 @@ def run_gemini_analysis(
                             content_bytes = zf.read(path)
                             if len(content_bytes) > DEFAULT_MAX_FILE_SIZE_BYTES:
                                 if not progress_callback:
-                                    logger.warning(f"Skipping large file {path} ({len(content_bytes)} bytes)")
+                                    logger.warning(
+                                        f"Skipping large file {path} ({len(content_bytes)} bytes)"
+                                    )
                                 continue
 
                             content = content_bytes.decode("utf-8", errors="ignore")
@@ -302,7 +320,9 @@ def run_gemini_analysis(
             files_to_ingest.append(offline_doc)
 
             if not progress_callback:
-                logger.info(f"Prepared {len(files_to_ingest)} files for Gemini ingestion.")
+                logger.info(
+                    f"Prepared {len(files_to_ingest)} files for Gemini ingestion."
+                )
 
             # 4. Upload Files
             def upload_progress_adapter(current: int, total: int, msg: str):
@@ -311,8 +331,14 @@ def run_gemini_analysis(
                 pipeline_current = 15 + int(fraction * 35)
                 update_progress(pipeline_current, 100, msg)
 
-            uploaded_files_refs = client.upload_batch(files_to_ingest, progress_callback=upload_progress_adapter)
-            update_progress(50, 100, f"Successfully uploaded {len(uploaded_files_refs)} files to Gemini.")
+            uploaded_files_refs = client.upload_batch(
+                files_to_ingest, progress_callback=upload_progress_adapter
+            )
+            update_progress(
+                50,
+                100,
+                f"Successfully uploaded {len(uploaded_files_refs)} files to Gemini.",
+            )
 
             # 5. Generate Prompt (Base + Features)
             offline_summary = _summarize_offline_report(report)
@@ -344,20 +370,28 @@ def run_gemini_analysis(
 
             # Final Prompt Construction
             full_prompt = prompt_override or (
-                f"{base_prompt}\n" + "\n".join(additional_instructions) + "\n\n### Output Format\n"
+                f"{base_prompt}\n"
+                + "\n".join(additional_instructions)
+                + "\n\n### Output Format\n"
                 "Structure your response with clear headings corresponding to the sections above. Use Markdown.\n"
                 f"\nOffline Analysis Context:\n{offline_summary}"
             )
 
             if not progress_callback:
                 logger.info("Generating analysis with Gemini...")
-            update_progress(60, 100, "Generating analysis with Gemini (this may take a minute)...")
+            update_progress(
+                60, 100, "Generating analysis with Gemini (this may take a minute)..."
+            )
             response_text = client.generate_content(uploaded_files_refs, full_prompt)
 
             update_progress(95, 100, "Analysis generation complete. Finalizing...")
             report["llm_summary"] = response_text
             report["analysis_metadata"]["gemini_file_count"] = len(uploaded_files_refs)
-            report["analysis_mode"] = f"Base + {', '.join(active_features)}" if active_features else "Standard"
+            report["analysis_mode"] = (
+                f"Base + {', '.join(active_features)}"
+                if active_features
+                else "Standard"
+            )
 
         except Exception as e:
             if not progress_callback:
@@ -391,7 +425,9 @@ def _summarize_offline_report(report: Dict[str, Any]) -> str:
     lines = [f"Total Files: {summary.get('total_files', 0)}"]
     lines.append(f"Languages: {', '.join(summary.get('languages_used', []))}")
     for p in projects[:3]:
-        lines.append(f"- Project: {p.get('project_name')} ({p.get('primary_language')})")
+        lines.append(
+            f"- Project: {p.get('project_name')} ({p.get('primary_language')})"
+        )
     return "\n".join(lines)
 
 
@@ -421,30 +457,71 @@ if __name__ == "__main__":
     from rich.console import Console
     from rich.markdown import Markdown
     from rich.panel import Panel
-    from rich.progress import (BarColumn, Progress, SpinnerColumn,
-                               TaskProgressColumn, TextColumn)
+    from rich.progress import (
+        BarColumn,
+        Progress,
+        SpinnerColumn,
+        TaskProgressColumn,
+        TextColumn,
+    )
     from rich.table import Table
 
     parser = argparse.ArgumentParser(description="Run Gemini Analysis on a ZIP file.")
     parser.add_argument("zip_path", type=Path, help="Path to the ZIP file to analyze")
-    parser.add_argument("--prompt", type=str, help="Optional custom prompt (overrides all)", default=None)
-    parser.add_argument("--json", action="store_true", help="Output raw JSON instead of formatted report")
+    parser.add_argument(
+        "--prompt",
+        type=str,
+        help="Optional custom prompt (overrides all)",
+        default=None,
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output raw JSON instead of formatted report",
+    )
 
     # Feature Flags
-    parser.add_argument("--architecture", action="store_true", help="Deep analysis of patterns and anti-patterns")
-    parser.add_argument("--complexity", action="store_true", help="Algorithmic intent and Big O gap analysis")
-    parser.add_argument("--security", action="store_true", help="Logic-based security and defensive coding")
-    parser.add_argument("--skills", action="store_true", help="Infer soft skills and testing maturity")
-    parser.add_argument("--domain", action="store_true", help="Domain-specific best practices")
-    parser.add_argument("--resume", action="store_true", help="Generate resume and portfolio artifacts")
-    parser.add_argument("--all", action="store_true", help="Enable all deep analysis features")
+    parser.add_argument(
+        "--architecture",
+        action="store_true",
+        help="Deep analysis of patterns and anti-patterns",
+    )
+    parser.add_argument(
+        "--complexity",
+        action="store_true",
+        help="Algorithmic intent and Big O gap analysis",
+    )
+    parser.add_argument(
+        "--security",
+        action="store_true",
+        help="Logic-based security and defensive coding",
+    )
+    parser.add_argument(
+        "--skills", action="store_true", help="Infer soft skills and testing maturity"
+    )
+    parser.add_argument(
+        "--domain", action="store_true", help="Domain-specific best practices"
+    )
+    parser.add_argument(
+        "--resume", action="store_true", help="Generate resume and portfolio artifacts"
+    )
+    parser.add_argument(
+        "--all", action="store_true", help="Enable all deep analysis features"
+    )
 
     args = parser.parse_args()
 
     # Collect active features
     active_features = []
     if args.all:
-        active_features = ["architecture", "complexity", "security", "skills", "domain", "resume"]
+        active_features = [
+            "architecture",
+            "complexity",
+            "security",
+            "skills",
+            "domain",
+            "resume",
+        ]
     else:
         if args.architecture:
             active_features.append("architecture")
@@ -496,7 +573,11 @@ if __name__ == "__main__":
         # --- RICH FORMATTING ---
         console = Console()
         console.print()
-        console.print(Panel.fit("[bold white]Gemini Deep Code Analysis[/bold white]", style="blue"))
+        console.print(
+            Panel.fit(
+                "[bold white]Gemini Deep Code Analysis[/bold white]", style="blue"
+            )
+        )
         console.print()
 
         meta = report.get("analysis_metadata", {})
@@ -512,17 +593,32 @@ if __name__ == "__main__":
         stats_table.add_column("Value", style="white")
 
         stats_table.add_row("Project Name", project_name)
-        stats_table.add_row("Primary Language", ", ".join(summary.get("languages_used", ["N/A"])))
+        stats_table.add_row(
+            "Primary Language", ", ".join(summary.get("languages_used", ["N/A"]))
+        )
         stats_table.add_row("Total Files", str(summary.get("total_files", 0)))
         stats_table.add_row("Gemini Files", str(meta.get("gemini_file_count", 0)))
         stats_table.add_row("Analysis Mode", report.get("analysis_mode", "Standard"))
 
-        console.print(Panel(stats_table, title="[bold]Project Statistics[/bold]", border_style="cyan"))
+        console.print(
+            Panel(
+                stats_table,
+                title="[bold]Project Statistics[/bold]",
+                border_style="cyan",
+            )
+        )
 
         llm_text = report.get("llm_summary", "No analysis generated.")
         md = Markdown(llm_text)
 
-        console.print(Panel(md, title="[bold green]AI-Powered Insights[/bold green]", border_style="green", padding=(1, 2)))
+        console.print(
+            Panel(
+                md,
+                title="[bold green]AI-Powered Insights[/bold green]",
+                border_style="green",
+                padding=(1, 2),
+            )
+        )
 
         if report.get("llm_error"):
             console.print(

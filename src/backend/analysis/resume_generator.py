@@ -21,7 +21,18 @@ def _detect_project_type(project: Dict[str, Any]) -> str:
     for deps_list in dependencies.values():
         all_deps.extend([d.lower() for d in deps_list])
 
-    web_frameworks = {"flask", "django", "fastapi", "express", "react", "vue", "angular", "next.js", "spring", "rails"}
+    web_frameworks = {
+        "flask",
+        "django",
+        "fastapi",
+        "express",
+        "react",
+        "vue",
+        "angular",
+        "next.js",
+        "spring",
+        "rails",
+    }
     if any(fw.lower() in web_frameworks for fw in frameworks):
         if any("api" in dep or "rest" in dep or "graphql" in dep for dep in all_deps):
             return "api"
@@ -30,11 +41,28 @@ def _detect_project_type(project: Dict[str, Any]) -> str:
     if "click" in all_deps or "argparse" in all_deps or "typer" in all_deps:
         return "cli_tool"
 
-    ml_deps = {"numpy", "pandas", "scikit-learn", "tensorflow", "pytorch", "keras", "matplotlib", "seaborn"}
+    ml_deps = {
+        "numpy",
+        "pandas",
+        "scikit-learn",
+        "tensorflow",
+        "pytorch",
+        "keras",
+        "matplotlib",
+        "seaborn",
+    }
     if any(dep in ml_deps for dep in all_deps):
         return "data_science"
 
-    db_deps = {"sqlalchemy", "django-orm", "sequelize", "typeorm", "prisma", "mongodb", "redis"}
+    db_deps = {
+        "sqlalchemy",
+        "django-orm",
+        "sequelize",
+        "typeorm",
+        "prisma",
+        "mongodb",
+        "redis",
+    }
     if any(dep in db_deps for dep in all_deps):
         return "backend"
 
@@ -77,7 +105,9 @@ def _generate_project_items(project: Dict[str, Any]) -> List[str]:
     return items
 
 
-def _generate_opening_item(project: Dict[str, Any], project_name: str, project_type: str) -> Optional[str]:
+def _generate_opening_item(
+    project: Dict[str, Any], project_name: str, project_type: str
+) -> Optional[str]:
     primary_lang = project.get("primary_language", "")
     code_files = project.get("code_files", 0)
     frameworks = project.get("frameworks", [])
@@ -108,7 +138,9 @@ def _generate_opening_item(project: Dict[str, Any], project_name: str, project_t
         return f"Developed {project_name}, a {type_name} in {primary_lang}{framework_context}, delivering focused functionality through modular design."
 
 
-def _generate_architecture_items(project: Dict[str, Any], project_name: str, project_type: str) -> List[str]:
+def _generate_architecture_items(
+    project: Dict[str, Any], project_name: str, project_type: str
+) -> List[str]:
     """Generate architecture and design pattern items."""
     items = []
 
@@ -120,7 +152,9 @@ def _generate_architecture_items(project: Dict[str, Any], project_name: str, pro
         if total_classes > 0:
             features = []
             if oop.get("inheritance_depth", 0) >= 3:
-                features.append(f"multi-level inheritance hierarchies ({oop['inheritance_depth']} levels)")
+                features.append(
+                    f"multi-level inheritance hierarchies ({oop['inheritance_depth']} levels)"
+                )
             elif oop.get("inheritance_depth", 0) > 0:
                 features.append("inheritance-based design")
 
@@ -133,7 +167,9 @@ def _generate_architecture_items(project: Dict[str, Any], project_name: str, pro
             private = oop.get("private_methods", 0)
             protected = oop.get("protected_methods", 0)
             if private + protected > 10:
-                features.append(f"strong encapsulation ({private + protected} private/protected methods)")
+                features.append(
+                    f"strong encapsulation ({private + protected} private/protected methods)"
+                )
             elif private + protected > 0:
                 features.append("encapsulation patterns")
             if oop.get("properties_count", 0) > 5:
@@ -150,7 +186,9 @@ def _generate_architecture_items(project: Dict[str, Any], project_name: str, pro
                 items.append(
                     f"Structured {project_name} using object-oriented design with {total_classes} classes and modular architecture for scalability."
                 )
-    if "java_oop_analysis" in project and "error" not in project.get("java_oop_analysis", {}):
+    if "java_oop_analysis" in project and "error" not in project.get(
+        "java_oop_analysis", {}
+    ):
         java = project["java_oop_analysis"]
         total_types = java.get("total_classes", 0) + java.get("interface_count", 0)
 
@@ -163,15 +201,21 @@ def _generate_architecture_items(project: Dict[str, Any], project_name: str, pro
                 features.append(f"{patterns_str} design patterns")
 
             if java.get("interface_count", 0) >= 5:
-                features.append(f"{java['interface_count']} interfaces for contract-based design")
+                features.append(
+                    f"{java['interface_count']} interfaces for contract-based design"
+                )
             elif java.get("interface_count", 0) > 0:
                 features.append("interface-based architecture")
 
             if java.get("generic_classes", 0) > 0:
-                features.append(f"generic programming ({java['generic_classes']} generic classes)")
+                features.append(
+                    f"generic programming ({java['generic_classes']} generic classes)"
+                )
 
             if java.get("lambda_count", 0) > 10:
-                features.append(f"functional programming ({java['lambda_count']} lambda expressions)")
+                features.append(
+                    f"functional programming ({java['lambda_count']} lambda expressions)"
+                )
             if java.get("private_fields", 0) > java.get("public_fields", 0) * 2:
                 features.append("SOLID principles")
 
@@ -198,12 +242,16 @@ def _generate_architecture_items(project: Dict[str, Any], project_name: str, pro
     return items
 
 
-def _generate_optimization_items(project: Dict[str, Any], project_name: str) -> List[str]:
+def _generate_optimization_items(
+    project: Dict[str, Any], project_name: str
+) -> List[str]:
     """Generate items based on complexity and optimization analysis."""
     items = []
 
     # Complexity analysis
-    if "complexity_analysis" in project and "error" not in project.get("complexity_analysis", {}):
+    if "complexity_analysis" in project and "error" not in project.get(
+        "complexity_analysis", {}
+    ):
         complexity = project["complexity_analysis"]
         score = complexity.get("optimization_score", 0)
         insights_count = complexity.get("insights_count", 0)
@@ -243,7 +291,9 @@ def _generate_optimization_items(project: Dict[str, Any], project_name: str) -> 
     return items
 
 
-def _generate_tech_items(project: Dict[str, Any], project_name: str, project_type: str) -> List[str]:
+def _generate_tech_items(
+    project: Dict[str, Any], project_name: str, project_type: str
+) -> List[str]:
     items = []
 
     languages = list(project.get("languages", {}).keys())
@@ -289,7 +339,17 @@ def _generate_tech_items(project: Dict[str, Any], project_name: str, project_typ
         )
 
     # Database integration
-    db_keywords = {"sqlalchemy", "django-orm", "sequelize", "typeorm", "prisma", "mongodb", "redis", "postgresql", "mysql"}
+    db_keywords = {
+        "sqlalchemy",
+        "django-orm",
+        "sequelize",
+        "typeorm",
+        "prisma",
+        "mongodb",
+        "redis",
+        "postgresql",
+        "mysql",
+    }
     db_deps = [d for d in all_deps if any(kw in d.lower() for kw in db_keywords)]
     if db_deps:
         items.append(
@@ -331,7 +391,9 @@ def _generate_quality_items(project: Dict[str, Any], project_name: str) -> List[
                 f"Configured CI/CD pipeline through which automated testing is enabled, enabling continuous integration and deployment with quality gates."
             )
         else:
-            items.append(f"Set up CI/CD infrastructure, automating build and deployment processes for efficient release cycles.")
+            items.append(
+                f"Set up CI/CD infrastructure, automating build and deployment processes for efficient release cycles."
+            )
 
     # Code quality tools
     dependencies = project.get("dependencies", {})
@@ -400,7 +462,9 @@ def _generate_scale_items(project: Dict[str, Any], project_name: str) -> List[st
     return items
 
 
-def _generate_unique_items(project: Dict[str, Any], project_name: str, project_type: str) -> List[str]:
+def _generate_unique_items(
+    project: Dict[str, Any], project_name: str, project_type: str
+) -> List[str]:
     """Generate items highlighting unique project characteristics."""
     items = []
 
@@ -470,7 +534,20 @@ def generate_formatted_resume_entry(project: Dict[str, Any]) -> str:
     # Build tech stack
     tech_stack = languages + frameworks
     notable_deps = [
-        d for d in all_deps if any(kw in d.lower() for kw in ["fastapi", "django", "flask", "react", "vue", "express", "spring"])
+        d
+        for d in all_deps
+        if any(
+            kw in d.lower()
+            for kw in [
+                "fastapi",
+                "django",
+                "flask",
+                "react",
+                "vue",
+                "express",
+                "spring",
+            ]
+        )
     ]
     tech_stack.extend(notable_deps[:3])
 
@@ -480,7 +557,9 @@ def generate_formatted_resume_entry(project: Dict[str, Any]) -> str:
     tech_stack = [t for t in tech_stack if t]
     tech_line = ""
     if tech_stack:
-        tech_line = "Technologies: " + ", ".join(sorted(set(tech_stack))[:10])  # Limit to top 10
+        tech_line = "Technologies: " + ", ".join(
+            sorted(set(tech_stack))[:10]
+        )  # Limit to top 10
 
     # Bullet formatting
     bullet_str = ""

@@ -41,7 +41,11 @@ class AnalysisResponse(BaseModel):
     status_url: str
 
 
-@router.post("/portfolios/{portfolio_id}/reanalyze", status_code=202, response_model=AnalysisResponse)
+@router.post(
+    "/portfolios/{portfolio_id}/reanalyze",
+    status_code=202,
+    response_model=AnalysisResponse,
+)
 async def reanalyze_portfolio(
     portfolio_id: str,
     analysis_type: str = Form("llm", description="Analysis type: llm or non_llm"),
@@ -88,7 +92,9 @@ async def reanalyze_portfolio(
 
 @router.post("/quick", status_code=200)
 async def quick_analysis(
-    file: UploadFile = File(..., description="ZIP file to analyze (not stored as portfolio)"),
+    file: UploadFile = File(
+        ..., description="ZIP file to analyze (not stored as portfolio)"
+    ),
     analysis_type: str = Form("non_llm", description="Analysis type: llm or non_llm"),
     username: str = Depends(verify_token),
 ):

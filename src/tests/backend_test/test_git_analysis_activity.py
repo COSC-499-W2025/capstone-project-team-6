@@ -14,12 +14,16 @@ from backend.analysis.git_analysis import GitAnalyzer
 
 def _init_repo_with_commits(tmpdir: Path):
     try:
-        subprocess.run(["git", "init"], cwd=tmpdir, check=True, capture_output=True, text=True)
+        subprocess.run(
+            ["git", "init"], cwd=tmpdir, check=True, capture_output=True, text=True
+        )
     except subprocess.CalledProcessError as e:
         if "Operation not permitted" in (e.stderr or ""):
             pytest.skip("git init not permitted in this environment")
         raise
-    subprocess.run(["git", "config", "user.email", "alice@example.com"], cwd=tmpdir, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "alice@example.com"], cwd=tmpdir, check=True
+    )
     subprocess.run(["git", "config", "user.name", "Alice"], cwd=tmpdir, check=True)
 
     # code commit

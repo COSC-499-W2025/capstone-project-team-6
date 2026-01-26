@@ -19,7 +19,9 @@ class ResumeRequest(BaseModel):
     format: str = Field("markdown", description="Output format: markdown, pdf, html")
     include_skills: bool = Field(True, description="Include skills section")
     include_projects: bool = Field(True, description="Include projects section")
-    max_projects: Optional[int] = Field(None, description="Maximum number of projects to include")
+    max_projects: Optional[int] = Field(
+        None, description="Maximum number of projects to include"
+    )
 
 
 class ResumeResponse(BaseModel):

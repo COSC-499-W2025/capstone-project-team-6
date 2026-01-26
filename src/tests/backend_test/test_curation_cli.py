@@ -21,11 +21,13 @@ sys.path.insert(0, str(SRC))
 
 from backend import analysis_database as db
 from backend.curation import init_curation_tables
-from backend.curation_cli import (curate_chronology_interactive,
-                                  curate_comparison_attributes_interactive,
-                                  curate_showcase_projects_interactive,
-                                  display_curation_status,
-                                  display_showcase_summary)
+from backend.curation_cli import (
+    curate_chronology_interactive,
+    curate_comparison_attributes_interactive,
+    curate_showcase_projects_interactive,
+    display_curation_status,
+    display_showcase_summary,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -45,6 +47,8 @@ def setup_test_db(tmp_path, monkeypatch):
 def sample_projects():
     """Create sample project data for CLI testing."""
     unique_id = str(uuid.uuid4())
+    user_id = f"test_user_{unique_id[:8]}"  # Unique user_id per test run
+
     analysis_data = {
         "analysis_uuid": f"test-cli-{unique_id}",
         "analysis_type": "non_llm",
@@ -52,17 +56,27 @@ def sample_projects():
         "analysis_timestamp": datetime(2024, 1, 20, 12, 0, 0).isoformat(),
         "total_projects": 2,
         "raw_json": json.dumps({"test": "cli_data"}),
+        "username": user_id,
     }
 
     with db.get_connection() as conn:
         conn.execute("PRAGMA foreign_keys = ON;")
 
+        # Create user if it doesn't exist
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO users (username, password_hash)
+            VALUES (?, ?)
+        """,
+            (user_id, "test_hash"),
+        )
+
         # Insert analysis
         cursor = conn.execute(
             """
-            INSERT INTO analyses 
-            (analysis_uuid, analysis_type, zip_file, analysis_timestamp, total_projects, raw_json)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO analyses
+            (analysis_uuid, analysis_type, zip_file, analysis_timestamp, total_projects, raw_json, username)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 analysis_data["analysis_uuid"],
@@ -71,6 +85,7 @@ def sample_projects():
                 analysis_data["analysis_timestamp"],
                 analysis_data["total_projects"],
                 analysis_data["raw_json"],
+                analysis_data["username"],
             ),
         )
 
@@ -128,7 +143,7 @@ def sample_projects():
             project_ids.append(cursor.lastrowid)
 
         conn.commit()
-        return project_ids
+        return {"user_id": user_id, "project_ids": project_ids}
 
 
 class TestChronologyInteractive:
@@ -137,10 +152,11 @@ class TestChronologyInteractive:
     @patch("builtins.input")
     def test_chronology_quit_immediately(self, mock_input, sample_projects):
         """Test quitting chronology correction immediately."""
+        user_id = sample_projects["user_id"]
         mock_input.return_value = "q"
 
         with patch("sys.stdout", new=StringIO()) as fake_out:
-            curate_chronology_interactive("test_user")
+            curate_chronology_interactive(user_id)
             output = fake_out.getvalue()
 
         assert "PROJECT CHRONOLOGY CORRECTION" in output
@@ -150,8 +166,8 @@ class TestChronologyInteractive:
     @patch("builtins.input")
     def test_chronology_correction_workflow(self, mock_input, sample_projects):
         """Test correcting a project's chronology."""
-        user_id = f"test_user_{str(uuid.uuid4())[:8]}"  # Unique user ID
-        project_ids = sample_projects
+        user_id = sample_projects["user_id"]
+        project_ids = sample_projects["project_ids"]
 
         # Simulate user input: select project 1 (CLI_Mobile), set new commit date, save
         mock_input.side_effect = [
@@ -181,7 +197,7 @@ class TestChronologyInteractive:
     @patch("builtins.input")
     def test_chronology_invalid_project_number(self, mock_input, sample_projects):
         """Test handling invalid project number."""
-        user_id = f"test_user_{str(uuid.uuid4())[:8]}"  # Unique user ID
+        user_id = sample_projects["user_id"]
         mock_input.side_effect = ["999", "q"]  # Invalid number, then quit
 
         with patch("sys.stdout", new=StringIO()) as fake_out:
@@ -190,11 +206,15 @@ class TestChronologyInteractive:
 
         # Should contain an error message about invalid project number
         assert "Please enter a number between 1 and" in output
-        assert "Invalid selection" in output or "Please enter a number between" in output
+        assert (
+            "Invalid selection" in output or "Please enter a number between" in output
+        )
 
     def test_chronology_no_projects(self):
         """Test chronology correction with no projects."""
-        with patch("sys.stdout", new=StringIO()) as fake_out, patch("builtins.input", side_effect=["q"]):
+        with patch("sys.stdout", new=StringIO()) as fake_out, patch(
+            "builtins.input", side_effect=["q"]
+        ):
             curate_chronology_interactive("test_user")
             output = fake_out.getvalue()
 
@@ -225,8 +245,7 @@ class TestChronologyInteractive:
         assert "✅ Comparison attributes saved successfully!" in output
 
         # Verify all attributes were saved
-        from backend.curation import (ATTRIBUTE_DESCRIPTIONS,
-                                      get_user_curation_settings)
+        from backend.curation import ATTRIBUTE_DESCRIPTIONS, get_user_curation_settings
 
         settings = get_user_curation_settings("test_user")
         assert len(settings.comparison_attributes) == len(ATTRIBUTE_DESCRIPTIONS)
@@ -246,7 +265,12 @@ class TestChronologyInteractive:
     @patch("builtins.input")
     def test_comparison_clear_all_error(self, mock_input):
         """Test error when trying to save with no attributes."""
-        mock_input.side_effect = ["4", "5", "2", "5"]  # Clear all, try to save, select defaults, save
+        mock_input.side_effect = [
+            "4",
+            "5",
+            "2",
+            "5",
+        ]  # Clear all, try to save, select defaults, save
 
         with patch("sys.stdout", new=StringIO()) as fake_out:
             curate_comparison_attributes_interactive("test_user")
@@ -262,10 +286,11 @@ class TestShowcaseInteractive:
     @patch("builtins.input")
     def test_showcase_quit_immediately(self, mock_input, sample_projects):
         """Test quitting showcase selection immediately."""
+        user_id = sample_projects["user_id"]
         mock_input.return_value = "q"
 
         with patch("sys.stdout", new=StringIO()) as fake_out:
-            curate_showcase_projects_interactive("test_user")
+            curate_showcase_projects_interactive(user_id)
             output = fake_out.getvalue()
 
         assert "SHOWCASE PROJECTS SELECTION" in output
@@ -275,26 +300,28 @@ class TestShowcaseInteractive:
     @patch("builtins.input")
     def test_showcase_select_and_save(self, mock_input, sample_projects):
         """Test selecting and saving showcase projects."""
-        # Toggle project 1, save
-        mock_input.side_effect = ["1", "1", "b", "3"]
+        user_id = sample_projects["user_id"]
+        # With 2 projects (≤3), they are auto-selected
+        mock_input.side_effect = ["q"]  # Just quit
 
         with patch("sys.stdout", new=StringIO()) as fake_out:
-            curate_showcase_projects_interactive("test_user")
+            curate_showcase_projects_interactive(user_id)
             output = fake_out.getvalue()
 
-        assert "✅ Showcase projects saved successfully!" in output
+        # With ≤3 projects, they are automatically selected
+        assert "✅ All projects automatically selected for showcase!" in output
 
-        # Verify showcase was saved
+        # Verify showcase was auto-saved
         from backend.curation import get_user_curation_settings
 
-        settings = get_user_curation_settings("test_user")
-        assert len(settings.showcase_project_ids) == 1
+        settings = get_user_curation_settings(user_id)
+        assert len(settings.showcase_project_ids) == 2  # Both projects auto-selected
 
     @patch("builtins.input")
     def test_showcase_auto_select_few_projects(self, mock_input, sample_projects):
         """Test auto-selection when user has 3 or fewer projects."""
-        user_id = f"test_user_{str(uuid.uuid4())[:8]}"  # Unique user ID
-        project_ids = sample_projects
+        user_id = sample_projects["user_id"]
+        project_ids = sample_projects["project_ids"]
 
         # Mock input for any prompts that might appear
         mock_input.side_effect = ["q"]  # Quit if prompted
@@ -337,8 +364,10 @@ class TestStatusDisplay:
 
     def test_display_curation_status_empty(self):
         """Test displaying status with no curation settings."""
+        # Use a unique user_id to ensure no data exists
+        unique_user = f"test_user_empty_{uuid.uuid4().hex[:8]}"
         with patch("sys.stdout", new=StringIO()) as fake_out:
-            display_curation_status("test_user")
+            display_curation_status(unique_user)
             output = fake_out.getvalue()
 
         assert "CURATION STATUS" in output
@@ -351,17 +380,21 @@ class TestStatusDisplay:
 
     def test_display_curation_status_with_data(self, sample_projects):
         """Test displaying status with curation data."""
-        user_id = "test_user"
-        project_ids = sample_projects
+        user_id = sample_projects["user_id"]
+        project_ids = sample_projects["project_ids"]
 
         # Set up some curation data
-        from backend.curation import (save_chronology_correction,
-                                      save_comparison_attributes,
-                                      save_showcase_projects)
+        from backend.curation import (
+            save_chronology_correction,
+            save_comparison_attributes,
+            save_showcase_projects,
+        )
 
         save_comparison_attributes(user_id, ["total_files", "has_tests"])
         save_showcase_projects(user_id, [project_ids[0]])
-        save_chronology_correction(project_ids[0], user_id, last_commit_date="2024-05-01T10:00:00")
+        save_chronology_correction(
+            project_ids[0], user_id, last_commit_date="2024-05-01T10:00:00"
+        )
 
         with patch("sys.stdout", new=StringIO()) as fake_out:
             display_curation_status(user_id)
@@ -384,8 +417,8 @@ class TestStatusDisplay:
 
     def test_display_showcase_summary_with_projects(self, sample_projects):
         """Test displaying showcase summary with projects."""
-        user_id = "test_user"
-        project_ids = sample_projects
+        user_id = sample_projects["user_id"]
+        project_ids = sample_projects["project_ids"]
 
         # Set showcase projects
         from backend.curation import save_showcase_projects
@@ -409,10 +442,11 @@ class TestErrorHandling:
     @patch("builtins.input")
     def test_chronology_keyboard_interrupt(self, mock_input, sample_projects):
         """Test handling Ctrl+C in chronology correction."""
+        user_id = sample_projects["user_id"]
         mock_input.side_effect = KeyboardInterrupt()
 
         with patch("sys.stdout", new=StringIO()) as fake_out:
-            curate_chronology_interactive("test_user")
+            curate_chronology_interactive(user_id)
             output = fake_out.getvalue()
 
         assert "Cancelled." in output

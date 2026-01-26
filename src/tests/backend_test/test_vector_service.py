@@ -90,7 +90,9 @@ def test_embedding_vector_dimension(tmp_path):
     db.close()
 
     assert chunk is not None, "No chunk found for embed_test.txt"
-    assert len(chunk.embedding) == 768, f"Expected 768-dim vector, got {len(chunk.embedding)}"
+    assert (
+        len(chunk.embedding) == 768
+    ), f"Expected 768-dim vector, got {len(chunk.embedding)}"
 
 
 def test_embedding_consistency(tmp_path):
@@ -100,10 +102,15 @@ def test_embedding_consistency(tmp_path):
     store_document("same2.txt", "txt", "pytest", text)
 
     db = SessionLocal()
-    embeddings = [c.embedding for c in db.query(DocumentChunk).order_by(DocumentChunk.id).limit(2).all()]
+    embeddings = [
+        c.embedding
+        for c in db.query(DocumentChunk).order_by(DocumentChunk.id).limit(2).all()
+    ]
     db.close()
 
     assert len(embeddings) == 2
     # Compare element-wise difference
     diff = sum(abs(a - b) for a, b in zip(embeddings[0], embeddings[1]))
-    assert diff < 1e-5, f"Embeddings for identical text should match closely (diff={diff})"
+    assert (
+        diff < 1e-5
+    ), f"Embeddings for identical text should match closely (diff={diff})"

@@ -18,7 +18,9 @@ def temp_db_path(tmp_path):
 
 def test_initialize_creates_users_table(temp_db_path):
     with database.get_connection() as conn:
-        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users';")
+        cursor = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='users';"
+        )
         assert cursor.fetchone() is not None
 
 

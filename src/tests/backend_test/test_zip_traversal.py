@@ -60,7 +60,9 @@ class TestZipTraversal:
         # Root should have 3 subprojects, so it should NOT be a project itself
         root_node = results[""]
         assert root_node.subproject_count == 3
-        assert not root_node.is_project, "Root with 3 subprojects should not be a project"
+        assert (
+            not root_node.is_project
+        ), "Root with 3 subprojects should not be a project"
 
         # Each project should be detected
         assert "projectA" in results, "projectA should be found"
@@ -91,7 +93,10 @@ class TestZipTraversal:
 
         # Check for Python-specific indicators
         indicator_names = " ".join(root_node.indicators_found)
-        assert any(ind in indicator_names for ind in ["pyproject.toml", "setup.py", "requirements.txt"])
+        assert any(
+            ind in indicator_names
+            for ind in ["pyproject.toml", "setup.py", "requirements.txt"]
+        )
 
         # Check that score is high enough
         assert root_node.score >= ProjectHeuristics.PROJECT_THRESHOLD

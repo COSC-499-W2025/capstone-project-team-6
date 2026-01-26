@@ -36,7 +36,9 @@ def auth_token(client):
     password = "password123"
 
     # Signup
-    response = client.post("/api/auth/signup", json={"username": username, "password": password})
+    response = client.post(
+        "/api/auth/signup", json={"username": username, "password": password}
+    )
     assert response.status_code == 201
 
     data = response.json()
@@ -52,7 +54,9 @@ class TestProjectThumbnails:
         image_data = b"\x89PNG\r\n\x1a\n"  # PNG header
         files = {"file": ("test.png", io.BytesIO(image_data), "image/png")}
 
-        response = client.post("/api/projects/test-uuid:test-path/thumbnail", files=files)
+        response = client.post(
+            "/api/projects/test-uuid:test-path/thumbnail", files=files
+        )
         assert response.status_code == 403  # No auth header
 
     def test_upload_thumbnail_invalid_project_id(self, client, auth_token):
@@ -61,7 +65,9 @@ class TestProjectThumbnails:
         image_data = b"\x89PNG\r\n\x1a\n"  # PNG header
         files = {"file": ("test.png", io.BytesIO(image_data), "image/png")}
 
-        response = client.post("/api/projects/invalid-format/thumbnail", headers=headers, files=files)
+        response = client.post(
+            "/api/projects/invalid-format/thumbnail", headers=headers, files=files
+        )
         assert response.status_code == 400
         assert "Invalid project_id format" in response.json()["detail"]
 
@@ -71,7 +77,11 @@ class TestProjectThumbnails:
         image_data = b"\x89PNG\r\n\x1a\n"  # PNG header
         files = {"file": ("test.png", io.BytesIO(image_data), "image/png")}
 
-        response = client.post("/api/projects/nonexistent-uuid:nonexistent-path/thumbnail", headers=headers, files=files)
+        response = client.post(
+            "/api/projects/nonexistent-uuid:nonexistent-path/thumbnail",
+            headers=headers,
+            files=files,
+        )
         assert response.status_code == 404
 
     def test_upload_thumbnail_invalid_file_type(self, client, auth_token):
@@ -81,7 +91,9 @@ class TestProjectThumbnails:
         text_data = b"This is not an image"
         files = {"file": ("test.txt", io.BytesIO(text_data), "text/plain")}
 
-        response = client.post("/api/projects/test-uuid:test-path/thumbnail", headers=headers, files=files)
+        response = client.post(
+            "/api/projects/test-uuid:test-path/thumbnail", headers=headers, files=files
+        )
         # Will get 404 for project first, but this tests file validation would work
         assert response.status_code in [400, 404]
 
@@ -93,7 +105,9 @@ class TestProjectThumbnails:
     def test_get_thumbnail_project_not_found(self, client, auth_token):
         """Test getting thumbnail for non-existent project."""
         headers = {"Authorization": f"Bearer {auth_token}"}
-        response = client.get("/api/projects/nonexistent-uuid:nonexistent-path/thumbnail", headers=headers)
+        response = client.get(
+            "/api/projects/nonexistent-uuid:nonexistent-path/thumbnail", headers=headers
+        )
         assert response.status_code == 404
 
     def test_delete_thumbnail_requires_auth(self, client):
@@ -104,7 +118,9 @@ class TestProjectThumbnails:
     def test_delete_thumbnail_project_not_found(self, client, auth_token):
         """Test deleting thumbnail for non-existent project."""
         headers = {"Authorization": f"Bearer {auth_token}"}
-        response = client.delete("/api/projects/nonexistent-uuid:nonexistent-path/thumbnail", headers=headers)
+        response = client.delete(
+            "/api/projects/nonexistent-uuid:nonexistent-path/thumbnail", headers=headers
+        )
         assert response.status_code == 404
 
     def test_project_detail_includes_thumbnail_url(self, client, auth_token):

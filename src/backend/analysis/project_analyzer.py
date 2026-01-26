@@ -58,7 +58,17 @@ class FileClassifier:
     }
 
     # Patterns to identify test files
-    TEST_FILENAME_PATTERNS = ["test_", "_test.", "test.", ".test.", "spec.", ".spec.", "_spec.", "tests.", ".tests."]
+    TEST_FILENAME_PATTERNS = [
+        "test_",
+        "_test.",
+        "test.",
+        ".test.",
+        "spec.",
+        ".spec.",
+        "_spec.",
+        "tests.",
+        ".tests.",
+    ]
 
     # Directories to ignore- misc and not important files
     # THESE FILE WILL BE NEEDED FOR META DATA AND GIT ANALYSIS LATER BUT IGNORED FOR NOW
@@ -195,13 +205,25 @@ class FileClassifier:
 
         # Skip if too large
         if file_size > self.MAX_FILE_SIZE:
-            return {"path": file_path, "filename": filename, "type": "skipped", "reason": "file_too_large", "size": file_size}
+            return {
+                "path": file_path,
+                "filename": filename,
+                "type": "skipped",
+                "reason": "file_too_large",
+                "size": file_size,
+            }
 
         # Determine if it's a test file
         is_test = self.is_test_file(file_path, filename)
 
         # Classify by extension
-        classification = {"path": file_path, "filename": filename, "extension": extension, "size": file_size, "is_test": is_test}
+        classification = {
+            "path": file_path,
+            "filename": filename,
+            "extension": extension,
+            "size": file_size,
+            "is_test": is_test,
+        }
 
         # Check if it's code
         language = self.get_language_from_extension(extension)
@@ -244,7 +266,14 @@ class FileClassifier:
         # Result structure
         result = {
             "project_path": project_root,
-            "files": {"code": defaultdict(list), "docs": [], "tests": [], "configs": [], "other": [], "skipped": []},
+            "files": {
+                "code": defaultdict(list),
+                "docs": [],
+                "tests": [],
+                "configs": [],
+                "other": [],
+                "skipped": [],
+            },
             "stats": {
                 "total_files": 0,
                 "total_size": 0,

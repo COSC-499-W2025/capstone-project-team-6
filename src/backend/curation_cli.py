@@ -15,17 +15,24 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 try:
-    from .curation import (ATTRIBUTE_DESCRIPTIONS,
-                           DEFAULT_COMPARISON_ATTRIBUTES,
-                           ProjectChronologyCorrection,
-                           format_project_comparison,
-                           get_available_skills_alphabetical,
-                           get_chronology_corrections, get_showcase_projects,
-                           get_user_curation_settings, get_user_projects,
-                           init_curation_tables, save_chronology_correction,
-                           save_comparison_attributes, save_highlighted_skills,
-                           save_project_order, save_showcase_projects,
-                           validate_date_format)
+    from .curation import (
+        ATTRIBUTE_DESCRIPTIONS,
+        DEFAULT_COMPARISON_ATTRIBUTES,
+        ProjectChronologyCorrection,
+        format_project_comparison,
+        get_available_skills_alphabetical,
+        get_chronology_corrections,
+        get_showcase_projects,
+        get_user_curation_settings,
+        get_user_projects,
+        init_curation_tables,
+        save_chronology_correction,
+        save_comparison_attributes,
+        save_highlighted_skills,
+        save_project_order,
+        save_showcase_projects,
+        validate_date_format,
+    )
 except ImportError:
     # Handle direct execution or testing
     import sys
@@ -33,19 +40,24 @@ except ImportError:
     current_dir = Path(__file__).parent
     src_dir = current_dir.parent
     sys.path.insert(0, str(src_dir))
-    from backend.curation import (ATTRIBUTE_DESCRIPTIONS,
-                                  DEFAULT_COMPARISON_ATTRIBUTES,
-                                  ProjectChronologyCorrection,
-                                  format_project_comparison,
-                                  get_available_skills_alphabetical,
-                                  get_chronology_corrections,
-                                  get_showcase_projects,
-                                  get_user_curation_settings,
-                                  get_user_projects, init_curation_tables,
-                                  save_chronology_correction,
-                                  save_comparison_attributes,
-                                  save_highlighted_skills, save_project_order,
-                                  save_showcase_projects, validate_date_format)
+    from backend.curation import (
+        ATTRIBUTE_DESCRIPTIONS,
+        DEFAULT_COMPARISON_ATTRIBUTES,
+        ProjectChronologyCorrection,
+        format_project_comparison,
+        get_available_skills_alphabetical,
+        get_chronology_corrections,
+        get_showcase_projects,
+        get_user_curation_settings,
+        get_user_projects,
+        init_curation_tables,
+        save_chronology_correction,
+        save_comparison_attributes,
+        save_highlighted_skills,
+        save_project_order,
+        save_showcase_projects,
+        validate_date_format,
+    )
 
 
 def curate_chronology_interactive(user_id: str) -> None:
@@ -67,8 +79,12 @@ def curate_chronology_interactive(user_id: str) -> None:
         print(f"{i:2d}. {project['project_name']}")
         print(f"    Current dates:")
         print(f"      Last commit:  {project['effective_last_commit_date'] or 'None'}")
-        print(f"      Last modified: {project['effective_last_modified_date'] or 'None'}")
-        print(f"      Start date:   {project['effective_project_start_date'] or 'None'}")
+        print(
+            f"      Last modified: {project['effective_last_modified_date'] or 'None'}"
+        )
+        print(
+            f"      Start date:   {project['effective_project_start_date'] or 'None'}"
+        )
         print(f"      End date:     {project['effective_project_end_date'] or 'None'}")
         if project["correction_timestamp"]:
             print(f"      (Corrected on {project['correction_timestamp'][:19]})")
@@ -116,7 +132,9 @@ def _correct_project_chronology(user_id: str, project: Dict[str, Any]) -> None:
         print(f"  Current: {current_value or 'None'}")
 
         while True:
-            new_value = input(f"  New value (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS, blank to keep current): ").strip()
+            new_value = input(
+                f"  New value (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS, blank to keep current): "
+            ).strip()
 
             if not new_value:
                 break
@@ -131,7 +149,9 @@ def _correct_project_chronology(user_id: str, project: Dict[str, Any]) -> None:
                     print(f"  Will set {label.lower()} to: {new_value}")
                     break
                 else:
-                    print("  Invalid date format. Use YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS")
+                    print(
+                        "  Invalid date format. Use YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS"
+                    )
 
     if corrections:
         print(f"\nSummary of changes for {project['project_name']}:")
@@ -228,7 +248,9 @@ def curate_comparison_attributes_interactive(user_id: str) -> None:
             break
 
 
-def _toggle_comparison_attributes(all_attributes: List[str], current_attrs: set) -> None:
+def _toggle_comparison_attributes(
+    all_attributes: List[str], current_attrs: set
+) -> None:
     """Toggle individual comparison attributes."""
     while True:
         try:
@@ -238,7 +260,9 @@ def _toggle_comparison_attributes(all_attributes: List[str], current_attrs: set)
                 desc = ATTRIBUTE_DESCRIPTIONS[attr]
                 print(f"{i:2d}. [{status}] {desc}")
 
-            choice = input("\nEnter attribute number to toggle (or 'b' to go back): ").strip()
+            choice = input(
+                "\nEnter attribute number to toggle (or 'b' to go back): "
+            ).strip()
 
             if choice.lower() == "b":
                 break
@@ -345,7 +369,9 @@ def curate_showcase_projects_interactive(user_id: str) -> None:
 
             elif choice == "4":
                 if current_showcase:
-                    showcase_projects = [p for p in projects if p["id"] in current_showcase]
+                    showcase_projects = [
+                        p for p in projects if p["id"] in current_showcase
+                    ]
                     print("\nComparison of selected showcase projects:")
                     print(format_project_comparison(showcase_projects, user_id))
                 else:
@@ -362,7 +388,9 @@ def curate_showcase_projects_interactive(user_id: str) -> None:
             break
 
 
-def _toggle_showcase_projects(projects: List[Dict[str, Any]], current_showcase: set) -> None:
+def _toggle_showcase_projects(
+    projects: List[Dict[str, Any]], current_showcase: set
+) -> None:
     """Toggle individual showcase project selection."""
     while True:
         try:
@@ -371,7 +399,9 @@ def _toggle_showcase_projects(projects: List[Dict[str, Any]], current_showcase: 
                 status = "★" if project["id"] in current_showcase else " "
                 print(f"{i:2d}. [{status}] {project['project_name']}")
 
-            choice = input("\nEnter project number to toggle (or 'b' to go back): ").strip()
+            choice = input(
+                "\nEnter project number to toggle (or 'b' to go back): "
+            ).strip()
 
             if choice.lower() == "b":
                 break
@@ -505,7 +535,9 @@ def curate_skills_highlight_interactive(user_id: str) -> None:
                     selected.remove(skill)
                 else:
                     if len(selected) >= 10:
-                        print(" Maximum of 10 skills allowed. Remaining selections skipped.")
+                        print(
+                            " Maximum of 10 skills allowed. Remaining selections skipped."
+                        )
                         break
                     selected.add(skill)
 
@@ -534,12 +566,16 @@ def display_curation_status(user_id: str) -> None:
             print("  Status: [CUSTOM RANK ACTIVE]")
             # Show top 3 in the custom order as a preview
             preview = [p["project_name"] for p in projects[:3]]
-            print(f"  Current Top 3: {', '.join(preview)}{'...' if len(projects) > 3 else ''}")
+            print(
+                f"  Current Top 3: {', '.join(preview)}{'...' if len(projects) > 3 else ''}"
+            )
         else:
             print("  Status: Default (Chronological)")
 
         # Comparison attributes
-        print(f"\nComparison Attributes ({len(settings.comparison_attributes)} selected):")
+        print(
+            f"\nComparison Attributes ({len(settings.comparison_attributes)} selected):"
+        )
         for attr in settings.comparison_attributes:
             desc = ATTRIBUTE_DESCRIPTIONS.get(attr, attr)
             print(f"  • {desc}")
@@ -558,7 +594,9 @@ def display_curation_status(user_id: str) -> None:
             for project in showcase:
                 print(f"  ★ {project['project_name']}")
                 if project["primary_language"]:
-                    print(f"    {project['primary_language']} | {project['total_files']} files")
+                    print(
+                        f"    {project['primary_language']} | {project['total_files']} files"
+                    )
         else:
             print("  (None selected)")
 
@@ -567,7 +605,9 @@ def display_curation_status(user_id: str) -> None:
         if corrections:
             recent_corrections = corrections[:5]  # Show 5 most recent
             for correction in recent_corrections:
-                print(f"  • Project ID {correction.project_id} - {correction.correction_timestamp[:19]}")
+                print(
+                    f"  • Project ID {correction.project_id} - {correction.correction_timestamp[:19]}"
+                )
             if len(corrections) > 5:
                 print(f"  ... and {len(corrections) - 5} more")
         else:

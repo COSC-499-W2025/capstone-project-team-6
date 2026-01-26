@@ -215,9 +215,13 @@ def example_custom_analysis():
         print(f"  {'✓' if project['has_readme'] else '✗'} Has README")
         print(f"  {'✓' if project['has_ci_cd'] else '✗'} Has CI/CD")
         print(f"  {'✓' if project['has_docker'] else '✗'} Has Docker")
-        print(f"  {'✓' if project['test_coverage_estimate'] in ['medium', 'high'] else '✗'} Good test coverage")
+        print(
+            f"  {'✓' if project['test_coverage_estimate'] in ['medium', 'high'] else '✗'} Good test coverage"
+        )
         print(f"  {'✓' if project['total_files'] > 5 else '✗'} Non-trivial size")
-        print(f"  {'✓' if len(project.get('dependencies', {})) > 0 else '✗'} Manages dependencies")
+        print(
+            f"  {'✓' if len(project.get('dependencies', {})) > 0 else '✗'} Manages dependencies"
+        )
         print()
 
 

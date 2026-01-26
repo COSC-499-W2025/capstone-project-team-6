@@ -22,7 +22,9 @@ def temp_documents_db(tmp_path: Path):
 
 def test_initialize_creates_documents_table(temp_documents_db: Path):
     with sqlite3.connect(temp_documents_db) as conn:
-        cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='Documents';")
+        cur = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='Documents';"
+        )
         assert cur.fetchone() is not None
 
 
