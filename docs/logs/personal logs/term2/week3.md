@@ -193,5 +193,6 @@ January 19 - January 25
 ## PR's reviewed
 
 - #306 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/306
-- #317 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/317 (First review) 
+- #317 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/317 (First review)
+- #322 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/322 (first review)
 
