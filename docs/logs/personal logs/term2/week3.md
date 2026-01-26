@@ -1,5 +1,88 @@
 # Mandira Samarasekara
 
+## Date Ranges
+
+January 19 – January 25  
+
+<img width="1436" height="829" alt="Screenshot 2026-01-25 232508" src="https://github.com/user-attachments/assets/789a5e94-88aa-4ff9-bbe5-4346b270b794" />
+
+
+## Weekly recap goals
+
+- Attended weekly check-ins  
+- Discussed Milestone 2 requirements with the team  
+- Completed Requirement 24 (Developer Role Prediction)  
+- Developed a comprehensive automated test suite for the Role Prediction feature  
+- Scheduled and attended team meetings  
+- Completed weekly personal logs  
+- Wrote the team logs for the week  
+- Reviewed pull requests  
+- Prepared for the in-class heuristic evaluation  
+- Designed and created a Google survey for the heuristic evaluation  
+
+## What went well
+
+This week, I successfully completed **Requirement 24 (Developer Role Prediction)** and implemented a robust prediction system with confidence scoring and detailed reasoning. I also developed and validated a comprehensive test suite to ensure reliability and full functional coverage of the feature.
+
+In addition, I attended the weekly check-in and team meetings, and I feel well prepared for the upcoming heuristic evaluation. I also created a structured Google survey to collect user feedback during the evaluation.
+
+## What didn't go well
+
+I was sick for most of the week, which limited my ability to start tasks as early as planned. However, I adjusted my schedule and still completed all required deliverables on time.
+
+## PR's initiated
+
+**Role prediction #329:**  
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/329  
+
+This PR introduced a **Developer Role Prediction System** that analyzes project characteristics to predict the most likely developer role with confidence scoring. The implementation supports **12 role classifications** and uses a **multi-factor scoring algorithm** based on languages, frameworks, project structure, CI/CD, testing patterns, Git practices, and OOP indicators. It also includes database and CLI integration, structured reasoning output, error handling, input validation, and documentation updates.
+
+---
+
+**Role prediction tests #330:**  
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/330  
+
+This PR added a **comprehensive automated test suite** for the Role Prediction feature, ensuring consistent behavior and reliability across all scenarios. The suite includes **34 tests** covering unit, integration, performance, and end-to-end validation, with additional tooling such as a custom test runner, category-based execution, smoke tests for CI/CD, and performance benchmarks to confirm efficiency under large datasets.
+
+## PR's reviewed
+
+**Add frontend tests configuration and ProjectsPage tests #322**  
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/322  
+
+**Unit tests for analysis, auth, portfolios and projects endpoints #318**  
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/318  
+
+**Frontend analysis #317**  
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/317  
+
+**Duplicate Projects Analysis Outputs #313**  
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/313  
+
+**Updated dashboard #308**  
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/308  
+
+## Distinct PR review
+
+**Frontend analysis #317**  
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/317  
+
+During my review of this PR, I verified that the frontend analysis workflow was implemented correctly and aligned with the expected analyze + curate pipeline behavior. I also performed local testing to confirm that background task processing and polling-based progress tracking worked smoothly from the user’s perspective.
+
+I provided feedback on minor improvements, including ensuring **Python 3.9 compatibility** by avoiding union type syntax that requires newer versions. Overall, the PR delivered a strong and functional frontend foundation with clear progress updates and solid error handling. The temporary hardcoded path approach was acceptable for the current development stage, with the expectation that it will be improved in the planned follow-up PR for file upload integration.
+
+## Issue board
+
+- **Issue #**: 327  
+- **Issue #**: 328  
+
+## Plan for next week
+
+- Attend the in-class heuristic evaluation and collect meaningful feedback to guide system improvements  
+- Add curation support for Role Prediction when the default predicted role is inaccurate  
+- Thoroughly test the frontend workflow and resolve any remaining bugs  
+- Prepare for the upcoming quiz
+
+
 # Aakash Tirithdas
 
 ## Date Ranges
