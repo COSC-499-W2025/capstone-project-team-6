@@ -49,17 +49,17 @@ def auth_token(client, test_user):
 
 @pytest.fixture
 def test_zip_file():
-    """Create a test ZIP file with a simple project."""
-    with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
-        with zipfile.ZipFile(tmp.name, "w") as zipf:
-            # Add a simple Python file
-            zipf.writestr("test_project/main.py", "print('Hello World')")
-            zipf.writestr("test_project/README.md", "# Test Project")
+    tmp = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
+    tmp_path = Path(tmp.name)
+    tmp.close()  # <- critical for Windows
 
-        yield Path(tmp.name)
+    with zipfile.ZipFile(tmp_path, "w") as zipf:
+        zipf.writestr("test_project/main.py", "print('Hello World')")
+        zipf.writestr("test_project/README.md", "# Test Project")
 
-        # Cleanup
-        Path(tmp.name).unlink(missing_ok=True)
+    yield tmp_path
+
+    tmp_path.unlink(missing_ok=True)
 
 
 @pytest.fixture
