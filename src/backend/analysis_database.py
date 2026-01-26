@@ -98,19 +98,6 @@ def init_db() -> None:
             conn.execute("ALTER TABLE analyses ADD COLUMN username TEXT REFERENCES users(username);")
             conn.commit()
 
-        # Add role prediction columns if they don't exist
-        existing_project_columns = {row["name"] for row in conn.execute("PRAGMA table_info(projects)")}
-        role_columns = ["predicted_role", "predicted_role_confidence", "curated_role", "role_prediction_data"]
-        
-        for column in role_columns:
-            if column not in existing_project_columns:
-                if column == "predicted_role_confidence":
-                    conn.execute(f"ALTER TABLE projects ADD COLUMN {column} REAL;")
-                else:
-                    conn.execute(f"ALTER TABLE projects ADD COLUMN {column} TEXT;")
-        
-        conn.commit()
-
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS projects (
@@ -156,6 +143,19 @@ def init_db() -> None:
             );
             """
         )
+
+        # Add role prediction columns if they don't exist (for existing databases)
+        existing_project_columns = {row["name"] for row in conn.execute("PRAGMA table_info(projects)")}
+        role_columns = ["predicted_role", "predicted_role_confidence", "curated_role", "role_prediction_data"]
+        
+        for column in role_columns:
+            if column not in existing_project_columns:
+                if column == "predicted_role_confidence":
+                    conn.execute(f"ALTER TABLE projects ADD COLUMN {column} REAL;")
+                else:
+                    conn.execute(f"ALTER TABLE projects ADD COLUMN {column} TEXT;")
+        
+        conn.commit()
 
         conn.execute(
             """
