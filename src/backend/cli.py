@@ -463,7 +463,7 @@ def display_analysis(results: dict) -> None:
             if existing_role_data:
                 # Display stored role prediction
                 print(f"\n{'-' * 40}")
-                print(f"🎯 PREDICTED ROLE: {existing_role_data.get('predicted_role', 'Unknown')}")
+                print(f"   PREDICTED ROLE: {existing_role_data.get('predicted_role', 'Unknown')}")
                 confidence = existing_role_data.get('confidence_score', 0)
                 print(f"   Confidence: {confidence:.1%}")
                 
