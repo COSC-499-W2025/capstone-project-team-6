@@ -612,33 +612,65 @@ def display_analysis(results: dict) -> None:
                                 percentage = (lines / total_surviving * 100) if total_surviving > 0 else 0
                                 print(f"      • {email}: {lines} lines ({percentage:.1f}%)")
 
-        # Contribution Ranking Scores (if calculated)
-        # Note: These scores are typically calculated in analyze.py's summarize_top_ranked_projects
-        # but we can calculate them here if needed for display
-        if project.get("target_user_email"):
-            try:
-                from analysis.analyze import calculate_composite_score
+        # Enhanced Contribution Ranking Scores
+        try:
+            from analysis.analyze import calculate_composite_score
 
-                score_data = calculate_composite_score(project)
-                if score_data:
-                    print(f"\nContribution Ranking Scores:")
-                    print(f"   Composite Score: {score_data.get('composite_score', 0):.2f}/100.0")
-                    user_score = score_data.get("user_contribution_score", 0.0)
-                    if user_score > 0:
-                        print(f"   User Contribution Boost: {user_score:.2f}/20.0")
-                        print(f"   Adjusted Score: {score_data.get('adjusted_score', 0):.2f}")
-                    breakdown = score_data.get("breakdown", {})
-                    justification = score_data.get("justification", {})
-                    if breakdown:
-                        print(f"   Score Breakdown:")
-                        print(f"      • Code Architecture: {breakdown.get('code_architecture', 0):.2f}/30.0")
-                        print(f"      • Code Quality: {breakdown.get('code_quality', 0):.2f}/25.0")
-                        print(f"      • Project Maturity: {breakdown.get('project_maturity', 0):.2f}/25.0")
-                        print(f"      • Algorithmic Quality: {breakdown.get('algorithmic_quality', 0):.2f}/20.0")
-                    if justification.get("target_user"):
-                        print(f"   Contribution Justification: {justification['target_user']}")
-            except Exception:
-                pass  # Silently fail if calculation is not available
+            user_email = project.get("target_user_email")
+            score_data = calculate_composite_score(project, user_email=user_email)
+
+            if score_data:
+                print(f"\n{'=' * 60}")
+                print(f"  ENHANCED CONTRIBUTION RANKING")
+                print(f"{'=' * 60}")
+
+                # Overall scores
+                composite_score = score_data.get('composite_score', 0)
+                category = score_data.get('category', 'N/A')
+                print(f"\nFinal Score: {composite_score:.2f}/100.0 ({category})")
+
+                user_score = score_data.get("user_contribution_score", 0.0)
+                if user_score > 0:
+                    print(f"User Contribution Boost: +{user_score:.2f}/20.0")
+                    print(f"Adjusted Score: {score_data.get('adjusted_score', 0):.2f}/100.0")
+
+                # Breakdown by factor
+                breakdown = score_data.get("breakdown", {})
+                justification = score_data.get("justification", {})
+
+                if breakdown:
+                    print(f"\nScore Breakdown:")
+                    print(f"\n  Base Factors (45% weight):")
+                    print(f"    • Code Architecture:     {breakdown.get('code_architecture', 0):>6.2f}/30.0")
+                    print(f"    • Code Quality:          {breakdown.get('code_quality', 0):>6.2f}/25.0")
+                    print(f"    • Project Maturity:      {breakdown.get('project_maturity', 0):>6.2f}/25.0")
+                    print(f"    • Algorithmic Quality:   {breakdown.get('algorithmic_quality', 0):>6.2f}/20.0")
+
+                    # Enhanced factors
+                    if 'individual_contribution' in breakdown:
+                        print(f"\n  Enhanced Factors (55% weight):")
+                        print(f"    • Individual Contribution: {breakdown.get('individual_contribution', 0):>6.2f}/30.0")
+                        print(f"    • Recency:                 {breakdown.get('recency', 0):>6.2f}/15.0")
+                        print(f"    • Project Scale:           {breakdown.get('project_scale', 0):>6.2f}/10.0")
+                        print(f"    • Collaboration Diversity: {breakdown.get('collaboration_diversity', 0):>6.2f}/10.0")
+                        print(f"    • Activity Duration:       {breakdown.get('activity_duration', 0):>6.2f}/10.0")
+
+                # Show justifications for enhanced factors
+                if justification and 'individual_contribution' in justification:
+                    print(f"\nEnhanced Ranking Details:")
+                    print(f"  • Contribution: {justification.get('individual_contribution', 'N/A')}")
+                    print(f"  • Recency: {justification.get('recency', 'N/A')}")
+                    print(f"  • Scale: {justification.get('project_scale', 'N/A')}")
+                    print(f"  • Collaboration: {justification.get('collaboration_diversity', 'N/A')}")
+                    print(f"  • Duration: {justification.get('activity_duration', 'N/A')}")
+
+                if user_email and justification.get("target_user"):
+                    print(f"\n  Target User Analysis:")
+                    print(f"    {justification['target_user']}")
+
+                print(f"{'=' * 60}\n")
+        except Exception as e:
+            print(f"\nWarning: Could not calculate enhanced ranking: {e}")
 
         # Complexity Analysis (Python)
         complexity_analysis = project.get("complexity_analysis", {})
