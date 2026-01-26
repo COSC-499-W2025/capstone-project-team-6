@@ -1116,11 +1116,34 @@ def main() -> int:
 
                     # Store analysis in database
                     try:
-                        from .analysis_database import record_analysis
+                        import json
 
-                        analysis_id = record_analysis("non_llm", results, username=username)
-                        analysis_uuid = results.get("analysis_metadata", {}).get("analysis_uuid", "unknown")
-                        print(f"\nAnalysis saved to database (ID: {analysis_id}, UUID: {analysis_uuid})")
+                        from .analysis_database import (get_analysis,
+                                                        get_connection,
+                                                        record_analysis)
+
+                        analysis_id = None
+                        analysis_uuid = None
+
+                        if not has_consented:
+                            analysis_id = record_analysis("non_llm", results, username=username)
+                            row = get_analysis(analysis_id)
+                            if row:
+                                analysis_uuid = row["analysis_uuid"]
+                                # Stored UUID in results metadata for consistency
+                                results.setdefault("analysis_metadata", {})["analysis_uuid"] = analysis_uuid
+                                print(f"\nAnalysis saved to database (ID: {analysis_id}, UUID: {analysis_uuid})")
+                            else:
+                                print(f"\nAnalysis saved to database (ID: {analysis_id})")
+
+                        else:
+                            print("\n[i] Standard analysis complete. Proceeding with AI analysis...")
+
+                            # temporary UUID for tracking (NOT written to DB)
+                            import uuid
+
+                            analysis_uuid = str(uuid.uuid4())
+                            results.setdefault("analysis_metadata", {})["analysis_uuid"] = analysis_uuid
 
                         # Ask if user wants to add more projects incrementally
                         while True:
@@ -1150,7 +1173,6 @@ def main() -> int:
                                     existing_projects = results.get("projects", [])
                                     new_projects = new_results.get("projects", [])
 
-                                    # Deduplicate by project_path
                                     existing_paths = {p.get("project_path") for p in existing_projects}
                                     added_count = 0
                                     for proj in new_projects:
@@ -1161,26 +1183,23 @@ def main() -> int:
                                     results["projects"] = existing_projects
                                     results["analysis_metadata"]["total_projects"] = len(existing_projects)
 
-                                    # Update database
-                                    import json
-
-                                    from .analysis_database import \
-                                        get_connection
-
-                                    with get_connection() as conn:
-                                        conn.execute(
-                                            """UPDATE analyses 
-                                               SET raw_json = ?, 
-                                                   total_projects = ?,
-                                                   analysis_timestamp = datetime('now')
-                                               WHERE analysis_uuid = ?""",
-                                            (json.dumps(results), len(existing_projects), analysis_uuid),
-                                        )
-                                        conn.commit()
+                                    # Only update database if user did NOT consent
+                                    if not has_consented and analysis_uuid:
+                                        with get_connection() as conn:
+                                            conn.execute(
+                                                """UPDATE analyses
+                                                SET raw_json = ?,
+                                                    total_projects = ?,
+                                                    analysis_timestamp = datetime('now')
+                                                WHERE analysis_uuid = ?""",
+                                                (json.dumps(results), len(existing_projects), analysis_uuid),
+                                            )
+                                            conn.commit()
 
                                     print(f"\n✓ Added {added_count} new project(s) to portfolio")
                                     print(f"✓ Total projects now: {len(existing_projects)}")
-                                    print(f"✓ Portfolio UUID: {analysis_uuid}")
+                                    if not has_consented:
+                                        print(f"✓ Portfolio UUID: {analysis_uuid}")
                                 else:
                                     break
                             except KeyboardInterrupt:
@@ -1239,7 +1258,7 @@ def main() -> int:
                             temp_llm_zip = create_temp_zip(path)
                             llm_target_path = temp_llm_zip
                         except Exception as e:
-                            print(f"❌ Failed to create zip for AI analysis: {e}")
+                            print(f" Failed to create zip for AI analysis: {e}")
                             has_consented = False  # Abort LLM part
 
                     if has_consented:
@@ -1318,13 +1337,15 @@ def main() -> int:
                             try:
                                 from .analysis_database import record_analysis
 
-                                llm_analysis_id = record_analysis("llm", llm_results, username=username)
-                                print(f"\n📊 AI analysis saved to database (ID: {llm_analysis_id})")
+                                llm_results["non_llm_results"] = results
+                                llm_id = record_analysis("llm", llm_results, username=username)
+                                print(f"\n AI analysis saved to database (ID: {llm_id})")
+
                             except Exception as db_error:
-                                print(f"\n⚠️  Warning: Could not save AI results: {db_error}")
+                                print(f"\n Warning: Could not save AI results: {db_error}")
 
                         except Exception as e:
-                            print(f"\n❌ AI analysis failed: {e}")
+                            print(f"\nAI analysis failed: {e}")
                             # Don't fail the whole command, standard analysis succeeded
 
                         finally:
@@ -1363,9 +1384,9 @@ def main() -> int:
                         output_path = Path(filename)
                         with open(output_path, "w", encoding="utf-8") as f:
                             json.dump(final_results, f, indent=2, ensure_ascii=False)
-                        print(f"✅ Analysis saved to: {output_path.absolute()}")
+                        print(f"Analysis saved to: {output_path.absolute()}")
                     except Exception as e:
-                        print(f"❌ Error saving JSON file: {e}")
+                        print(f"Error saving JSON file: {e}")
 
                 try:
                     # Generate resume highlights

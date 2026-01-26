@@ -1,5 +1,5 @@
 """Project-related API endpoints."""
-import os
+
 import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -27,6 +27,7 @@ MAX_THUMBNAIL_SIZE_MB = 5
 
 class ProjectDetail(BaseModel):
     """Detailed project information."""
+
     name: str
     path: str
     metadata: Dict[str, Any]
@@ -42,6 +43,7 @@ class ThumbnailUploadResponse(BaseModel):
 
 class SkillInfo(BaseModel):
     """Aggregated skill information."""
+
     skill: str
     count: int
     projects: List[str]

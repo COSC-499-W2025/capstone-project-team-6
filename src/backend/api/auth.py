@@ -1,4 +1,5 @@
 """Authentication API endpoints."""
+
 import uuid
 from datetime import datetime, timedelta
 from typing import Any, Dict
