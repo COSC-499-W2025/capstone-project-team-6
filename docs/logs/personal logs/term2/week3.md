@@ -71,9 +71,7 @@ During my review of this PR, I verified that the frontend analysis workflow was 
 I provided feedback on minor improvements, including ensuring **Python 3.9 compatibility** by avoiding union type syntax that requires newer versions. Overall, the PR delivered a strong and functional frontend foundation with clear progress updates and solid error handling. The temporary hardcoded path approach was acceptable for the current development stage, with the expectation that it will be improved in the planned follow-up PR for file upload integration.
 
 ## Issue board
-
-- **Issue #**: 327  
-- **Issue #**: 328  
+<img width="650" height="206" alt="image" src="https://github.com/user-attachments/assets/70d7691d-1e22-45b7-ac02-a60762e251d7" />
 
 ## Plan for next week
 
