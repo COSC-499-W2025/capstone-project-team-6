@@ -15,8 +15,8 @@ sys.path.insert(0, str(src_dir))
 
 from fastapi.testclient import TestClient
 
-from backend.api_server import app
 from backend.analysis_database import init_db
+from backend.api_server import app
 
 
 @pytest.fixture
@@ -71,9 +71,7 @@ class TestProjectThumbnails:
         image_data = b"\x89PNG\r\n\x1a\n"  # PNG header
         files = {"file": ("test.png", io.BytesIO(image_data), "image/png")}
 
-        response = client.post(
-            "/api/projects/nonexistent-uuid:nonexistent-path/thumbnail", headers=headers, files=files
-        )
+        response = client.post("/api/projects/nonexistent-uuid:nonexistent-path/thumbnail", headers=headers, files=files)
         assert response.status_code == 404
 
     def test_upload_thumbnail_invalid_file_type(self, client, auth_token):
