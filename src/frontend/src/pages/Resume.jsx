@@ -76,17 +76,34 @@ const Resume = () => {
   const downloadResume = () => {
     if (!generatedResume) return;
 
-    const blob = new Blob([generatedResume.content], { 
-      type: resumeFormat === 'markdown' ? 'text/markdown' : 'text/html' 
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `resume_${new Date().toISOString().split('T')[0]}.${resumeFormat === 'markdown' ? 'md' : 'html'}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    if (resumeFormat === 'pdf') {
+      // Decode base64 PDF
+      const binaryString = atob(generatedResume.content);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `resume_${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } else {
+      // Markdown download
+      const blob = new Blob([generatedResume.content], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `resume_${new Date().toISOString().split('T')[0]}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
   };
 
   const copyToClipboard = () => {
@@ -277,7 +294,6 @@ const Resume = () => {
                     }}
                   >
                     <option value="markdown">Markdown</option>
-                    <option value="html">HTML</option>
                     <option value="pdf">PDF</option>
                   </select>
                 </div>
@@ -362,20 +378,22 @@ const Resume = () => {
                   Generated Resume
                 </h2>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <button
-                    onClick={copyToClipboard}
-                    style={{
-                      padding: '8px 16px',
-                      fontSize: '14px',
-                      color: '#2563eb',
-                      backgroundColor: 'white',
-                      border: '1px solid #2563eb',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Copy
-                  </button>
+                  {resumeFormat !== 'pdf' && (
+                    <button
+                      onClick={copyToClipboard}
+                      style={{
+                        padding: '8px 16px',
+                        fontSize: '14px',
+                        color: '#2563eb',
+                        backgroundColor: 'white',
+                        border: '1px solid #2563eb',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Copy
+                    </button>
+                  )}
                   <button
                     onClick={downloadResume}
                     style={{
@@ -415,13 +433,58 @@ const Resume = () => {
                 borderRadius: '8px',
                 maxHeight: '600px',
                 overflowY: 'auto',
-                fontFamily: 'monospace',
+                fontFamily: resumeFormat === 'pdf' ? 'inherit' : 'monospace',
                 fontSize: '14px',
                 lineHeight: '1.6',
                 whiteSpace: 'pre-wrap',
                 wordBreak: 'break-word',
               }}>
-                {generatedResume.content}
+                {resumeFormat === 'pdf' ? (
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '48px',
+                    textAlign: 'center',
+                  }}>
+                    <svg
+                      style={{ marginBottom: '16px' }}
+                      width="64"
+                      height="64"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#2563eb"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                      <line x1="16" y1="13" x2="8" y2="13"></line>
+                      <line x1="16" y1="17" x2="8" y2="17"></line>
+                      <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#1a1a1a', marginBottom: '8px' }}>
+                      PDF Resume Generated Successfully
+                    </h3>
+                    <p style={{ color: '#737373', marginBottom: '16px' }}>
+                      Your resume has been generated as a PDF file. Click the Download button above to save it.
+                    </p>
+                    <div style={{ 
+                      padding: '12px 16px', 
+                      backgroundColor: '#eff6ff', 
+                      borderRadius: '6px',
+                      border: '1px solid #bfdbfe',
+                      color: '#1e40af',
+                      fontSize: '13px'
+                    }}>
+                      💡 PDF files cannot be previewed in the browser. Use the Download button to view the full resume.
+                    </div>
+                  </div>
+                ) : (
+                  generatedResume.content
+                )}
               </div>
             </div>
           )}
