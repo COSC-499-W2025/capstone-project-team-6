@@ -12,6 +12,21 @@ const Resume = () => {
   const [resumeFormat, setResumeFormat] = useState('markdown');
   const [includeSkills, setIncludeSkills] = useState(true);
   const [includeProjects, setIncludeProjects] = useState(true);
+  
+  // Personal information
+  const [personalInfo, setPersonalInfo] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    location: '',
+    linkedIn: '',
+    github: '',
+    website: ''
+  });
+  
+  // Editable resume content
+  const [editableContent, setEditableContent] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     loadPortfolios();
@@ -59,18 +74,39 @@ const Resume = () => {
       setGenerating(true);
       setError('');
       const resume = await resumeAPI.generateResume(selectedPortfolios, {
-        portfolio_ids: selectedPortfolios,
         format: resumeFormat,
         include_skills: includeSkills,
         include_projects: includeProjects,
+        personal_info: personalInfo,
       });
       setGeneratedResume(resume);
+      setEditableContent(resume.content);
+      setIsEditing(false);
     } catch (err) {
       console.error('Error generating resume:', err);
       setError(err.response?.data?.detail || 'Failed to generate resume');
     } finally {
       setGenerating(false);
     }
+  };
+
+  const handleEditContent = () => {
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (editableContent && generatedResume) {
+      setGeneratedResume({
+        ...generatedResume,
+        content: editableContent
+      });
+      setIsEditing(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditableContent(generatedResume?.content || '');
+    setIsEditing(false);
   };
 
   const downloadResume = () => {
@@ -108,7 +144,8 @@ const Resume = () => {
 
   const copyToClipboard = () => {
     if (!generatedResume) return;
-    navigator.clipboard.writeText(generatedResume.content);
+    const contentToCopy = isEditing ? editableContent : generatedResume.content;
+    navigator.clipboard.writeText(contentToCopy);
     alert('Resume copied to clipboard!');
   };
 
@@ -141,7 +178,7 @@ const Resume = () => {
             color: '#737373',
             margin: 0,
           }}>
-            Select portfolios to generate a professional resume from your analyzed projects
+            Customize your resume by selecting portfolios and personalizing information.
           </p>
         </div>
 
@@ -165,6 +202,125 @@ const Resume = () => {
         }}>
           {/* Left Panel - Portfolio Selection */}
           <div>
+            {/* Personal Information Section */}
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              marginBottom: '24px',
+            }}>
+              <h2 style={{
+                fontSize: '20px',
+                fontWeight: '600',
+                color: '#1a1a1a',
+                margin: 0,
+                marginBottom: '16px',
+              }}>
+                Personal Information
+              </h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <input
+                  type="text"
+                  placeholder="Full Name"
+                  value={personalInfo.name}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, name: e.target.value })}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <input
+                  type="email"
+                  placeholder="Email Address"
+                  value={personalInfo.email}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, email: e.target.value })}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <input
+                  type="tel"
+                  placeholder="Phone Number"
+                  value={personalInfo.phone}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, phone: e.target.value })}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <input
+                  type="text"
+                  placeholder="Location (e.g., City, State)"
+                  value={personalInfo.location}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, location: e.target.value })}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <input
+                  type="url"
+                  placeholder="LinkedIn URL (optional)"
+                  value={personalInfo.linkedIn}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, linkedIn: e.target.value })}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <input
+                  type="url"
+                  placeholder="GitHub URL (optional)"
+                  value={personalInfo.github}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, github: e.target.value })}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <input
+                  type="url"
+                  placeholder="Personal Website (optional)"
+                  value={personalInfo.website}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, website: e.target.value })}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+            </div>
+
             <div style={{
               backgroundColor: 'white',
               borderRadius: '12px',
@@ -379,21 +535,69 @@ const Resume = () => {
                   Generated Resume
                 </h2>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  {resumeFormat !== 'pdf' && (
-                    <button
-                      onClick={copyToClipboard}
-                      style={{
-                        padding: '8px 16px',
-                        fontSize: '14px',
-                        color: '#2563eb',
-                        backgroundColor: 'white',
-                        border: '1px solid #2563eb',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Copy
-                    </button>
+                  {resumeFormat !== 'pdf' && !isEditing && (
+                    <>
+                      <button
+                        onClick={handleEditContent}
+                        style={{
+                          padding: '8px 16px',
+                          fontSize: '14px',
+                          color: '#2563eb',
+                          backgroundColor: 'white',
+                          border: '1px solid #2563eb',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={copyToClipboard}
+                        style={{
+                          padding: '8px 16px',
+                          fontSize: '14px',
+                          color: '#2563eb',
+                          backgroundColor: 'white',
+                          border: '1px solid #2563eb',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Copy
+                      </button>
+                    </>
+                  )}
+                  {isEditing && (
+                    <>
+                      <button
+                        onClick={handleSaveEdit}
+                        style={{
+                          padding: '8px 16px',
+                          fontSize: '14px',
+                          color: 'white',
+                          backgroundColor: '#16a34a',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={handleCancelEdit}
+                        style={{
+                          padding: '8px 16px',
+                          fontSize: '14px',
+                          color: '#737373',
+                          backgroundColor: 'white',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </>
                   )}
                   <button
                     onClick={downloadResume}
@@ -483,6 +687,23 @@ const Resume = () => {
                       💡 PDF files cannot be previewed in the browser. Use the Download button to view the full resume.
                     </div>
                   </div>
+                ) : isEditing ? (
+                  <textarea
+                    value={editableContent}
+                    onChange={(e) => setEditableContent(e.target.value)}
+                    style={{
+                      width: '100%',
+                      minHeight: '500px',
+                      padding: '16px',
+                      border: '2px solid #2563eb',
+                      borderRadius: '8px',
+                      fontFamily: 'monospace',
+                      fontSize: '14px',
+                      lineHeight: '1.6',
+                      resize: 'vertical',
+                      boxSizing: 'border-box',
+                    }}
+                  />
                 ) : (
                   generatedResume.content
                 )}

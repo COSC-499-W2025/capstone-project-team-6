@@ -20,6 +20,7 @@ class ResumeRequest(BaseModel):
     include_skills: bool = Field(True, description="Include skills section")
     include_projects: bool = Field(True, description="Include projects section")
     max_projects: Optional[int] = Field(None, description="Maximum number of projects to include")
+    personal_info: Optional[Dict[str, str]] = Field(None, description="Personal information (name, email, phone, location, linkedIn, github, website)")
 
 
 class ResumeResponse(BaseModel):
@@ -66,6 +67,7 @@ async def generate_resume(
             include_skills=request.include_skills,
             include_projects=request.include_projects,
             max_projects=request.max_projects,
+            personal_info=request.personal_info,
         )
 
         # Convert PDF bytes to base64 string for JSON response

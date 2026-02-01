@@ -587,6 +587,7 @@ def generate_resume(
     include_skills: bool = True,
     include_projects: bool = True,
     max_projects: Optional[int] = None,
+    personal_info: Optional[Dict[str, str]] = None,
 ) -> str:
     """
     Generate a resume from multiple portfolios.
@@ -629,8 +630,37 @@ def generate_resume(
     # Build resume content
     resume_parts = []
 
-    # Header
-    resume_parts.append("# Professional Resume\n")
+    # Header with personal information
+    if personal_info and personal_info.get("name"):
+        resume_parts.append(f"# {personal_info.get('name')}\n")
+        
+        # Contact information
+        contact_parts = []
+        if personal_info.get("email"):
+            contact_parts.append(personal_info.get("email"))
+        if personal_info.get("phone"):
+            contact_parts.append(personal_info.get("phone"))
+        if personal_info.get("location"):
+            contact_parts.append(personal_info.get("location"))
+        
+        if contact_parts:
+            resume_parts.append(" | ".join(contact_parts))
+            resume_parts.append("\n")
+        
+        # Links
+        links_parts = []
+        if personal_info.get("linkedIn"):
+            links_parts.append(f"LinkedIn: {personal_info.get('linkedIn')}")
+        if personal_info.get("github"):
+            links_parts.append(f"GitHub: {personal_info.get('github')}")
+        if personal_info.get("website"):
+            links_parts.append(f"Website: {personal_info.get('website')}")
+        
+        if links_parts:
+            resume_parts.append(" | ".join(links_parts))
+            resume_parts.append("\n")
+        
+        resume_parts.append("\n---\n\n")
 
     # Skills section
     if include_skills and all_skills:
