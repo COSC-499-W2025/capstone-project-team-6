@@ -69,7 +69,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <route
+          <Route
             path="/curate"
             element={
               <ProtectedRoute>
