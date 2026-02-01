@@ -242,14 +242,15 @@ const Resume = () => {
                           fontWeight: '500',
                           color: '#1a1a1a',
                           marginBottom: '4px',
+                          fontFamily: 'monospace',
                         }}>
-                          {portfolio.zip_file}
+                          Portfolio ID: {portfolio.analysis_uuid}
                         </div>
                         <div style={{
                           fontSize: '12px',
                           color: '#737373',
                         }}>
-                          {portfolio.total_projects} project{portfolio.total_projects !== 1 ? 's' : ''} • {new Date(portfolio.analysis_timestamp).toLocaleDateString()}
+                          {portfolio.total_projects} project{portfolio.total_projects !== 1 ? 's' : ''} • Created: {new Date(portfolio.analysis_timestamp).toLocaleString()}
                         </div>
                       </div>
                     </label>
