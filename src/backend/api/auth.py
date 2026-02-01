@@ -9,12 +9,10 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
 from backend.database import authenticate_user, create_user
+from backend.token_storage import active_tokens
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 security = HTTPBearer()
-
-# In-memory token storage (shared across modules)
-active_tokens: Dict[str, Dict[str, Any]] = {}
 
 
 class UserCredentials(BaseModel):

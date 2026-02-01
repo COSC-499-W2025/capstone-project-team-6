@@ -578,3 +578,76 @@ def print_resume_items(report: Dict[str, Any]) -> None:
         print("\nNo resume items could be generated from this analysis.")
 
     print("=" * 70 + "\n")
+
+
+def generate_resume(
+    portfolios: List[Dict[str, Any]],
+    format: str = "markdown",
+    include_skills: bool = True,
+    include_projects: bool = True,
+    max_projects: Optional[int] = None,
+) -> str:
+    """
+    Generate a resume from multiple portfolios.
+    """
+    if not portfolios:
+        return "# Resume\n\nNo portfolios selected."
+
+    # Collect all projects from all portfolios
+    all_projects = []
+    all_skills = set()
+
+    for portfolio in portfolios:
+        # Get projects from portfolio
+        projects = portfolio.get("projects", [])
+        all_projects.extend(projects)
+
+        # Collect skills
+        for project in projects:
+            skills_data = project.get("skills", {})
+            if isinstance(skills_data, dict):
+                for skill_list in skills_data.values():
+                    if isinstance(skill_list, list):
+                        all_skills.update(skill_list)
+            elif isinstance(skills_data, list):
+                all_skills.update(skills_data)
+
+    # Limit projects if specified
+    if max_projects and len(all_projects) > max_projects:
+        all_projects = all_projects[:max_projects]
+
+    # Build resume content
+    resume_parts = []
+
+    # Header
+    resume_parts.append("# Professional Resume\n")
+
+    # Skills section
+    if include_skills and all_skills:
+        resume_parts.append("## Technical Skills\n")
+        skills_list = sorted(list(all_skills))
+        resume_parts.append(", ".join(skills_list))
+        resume_parts.append("\n")
+
+    # Projects section
+    if include_projects and all_projects:
+        resume_parts.append("## Projects\n")
+        for project in all_projects:
+            entry = generate_formatted_resume_entry(project)
+            resume_parts.append(entry)
+            resume_parts.append("\n")
+
+    resume_content = "\n".join(resume_parts)
+
+    # Format conversion if needed
+    if format == "html":
+        # Simple markdown to HTML conversion
+        resume_content = resume_content.replace("\n## ", "\n<h2>").replace("</h2>", "</h2>\n")
+        resume_content = resume_content.replace("\n# ", "\n<h1>").replace("</h1>", "</h1>\n")
+        resume_content = f"<html><body>\n{resume_content}\n</body></html>"
+    elif format == "pdf":
+        # PDF generation would require additional library
+        resume_content += "\n\n(PDF generation not yet implemented - showing markdown)"
+
+    return resume_content
+
