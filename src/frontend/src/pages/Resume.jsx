@@ -299,7 +299,7 @@ const Resume = () => {
                   </select>
                 </div>
 
-                <label style={{
+                {/* <label style={{
                   display: 'flex',
                   alignItems: 'center',
                   fontSize: '14px',
@@ -314,7 +314,7 @@ const Resume = () => {
                     style={{ marginRight: '8px' }}
                   />
                   Include Skills Section
-                </label>
+                </label> */}
 
                 <label style={{
                   display: 'flex',

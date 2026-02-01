@@ -603,7 +603,16 @@ def generate_resume(
         projects = portfolio.get("projects", [])
         all_projects.extend(projects)
 
-        # Collect skills
+        # Collect skills from portfolio level
+        portfolio_skills = portfolio.get("skills", [])
+        if isinstance(portfolio_skills, list):
+            all_skills.update(portfolio_skills)
+        elif isinstance(portfolio_skills, dict):
+            for skill_list in portfolio_skills.values():
+                if isinstance(skill_list, list):
+                    all_skills.update(skill_list)
+
+        # Collect skills from each project
         for project in projects:
             skills_data = project.get("skills", {})
             if isinstance(skills_data, dict):
