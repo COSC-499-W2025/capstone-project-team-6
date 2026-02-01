@@ -16,7 +16,7 @@ class ResumeRequest(BaseModel):
     """Request to generate a resume."""
 
     portfolio_ids: List[str] = Field(..., description="List of portfolio UUIDs to include")
-    format: str = Field("markdown", description="Output format: markdown, pdf, html")
+    format: str = Field("markdown", description="Output format: markdown, pdf, latex")
     include_skills: bool = Field(True, description="Include skills section")
     include_projects: bool = Field(True, description="Include projects section")
     max_projects: Optional[int] = Field(None, description="Maximum number of projects to include")
@@ -70,8 +70,8 @@ async def generate_resume(
             personal_info=request.personal_info,
         )
 
-        # Convert PDF bytes to base64 string for JSON response
-        if request.format == "pdf" and isinstance(resume_content, bytes):
+        # Convert PDF/LaTeX bytes to base64 string for JSON response
+        if request.format in ("pdf", "latex") and isinstance(resume_content, bytes):
             resume_content = base64.b64encode(resume_content).decode('utf-8')
 
         # Generate resume ID (in production, save to database)

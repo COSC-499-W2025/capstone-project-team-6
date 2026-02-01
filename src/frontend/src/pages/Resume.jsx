@@ -128,6 +128,40 @@ const Resume = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+    } else if (resumeFormat === 'latex') {
+      try {
+        const binaryString = atob(generatedResume.content);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        // Check if it's actually a PDF (starts with %PDF)
+        const pdfSignature = String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]);
+        if (pdfSignature === '%PDF') {
+          const blob = new Blob([bytes], { type: 'application/pdf' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `resume_latex_${new Date().toISOString().split('T')[0]}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        } else {
+          throw new Error('Not a PDF');
+        }
+      } catch (e) {
+        // It's LaTeX source text (compilation failed)
+        const blob = new Blob([generatedResume.content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `resume_${new Date().toISOString().split('T')[0]}.tex`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
     } else {
       // Markdown download
       const blob = new Blob([generatedResume.content], { type: 'text/markdown' });
@@ -451,7 +485,7 @@ const Resume = () => {
                     }}
                   >
                     <option value="markdown">Markdown</option>
-                    <option value="pdf">PDF</option>
+                    <option value="latex">PDF</option>
                   </select>
                 </div>
 
@@ -644,7 +678,7 @@ const Resume = () => {
                 whiteSpace: 'pre-wrap',
                 wordBreak: 'break-word',
               }}>
-                {resumeFormat === 'pdf' ? (
+                {resumeFormat === 'pdf' || resumeFormat === 'latex' ? (
                   <div style={{
                     display: 'flex',
                     flexDirection: 'column',
@@ -659,7 +693,7 @@ const Resume = () => {
                       height="64"
                       viewBox="0 0 24 24"
                       fill="none"
-                      stroke="#2563eb"
+                      stroke={resumeFormat === 'latex' ? '#16a34a' : '#2563eb'}
                       strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -671,20 +705,38 @@ const Resume = () => {
                       <polyline points="10 9 9 9 8 9"></polyline>
                     </svg>
                     <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#1a1a1a', marginBottom: '8px' }}>
-                      PDF Resume Generated Successfully
+                      {resumeFormat === 'latex' 
+                        ? (generatedResume.content.startsWith('%') 
+                            ? "LaTeX Source Generated" 
+                            : "LaTeX Resume Compiled Successfully")
+                        : "PDF Resume Generated Successfully"}
                     </h3>
                     <p style={{ color: '#737373', marginBottom: '16px' }}>
-                      Your resume has been generated as a PDF file. Click the Download button above to save it.
+                      {resumeFormat === 'latex' && generatedResume.content.startsWith('%')
+                        ? "LaTeX compilation requires pdflatex. Download the .tex file to compile locally or upload to Overleaf."
+                        : "Your resume has been generated as a professional PDF file. Click the Download button above to save it."}
                     </p>
                     <div style={{ 
                       padding: '12px 16px', 
-                      backgroundColor: '#eff6ff', 
+                      backgroundColor: resumeFormat === 'latex' && generatedResume.content.startsWith('%') ? '#fef3c7' : (resumeFormat === 'latex' ? '#f0fdf4' : '#eff6ff'), 
                       borderRadius: '6px',
-                      border: '1px solid #bfdbfe',
-                      color: '#1e40af',
+                      border: `1px solid ${resumeFormat === 'latex' && generatedResume.content.startsWith('%') ? '#fcd34d' : (resumeFormat === 'latex' ? '#86efac' : '#bfdbfe')}`,
+                      color: resumeFormat === 'latex' && generatedResume.content.startsWith('%') ? '#92400e' : (resumeFormat === 'latex' ? '#166534' : '#1e40af'),
                       fontSize: '13px'
                     }}>
-                      💡 PDF files cannot be previewed in the browser. Use the Download button to view the full resume.
+                    {resumeFormat === 'latex' ? (
+                        generatedResume.content.startsWith('%') ? (
+                            <span className="text-amber-600">
+                                 LaTeX compilation failed. Install pdflatex: <code>brew install --cask mactex-no-gui</code> or upload the .tex file to Overleaf.com
+                            </span>
+                        ) : (
+                            <span className="text-green-600">
+                                Resume compiled successfully. Download the PDF by clicking the button above.
+                            </span>
+                        )
+                    ) : (
+                        <span></span>
+                    )}
                     </div>
                   </div>
                 ) : isEditing ? (
