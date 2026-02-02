@@ -3,9 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/Navigation';
 import api from '../services/api';
 
+// Max file size: 100MB
+const MAX_FILE_SIZE_MB = 100;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
 const Upload = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
+  const dragCounter = useRef(0);
 
   // Tab state
   const [activeTab, setActiveTab] = useState('single');
@@ -22,39 +27,73 @@ const Upload = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState('');
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
+
+  // Clear form state when switching tabs
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setSelectedFile(null);
+    setMultipleFiles([]);
+    setProjectName('');
+    setDescription('');
+    setError('');
+    setUploadProgress({ current: 0, total: 0 });
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Validate file size
+  const validateFileSize = (file) => {
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      return `File "${file.name}" exceeds the ${MAX_FILE_SIZE_MB}MB size limit`;
+    }
+    return null;
+  };
+
+  // Fix drag leave flicker using counter
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current++;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true);
+    }
+  };
 
   const handleDragOver = (e) => {
     e.preventDefault();
-    setIsDragging(true);
+    e.stopPropagation();
   };
 
   const handleDragLeave = (e) => {
     e.preventDefault();
-    setIsDragging(false);
+    e.stopPropagation();
+    dragCounter.current--;
+    if (dragCounter.current === 0) {
+      setIsDragging(false);
+    }
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragging(false);
+    dragCounter.current = 0;
 
     const files = Array.from(e.dataTransfer.files);
-    const zipFiles = files.filter(file => file.name.endsWith('.zip'));
-
-    if (zipFiles.length === 0) {
-      setError('Please upload a ZIP file');
-      return;
-    }
-
-    setError('');
-    if (activeTab === 'single') {
-      setSelectedFile(zipFiles[0]);
-    } else {
-      setMultipleFiles(prev => [...prev, ...zipFiles]);
-    }
+    processFiles(files);
   };
 
   const handleFileSelect = (e) => {
     const files = Array.from(e.target.files);
+    processFiles(files);
+    // Reset input so the same file can be selected again
+    e.target.value = '';
+  };
+
+  const processFiles = (files) => {
     const zipFiles = files.filter(file => file.name.endsWith('.zip'));
 
     if (zipFiles.length === 0) {
@@ -62,11 +101,29 @@ const Upload = () => {
       return;
     }
 
-    setError('');
-    if (activeTab === 'single') {
-      setSelectedFile(zipFiles[0]);
+    // Validate file sizes
+    const sizeErrors = [];
+    const validFiles = [];
+    for (const file of zipFiles) {
+      const sizeError = validateFileSize(file);
+      if (sizeError) {
+        sizeErrors.push(sizeError);
+      } else {
+        validFiles.push(file);
+      }
+    }
+
+    if (sizeErrors.length > 0) {
+      setError(sizeErrors.join('\n'));
+      if (validFiles.length === 0) return;
     } else {
-      setMultipleFiles(prev => [...prev, ...zipFiles]);
+      setError('');
+    }
+
+    if (activeTab === 'single') {
+      setSelectedFile(validFiles[0]);
+    } else {
+      setMultipleFiles(prev => [...prev, ...validFiles]);
     }
   };
 
@@ -76,6 +133,7 @@ const Upload = () => {
     } else {
       setMultipleFiles(prev => prev.filter((_, i) => i !== index));
     }
+    setError('');
   };
 
   const handleSubmit = async () => {
@@ -97,14 +155,8 @@ const Upload = () => {
         const formData = new FormData();
         formData.append('file', selectedFile);
         formData.append('analysis_type', 'non_llm');
-
-        // Add project name and description as metadata if provided
-        if (projectName) {
-          formData.append('project_name', projectName);
-        }
-        if (description) {
-          formData.append('description', description);
-        }
+        // Note: project_name and description are stored locally but not sent
+        // to the API as the backend doesn't currently support these fields
 
         await api.post('/portfolios/upload', formData, {
           headers: {
@@ -112,18 +164,52 @@ const Upload = () => {
           },
         });
       } else {
-        // Upload multiple files
-        for (const file of multipleFiles) {
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('analysis_type', 'non_llm');
+        // Upload multiple files with progress tracking and error aggregation
+        const errors = [];
+        const total = multipleFiles.length;
+        setUploadProgress({ current: 0, total });
 
-          await api.post('/portfolios/upload', formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-          });
+        for (let i = 0; i < multipleFiles.length; i++) {
+          const file = multipleFiles[i];
+          setUploadProgress({ current: i + 1, total });
+
+          try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('analysis_type', 'non_llm');
+
+            await api.post('/portfolios/upload', formData, {
+              headers: {
+                'Content-Type': 'multipart/form-data',
+              },
+            });
+          } catch (err) {
+            const errorMsg = err.response?.data?.detail || 'Upload failed';
+            errors.push(`${file.name}: ${errorMsg}`);
+          }
         }
+
+        // If some uploads failed, show aggregated errors
+        if (errors.length > 0) {
+          const successCount = total - errors.length;
+          if (successCount > 0) {
+            setError(`${successCount}/${total} files uploaded successfully.\nFailed:\n${errors.join('\n')}`);
+          } else {
+            setError(`All uploads failed:\n${errors.join('\n')}`);
+          }
+          setIsUploading(false);
+          setUploadProgress({ current: 0, total: 0 });
+          return;
+        }
+      }
+
+      // Reset form state after successful upload
+      setSelectedFile(null);
+      setMultipleFiles([]);
+      setProjectName('');
+      setDescription('');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
       }
 
       // Navigate to projects page after successful upload
@@ -133,6 +219,7 @@ const Upload = () => {
       setError(err.response?.data?.detail || 'Failed to upload project. Please try again.');
     } finally {
       setIsUploading(false);
+      setUploadProgress({ current: 0, total: 0 });
     }
   };
 
@@ -186,7 +273,7 @@ const Upload = () => {
           marginBottom: '24px',
         }}>
           <button
-            onClick={() => setActiveTab('single')}
+            onClick={() => handleTabChange('single')}
             style={{
               flex: 1,
               padding: '12px 24px',
@@ -204,7 +291,7 @@ const Upload = () => {
             Single Project
           </button>
           <button
-            onClick={() => setActiveTab('multiple')}
+            onClick={() => handleTabChange('multiple')}
             style={{
               flex: 1,
               padding: '12px 24px',
@@ -351,11 +438,12 @@ const Upload = () => {
               color: '#1a1a1a',
               marginBottom: '8px',
             }}>
-              Project Files (ZIP)
+              Project Files (ZIP) - Max {MAX_FILE_SIZE_MB}MB per file
             </label>
 
             <div
               onClick={() => fileInputRef.current?.click()}
+              onDragEnter={handleDragEnter}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
@@ -441,7 +529,7 @@ const Upload = () => {
                 </div>
               </div>
               <button
-                onClick={() => handleRemoveFile(0)}
+                onClick={(e) => { e.stopPropagation(); handleRemoveFile(0); }}
                 style={{
                   background: 'none',
                   border: 'none',
@@ -461,7 +549,7 @@ const Upload = () => {
             <div style={{ marginBottom: '24px' }}>
               {multipleFiles.map((file, index) => (
                 <div
-                  key={index}
+                  key={`${file.name}-${index}`}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -487,7 +575,7 @@ const Upload = () => {
                     </div>
                   </div>
                   <button
-                    onClick={() => handleRemoveFile(index)}
+                    onClick={(e) => { e.stopPropagation(); handleRemoveFile(index); }}
                     style={{
                       background: 'none',
                       border: 'none',
@@ -514,9 +602,39 @@ const Upload = () => {
               borderRadius: '8px',
               marginBottom: '24px',
             }}>
-              <p style={{ fontSize: '14px', color: '#dc2626', margin: 0 }}>
+              <p style={{ fontSize: '14px', color: '#dc2626', margin: 0, whiteSpace: 'pre-line' }}>
                 {error}
               </p>
+            </div>
+          )}
+
+          {/* Upload Progress for Multiple Files */}
+          {isUploading && uploadProgress.total > 1 && (
+            <div style={{
+              padding: '12px 16px',
+              backgroundColor: '#eff6ff',
+              border: '1px solid #bfdbfe',
+              borderRadius: '8px',
+              marginBottom: '24px',
+            }}>
+              <p style={{ fontSize: '14px', color: '#1d4ed8', margin: 0 }}>
+                Uploading file {uploadProgress.current} of {uploadProgress.total}...
+              </p>
+              <div style={{
+                marginTop: '8px',
+                height: '4px',
+                backgroundColor: '#dbeafe',
+                borderRadius: '2px',
+                overflow: 'hidden',
+              }}>
+                <div style={{
+                  height: '100%',
+                  backgroundColor: '#3b82f6',
+                  borderRadius: '2px',
+                  width: `${(uploadProgress.current / uploadProgress.total) * 100}%`,
+                  transition: 'width 0.3s ease',
+                }} />
+              </div>
             </div>
           )}
 
@@ -543,7 +661,9 @@ const Upload = () => {
               if (!isUploading) e.target.style.backgroundColor = '#1a1a1a';
             }}
           >
-            {isUploading ? 'Uploading...' : (activeTab === 'single' ? 'Analyze Project' : 'Analyze Projects')}
+            {isUploading
+              ? (uploadProgress.total > 1 ? `Uploading ${uploadProgress.current}/${uploadProgress.total}...` : 'Uploading...')
+              : (activeTab === 'single' ? 'Analyze Project' : 'Analyze Projects')}
           </button>
         </div>
       </div>
