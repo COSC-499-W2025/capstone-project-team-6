@@ -76,8 +76,8 @@ export const consentAPI = {
 // Projects API calls
 export const projectsAPI = {
   getProjects: async () => {
-    const response = await api.get('/projects');  // Changed from /portfolios to /projects
-    return response.data.projects || [];
+    const response = await api.get('/projects'); 
+    return response.data || [];
   },
 
   getProjectById: async (portfolioId) => {
