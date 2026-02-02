@@ -32,6 +32,14 @@ const Resume = () => {
     loadPortfolios();
   }, []);
 
+  useEffect(() => {
+    if (generatedResume && generatedResume.format !== resumeFormat) {
+      setGeneratedResume(null);
+      setEditableContent(null);
+      setIsEditing(false);
+    }
+  }, [resumeFormat]);
+
   const loadPortfolios = async () => {
     try {
       setLoading(true);

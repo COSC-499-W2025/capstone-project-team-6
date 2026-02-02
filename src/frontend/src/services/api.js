@@ -76,8 +76,8 @@ export const consentAPI = {
 // Projects API calls
 export const projectsAPI = {
   getProjects: async () => {
-    const response = await api.get('/projects');  // Changed from /portfolios to /projects
-    return response.data.projects || [];
+    const response = await api.get('/projects');
+    return response.data || [];
   },
 
   getProjectById: async (portfolioId) => {
@@ -122,6 +122,7 @@ export const resumeAPI = {
       include_skills: options.include_skills !== false,
       include_projects: options.include_projects !== false,
       max_projects: options.max_projects || null,
+      personal_info: options.personal_info || null,
     });
     return response.data;
   },
