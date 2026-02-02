@@ -49,3 +49,5 @@ javalang==0.13.0
 
 # Gemini
 google-genai
+# Resume Generation
+reportlab==4.2.5
