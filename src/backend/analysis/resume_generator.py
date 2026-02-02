@@ -1,3 +1,4 @@
+import re
 from typing import Any, Dict, List, Optional, Set
 
 
@@ -578,3 +579,295 @@ def print_resume_items(report: Dict[str, Any]) -> None:
         print("\nNo resume items could be generated from this analysis.")
 
     print("=" * 70 + "\n")
+
+
+def generate_resume(
+    portfolios: List[Dict[str, Any]],
+    format: str = "markdown",
+    include_skills: bool = True,
+    include_projects: bool = True,
+    max_projects: Optional[int] = None,
+) -> str:
+    """
+    Generate a resume from multiple portfolios.
+    """
+    if not portfolios:
+        return "# Resume\n\nNo portfolios selected."
+
+    # Collect all projects from all portfolios
+    all_projects = []
+    all_skills = set()
+
+    for portfolio in portfolios:
+        # Get projects from portfolio
+        projects = portfolio.get("projects", [])
+        all_projects.extend(projects)
+
+        # Collect skills from portfolio level
+        portfolio_skills = portfolio.get("skills", [])
+        if isinstance(portfolio_skills, list):
+            all_skills.update(portfolio_skills)
+        elif isinstance(portfolio_skills, dict):
+            for skill_list in portfolio_skills.values():
+                if isinstance(skill_list, list):
+                    all_skills.update(skill_list)
+
+        # Collect skills from each project
+        for project in projects:
+            skills_data = project.get("skills", {})
+            if isinstance(skills_data, dict):
+                for skill_list in skills_data.values():
+                    if isinstance(skill_list, list):
+                        all_skills.update(skill_list)
+            elif isinstance(skills_data, list):
+                all_skills.update(skills_data)
+
+    # Limit projects if specified
+    if max_projects and len(all_projects) > max_projects:
+        all_projects = all_projects[:max_projects]
+
+    # Build resume content
+    resume_parts = []
+
+    # Header
+    resume_parts.append("# Professional Resume\n")
+
+    # Skills section
+    if include_skills and all_skills:
+        resume_parts.append("## Technical Skills\n")
+        skills_list = sorted(list(all_skills))
+        resume_parts.append(", ".join(skills_list))
+        resume_parts.append("\n")
+
+    # Projects section
+    if include_projects and all_projects:
+        resume_parts.append("## Projects\n")
+        for project in all_projects:
+            entry = generate_formatted_resume_entry(project)
+            resume_parts.append(entry)
+            resume_parts.append("\n")
+
+    resume_content = "\n".join(resume_parts)
+
+    # Format conversion
+    if format == "pdf":
+        resume_content = _convert_markdown_to_pdf(resume_content)
+
+    return resume_content
+
+
+def _convert_markdown_to_html(markdown_content: str) -> str:
+    """Convert markdown to styled HTML for PDF generation."""
+    html = markdown_content
+    
+    # Convert headers
+    html = re.sub(r'^# (.+)$', r'<h1>\1</h1>', html, flags=re.MULTILINE)
+    html = re.sub(r'^## (.+)$', r'<h2>\1</h2>', html, flags=re.MULTILINE)
+    html = re.sub(r'^### (.+)$', r'<h3>\1</h3>', html, flags=re.MULTILINE)
+    
+    # Convert bold
+    html = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', html)
+    
+    # Convert bullet points
+    html = re.sub(r'^\* (.+)$', r'<li>\1</li>', html, flags=re.MULTILINE)
+    html = re.sub(r'(<li>.*</li>\n?)+', r'<ul>\g<0></ul>', html)
+    
+    # Convert line breaks to paragraphs
+    paragraphs = html.split('\n\n')
+    formatted_paragraphs = []
+    for para in paragraphs:
+        para = para.strip()
+        if para and not para.startswith('<'):
+            para = f'<p>{para}</p>'
+        formatted_paragraphs.append(para)
+    html = '\n'.join(formatted_paragraphs)
+    
+    # Wrap in full HTML document with styling
+    styled_html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Resume</title>
+    <style>
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: #f5f5f5;
+        }}
+        .container {{
+            background: white;
+            padding: 60px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }}
+        h1 {{
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }}
+        h2 {{
+            color: #34495e;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+        }}
+        h3 {{
+            color: #555;
+            margin-top: 25px;
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }}
+        p {{
+            margin: 10px 0;
+            color: #555;
+        }}
+        ul {{
+            margin: 15px 0;
+            padding-left: 0;
+            list-style: none;
+        }}
+        li {{
+            margin: 8px 0;
+            padding-left: 25px;
+            position: relative;
+            color: #666;
+        }}
+        li:before {{
+            content: "▸";
+            position: absolute;
+            left: 0;
+            color: #3498db;
+            font-weight: bold;
+        }}
+        strong {{
+            color: #2c3e50;
+            font-weight: 600;
+        }}
+        @media print {{
+            body {{
+                background: white;
+            }}
+            .container {{
+                box-shadow: none;
+                padding: 20px;
+            }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        {html}
+    </div>
+</body>
+</html>"""
+    
+    return styled_html
+
+
+def _convert_markdown_to_pdf(markdown_content: str) -> bytes:
+    """Convert markdown to PDF bytes using reportlab."""
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, ListFlowable, ListItem
+    from reportlab.lib.enums import TA_LEFT
+    from io import BytesIO
+    
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.75*inch, bottomMargin=0.75*inch)
+    
+    # Build styles
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(
+        name='CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        textColor='#2c3e50',
+        spaceAfter=20,
+        spaceBefore=10,
+    ))
+    styles.add(ParagraphStyle(
+        name='CustomHeading',
+        parent=styles['Heading2'],
+        fontSize=16,
+        textColor='#34495e',
+        spaceAfter=12,
+        spaceBefore=20,
+        leftIndent=10,
+    ))
+    styles.add(ParagraphStyle(
+        name='CustomSubHeading',
+        parent=styles['Heading3'],
+        fontSize=13,
+        textColor='#555555',
+        spaceAfter=8,
+        spaceBefore=15,
+        fontName='Helvetica-Bold',
+    ))
+    styles.add(ParagraphStyle(
+        name='CustomBody',
+        parent=styles['Normal'],
+        fontSize=10,
+        textColor='#555555',
+        spaceAfter=6,
+        alignment=TA_LEFT,
+    ))
+    styles.add(ParagraphStyle(
+        name='BulletText',
+        parent=styles['Normal'],
+        fontSize=10,
+        textColor='#666666',
+        leftIndent=20,
+        spaceAfter=6,
+    ))
+    
+    # Parse markdown and build PDF elements
+    story = []
+    lines = markdown_content.split('\n')
+    i = 0
+    
+    while i < len(lines):
+        line = lines[i].strip()
+        
+        if line.startswith('# '):
+            # Main title
+            story.append(Paragraph(line[2:], styles['CustomTitle']))
+        elif line.startswith('## '):
+            # Section heading
+            story.append(Spacer(1, 0.2*inch))
+            story.append(Paragraph(line[3:], styles['CustomHeading']))
+        elif line.startswith('### '):
+            # Subsection heading
+            story.append(Paragraph(line[4:], styles['CustomSubHeading']))
+        elif line.startswith('* ') or line.startswith('  • '):
+            # Bullet point
+            bullet_text = line[2:].strip() if line.startswith('* ') else line[4:].strip()
+            story.append(Paragraph(f'• {bullet_text}', styles['BulletText']))
+        elif line.startswith('Technologies:'):
+            # Technologies line with special formatting
+            story.append(Paragraph(f'<i>{line}</i>', styles['CustomBody']))
+        elif line and not line.startswith('#'):
+            # Regular paragraph
+            story.append(Paragraph(line, styles['CustomBody']))
+        elif not line:
+            # Empty line - add small space
+            story.append(Spacer(1, 0.1*inch))
+        
+        i += 1
+    
+    # Build PDF
+    doc.build(story)
+    pdf_bytes = buffer.getvalue()
+    buffer.close()
+    
+    return pdf_bytes
+

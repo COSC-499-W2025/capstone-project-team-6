@@ -46,6 +46,7 @@ async def generate_resume(
     """Generate a resume from selected portfolios."""
     try:
         from backend.analysis.resume_generator import generate_resume
+        import base64
 
         # Validate all portfolios exist and belong to user
         portfolios = []
@@ -66,6 +67,10 @@ async def generate_resume(
             include_projects=request.include_projects,
             max_projects=request.max_projects,
         )
+
+        # Convert PDF bytes to base64 string for JSON response
+        if request.format == "pdf" and isinstance(resume_content, bytes):
+            resume_content = base64.b64encode(resume_content).decode('utf-8')
 
         # Generate resume ID (in production, save to database)
         import uuid
