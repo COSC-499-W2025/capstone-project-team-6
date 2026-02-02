@@ -21,13 +21,13 @@ Supported Roles:
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
 from enum import Enum
+from typing import Dict, List, Optional, Tuple
 
 
 class DeveloperRole(Enum):
     """Enumeration of developer roles with display names."""
-    
+
     SENIOR_SOFTWARE_ENGINEER = "Senior Software Engineer"
     FULL_STACK_DEVELOPER = "Full Stack Developer"
     BACKEND_DEVELOPER = "Backend Developer"
@@ -45,7 +45,7 @@ class DeveloperRole(Enum):
 @dataclass
 class RolePrediction:
     """Result of role prediction analysis."""
-    
+
     predicted_role: DeveloperRole
     confidence_score: float  # 0.0 to 1.0
     alternative_roles: List[Tuple[DeveloperRole, float]]  # List of (role, score)
@@ -61,31 +61,31 @@ def get_available_roles() -> List[DeveloperRole]:
 def predict_developer_role(project_data: Dict) -> RolePrediction:
     """
     Predict developer role based on comprehensive project analysis.
-    
+
     Args:
         project_data: Project analysis data from the analyzer pipeline
-        
+
     Returns:
         RolePrediction with predicted role, confidence, and reasoning
     """
-    
+
     # Validate and extract key data for analysis
     def safe_get_int(data: Dict, key: str, default: int = 0) -> int:
         value = data.get(key, default)
         return int(value) if isinstance(value, (int, float)) and value >= 0 else default
-    
+
     def safe_get_bool(data: Dict, key: str, default: bool = False) -> bool:
         value = data.get(key, default)
         return bool(value) if isinstance(value, (bool, int)) else default
-    
+
     def safe_get_dict(data: Dict, key: str) -> Dict:
         value = data.get(key, {})
         return value if isinstance(value, dict) else {}
-    
+
     def safe_get_list(data: Dict, key: str) -> List:
         value = data.get(key, [])
         return value if isinstance(value, (list, tuple)) else []
-    
+
     languages = safe_get_dict(project_data, "languages")
     frameworks = safe_get_list(project_data, "frameworks")
     total_files = safe_get_int(project_data, "total_files")
@@ -109,18 +109,28 @@ def predict_developer_role(project_data: Dict) -> RolePrediction:
     # Composite score data
     score_data = safe_get_dict(project_data, "score_data")
     composite_score = safe_get_int(score_data, "composite_score") if score_data else 0
-    
+
     # Calculate role-specific indicators
     indicators = _calculate_role_indicators(
-        languages, frameworks, total_files, code_files, test_files,
-        has_docker, has_ci_cd, total_commits, total_contributors,
-        oop_analysis, java_oop, cpp_oop, composite_score
+        languages,
+        frameworks,
+        total_files,
+        code_files,
+        test_files,
+        has_docker,
+        has_ci_cd,
+        total_commits,
+        total_contributors,
+        oop_analysis,
+        java_oop,
+        cpp_oop,
+        composite_score,
     )
 
     # Score each role
     role_scores = {}
     reasoning_points = []
-    
+
     # Senior Software Engineer - high complexity, strong OOP, multiple languages, good practices
     senior_score = 0.0
     if composite_score >= 65:
@@ -139,7 +149,7 @@ def predict_developer_role(project_data: Dict) -> RolePrediction:
         senior_score += 0.1
         reasoning_points.append(f"Extensive commit history ({total_commits} commits) shows sustained contribution")
     role_scores[DeveloperRole.SENIOR_SOFTWARE_ENGINEER] = senior_score
-    
+
     # Full Stack Developer - frontend + backend technologies
     fullstack_score = 0.0
     if indicators["frontend_tech"] >= 0.4 and indicators["backend_tech"] >= 0.4:
@@ -155,7 +165,7 @@ def predict_developer_role(project_data: Dict) -> RolePrediction:
         fullstack_score += 0.1
         reasoning_points.append("Multi-language experience typical of full-stack development")
     role_scores[DeveloperRole.FULL_STACK_DEVELOPER] = fullstack_score
-    
+
     # Backend Developer - server-side languages, databases, APIs
     backend_score = 0.0
     if indicators["backend_tech"] >= 0.6:
@@ -171,7 +181,7 @@ def predict_developer_role(project_data: Dict) -> RolePrediction:
         backend_score += 0.15
         reasoning_points.append("Systems programming languages indicate backend focus")
     role_scores[DeveloperRole.BACKEND_DEVELOPER] = backend_score
-    
+
     # Frontend Developer - web technologies, UI frameworks
     frontend_score = 0.0
     if indicators["frontend_tech"] >= 0.7:
@@ -184,7 +194,7 @@ def predict_developer_role(project_data: Dict) -> RolePrediction:
         frontend_score += 0.2
         reasoning_points.append("Web-specific language usage")
     role_scores[DeveloperRole.FRONTEND_DEVELOPER] = frontend_score
-    
+
     # DevOps Engineer - infrastructure, automation, deployment
     devops_score = 0.0
     if has_docker and has_ci_cd:
@@ -203,7 +213,7 @@ def predict_developer_role(project_data: Dict) -> RolePrediction:
         devops_score += 0.1
         reasoning_points.append("Scripting language proficiency for automation")
     role_scores[DeveloperRole.DEVOPS_ENGINEER] = devops_score
-    
+
     # Data Engineer - data processing, analytics, big data
     data_score = 0.0
     if indicators["data_tech"] >= 0.6:
@@ -219,7 +229,7 @@ def predict_developer_role(project_data: Dict) -> RolePrediction:
         data_score += 0.1
         reasoning_points.append("Heavy database usage supports data engineering role")
     role_scores[DeveloperRole.DATA_ENGINEER] = data_score
-    
+
     # Mobile Developer - mobile platforms and frameworks
     mobile_score = 0.0
     if indicators["mobile_tech"] >= 0.6:
@@ -232,7 +242,7 @@ def predict_developer_role(project_data: Dict) -> RolePrediction:
         mobile_score += 0.1
         reasoning_points.append("Mobile-specific programming language usage")
     role_scores[DeveloperRole.MOBILE_DEVELOPER] = mobile_score
-    
+
     # Game Developer - game engines, graphics, real-time systems
     game_score = 0.0
     if indicators["game_tech"] >= 0.5:
@@ -248,7 +258,7 @@ def predict_developer_role(project_data: Dict) -> RolePrediction:
         game_score += 0.1
         reasoning_points.append("C++ usage common in game development")
     role_scores[DeveloperRole.GAME_DEVELOPER] = game_score
-    
+
     # Systems Engineer - low-level, performance-critical, systems programming
     systems_score = 0.0
     if indicators["systems_languages"] >= 0.6:
@@ -264,7 +274,7 @@ def predict_developer_role(project_data: Dict) -> RolePrediction:
         systems_score += 0.1
         reasoning_points.append("Embedded systems technology")
     role_scores[DeveloperRole.SYSTEMS_ENGINEER] = systems_score
-    
+
     # Team Lead/Architect - high complexity, multiple projects, mentoring indicators
     lead_score = 0.0
     if composite_score >= 75:
@@ -283,7 +293,7 @@ def predict_developer_role(project_data: Dict) -> RolePrediction:
         lead_score += 0.1
         reasoning_points.append("Exceptional project organization and practices")
     role_scores[DeveloperRole.TEAM_LEAD_ARCHITECT] = lead_score
-    
+
     # ML Engineer - machine learning, data science, AI
     ml_score = 0.0
     if indicators["ml_tech"] >= 0.6:
@@ -299,7 +309,7 @@ def predict_developer_role(project_data: Dict) -> RolePrediction:
         ml_score += 0.05
         reasoning_points.append("Research-oriented code patterns")
     role_scores[DeveloperRole.ML_ENGINEER] = ml_score
-    
+
     # Junior Developer - lower complexity, basic practices, learning patterns
     junior_score = 0.0
     if composite_score <= 35:
@@ -318,7 +328,7 @@ def predict_developer_role(project_data: Dict) -> RolePrediction:
         junior_score += 0.15
         reasoning_points.append(f"Limited commit history ({total_commits} commits)")
     role_scores[DeveloperRole.JUNIOR_DEVELOPER] = junior_score
-    
+
     # Determine top prediction
     if not role_scores:
         # Fallback if no scores
@@ -330,16 +340,16 @@ def predict_developer_role(project_data: Dict) -> RolePrediction:
         sorted_roles = sorted(role_scores.items(), key=lambda x: x[1], reverse=True)
         predicted_role = sorted_roles[0][0]
         confidence = min(sorted_roles[0][1], 1.0)  # Cap at 1.0
-        
+
         # Get alternatives (top 3, excluding the top prediction)
         alternatives = [(role, score) for role, score in sorted_roles[1:4] if score > 0.1]
-    
+
     return RolePrediction(
         predicted_role=predicted_role,
         confidence_score=confidence,
         alternative_roles=alternatives,
         reasoning=reasoning_points[:5],  # Top 5 reasoning points
-        key_indicators=indicators
+        key_indicators=indicators,
     )
 
 
@@ -356,36 +366,35 @@ def _calculate_role_indicators(
     oop_analysis: Dict,
     java_oop: Dict,
     cpp_oop: Dict,
-    composite_score: float
+    composite_score: float,
 ) -> Dict[str, float]:
     """
     Calculate role-specific indicators from project data.
-    
+
     Returns a dictionary of normalized indicators (0.0 to 1.0) for different
     aspects relevant to role prediction.
     """
-    
+
     indicators = {}
-    
+
     # Validate and normalize input data
     if not isinstance(languages, dict):
         languages = {}
     if not isinstance(frameworks, (list, tuple)):
         frameworks = []
-        
+
     # Ensure all values are valid
-    languages = {str(k): int(v) if isinstance(v, (int, float)) else 0 
-                for k, v in languages.items() if isinstance(k, str)}
+    languages = {str(k): int(v) if isinstance(v, (int, float)) else 0 for k, v in languages.items() if isinstance(k, str)}
     frameworks = [str(fw) for fw in frameworks if isinstance(fw, str)]
-    
+
     # Language diversity
     num_languages = len(languages)
     indicators["language_diversity"] = min(num_languages / 5.0, 1.0)  # 5+ languages = max
-    
+
     # Technology categories
     lang_lower = {lang.lower(): count for lang, count in languages.items()}
     framework_lower = [fw.lower() for fw in frameworks]
-    
+
     # Frontend technologies
     frontend_langs = {"javascript", "typescript", "html", "css", "scss", "sass", "vue", "jsx"}
     frontend_frameworks = {"react", "angular", "vue", "svelte", "next.js", "nuxt", "gatsby", "ember"}
@@ -397,8 +406,8 @@ def _calculate_role_indicators(
         if any(fw in f for f in framework_lower):
             frontend_score += 0.1
     indicators["frontend_tech"] = min(frontend_score, 1.0)
-    
-    # Backend technologies  
+
+    # Backend technologies
     backend_langs = {"python", "java", "c#", "go", "rust", "scala", "kotlin", "php", "ruby"}
     backend_frameworks = {"django", "flask", "fastapi", "spring", "express", "koa", "rails", "laravel", "gin"}
     backend_score = 0.0
@@ -409,7 +418,7 @@ def _calculate_role_indicators(
         if any(fw in f for f in framework_lower):
             backend_score += 0.15
     indicators["backend_tech"] = min(backend_score, 1.0)
-    
+
     # Mobile technologies
     mobile_langs = {"swift", "kotlin", "dart", "objective-c"}
     mobile_frameworks = {"flutter", "react native", "ionic", "xamarin", "cordova"}
@@ -422,8 +431,10 @@ def _calculate_role_indicators(
             mobile_score += 0.2
     indicators["mobile_tech"] = min(mobile_score, 1.0)
     indicators["mobile_languages"] = mobile_score * 0.7
-    indicators["mobile_frameworks"] = min(len([fw for fw in framework_lower if any(mf in fw for mf in mobile_frameworks)]) / 2.0, 1.0)
-    
+    indicators["mobile_frameworks"] = min(
+        len([fw for fw in framework_lower if any(mf in fw for mf in mobile_frameworks)]) / 2.0, 1.0
+    )
+
     # Data/ML technologies
     data_langs = {"python", "r", "julia", "scala", "sql"}
     ml_frameworks = {"tensorflow", "pytorch", "sklearn", "pandas", "numpy", "scipy", "keras", "spark", "hadoop"}
@@ -436,7 +447,7 @@ def _calculate_role_indicators(
             ml_score += 0.15
     indicators["ml_tech"] = min(ml_score, 1.0)
     indicators["data_tech"] = ml_score
-    
+
     # Game development
     game_frameworks = {"unity", "unreal", "godot", "pygame", "cocos2d", "opengl", "directx", "vulkan"}
     game_score = 0.0
@@ -446,7 +457,7 @@ def _calculate_role_indicators(
     if "c++" in lang_lower or "cpp" in lang_lower:
         game_score += 0.2  # C++ common in games
     indicators["game_tech"] = min(game_score, 1.0)
-    
+
     # DevOps indicators
     devops_frameworks = {"docker", "kubernetes", "terraform", "ansible", "jenkins", "github actions", "gitlab ci"}
     cloud_frameworks = {"aws", "azure", "gcp", "google cloud", "amazon web services"}
@@ -459,13 +470,13 @@ def _calculate_role_indicators(
         if any(fw in f for f in framework_lower):
             devops_score += 0.1
     indicators["devops_tools"] = min(devops_score, 1.0)
-    
+
     cloud_score = 0.0
     for fw in cloud_frameworks:
         if any(fw in f for f in framework_lower):
             cloud_score += 0.2
     indicators["cloud_tech"] = min(cloud_score, 1.0)
-    
+
     # Systems programming
     systems_langs = {"c", "c++", "rust", "go", "assembly", "asm"}
     systems_score = 0.0
@@ -473,26 +484,26 @@ def _calculate_role_indicators(
         if lang in lang_lower:
             systems_score += lang_lower[lang] / max(sum(languages.values()), 1)
     indicators["systems_languages"] = min(systems_score, 1.0)
-    
+
     # OOP mastery (from analysis results)
     oop_score = 0.0
     total_oop_score = 0
     oop_count = 0
-    
+
     if oop_analysis and "error" not in oop_analysis:
         oop_points = oop_analysis.get("oop_score", 0)
         total_oop_score += oop_points
         oop_count += 1
-    
+
     if java_oop and "error" not in java_oop:
         # Calculate Java OOP score
         java_classes = java_oop.get("total_classes", 0)
-        java_interfaces = java_oop.get("interface_count", 0) 
+        java_interfaces = java_oop.get("interface_count", 0)
         java_inheritance = java_oop.get("classes_with_inheritance", 0)
         java_points = min((java_classes + java_interfaces + java_inheritance) / 10.0 * 6, 6)
         total_oop_score += java_points
         oop_count += 1
-    
+
     if cpp_oop and "error" not in cpp_oop:
         # Calculate C++ OOP score
         cpp_classes = cpp_oop.get("total_classes", 0)
@@ -501,11 +512,11 @@ def _calculate_role_indicators(
         cpp_points = min((cpp_classes + cpp_virtual + cpp_inheritance) / 10.0 * 6, 6)
         total_oop_score += cpp_points
         oop_count += 1
-    
+
     if oop_count > 0:
         oop_score = (total_oop_score / oop_count) / 6.0  # Normalize to 0-1
     indicators["oop_mastery"] = oop_score
-    
+
     # Project maturity
     maturity_score = 0.0
     if test_files > 0:
@@ -517,52 +528,52 @@ def _calculate_role_indicators(
     if total_commits >= 50:
         maturity_score += 0.2
     indicators["project_maturity"] = min(maturity_score, 1.0)
-    
+
     # Language-specific indicators
     python_ratio = lang_lower.get("python", 0) / max(sum(languages.values()), 1)
     indicators["python_heavy"] = python_ratio
-    
+
     cpp_ratio = (lang_lower.get("c++", 0) + lang_lower.get("cpp", 0)) / max(sum(languages.values()), 1)
     indicators["cpp_heavy"] = cpp_ratio
-    
+
     # Web languages
     web_langs = {"javascript", "typescript", "html", "css", "php"}
     web_score = sum(lang_lower.get(lang, 0) for lang in web_langs) / max(sum(languages.values()), 1)
     indicators["web_languages"] = web_score
-    
+
     # Scripting languages
     script_langs = {"python", "bash", "shell", "powershell", "perl", "ruby"}
     script_score = sum(lang_lower.get(lang, 0) for lang in script_langs) / max(sum(languages.values()), 1)
     indicators["scripting_languages"] = script_score
-    
+
     # Additional framework categories
     ui_frameworks = {"react", "angular", "vue", "svelte", "flutter", "qt", "tkinter", "javafx"}
     ui_count = len([fw for fw in framework_lower if any(ui in fw for ui in ui_frameworks)])
     indicators["ui_frameworks"] = min(ui_count / 3.0, 1.0)
-    
+
     web_frameworks = {"django", "flask", "express", "fastapi", "spring boot", "rails", "laravel"}
     web_count = len([fw for fw in framework_lower if any(wf in fw for wf in web_frameworks)])
     indicators["web_frameworks"] = min(web_count / 3.0, 1.0)
-    
+
     api_frameworks = {"fastapi", "express", "flask", "spring boot", "gin", "echo"}
     api_count = len([fw for fw in framework_lower if any(af in fw for af in api_frameworks)])
     indicators["api_frameworks"] = min(api_count / 2.0, 1.0)
-    
+
     # Database usage (inferred from frameworks/languages)
     db_frameworks = {"sqlalchemy", "hibernate", "mongoose", "sequelize", "prisma", "sql", "postgresql", "mysql"}
     db_count = len([fw for fw in framework_lower if any(db in fw for db in db_frameworks)])
     db_lang_score = lang_lower.get("sql", 0) / max(sum(languages.values()), 1)
     indicators["database_usage"] = min((db_count / 3.0) + db_lang_score, 1.0)
-    
+
     # Analytics and big data
     analytics_tools = {"pandas", "numpy", "scipy", "matplotlib", "seaborn", "plotly", "d3.js"}
     analytics_count = len([fw for fw in framework_lower if any(at in fw for at in analytics_tools)])
     indicators["analytics_tools"] = min(analytics_count / 3.0, 1.0)
-    
+
     big_data_tools = {"spark", "hadoop", "kafka", "elasticsearch", "mongodb", "cassandra"}
     big_data_count = len([fw for fw in framework_lower if any(bd in fw for bd in big_data_tools)])
     indicators["big_data"] = min(big_data_count / 2.0, 1.0)
-    
+
     # Architecture and patterns (based on complexity and OOP)
     arch_score = 0.0
     if composite_score >= 70:
@@ -574,7 +585,7 @@ def _calculate_role_indicators(
     if test_files > code_files * 0.3:  # Good test coverage
         arch_score += 0.1
     indicators["architecture_patterns"] = min(arch_score, 1.0)
-    
+
     # Basic patterns (for junior detection)
     basic_score = 0.0
     if composite_score <= 40:
@@ -586,42 +597,60 @@ def _calculate_role_indicators(
     if total_commits <= 30:
         basic_score += 0.1
     indicators["basic_patterns"] = min(basic_score, 1.0)
-    
+
     # Additional specialized indicators
-    indicators["graphics_tech"] = min(len([fw for fw in framework_lower if any(gf in fw for gf in ["opengl", "directx", "vulkan", "metal"])]) / 2.0, 1.0)
-    indicators["realtime_systems"] = cpp_ratio + min(len([fw for fw in framework_lower if "real" in fw or "time" in fw]) / 2.0, 1.0)
-    indicators["low_level_tech"] = (lang_lower.get("c", 0) + lang_lower.get("assembly", 0) + lang_lower.get("asm", 0)) / max(sum(languages.values()), 1)
-    indicators["embedded_tech"] = min(len([fw for fw in framework_lower if any(ef in fw for ef in ["arduino", "raspberry", "embedded", "firmware"])]) / 2.0, 1.0)
-    indicators["performance_focus"] = cpp_ratio + lang_lower.get("rust", 0) / max(sum(languages.values()), 1) + lang_lower.get("go", 0) / max(sum(languages.values()), 1)
-    indicators["data_science"] = min(len([fw for fw in framework_lower if any(ds in fw for ds in ["jupyter", "sklearn", "pandas", "numpy", "matplotlib"])]) / 3.0, 1.0)
-    indicators["research_patterns"] = min(len([fw for fw in framework_lower if any(rp in fw for rp in ["jupyter", "notebook", "research", "academic"])]) / 2.0, 1.0)
-    
+    indicators["graphics_tech"] = min(
+        len([fw for fw in framework_lower if any(gf in fw for gf in ["opengl", "directx", "vulkan", "metal"])]) / 2.0, 1.0
+    )
+    indicators["realtime_systems"] = cpp_ratio + min(
+        len([fw for fw in framework_lower if "real" in fw or "time" in fw]) / 2.0, 1.0
+    )
+    indicators["low_level_tech"] = (lang_lower.get("c", 0) + lang_lower.get("assembly", 0) + lang_lower.get("asm", 0)) / max(
+        sum(languages.values()), 1
+    )
+    indicators["embedded_tech"] = min(
+        len([fw for fw in framework_lower if any(ef in fw for ef in ["arduino", "raspberry", "embedded", "firmware"])]) / 2.0, 1.0
+    )
+    indicators["performance_focus"] = (
+        cpp_ratio
+        + lang_lower.get("rust", 0) / max(sum(languages.values()), 1)
+        + lang_lower.get("go", 0) / max(sum(languages.values()), 1)
+    )
+    indicators["data_science"] = min(
+        len([fw for fw in framework_lower if any(ds in fw for ds in ["jupyter", "sklearn", "pandas", "numpy", "matplotlib"])])
+        / 3.0,
+        1.0,
+    )
+    indicators["research_patterns"] = min(
+        len([fw for fw in framework_lower if any(rp in fw for rp in ["jupyter", "notebook", "research", "academic"])]) / 2.0, 1.0
+    )
+
     return indicators
 
 
 def format_role_prediction(prediction: RolePrediction) -> str:
     """
     Format role prediction for display in CLI output.
-    
+
     Args:
         prediction: RolePrediction object
-        
+
     Returns:
         Formatted string for display
     """
-    
+
     output = []
     output.append(f"   PREDICTED ROLE: {prediction.predicted_role.value}")
     output.append(f"   Confidence: {prediction.confidence_score:.1%}")
-    
+
     if prediction.alternative_roles:
         output.append(f"   Alternative roles:")
         for role, score in prediction.alternative_roles:
             output.append(f"      • {role.value} ({score:.1%})")
-    
+
     if prediction.reasoning:
         output.append(f"   Key indicators:")
         for reason in prediction.reasoning:
             output.append(f"      • {reason}")
-    
+
     return "\n".join(output)

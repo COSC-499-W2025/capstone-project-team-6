@@ -147,14 +147,14 @@ def init_db() -> None:
         # Add role prediction columns if they don't exist (for existing databases)
         existing_project_columns = {row["name"] for row in conn.execute("PRAGMA table_info(projects)")}
         role_columns = ["predicted_role", "predicted_role_confidence", "curated_role", "role_prediction_data"]
-        
+
         for column in role_columns:
             if column not in existing_project_columns:
                 if column == "predicted_role_confidence":
                     conn.execute(f"ALTER TABLE projects ADD COLUMN {column} REAL;")
                 else:
                     conn.execute(f"ALTER TABLE projects ADD COLUMN {column} TEXT;")
-        
+
         conn.commit()
 
         conn.execute(
@@ -635,20 +635,24 @@ def record_analysis(
             predicted_role = None
             predicted_role_confidence = None
             role_prediction_json = None
-            
+
             if role_prediction_data:
                 predicted_role = role_prediction_data.get("predicted_role")
                 predicted_role_confidence = role_prediction_data.get("confidence_score")
                 role_prediction_json = json.dumps(role_prediction_data) if role_prediction_data else None
-            
-            # Role prediction extraction  
+
+            # Role prediction extraction
             role_prediction_data = project.get("role_prediction")
             predicted_role = None
             predicted_role_confidence = None
             role_prediction_json = None
-            
+
             if role_prediction_data:
-                predicted_role = role_prediction_data.get("predicted_role", {}).get("value") if isinstance(role_prediction_data.get("predicted_role"), dict) else str(role_prediction_data.get("predicted_role"))
+                predicted_role = (
+                    role_prediction_data.get("predicted_role", {}).get("value")
+                    if isinstance(role_prediction_data.get("predicted_role"), dict)
+                    else str(role_prediction_data.get("predicted_role"))
+                )
                 predicted_role_confidence = role_prediction_data.get("confidence_score")
                 role_prediction_json = json.dumps(role_prediction_data) if role_prediction_data else None
 

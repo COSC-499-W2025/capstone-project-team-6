@@ -15,7 +15,8 @@ from . import (Folder_traversal_fs, MDAShell, UserAlreadyExistsError,
 from .analysis.analyze import calculate_composite_score
 from .analysis.deep_code_analyzer import generate_comprehensive_report
 from .analysis.document_analyzer import DocumentAnalysis, analyze_document
-from .analysis.role_predictor import predict_developer_role, format_role_prediction
+from .analysis.role_predictor import (format_role_prediction,
+                                      predict_developer_role)
 from .analysis_database import init_db
 from .consent import ask_for_consent
 from .curation_cli import (curate_project_rank_interactive,
@@ -264,17 +265,17 @@ def analyze_folder(path: Path, target_user_email: Optional[str] = None, quick_mo
                 score_data = calculate_composite_score(project, user_email=target_user_email)
                 project_with_score = project.copy()
                 project_with_score["score_data"] = score_data
-                
+
                 # Predict developer role
                 role_prediction = predict_developer_role(project_with_score)
-                
+
                 # Store role prediction data in project
                 report["projects"][i]["role_prediction"] = {
                     "predicted_role": role_prediction.predicted_role.value,
                     "confidence_score": role_prediction.confidence_score,
                     "alternative_roles": [(role.value, score) for role, score in role_prediction.alternative_roles],
                     "reasoning": role_prediction.reasoning,
-                    "key_indicators": role_prediction.key_indicators
+                    "key_indicators": role_prediction.key_indicators,
                 }
             except Exception as e:
                 print(f"Warning: Role prediction failed for {project.get('project_name', 'Unknown')}: {e}")
@@ -284,7 +285,7 @@ def analyze_folder(path: Path, target_user_email: Optional[str] = None, quick_mo
                     "confidence_score": 0.1,
                     "alternative_roles": [],
                     "reasoning": ["Role prediction failed"],
-                    "key_indicators": {}
+                    "key_indicators": {},
                 }
 
         # Add analysis metadata - use original path, not temp zip path
@@ -464,18 +465,18 @@ def display_analysis(results: dict) -> None:
                 # Display stored role prediction
                 print(f"\n{'-' * 40}")
                 print(f"   PREDICTED ROLE: {existing_role_data.get('predicted_role', 'Unknown')}")
-                confidence = existing_role_data.get('confidence_score', 0)
+                confidence = existing_role_data.get("confidence_score", 0)
                 print(f"   Confidence: {confidence:.1%}")
-                
-                alternative_roles = existing_role_data.get('alternative_roles', [])
+
+                alternative_roles = existing_role_data.get("alternative_roles", [])
                 if alternative_roles:
                     print(f"   Alternative roles:")
                     for role_info in alternative_roles[:3]:  # Show top 3 alternatives
                         if isinstance(role_info, (list, tuple)) and len(role_info) >= 2:
                             role_name, score = role_info[0], role_info[1]
                             print(f"      • {role_name} ({score:.1%})")
-                
-                reasoning = existing_role_data.get('reasoning', [])
+
+                reasoning = existing_role_data.get("reasoning", [])
                 if reasoning:
                     print(f"   Key indicators:")
                     for reason in reasoning[:5]:  # Show top 5 reasons
@@ -484,14 +485,15 @@ def display_analysis(results: dict) -> None:
             else:
                 # Generate new role prediction
                 from .analysis.analyze import calculate_composite_score
+
                 # Calculate score data for role prediction
                 score_data = calculate_composite_score(project, user_email=target_user_email)
                 project_with_score = project.copy()
                 project_with_score["score_data"] = score_data
-                
+
                 # Predict developer role
                 role_prediction = predict_developer_role(project_with_score)
-                
+
                 print(f"\n{'-' * 40}")
                 role_display = format_role_prediction(role_prediction)
                 print(role_display)
