@@ -15,6 +15,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
 from backend.analysis_database import (delete_analysis,
+                                       delete_project_for_user,
                                        get_all_analyses_for_user,
                                        get_analysis_by_uuid,
                                        get_portfolio_item_for_project,

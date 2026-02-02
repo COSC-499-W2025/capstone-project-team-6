@@ -135,10 +135,27 @@ def init_db() -> None:
                 target_user_commit_pct REAL,
                 target_user_lines_changed INTEGER,
                 target_user_surviving_lines INTEGER,
-                target_user_last_commit TEXT
+                target_user_last_commit TEXT,
+                predicted_role TEXT,
+                predicted_role_confidence REAL,
+                curated_role TEXT,
+                role_prediction_data TEXT
             );
             """
         )
+
+        # Add role prediction columns if they don't exist (for existing databases)
+        existing_project_columns = {row["name"] for row in conn.execute("PRAGMA table_info(projects)")}
+        role_columns = ["predicted_role", "predicted_role_confidence", "curated_role", "role_prediction_data"]
+
+        for column in role_columns:
+            if column not in existing_project_columns:
+                if column == "predicted_role_confidence":
+                    conn.execute(f"ALTER TABLE projects ADD COLUMN {column} REAL;")
+                else:
+                    conn.execute(f"ALTER TABLE projects ADD COLUMN {column} TEXT;")
+
+        conn.commit()
 
         conn.execute(
             """
@@ -613,6 +630,32 @@ def record_analysis(
             project_name = project.get("project_name") or "Project"
             project_path = _normalize_project_path_value(project.get("project_path"))
 
+            # Role prediction extraction
+            role_prediction_data = project.get("role_prediction", {})
+            predicted_role = None
+            predicted_role_confidence = None
+            role_prediction_json = None
+
+            if role_prediction_data:
+                predicted_role = role_prediction_data.get("predicted_role")
+                predicted_role_confidence = role_prediction_data.get("confidence_score")
+                role_prediction_json = json.dumps(role_prediction_data) if role_prediction_data else None
+
+            # Role prediction extraction
+            role_prediction_data = project.get("role_prediction")
+            predicted_role = None
+            predicted_role_confidence = None
+            role_prediction_json = None
+
+            if role_prediction_data:
+                predicted_role = (
+                    role_prediction_data.get("predicted_role", {}).get("value")
+                    if isinstance(role_prediction_data.get("predicted_role"), dict)
+                    else str(role_prediction_data.get("predicted_role"))
+                )
+                predicted_role_confidence = role_prediction_data.get("confidence_score")
+                role_prediction_json = json.dumps(role_prediction_data) if role_prediction_data else None
+
             existing_project = conn.execute(
                 """
                 SELECT id, analysis_id FROM projects
@@ -659,9 +702,12 @@ def record_analysis(
                     target_user_commit_pct,
                     target_user_lines_changed,
                     target_user_surviving_lines,
-                    target_user_last_commit
+                    target_user_last_commit,
+                    predicted_role,
+                    predicted_role_confidence,
+                    role_prediction_data
                 ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                 )
                 ON CONFLICT(project_name, project_path, owner_username) DO UPDATE SET
                     analysis_id = excluded.analysis_id,
@@ -696,7 +742,10 @@ def record_analysis(
                     target_user_commit_pct = excluded.target_user_commit_pct,
                     target_user_lines_changed = excluded.target_user_lines_changed,
                     target_user_surviving_lines = excluded.target_user_surviving_lines,
-                    target_user_last_commit = excluded.target_user_last_commit
+                    target_user_last_commit = excluded.target_user_last_commit,
+                    predicted_role = excluded.predicted_role,
+                    predicted_role_confidence = excluded.predicted_role_confidence,
+                    role_prediction_data = excluded.role_prediction_data
                 """,
                 (
                     analysis_id,
@@ -733,6 +782,9 @@ def record_analysis(
                     target_user_lines_changed,
                     target_user_surviving_lines,
                     target_user_last_commit,
+                    predicted_role,
+                    predicted_role_confidence,
+                    role_prediction_json,
                 ),
             )
             project_row = conn.execute(
@@ -1099,6 +1151,57 @@ def count_analyses_by_zip_file(zip_file: str) -> int:
             (zip_file,),
         ).fetchone()
         return result["count"] if result else 0
+
+
+def delete_project_for_user(project_id: int, username: str) -> bool:
+    """
+    Delete a single project owned by `username`.
+
+    NOTE:
+    - This deletes from `projects` which cascades to resume_items, portfolio_items,
+      and all project_* tables because they have ON DELETE CASCADE.
+    - We also decrement analyses.total_projects for the owning analysis row.
+    """
+    with get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+
+        # Find the analysis row that owns this project
+        row = conn.execute(
+            """
+            SELECT p.analysis_id
+            FROM projects p
+            JOIN analyses a ON a.id = p.analysis_id
+            WHERE p.id = ? AND a.username = ?
+            """,
+            (project_id, username),
+        ).fetchone()
+
+        if not row:
+            return False
+
+        analysis_id = row["analysis_id"]
+
+        # Delete project (cascades to related rows)
+        cur = conn.execute(
+            "DELETE FROM projects WHERE id = ?",
+            (project_id,),
+        )
+
+        if cur.rowcount > 0:
+            conn.execute(
+                """
+                UPDATE analyses
+                SET total_projects = CASE
+                    WHEN total_projects > 0 THEN total_projects - 1
+                    ELSE 0
+                END
+                WHERE id = ?
+                """,
+                (analysis_id,),
+            )
+
+        conn.commit()
+        return cur.rowcount > 0
 
 
 def delete_analyses_by_zip_file(zip_file: str, username: Optional[str] = None) -> int:
