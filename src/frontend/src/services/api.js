@@ -101,4 +101,21 @@ export const projectsAPI = {
   },
 };
 
+export const portfoliosAPI = {
+  listPortfolios: async () => {
+    const response = await api.get('/portfolios');
+    return response.data;
+  },
+
+  getPortfolioDetail: async (portfolioId) => {
+    const response = await api.get(`/portfolios/${portfolioId}`);
+    return response.data;
+  },
+
+  generatePortfolioDocument: async (portfolioId) => {
+    const response = await api.post('/portfolio/generate', { portfolio_id: portfolioId });
+    return response.data;
+  },
+};
+
 export default api;
