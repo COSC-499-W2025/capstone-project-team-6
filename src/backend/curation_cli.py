@@ -676,16 +676,16 @@ def curate_roles_interactive(user_id: str) -> None:
         curated_role = project.get('curated_role')
         
         if predicted_role:
-            print(f"🤖 Predicted Role: {predicted_role}")
+            print(f"Predicted Role: {predicted_role}")
             if confidence:
                 print(f"   Confidence: {confidence:.1%}")
         else:
-            print("🤖 Predicted Role: Not available")
+            print("Predicted Role: Not available")
         
         if curated_role:
-            print(f"👤 Your Current Role: {curated_role}")
+            print(f"Your Current Role: {curated_role}")
         else:
-            print("👤 Your Current Role: Not set")
+            print("Your Current Role: Not set")
         
         print()
         print("What would you like to do?")
@@ -716,17 +716,17 @@ def curate_roles_interactive(user_id: str) -> None:
                         if 0 <= role_idx < len(available_roles) - 1:  # Not custom option
                             selected_role = available_roles[role_idx]
                             if save_curated_role(user_id, project['id'], selected_role):
-                                print(f"✅ Role updated to: {selected_role}")
+                                print(f"Role updated to: {selected_role}")
                             else:
-                                print("❌ Failed to save role. Please try again.")
+                                print("Failed to save role. Please try again.")
                             break
                         elif role_idx == len(available_roles) - 1:  # Custom option
                             custom_role = input("Enter your custom role description: ").strip()
                             if custom_role:
                                 if save_curated_role(user_id, project['id'], custom_role):
-                                    print(f"✅ Role updated to: {custom_role}")
+                                    print(f"Role updated to: {custom_role}")
                                 else:
-                                    print("❌ Failed to save role. Please try again.")
+                                    print("Failed to save role. Please try again.")
                                 break
                             else:
                                 print("Please enter a role description.")
@@ -740,18 +740,18 @@ def curate_roles_interactive(user_id: str) -> None:
                 custom_role = input("Enter your custom role description: ").strip()
                 if custom_role:
                     if save_curated_role(user_id, project['id'], custom_role):
-                        print(f"✅ Role updated to: {custom_role}")
+                        print(f"Role updated to: {custom_role}")
                     else:
-                        print("❌ Failed to save role. Please try again.")
+                        print("Failed to save role. Please try again.")
                 else:
                     print("No role entered. Keeping current.")
                 break
             elif choice == "4":
                 # Clear curated role
                 if save_curated_role(user_id, project['id'], None):
-                    print("✅ Curated role cleared. Will use predicted role.")
+                    print("Curated role cleared. Will use predicted role.")
                 else:
-                    print("❌ Failed to clear role. Please try again.")
+                    print("Failed to clear role. Please try again.")
                 break
             else:
                 print("Please enter 1, 2, 3, or 4.")
@@ -759,7 +759,7 @@ def curate_roles_interactive(user_id: str) -> None:
     print("\n" + "="*60)
     print("ROLE CURATION COMPLETE")
     print("="*60)
-    print("✅ Your role preferences have been saved!")
+    print("Your role preferences have been saved!")
     print("The curated roles will now be displayed in your project summaries.")
     print()
 
