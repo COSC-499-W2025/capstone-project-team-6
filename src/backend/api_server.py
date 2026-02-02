@@ -15,6 +15,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
 from backend.analysis_database import (delete_analysis,
+                                       delete_project_for_user,
                                        get_all_analyses_for_user,
                                        get_analysis_by_uuid,
                                        get_portfolio_item_for_project,
@@ -587,6 +588,24 @@ app.include_router(projects_router)
 app.include_router(analysis_router)
 app.include_router(resume_router)
 app.include_router(tasks_router)
+@app.delete("/api/projects/{project_id}")
+async def delete_project(
+    project_id: int,
+    username: str = Depends(verify_token),
+):
+    try:
+        ok = delete_project_for_user(project_id, username)
+        if not ok:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        return MessageResponse(message=f"Project {project_id} deleted successfully")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete project: {str(e)}",
+        )
 
 
 if __name__ == "__main__":
