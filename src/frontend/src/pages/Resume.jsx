@@ -12,10 +12,33 @@ const Resume = () => {
   const [resumeFormat, setResumeFormat] = useState('markdown');
   const [includeSkills, setIncludeSkills] = useState(true);
   const [includeProjects, setIncludeProjects] = useState(true);
+  
+  // Personal information
+  const [personalInfo, setPersonalInfo] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    location: '',
+    linkedIn: '',
+    github: '',
+    website: ''
+  });
+  
+  // Editable resume content
+  const [editableContent, setEditableContent] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     loadPortfolios();
   }, []);
+
+  useEffect(() => {
+    if (generatedResume && generatedResume.format !== resumeFormat) {
+      setGeneratedResume(null);
+      setEditableContent(null);
+      setIsEditing(false);
+    }
+  }, [resumeFormat]);
 
   const loadPortfolios = async () => {
     try {
@@ -59,18 +82,39 @@ const Resume = () => {
       setGenerating(true);
       setError('');
       const resume = await resumeAPI.generateResume(selectedPortfolios, {
-        portfolio_ids: selectedPortfolios,
         format: resumeFormat,
         include_skills: includeSkills,
         include_projects: includeProjects,
+        personal_info: personalInfo,
       });
       setGeneratedResume(resume);
+      setEditableContent(resume.content);
+      setIsEditing(false);
     } catch (err) {
       console.error('Error generating resume:', err);
       setError(err.response?.data?.detail || 'Failed to generate resume');
     } finally {
       setGenerating(false);
     }
+  };
+
+  const handleEditContent = () => {
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (editableContent && generatedResume) {
+      setGeneratedResume({
+        ...generatedResume,
+        content: editableContent
+      });
+      setIsEditing(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditableContent(generatedResume?.content || '');
+    setIsEditing(false);
   };
 
   const downloadResume = () => {
@@ -92,6 +136,40 @@ const Resume = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+    } else if (resumeFormat === 'latex') {
+      try {
+        const binaryString = atob(generatedResume.content);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        // Check if it's actually a PDF (starts with %PDF)
+        const pdfSignature = String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]);
+        if (pdfSignature === '%PDF') {
+          const blob = new Blob([bytes], { type: 'application/pdf' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `resume_latex_${new Date().toISOString().split('T')[0]}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        } else {
+          throw new Error('Not a PDF');
+        }
+      } catch (e) {
+        // It's LaTeX source text (compilation failed)
+        const blob = new Blob([generatedResume.content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `resume_${new Date().toISOString().split('T')[0]}.tex`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
     } else {
       // Markdown download
       const blob = new Blob([generatedResume.content], { type: 'text/markdown' });
@@ -108,7 +186,8 @@ const Resume = () => {
 
   const copyToClipboard = () => {
     if (!generatedResume) return;
-    navigator.clipboard.writeText(generatedResume.content);
+    const contentToCopy = isEditing ? editableContent : generatedResume.content;
+    navigator.clipboard.writeText(contentToCopy);
     alert('Resume copied to clipboard!');
   };
 
@@ -141,6 +220,7 @@ const Resume = () => {
             color: '#737373',
             margin: 0,
           }}>
+            Customize your resume by selecting portfolios and personalizing information.
             Select portfolios to generate a professional resume from your analyzed projects
           </p>
         </div>
@@ -165,6 +245,125 @@ const Resume = () => {
         }}>
           {/* Left Panel - Portfolio Selection */}
           <div>
+            {/* Personal Information Section */}
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              marginBottom: '24px',
+            }}>
+              <h2 style={{
+                fontSize: '20px',
+                fontWeight: '600',
+                color: '#1a1a1a',
+                margin: 0,
+                marginBottom: '16px',
+              }}>
+                Personal Information
+              </h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <input
+                  type="text"
+                  placeholder="Full Name"
+                  value={personalInfo.name}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, name: e.target.value })}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <input
+                  type="email"
+                  placeholder="Email Address"
+                  value={personalInfo.email}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, email: e.target.value })}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <input
+                  type="tel"
+                  placeholder="Phone Number"
+                  value={personalInfo.phone}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, phone: e.target.value })}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <input
+                  type="text"
+                  placeholder="Location (e.g., City, State)"
+                  value={personalInfo.location}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, location: e.target.value })}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <input
+                  type="url"
+                  placeholder="LinkedIn URL (optional)"
+                  value={personalInfo.linkedIn}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, linkedIn: e.target.value })}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <input
+                  type="url"
+                  placeholder="GitHub URL (optional)"
+                  value={personalInfo.github}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, github: e.target.value })}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <input
+                  type="url"
+                  placeholder="Personal Website (optional)"
+                  value={personalInfo.website}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, website: e.target.value })}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+            </div>
+
             <div style={{
               backgroundColor: 'white',
               borderRadius: '12px',
@@ -295,7 +494,7 @@ const Resume = () => {
                     }}
                   >
                     <option value="markdown">Markdown</option>
-                    <option value="pdf">PDF</option>
+                    <option value="latex">PDF</option>
                   </select>
                 </div>
 
@@ -379,21 +578,69 @@ const Resume = () => {
                   Generated Resume
                 </h2>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  {resumeFormat !== 'pdf' && (
-                    <button
-                      onClick={copyToClipboard}
-                      style={{
-                        padding: '8px 16px',
-                        fontSize: '14px',
-                        color: '#2563eb',
-                        backgroundColor: 'white',
-                        border: '1px solid #2563eb',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Copy
-                    </button>
+                  {resumeFormat !== 'pdf' && !isEditing && (
+                    <>
+                      <button
+                        onClick={handleEditContent}
+                        style={{
+                          padding: '8px 16px',
+                          fontSize: '14px',
+                          color: '#2563eb',
+                          backgroundColor: 'white',
+                          border: '1px solid #2563eb',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={copyToClipboard}
+                        style={{
+                          padding: '8px 16px',
+                          fontSize: '14px',
+                          color: '#2563eb',
+                          backgroundColor: 'white',
+                          border: '1px solid #2563eb',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Copy
+                      </button>
+                    </>
+                  )}
+                  {isEditing && (
+                    <>
+                      <button
+                        onClick={handleSaveEdit}
+                        style={{
+                          padding: '8px 16px',
+                          fontSize: '14px',
+                          color: 'white',
+                          backgroundColor: '#16a34a',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={handleCancelEdit}
+                        style={{
+                          padding: '8px 16px',
+                          fontSize: '14px',
+                          color: '#737373',
+                          backgroundColor: 'white',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </>
                   )}
                   <button
                     onClick={downloadResume}
@@ -440,7 +687,7 @@ const Resume = () => {
                 whiteSpace: 'pre-wrap',
                 wordBreak: 'break-word',
               }}>
-                {resumeFormat === 'pdf' ? (
+                {resumeFormat === 'pdf' || resumeFormat === 'latex' ? (
                   <div style={{
                     display: 'flex',
                     flexDirection: 'column',
@@ -455,7 +702,7 @@ const Resume = () => {
                       height="64"
                       viewBox="0 0 24 24"
                       fill="none"
-                      stroke="#2563eb"
+                      stroke={resumeFormat === 'latex' ? '#16a34a' : '#2563eb'}
                       strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -467,22 +714,57 @@ const Resume = () => {
                       <polyline points="10 9 9 9 8 9"></polyline>
                     </svg>
                     <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#1a1a1a', marginBottom: '8px' }}>
-                      PDF Resume Generated Successfully
+                      {resumeFormat === 'latex' 
+                        ? (generatedResume.content.startsWith('%') 
+                            ? "LaTeX Source Generated" 
+                            : "LaTeX Resume Compiled Successfully")
+                        : "PDF Resume Generated Successfully"}
                     </h3>
                     <p style={{ color: '#737373', marginBottom: '16px' }}>
-                      Your resume has been generated as a PDF file. Click the Download button above to save it.
+                      {resumeFormat === 'latex' && generatedResume.content.startsWith('%')
+                        ? "LaTeX compilation requires pdflatex. Download the .tex file to compile locally or upload to Overleaf."
+                        : "Your resume has been generated as a professional PDF file. Click the Download button above to save it."}
                     </p>
                     <div style={{ 
                       padding: '12px 16px', 
-                      backgroundColor: '#eff6ff', 
+                      backgroundColor: resumeFormat === 'latex' && generatedResume.content.startsWith('%') ? '#fef3c7' : (resumeFormat === 'latex' ? '#f0fdf4' : '#eff6ff'), 
                       borderRadius: '6px',
-                      border: '1px solid #bfdbfe',
-                      color: '#1e40af',
+                      border: `1px solid ${resumeFormat === 'latex' && generatedResume.content.startsWith('%') ? '#fcd34d' : (resumeFormat === 'latex' ? '#86efac' : '#bfdbfe')}`,
+                      color: resumeFormat === 'latex' && generatedResume.content.startsWith('%') ? '#92400e' : (resumeFormat === 'latex' ? '#166534' : '#1e40af'),
                       fontSize: '13px'
                     }}>
-                      💡 PDF files cannot be previewed in the browser. Use the Download button to view the full resume.
+                    {resumeFormat === 'latex' ? (
+                        generatedResume.content.startsWith('%') ? (
+                            <span className="text-amber-600">
+                                 LaTeX compilation failed. Install pdflatex: <code>brew install --cask mactex-no-gui</code> or upload the .tex file to Overleaf.com
+                            </span>
+                        ) : (
+                            <span className="text-green-600">
+                                Resume compiled successfully. Download the PDF by clicking the button above.
+                            </span>
+                        )
+                    ) : (
+                        <span></span>
+                    )}
                     </div>
                   </div>
+                ) : isEditing ? (
+                  <textarea
+                    value={editableContent}
+                    onChange={(e) => setEditableContent(e.target.value)}
+                    style={{
+                      width: '100%',
+                      minHeight: '500px',
+                      padding: '16px',
+                      border: '2px solid #2563eb',
+                      borderRadius: '8px',
+                      fontFamily: 'monospace',
+                      fontSize: '14px',
+                      lineHeight: '1.6',
+                      resize: 'vertical',
+                      boxSizing: 'border-box',
+                    }}
+                  />
                 ) : (
                   generatedResume.content
                 )}
