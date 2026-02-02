@@ -1100,6 +1100,55 @@ def count_analyses_by_zip_file(zip_file: str) -> int:
         ).fetchone()
         return result["count"] if result else 0
 
+def delete_project_for_user(project_id: int, username: str) -> bool:
+    """
+    Delete a single project owned by `username`.
+
+    NOTE:
+    - This deletes from `projects` which cascades to resume_items, portfolio_items,
+      and all project_* tables because they have ON DELETE CASCADE.
+    - We also decrement analyses.total_projects for the owning analysis row.
+    """
+    with get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+
+        # Find the analysis row that owns this project 
+        row = conn.execute(
+            """
+            SELECT p.analysis_id
+            FROM projects p
+            JOIN analyses a ON a.id = p.analysis_id
+            WHERE p.id = ? AND a.username = ?
+            """,
+            (project_id, username),
+        ).fetchone()
+
+        if not row:
+            return False
+
+        analysis_id = row["analysis_id"]
+
+        # Delete project (cascades to related rows)
+        cur = conn.execute(
+            "DELETE FROM projects WHERE id = ?",
+            (project_id,),
+        )
+
+        if cur.rowcount > 0:
+            conn.execute(
+                """
+                UPDATE analyses
+                SET total_projects = CASE
+                    WHEN total_projects > 0 THEN total_projects - 1
+                    ELSE 0
+                END
+                WHERE id = ?
+                """,
+                (analysis_id,),
+            )
+
+        conn.commit()
+        return cur.rowcount > 0
 
 def delete_analyses_by_zip_file(zip_file: str, username: Optional[str] = None) -> int:
     """Delete all analyses for a given zip file path scoped to a user."""
