@@ -110,6 +110,7 @@ export const portfolioAPI = {
   getPortfolioById: async (portfolioId) => {
     const response = await api.get(`/portfolios/${portfolioId}`);
     return response.data;
+  }
 };
 
 // Resume API calls
