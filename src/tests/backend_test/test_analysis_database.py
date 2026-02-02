@@ -1318,3 +1318,93 @@ def test_reanalysis_overwrites_same_user_only(temp_analysis_db):
         # Only latest Alice analysis should remain for that project key
         analyses_count = conn.execute("SELECT COUNT(*) AS c FROM analyses").fetchone()["c"]
         assert analyses_count == 1
+
+
+def test_delete_project_for_user_deletes_owned_project_and_cascades(temp_analysis_db):
+    username = "alice"
+
+    # Create analysis + project owned by alice
+    analysis_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, username=username)
+    project = adb.get_projects_for_analysis(analysis_id)[0]
+    project_id = project["id"]
+
+    # Add at least one resume item (note: record_analysis may also auto-generate resume items)
+    adb.store_resume_item(
+        analysis_id,
+        project_id,
+        project["project_name"],
+        "Did a thing",
+        bullet_order=0,
+    )
+
+    # Sanity check: rows exist before delete (counts are NOT deterministic for resume_items)
+    with adb.get_connection() as conn:
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) AS c FROM projects WHERE id = ?",
+                (project_id,),
+            ).fetchone()["c"]
+            == 1
+        )
+
+        # record_analysis() may already create resume items, so just assert "some exist"
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) AS c FROM resume_items WHERE project_id = ?",
+                (project_id,),
+            ).fetchone()["c"]
+            > 0
+        )
+
+        # record_analysis() creates project_languages from SAMPLE_PAYLOAD, so they should exist
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) AS c FROM project_languages WHERE project_id = ?",
+                (project_id,),
+            ).fetchone()["c"]
+            > 0
+        )
+
+    # Delete the project (scoped to alice)
+    ok = adb.delete_project_for_user(project_id, username)
+    assert ok is True
+
+    # Confirm project and cascaded child rows are gone
+    with adb.get_connection() as conn:
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) AS c FROM projects WHERE id = ?",
+                (project_id,),
+            ).fetchone()["c"]
+            == 0
+        )
+
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) AS c FROM resume_items WHERE project_id = ?",
+                (project_id,),
+            ).fetchone()["c"]
+            == 0
+        )
+
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) AS c FROM project_languages WHERE project_id = ?",
+                (project_id,),
+            ).fetchone()["c"]
+            == 0
+        )
+
+
+def test_delete_project_for_user_rejects_wrong_owner(temp_analysis_db):
+    # Create analysis + project owned by alice
+    alice_analysis = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, username="alice")
+    project_id = adb.get_projects_for_analysis(alice_analysis)[0]["id"]
+
+    # Bob tries to delete it
+    ok = adb.delete_project_for_user(project_id, "bob")
+    assert ok is False
+
+    # Project should still exist
+    with adb.get_connection() as conn:
+        assert conn.execute("SELECT COUNT(*) AS c FROM projects WHERE id = ?", (project_id,)).fetchone()["c"] == 1

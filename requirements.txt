@@ -46,6 +46,7 @@ isort==5.13.2
 bandit==1.7.7
 pip-audit==2.7.3
 aiofiles==24.1.0
+reportlab==4.2.5
 
 # Vector Database 
 psycopg[binary]==3.2.12
