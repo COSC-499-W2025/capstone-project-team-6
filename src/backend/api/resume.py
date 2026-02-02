@@ -20,7 +20,9 @@ class ResumeRequest(BaseModel):
     include_skills: bool = Field(True, description="Include skills section")
     include_projects: bool = Field(True, description="Include projects section")
     max_projects: Optional[int] = Field(None, description="Maximum number of projects to include")
-    personal_info: Optional[Dict[str, str]] = Field(None, description="Personal information (name, email, phone, location, linkedIn, github, website)")
+    personal_info: Optional[Dict[str, str]] = Field(
+        None, description="Personal information (name, email, phone, location, linkedIn, github, website)"
+    )
 
 
 class ResumeResponse(BaseModel):
@@ -46,8 +48,9 @@ async def generate_resume(
 ):
     """Generate a resume from selected portfolios."""
     try:
-        from backend.analysis.resume_generator import generate_resume
         import base64
+
+        from backend.analysis.resume_generator import generate_resume
 
         # Validate all portfolios exist and belong to user
         portfolios = []
@@ -72,7 +75,7 @@ async def generate_resume(
 
         # Convert PDF/LaTeX bytes to base64 string for JSON response
         if request.format in ("pdf", "latex") and isinstance(resume_content, bytes):
-            resume_content = base64.b64encode(resume_content).decode('utf-8')
+            resume_content = base64.b64encode(resume_content).decode("utf-8")
 
         # Generate resume ID (in production, save to database)
         import uuid

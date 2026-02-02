@@ -588,6 +588,8 @@ app.include_router(projects_router)
 app.include_router(analysis_router)
 app.include_router(resume_router)
 app.include_router(tasks_router)
+
+
 @app.delete("/api/projects/{project_id}")
 async def delete_project(
     project_id: int,
