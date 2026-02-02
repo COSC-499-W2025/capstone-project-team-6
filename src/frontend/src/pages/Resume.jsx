@@ -221,6 +221,7 @@ const Resume = () => {
             margin: 0,
           }}>
             Customize your resume by selecting portfolios and personalizing information.
+            Select portfolios to generate a professional resume from your analyzed projects
           </p>
         </div>
 
