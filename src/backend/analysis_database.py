@@ -1152,6 +1152,7 @@ def count_analyses_by_zip_file(zip_file: str) -> int:
         ).fetchone()
         return result["count"] if result else 0
 
+
 def delete_project_for_user(project_id: int, username: str) -> bool:
     """
     Delete a single project owned by `username`.
@@ -1164,7 +1165,7 @@ def delete_project_for_user(project_id: int, username: str) -> bool:
     with get_connection() as conn:
         conn.execute("PRAGMA foreign_keys = ON;")
 
-        # Find the analysis row that owns this project 
+        # Find the analysis row that owns this project
         row = conn.execute(
             """
             SELECT p.analysis_id
@@ -1201,6 +1202,7 @@ def delete_project_for_user(project_id: int, username: str) -> bool:
 
         conn.commit()
         return cur.rowcount > 0
+
 
 def delete_analyses_by_zip_file(zip_file: str, username: Optional[str] = None) -> int:
     """Delete all analyses for a given zip file path scoped to a user."""

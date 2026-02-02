@@ -1319,6 +1319,7 @@ def test_reanalysis_overwrites_same_user_only(temp_analysis_db):
         analyses_count = conn.execute("SELECT COUNT(*) AS c FROM analyses").fetchone()["c"]
         assert analyses_count == 1
 
+
 def test_delete_project_for_user_deletes_owned_project_and_cascades(temp_analysis_db):
     username = "alice"
 
@@ -1394,6 +1395,7 @@ def test_delete_project_for_user_deletes_owned_project_and_cascades(temp_analysi
             == 0
         )
 
+
 def test_delete_project_for_user_rejects_wrong_owner(temp_analysis_db):
     # Create analysis + project owned by alice
     alice_analysis = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, username="alice")
@@ -1406,4 +1408,3 @@ def test_delete_project_for_user_rejects_wrong_owner(temp_analysis_db):
     # Project should still exist
     with adb.get_connection() as conn:
         assert conn.execute("SELECT COUNT(*) AS c FROM projects WHERE id = ?", (project_id,)).fetchone()["c"] == 1
-

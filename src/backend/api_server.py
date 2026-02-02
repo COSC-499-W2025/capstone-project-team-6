@@ -15,12 +15,12 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
 from backend.analysis_database import (delete_analysis,
+                                       delete_project_for_user,
                                        get_all_analyses_for_user,
                                        get_analysis_by_uuid,
                                        get_portfolio_item_for_project,
                                        get_projects_for_user,
-                                       get_resume_items_for_project_id,
-                                       delete_project_for_user)
+                                       get_resume_items_for_project_id)
 from backend.analysis_database import init_db as init_analysis_db
 from backend.analysis_database import record_analysis
 # Import routers from modular API structure
@@ -579,7 +579,8 @@ async def get_project_portfolio(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve portfolio item: {str(e)}",
         )
-    
+
+
 @app.delete("/api/projects/{project_id}")
 async def delete_project(
     project_id: int,
@@ -598,6 +599,7 @@ async def delete_project(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete project: {str(e)}",
         )
+
 
 if __name__ == "__main__":
     import uvicorn
