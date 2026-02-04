@@ -1409,6 +1409,7 @@ def test_delete_project_for_user_rejects_wrong_owner(temp_analysis_db):
     with adb.get_connection() as conn:
         assert conn.execute("SELECT COUNT(*) AS c FROM projects WHERE id = ?", (project_id,)).fetchone()["c"] == 1
 
+
 def test_delete_all_projects_for_user_deletes_only_owned_projects(temp_analysis_db):
     # Create analyses for two users
     alice_analysis = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, username="alice")
@@ -1437,8 +1438,8 @@ def test_delete_all_projects_for_user_deletes_only_owned_projects(temp_analysis_
                 break
         assert fk is not None, "Expected projects to have a foreign key to analyses"
 
-        projects_fk_col = fk["from"]          # e.g., analysis_id
-        analyses_target_col = fk["to"]        # e.g., analysis_uuid or analysis_id etc.
+        projects_fk_col = fk["from"]  # e.g., analysis_id
+        analyses_target_col = fk["to"]  # e.g., analysis_uuid or analysis_id etc.
 
         # --- Find analyses primary key column (whatever record_analysis returns) ---
         analyses_cols = conn.execute("PRAGMA table_info(analyses);").fetchall()
@@ -1506,16 +1507,21 @@ def test_delete_all_projects_for_user_deletes_only_owned_projects(temp_analysis_
 
     # Confirm alice projects are gone, bob remains
     with adb.get_connection() as conn:
-        assert conn.execute(
-            "SELECT COUNT(*) AS c FROM projects WHERE owner_username = ?",
-            ("alice",),
-        ).fetchone()["c"] == 0
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) AS c FROM projects WHERE owner_username = ?",
+                ("alice",),
+            ).fetchone()["c"]
+            == 0
+        )
 
-        assert conn.execute(
-            "SELECT COUNT(*) AS c FROM projects WHERE owner_username = ?",
-            ("bob",),
-        ).fetchone()["c"] == bob_before + 1
-
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) AS c FROM projects WHERE owner_username = ?",
+                ("bob",),
+            ).fetchone()["c"]
+            == bob_before + 1
+        )
 
 
 def test_delete_all_projects_for_user_does_not_delete_other_users_projects(temp_analysis_db):
@@ -1539,13 +1545,12 @@ def test_delete_all_projects_for_user_does_not_delete_other_users_projects(temp_
         assert conn.execute(
             "SELECT COUNT(*) AS c FROM projects WHERE owner_username = ?",
             ("bob",),
-        ).fetchone()["c"] == len(bob_projects)
+        ).fetchone()[
+            "c"
+        ] == len(bob_projects)
 
         # and verify the exact bob project ids still exist
-        assert (
-            conn.execute(
-                f"SELECT COUNT(*) AS c FROM projects WHERE id IN ({','.join(['?'] * len(bob_project_ids))})",
-                tuple(bob_project_ids),
-            ).fetchone()["c"]
-            == len(bob_project_ids)
-        )
+        assert conn.execute(
+            f"SELECT COUNT(*) AS c FROM projects WHERE id IN ({','.join(['?'] * len(bob_project_ids))})",
+            tuple(bob_project_ids),
+        ).fetchone()["c"] == len(bob_project_ids)
