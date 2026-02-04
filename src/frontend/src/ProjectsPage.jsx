@@ -12,6 +12,8 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true); // loading projects list
   const [detailsLoading, setDetailsLoading] = useState(false); // loading resume/portfolio details
   const [error, setError] = useState('');
+  const [deletingAll, setDeletingAll] = useState(false);
+
 
   // track per-project delete loading
   const [deletingIds, setDeletingIds] = useState({}); // { [projectId]: true/false }
@@ -113,6 +115,32 @@ export default function ProjectsPage() {
       });
     }
   }
+  async function handleDeleteAllProjects() {
+    if (deletingAll) return;
+  
+    const count = projects.length;
+    const ok = window.confirm(
+      `Delete ALL your projects? (${count})\n\nThis will remove every project and its saved resume bullets/summary from your account. This cannot be undone.`
+    );
+    if (!ok) return;
+  
+    setError('');
+    setDeletingAll(true);
+  
+    try {
+      await projectsAPI.deleteAllProjects();
+  
+      // clear UI immediately
+      setProjects([]);
+      setDeletingIds({});
+    } catch (e) {
+      console.error('Delete all projects failed:', e);
+      const msg = e?.response?.data?.detail || e?.message || 'Failed to delete all projects';
+      setError(msg);
+    } finally {
+      setDeletingAll(false);
+    }
+  }  
 
   // --- Shared styles to match Dashboard look ---
   const pageStyles = {
@@ -314,17 +342,56 @@ export default function ProjectsPage() {
         {/* Projects list */}
         {!loading && !error && projects.length > 0 && (
           <div>
-            <p
+            <div
               style={{
-                fontSize: '16px',
-                fontWeight: '600',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '12px',
                 margin: '0 0 16px 0',
-                ...headingText,
               }}
             >
-              Found project(s)
-            </p>
+              <p
+                style={{
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  margin: 0,
+                  ...headingText,
+                }}
+              >
+                Found project(s)
+              </p>
 
+              <button
+                disabled={deletingAll}
+                onClick={handleDeleteAllProjects}
+                style={{
+                  padding: '10px 14px',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  borderRadius: '10px',
+                  cursor: deletingAll ? 'not-allowed' : 'pointer',
+                  border: '1px solid #fecaca',
+                  backgroundColor: '#fee2e2',
+                  color: '#991b1b',
+                  transition: 'all 0.2s',
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={(e) => {
+                  if (deletingAll) return;
+                  e.currentTarget.style.backgroundColor = '#fecaca';
+                  e.currentTarget.style.borderColor = '#fca5a5';
+                }}
+                onMouseLeave={(e) => {
+                  if (deletingAll) return;
+                  e.currentTarget.style.backgroundColor = '#fee2e2';
+                  e.currentTarget.style.borderColor = '#fecaca';
+                }}
+              >
+                {deletingAll ? 'Deleting all…' : 'Delete all projects'}
+              </button>
+            </div>
+            
             <div style={{ display: 'grid', gap: '20px' }}>
               {projects.map((p) => {
                 const isDeleting = !!deletingIds[p.id];
@@ -389,16 +456,16 @@ export default function ProjectsPage() {
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px' }}>
                         <div style={{ fontSize: '18px', opacity: 0.3 }}>📦</div>
 
-                        {/* ✅ Delete button */}
+                        {/* Delete button */}
                         <button
-                          disabled={isDeleting}
+                          disabled={isDeleting || deletingAll}
                           onClick={() => handleDeleteProject(p.id, p.project_name)}
                           style={{
                             padding: '8px 12px',
                             fontSize: '13px',
                             fontWeight: '600',
                             borderRadius: '10px',
-                            cursor: isDeleting ? 'not-allowed' : 'pointer',
+                            cursor: isDeleting || deletingAll ? 'not-allowed' : 'pointer',
                             border: '1px solid #fecaca',
                             backgroundColor: '#fee2e2',
                             color: '#991b1b',
@@ -406,12 +473,12 @@ export default function ProjectsPage() {
                             whiteSpace: 'nowrap',
                           }}
                           onMouseEnter={(e) => {
-                            if (isDeleting) return;
+                            if (isDeleting || deletingAll) return;
                             e.currentTarget.style.backgroundColor = '#fecaca';
                             e.currentTarget.style.borderColor = '#fca5a5';
                           }}
                           onMouseLeave={(e) => {
-                            if (isDeleting) return;
+                            if (isDeleting || deletingAll) return;
                             e.currentTarget.style.backgroundColor = '#fee2e2';
                             e.currentTarget.style.borderColor = '#fecaca';
                           }}

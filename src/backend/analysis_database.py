@@ -1203,6 +1203,71 @@ def delete_project_for_user(project_id: int, username: str) -> bool:
         conn.commit()
         return cur.rowcount > 0
 
+def delete_all_projects_for_user(username: str) -> int:
+    """Delete ALL projects owned by `username`.
+
+    Notes:
+    - Projects are user-scoped via their owning analysis row (analyses.username).
+    - Deleting from `projects` cascades to resume_items / portfolio_items and all project_* tables
+      because they reference projects(id) with ON DELETE CASCADE.
+    - We also decrement analyses.total_projects for each affected analysis row.
+    """
+    if not username:
+        raise ValueError("username is required")
+
+    with get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+        conn.execute("BEGIN;")
+
+        try:
+            # Count how many projects we are deleting per analysis row (so we can update totals).
+            counts = conn.execute(
+                """
+                SELECT p.analysis_id AS analysis_id, COUNT(*) AS cnt
+                FROM projects p
+                JOIN analyses a ON a.id = p.analysis_id
+                WHERE a.username = ?
+                GROUP BY p.analysis_id
+                """,
+                (username,),
+            ).fetchall()
+
+            # Delete all projects that belong to this user (via analyses.username)
+            cur = conn.execute(
+                """
+                DELETE FROM projects
+                WHERE id IN (
+                    SELECT p.id
+                    FROM projects p
+                    JOIN analyses a ON a.id = p.analysis_id
+                    WHERE a.username = ?
+                )
+                """,
+                (username,),
+            )
+            deleted_count = int(cur.rowcount or 0)
+
+            # Update total_projects for each analysis row that had projects removed
+            for row in counts:
+                analysis_id = row["analysis_id"]
+                cnt = int(row["cnt"] or 0)
+                conn.execute(
+                    """
+                    UPDATE analyses
+                    SET total_projects = CASE
+                        WHEN total_projects - ? > 0 THEN total_projects - ?
+                        ELSE 0
+                    END
+                    WHERE id = ? AND username = ?
+                    """,
+                    (cnt, cnt, analysis_id, username),
+                )
+
+            conn.execute("COMMIT;")
+            return deleted_count
+        except Exception:
+            conn.execute("ROLLBACK;")
+            raise
 
 def delete_analyses_by_zip_file(zip_file: str, username: Optional[str] = None) -> int:
     """Delete all analyses for a given zip file path scoped to a user."""
