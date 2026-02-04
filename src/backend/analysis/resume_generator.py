@@ -703,20 +703,32 @@ def generate_latex_resume(
     name = info.get("name", "Your Name").upper()
     phone = info.get("phone", "123-456-7890")
     email = info.get("email", "email@address.com")
+    location = info.get("location", "")
     linkedin = info.get("linkedIn", "linkedin.com/in/username")
     github = info.get("github", "github.com/username")
+    website = info.get("website", "")
 
     # Clean URLs for display
     linkedin_display = linkedin.replace("https://", "").replace("http://", "")
     github_display = github.replace("https://", "").replace("http://", "")
+    website_display = website.replace("https://", "").replace("http://", "") if website else ""
+
+    contact_parts = [phone]
+    contact_parts.append(rf"\href{{mailto:{email}}}{{\underline{{{email}}}}}")
+    if location:
+        contact_parts.append(location)
+    contact_parts.append(rf"\href{{{linkedin}}}{{\underline{{{linkedin_display}}}}}")
+    contact_parts.append(rf"\href{{{github}}}{{\underline{{{github_display}}}}}")
+    if website:
+        contact_parts.append(rf"\href{{{website}}}{{\underline{{{website_display}}}}}")
+    
+    contact_line = " $|$ ".join(contact_parts)
 
     latex = LATEX_HEADER
     latex += rf"""
 \begin{{center}}
     \textbf{{\Huge \scshape {name}}} \\ \vspace{{1pt}}
-    \small {phone} $|$ \href{{mailto:{email}}}{{\underline{{{email}}}}} $|$ 
-    \href{{{linkedin}}}{{\underline{{{linkedin_display}}}}} $|$
-    \href{{{github}}}{{\underline{{{github_display}}}}}
+    \small {contact_line}
 \end{{center}}
 """
 
@@ -978,6 +990,8 @@ def generate_resume(
         if personal_info.get("email"):
             email = personal_info.get("email")
             contact_parts.append(f"[{email}](mailto:{email})")
+        if personal_info.get("location"):
+            contact_parts.append(personal_info.get("location"))
         if personal_info.get("linkedIn"):
             linkedin_url = personal_info.get("linkedIn")
             linkedin_display = f"linkedin.com/in/{linkedin_url.split('/')[-1] if '/' in linkedin_url else linkedin_url}"
@@ -986,6 +1000,10 @@ def generate_resume(
             github_url = personal_info.get("github")
             github_display = f"github.com/{github_url.split('/')[-1] if '/' in github_url else github_url}"
             contact_parts.append(f"[{github_display}]({github_url})")
+        if personal_info.get("website"):
+            website_url = personal_info.get("website")
+            website_display = website_url.replace("https://", "").replace("http://", "").rstrip("/")
+            contact_parts.append(f"[{website_display}]({website_url})")
 
         if contact_parts:
             resume_parts.append(" | ".join(contact_parts))
