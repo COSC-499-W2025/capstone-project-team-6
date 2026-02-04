@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 
 from backend.analysis_database import (delete_analysis,
                                        delete_project_for_user,
+                                       delete_all_projects_for_user,
                                        get_all_analyses_for_user,
                                        get_analysis_by_uuid,
                                        get_portfolio_item_for_project,
@@ -614,3 +615,18 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+@app.delete("/api/projects")
+async def delete_all_projects(username: str = Depends(verify_token)):
+    """Delete all projects for the currently authenticated user."""
+    try:
+        deleted = delete_all_projects_for_user(username)
+        return {
+            "message": "All projects deleted successfully",
+            "deleted_projects": deleted,
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete all projects: {str(e)}",
+        )
