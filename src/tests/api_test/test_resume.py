@@ -9,13 +9,15 @@ if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
 
 import uuid
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 from backend.api.auth import active_tokens
 from backend.api_server import app
+from backend import analysis_database as adb
+from backend import database as udb
 
 client = TestClient(app)
 
@@ -26,6 +28,22 @@ def clear_tokens():
     active_tokens.clear()
     yield
     active_tokens.clear()
+
+
+@pytest.fixture(autouse=True)
+def setup_temp_db(tmp_path):
+    db_path = tmp_path / "resume_api.db"
+    previous_user = udb.set_db_path(db_path)
+    previous_analysis = adb.set_db_path(db_path)
+
+    if db_path.exists():
+        db_path.unlink()
+
+    udb.init_db()
+    adb.init_db()
+    yield
+    adb.set_db_path(previous_analysis)
+    udb.set_db_path(previous_user)
 
 
 @pytest.fixture
@@ -67,8 +85,91 @@ class TestResumeEndpoints:
             },
         )
 
-        # Currently returns 500 because generate_resume function doesn't exist
-        assert response.status_code == 500
+        assert response.status_code == 404
+
+    def test_create_list_get_update_stored_resume(self, auth_token):
+        token, _ = auth_token
+
+        create_response = client.post(
+            "/api/resumes",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "title": "My Stored Resume",
+                "format": "markdown",
+                "content": "## Projects\n\nBase Project\n- base bullet",
+            },
+        )
+        assert create_response.status_code == 200
+        created = create_response.json()
+        assert created["title"] == "My Stored Resume"
+
+        list_response = client.get(
+            "/api/resumes",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert list_response.status_code == 200
+        assert len(list_response.json()) == 1
+
+        get_response = client.get(
+            f"/api/resumes/{created['id']}",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert get_response.status_code == 200
+        assert "Base Project" in get_response.json()["content"]
+
+        update_response = client.patch(
+            f"/api/resumes/{created['id']}",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"content": "## Projects\n\nUpdated Project\n- updated bullet"},
+        )
+        assert update_response.status_code == 200
+        assert "Updated Project" in update_response.json()["content"]
+
+    @patch("backend.api.resume.get_analysis_by_uuid")
+    @patch("backend.analysis.resume_generator.generate_resume")
+    def test_generate_resume_merges_with_stored_resume(
+        self, mock_generate_resume, mock_get_analysis, auth_token
+    ):
+        token, _ = auth_token
+        portfolio_id = str(uuid.uuid4())
+
+        mock_get_analysis.return_value = {
+            "analysis_uuid": portfolio_id,
+            "projects": [],
+            "total_projects": 1,
+        }
+        mock_generate_resume.return_value = (
+            "John Doe\njohn@example.com\n\n## Projects\n\n"
+            "**GenProj** | *Python*\n- gen bullet\n"
+        )
+
+        create_response = client.post(
+            "/api/resumes",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "title": "Stored Resume",
+                "format": "markdown",
+                "content": "## Projects\n\nBase Project\n- base bullet",
+            },
+        )
+        assert create_response.status_code == 200
+        resume_id = create_response.json()["id"]
+
+        response = client.post(
+            "/api/resume/generate",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "portfolio_ids": [portfolio_id],
+                "format": "markdown",
+                "stored_resume_id": resume_id,
+            },
+        )
+        assert response.status_code == 200
+        content = response.json()["content"]
+        assert "John Doe" in content
+        assert content.count("## Projects") == 1
+        assert "GenProj" in content
+        assert "Base Project" in content
 
     def test_get_resume_list_unauthorized(self):
         """Test getting resume list without auth."""
