@@ -118,11 +118,35 @@ const Portfolio = () => {
 
   const skillTags = selectedPortfolioDetail?.skills ?? [];
   const projectList = selectedPortfolioDetail?.projects ?? [];
+  const portfolioItems =
+    selectedPortfolioDetail?.portfolio_items ||
+    selectedPortfolioDetail?.items ||
+    selectedPortfolioDetail?.portfolio ||
+    [];
 
   const handleSelectPortfolio = (portfolioId) => {
     if (portfolioId === selectedPortfolioId) return;
     setSelectedPortfolioId(portfolioId);
   };
+
+  const renderJsonBlock = (data) => (
+    <pre
+      style={{
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
+        fontSize: '12px',
+        color: '#111827',
+        backgroundColor: '#f9fafb',
+        padding: '12px',
+        borderRadius: '10px',
+        border: '1px solid #e5e7eb',
+        maxHeight: '400px',
+        overflow: 'auto',
+      }}
+    >
+      {JSON.stringify(data, null, 2)}
+    </pre>
+  );
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#fafafa' }}>
@@ -233,7 +257,7 @@ const Portfolio = () => {
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
                   gap: '16px',
                   marginTop: '24px',
                 }}
@@ -282,29 +306,6 @@ const Portfolio = () => {
                   </p>
                   <p style={{ margin: '8px 0 0', fontSize: '20px', fontWeight: '600', color: '#111827' }}>
                     {analysisType.toUpperCase()}
-                  </p>
-                </div>
-                <div
-                  style={{
-                    padding: '16px',
-                    borderRadius: '12px',
-                    border: '1px solid #e5e7eb',
-                    backgroundColor: '#ecfdf5',
-                  }}
-                >
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: '12px',
-                      letterSpacing: '0.2em',
-                      textTransform: 'uppercase',
-                      color: '#059669',
-                    }}
-                  >
-                    Zip file
-                  </p>
-                  <p style={{ margin: '8px 0 0', fontSize: '16px', color: '#111827' }}>
-                    {selectedSummaryEntry?.zip_file || 'Uploaded ZIP'}
                   </p>
                 </div>
               </div>
@@ -362,6 +363,74 @@ const Portfolio = () => {
                     No skill highlights were captured for this run yet.
                   </p>
                 )}
+              </div>
+
+              <div style={{ marginTop: '32px' }}>
+                <h3 style={{ margin: 0, fontSize: '18px', color: '#0f172a' }}>Portfolio Items</h3>
+                {Array.isArray(portfolioItems) && portfolioItems.length > 0 ? (
+                  <div
+                    style={{
+                      marginTop: '16px',
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                      gap: '16px',
+                    }}
+                  >
+                    {portfolioItems.map((item, idx) => (
+                      <div
+                        key={`portfolio-item-${idx}`}
+                        style={{
+                          borderRadius: '14px',
+                          border: '1px solid #e5e7eb',
+                          padding: '16px',
+                          backgroundColor: 'white',
+                        }}
+                      >
+                        <strong style={{ display: 'block', marginBottom: '6px', color: '#0f172a' }}>
+                          {item.title || item.project_name || `Item ${idx + 1}`}
+                        </strong>
+                        {item.text_summary && (
+                          <p style={{ margin: 0, color: '#374151', fontSize: '14px', lineHeight: 1.5 }}>
+                            {item.text_summary}
+                          </p>
+                        )}
+                        {item.tech_stack && (
+                          <p style={{ margin: '8px 0 0', color: '#6b7280', fontSize: '13px' }}>
+                            Tech stack: {item.tech_stack}
+                          </p>
+                        )}
+                        {item.skills_exercised && (
+                          <p style={{ margin: '6px 0 0', color: '#6b7280', fontSize: '13px' }}>
+                            Skills: {item.skills_exercised}
+                          </p>
+                        )}
+                        {item.quality_score !== undefined && (
+                          <p style={{ margin: '6px 0 0', color: '#6b7280', fontSize: '13px' }}>
+                            Quality score: {item.quality_score}
+                          </p>
+                        )}
+                        {item.sophistication_level && (
+                          <p style={{ margin: '6px 0 0', color: '#6b7280', fontSize: '13px' }}>
+                            Sophistication: {item.sophistication_level}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p style={{ marginTop: '12px', color: '#6b7280' }}>
+                    No portfolio items were returned by the backend yet.
+                  </p>
+                )}
+              </div>
+
+              <div style={{ marginTop: '32px' }}>
+                <details style={{ border: '1px solid #e5e7eb', borderRadius: '12px', padding: '12px' }}>
+                  <summary style={{ cursor: 'pointer', fontWeight: '600', color: '#0f172a' }}>
+                    Full portfolio payload (debug)
+                  </summary>
+                  <div style={{ marginTop: '12px' }}>{renderJsonBlock(selectedPortfolioDetail)}</div>
+                </details>
               </div>
 
               <div style={{ marginTop: '32px' }}>
