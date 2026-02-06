@@ -10,7 +10,6 @@ from pydantic import BaseModel
 
 from backend.analysis_database import (get_analysis_by_uuid,
                                        get_project_by_path_and_portfolio,
-                                       get_project_thumbnail,
                                        update_project_thumbnail)
 from backend.api.auth import verify_token
 from backend.curation import get_user_projects

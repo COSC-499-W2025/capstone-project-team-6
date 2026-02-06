@@ -16,6 +16,11 @@ export default function ProjectsPage() {
   // track per-project delete loading
   const [deletingIds, setDeletingIds] = useState({}); // { [projectId]: true/false }
 
+  // track per-project thumbnail state
+  const [thumbnailUrls, setThumbnailUrls] = useState({}); // { [projectId]: url or null }
+  const [thumbnailLoading, setThumbnailLoading] = useState({}); // { [projectId]: true/false }
+  const [thumbnailErrors, setThumbnailErrors] = useState({}); // { [projectId]: error message }
+
   useEffect(() => {
     console.log('ProjectsPage - Auth status:', { isAuthenticated, user });
     console.log('ProjectsPage - Token:', localStorage.getItem('access_token'));
@@ -34,15 +39,33 @@ export default function ProjectsPage() {
         console.log('Fetching projects...');
         const baseProjects = await projectsAPI.getProjects();
         console.log('Projects received:', baseProjects);
+        console.log('First project:', baseProjects[0]);
+        if (baseProjects[0]) {
+          console.log('Composite ID fields:', {
+            composite_id: baseProjects[0].composite_id,
+            analysis_uuid: baseProjects[0].analysis_uuid,
+            project_path: baseProjects[0].project_path,
+          });
+        }
 
         // Put base projects on screen ASAP
         // Add placeholders for details so UI doesn't explode
-        const withPlaceholders = baseProjects.map((p) => ({
-          ...p,
-          resume_items: null,
-          portfolio: null,
-          details_error: null,
-        }));
+        const withPlaceholders = baseProjects.map((p) => {
+          // Construct composite_id if not provided but we have the parts
+          // Note: project_path can be empty string "" or null for projects at root level
+          let compositeId = p.composite_id;
+          if (!compositeId && p.analysis_uuid) {
+            const projectPath = p.project_path ?? '';
+            compositeId = `${p.analysis_uuid}:${projectPath}`;
+          }
+          return {
+            ...p,
+            composite_id: compositeId,
+            resume_items: null,
+            portfolio: null,
+            details_error: null,
+          };
+        });
         setProjects(withPlaceholders);
 
         // Now fetch details (resume + portfolio) for each project
@@ -113,6 +136,84 @@ export default function ProjectsPage() {
       });
     }
   }
+
+  async function handleThumbnailUpload(projectId, compositeId, file) {
+    if (!file) return;
+
+    // Use composite_id for API calls (format: {analysis_uuid}:{project_path})
+    const apiId = compositeId || projectId;
+
+    // Check if we have a valid composite ID format
+    if (!apiId || !String(apiId).includes(':')) {
+      console.error('Invalid composite_id for thumbnail upload:', { projectId, compositeId, apiId });
+      setThumbnailErrors((prev) => ({
+        ...prev,
+        [projectId]: 'Unable to upload: missing project identifier. Please refresh the page.'
+      }));
+      return;
+    }
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setThumbnailErrors((prev) => ({ ...prev, [projectId]: 'Please select a valid image (JPG, PNG, GIF, or WebP)' }));
+      return;
+    }
+
+    // Validate file size (5MB max)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setThumbnailErrors((prev) => ({ ...prev, [projectId]: 'Image must be less than 5MB' }));
+      return;
+    }
+
+    setThumbnailLoading((prev) => ({ ...prev, [projectId]: true }));
+    setThumbnailErrors((prev) => ({ ...prev, [projectId]: null }));
+
+    try {
+      await projectsAPI.uploadThumbnail(apiId, file);
+      // Fetch the new thumbnail as blob
+      const blobUrl = await projectsAPI.getThumbnail(apiId);
+      setThumbnailUrls((prev) => ({
+        ...prev,
+        [projectId]: blobUrl,
+      }));
+    } catch (e) {
+      console.error('Thumbnail upload failed:', e);
+      // FastAPI 422 returns detail as array of error objects, not a string
+      let msg = 'Failed to upload thumbnail';
+      const detail = e?.response?.data?.detail;
+      if (typeof detail === 'string') {
+        msg = detail;
+      } else if (Array.isArray(detail) && detail.length > 0) {
+        msg = detail[0]?.msg || msg;
+      } else if (e?.message) {
+        msg = e.message;
+      }
+      setThumbnailErrors((prev) => ({ ...prev, [projectId]: msg }));
+    } finally {
+      setThumbnailLoading((prev) => ({ ...prev, [projectId]: false }));
+    }
+  }
+
+  // Load thumbnails when projects load
+  useEffect(() => {
+    if (projects.length > 0) {
+      projects.forEach(async (p) => {
+        // Use composite_id for thumbnail API (format: {analysis_uuid}:{project_path})
+        const thumbnailId = p.composite_id || p.id;
+        if (!thumbnailId) return;
+
+        try {
+          const blobUrl = await projectsAPI.getThumbnail(thumbnailId);
+          setThumbnailUrls((prev) => ({ ...prev, [p.id]: blobUrl }));
+        } catch (e) {
+          // No thumbnail exists or failed to load - that's fine, placeholder will show
+          setThumbnailUrls((prev) => ({ ...prev, [p.id]: null }));
+        }
+      });
+    }
+  }, [projects.length]);
 
   // --- Shared styles to match Dashboard look ---
   const pageStyles = {
@@ -387,7 +488,97 @@ export default function ProjectsPage() {
                       </div>
 
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px' }}>
-                        <div style={{ fontSize: '18px', opacity: 0.3 }}>📦</div>
+                        {/* Thumbnail upload area */}
+                        <div style={{ position: 'relative' }}>
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/gif,image/webp"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleThumbnailUpload(p.id, p.composite_id, file);
+                              e.target.value = ''; // Reset input
+                            }}
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              width: '100%',
+                              height: '100%',
+                              opacity: 0,
+                              cursor: 'pointer',
+                              zIndex: 2,
+                            }}
+                            disabled={thumbnailLoading[p.id]}
+                          />
+                          <div
+                            style={{
+                              width: '80px',
+                              height: '80px',
+                              borderRadius: '12px',
+                              border: '2px dashed #d4d4d4',
+                              backgroundColor: '#fafafa',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              overflow: 'hidden',
+                              transition: 'all 0.2s',
+                              cursor: 'pointer',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.borderColor = '#a3a3a3';
+                              e.currentTarget.style.backgroundColor = '#f5f5f5';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.borderColor = '#d4d4d4';
+                              e.currentTarget.style.backgroundColor = '#fafafa';
+                            }}
+                          >
+                            {thumbnailLoading[p.id] ? (
+                              <span style={{ fontSize: '12px', color: '#737373' }}>Uploading...</span>
+                            ) : thumbnailUrls[p.id] ? (
+                              <img
+                                src={thumbnailUrls[p.id]}
+                                alt={`${p.project_name || 'Project'} thumbnail`}
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  objectFit: 'cover',
+                                }}
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  color: '#a3a3a3',
+                                  fontSize: '10px',
+                                  textAlign: 'center',
+                                  pointerEvents: 'none',
+                                }}
+                              >
+                                <span style={{ fontSize: '20px' }}>📷</span>
+                                <span>Add image</span>
+                              </div>
+                            )}
+                          </div>
+                          {thumbnailErrors[p.id] && (
+                            <div
+                              style={{
+                                position: 'absolute',
+                                top: '100%',
+                                right: 0,
+                                marginTop: '4px',
+                                fontSize: '11px',
+                                color: '#B91C1C',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {thumbnailErrors[p.id]}
+                            </div>
+                          )}
+                        </div>
 
                         {/* ✅ Delete button */}
                         <button
