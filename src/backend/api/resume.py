@@ -5,8 +5,11 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from backend.analysis_database import (get_all_analyses_for_user,
-                                       get_analysis_by_uuid)
+from backend.analysis_database import (
+    get_projects_for_user,
+    get_resume_items_for_project_id,
+    get_portfolio_item_for_project,
+)
 from backend.api.auth import verify_token
 
 router = APIRouter(prefix="/api", tags=["Resume"])
@@ -15,13 +18,14 @@ router = APIRouter(prefix="/api", tags=["Resume"])
 class ResumeRequest(BaseModel):
     """Request to generate a resume."""
 
-    portfolio_ids: List[str] = Field(..., description="List of portfolio UUIDs to include")
+    project_ids: List[int] = Field(..., description="List of project IDs to include")
     format: str = Field("markdown", description="Output format: markdown, pdf, latex")
     include_skills: bool = Field(True, description="Include skills section")
     include_projects: bool = Field(True, description="Include projects section")
     max_projects: Optional[int] = Field(None, description="Maximum number of projects to include")
     personal_info: Optional[Dict[str, str]] = Field(
-        None, description="Personal information (name, email, phone, location, linkedIn, github, website)"
+        None,
+        description="Personal information (name, email, phone, location, linkedIn, github, website)",
     )
 
 
@@ -46,26 +50,46 @@ async def generate_resume(
     request: ResumeRequest,
     username: str = Depends(verify_token),
 ):
-    """Generate a resume from selected portfolios."""
+    """Generate a resume from selected projects."""
     try:
         import base64
+        import uuid
+        from datetime import datetime
 
-        from backend.analysis.resume_generator import generate_resume
+        # 1) Load user's projects once (ownership validation)
+        user_projects = get_projects_for_user(username)
+        user_projects_by_id = {p["id"]: p for p in user_projects}
 
-        # Validate all portfolios exist and belong to user
-        portfolios = []
-        for portfolio_id in request.portfolio_ids:
-            analysis = get_analysis_by_uuid(portfolio_id, username)
-            if not analysis:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Portfolio {portfolio_id} not found or access denied",
-                )
-            portfolios.append(analysis)
+        # 2) Validate project ownership
+        missing = [pid for pid in request.project_ids if pid not in user_projects_by_id]
+        if missing:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Project(s) not found or access denied: {missing}",
+            )
 
-        # Generate resume
-        resume_content = generate_resume(
-            portfolios=portfolios,
+        # 3) Build projects 
+        projects_for_resume: List[Dict[str, Any]] = []
+
+        for pid in request.project_ids:
+            project_row = user_projects_by_id[pid]
+
+            resume_rows_raw = get_resume_items_for_project_id(pid)
+            resume_rows = [dict(r) for r in resume_rows_raw]  # ensure dict
+
+            portfolio_item = get_portfolio_item_for_project(pid) or {}
+
+            projects_for_resume.append({
+                "project": project_row,       
+                "resume_items": resume_rows,  
+                "portfolio": portfolio_item,  
+            })
+
+        # 4) Generate resume using the existing generator 
+        from backend.analysis.resume_generator import generate_resume as generate_resume_impl
+
+        resume_content = generate_resume_impl(
+            projects=projects_for_resume,
             format=request.format,
             include_skills=request.include_skills,
             include_projects=request.include_projects,
@@ -73,12 +97,9 @@ async def generate_resume(
             personal_info=request.personal_info,
         )
 
-        # Convert PDF/LaTeX bytes to base64 string for JSON response
+        # Convert PDF bytes to base64 string for JSON response
         if request.format in ("pdf", "latex") and isinstance(resume_content, bytes):
             resume_content = base64.b64encode(resume_content).decode("utf-8")
-
-        # Generate resume ID (in production, save to database)
-        import uuid
 
         resume_id = str(uuid.uuid4())
 
@@ -88,11 +109,12 @@ async def generate_resume(
             content=resume_content,
             metadata={
                 "username": username,
-                "portfolio_count": len(portfolios),
-                "total_projects": sum(p["total_projects"] for p in portfolios),
-                "generated_at": __import__("datetime").datetime.now().isoformat(),
+                "project_count": len(projects_for_resume),
+                "total_projects": len(user_projects),
+                "generated_at": datetime.now().isoformat(),
             },
         )
+
     except HTTPException:
         raise
     except Exception as e:
@@ -105,7 +127,6 @@ async def generate_resume(
 @router.get("/resume/{resume_id}", response_model=ResumeResponse)
 async def get_resume(resume_id: str, username: str = Depends(verify_token)):
     """Get a previously generated resume by ID (stub - needs database implementation)."""
-    # This is a stub - in production, fetch from database
     raise HTTPException(
         status_code=status.HTTP_501_NOT_IMPLEMENTED,
         detail="Resume retrieval not yet implemented. Resumes are currently ephemeral.",
@@ -119,7 +140,6 @@ async def edit_resume(
     username: str = Depends(verify_token),
 ):
     """Edit a previously generated resume (stub - needs database implementation)."""
-    # This is a stub - in production, update in database
     raise HTTPException(
         status_code=status.HTTP_501_NOT_IMPLEMENTED,
         detail="Resume editing not yet implemented. Generate a new resume instead.",

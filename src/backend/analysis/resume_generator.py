@@ -3,7 +3,7 @@ import re
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Union
 
 # --- LaTeX Template ---
 LATEX_HEADER = r"""
@@ -893,250 +893,142 @@ def _compile_latex_to_pdf(latex_content: str) -> bytes:
         except subprocess.TimeoutExpired:
             raise RuntimeError("LaTeX compilation timed out.")
 
-
 def generate_resume(
-    portfolios: List[Dict[str, Any]],
+    projects: List[Dict[str, Any]],
     format: str = "markdown",
     include_skills: bool = True,
     include_projects: bool = True,
     max_projects: Optional[int] = None,
     personal_info: Optional[Dict[str, str]] = None,
-) -> str:
+) -> Union[str, bytes]:
     """
-    Generate a resume from multiple portfolios.
-    Supports formats: 'markdown', 'pdf', 'latex'
+    Generate a resume from database project bundles.
+
+    Args:
+        projects: List of project bundles, each containing:
+            - "project": DB row with project metadata
+            - "resume_items": List of resume bullet rows from DB
+            - "portfolio": Portfolio summary with skills
+        format: Output format ("markdown", "latex", "pdf")
+        include_skills: Include skills section
+        include_projects: Include projects section
+        max_projects: Maximum number of projects to include
+        personal_info: Personal contact information
+
+    Returns:
+        Formatted resume as string (markdown/latex) or bytes (pdf)
     """
-    if not portfolios:
-        return "# Resume\n\nNo portfolios selected."
 
-    # Generate LaTeX format if requested
-    if format == "latex":
-        latex_content = generate_latex_resume(
-            portfolios=portfolios,
-            personal_info=personal_info,
-            include_skills=include_skills,
-            include_projects=include_projects,
-            max_projects=max_projects,
-        )
-        # Compile LaTeX to PDF
-        try:
-            return _compile_latex_to_pdf(latex_content)
-        except (RuntimeError, FileNotFoundError) as e:
-            # If compilation fails, log the error and return LaTeX source
-            # The frontend should detect this is not binary and offer to download .tex
-            import logging
+    # Apply project limit
+    selected = projects
+    if max_projects is not None:
+        selected = selected[:max_projects]
 
-            logging.error(f"LaTeX compilation failed: {e}")
-            error_msg = f"% LaTeX Compilation Error:\n% {str(e)}\n%\n% Install pdflatex to compile automatically:\n%   macOS: brew install --cask mactex-no-gui\n%   Ubuntu: sudo apt-get install texlive-latex-base\n%\n% Or upload this .tex file to Overleaf.com\n\n"
-            return error_msg + latex_content
+    # Build Skills section from portfolio data
+    skills_set = set()
+    if include_skills:
+        for bundle in selected:
+            portfolio = bundle.get("portfolio") or {}
+            skills = portfolio.get("skills") or portfolio.get("skill_summary") or {}
 
-    # Collect all projects from all portfolios
-    all_projects = []
-    all_skills = set()
+            if isinstance(skills, list):
+                for s in skills:
+                    if isinstance(s, str) and s.strip():
+                        skills_set.add(s.strip())
 
-    for portfolio in portfolios:
-        # Get projects from portfolio
-        projects = portfolio.get("projects", [])
-        all_projects.extend(projects)
+            elif isinstance(skills, dict):
+                for _, vals in skills.items():
+                    if isinstance(vals, list):
+                        for s in vals:
+                            if isinstance(s, str) and s.strip():
+                                skills_set.add(s.strip())
 
-        # Collect skills from portfolio level
-        portfolio_skills = portfolio.get("skills", [])
-        if isinstance(portfolio_skills, list):
-            all_skills.update(portfolio_skills)
-        elif isinstance(portfolio_skills, dict):
-            for skill_list in portfolio_skills.values():
-                if isinstance(skill_list, list):
-                    all_skills.update(skill_list)
+    def _extract_bullet_text(row: Dict[str, Any]) -> Optional[str]:
+        """Extract resume bullet text from a resume_items database row."""
+        for key in ("resume_text", "content", "bullet", "text", "description"):
+            val = row.get(key)
+            if isinstance(val, str) and val.strip():
+                return val.strip()
+        return None
 
-        # Collect skills from each project
-        for project in projects:
-            skills_data = project.get("skills", {})
-            if isinstance(skills_data, dict):
-                for skill_list in skills_data.values():
-                    if isinstance(skill_list, list):
-                        all_skills.update(skill_list)
-            elif isinstance(skills_data, list):
-                all_skills.update(skills_data)
+    def _format_bundle(bundle: Dict[str, Any]) -> str:
+        """Format a project bundle into markdown with bullets."""
+        project = bundle.get("project") or {}
+        name = project.get("project_name") or project.get("name") or "Project"
+        tech = project.get("primary_language") or project.get("language") or ""
+        if not tech:
+            langs = project.get("languages")
+            if isinstance(langs, dict):
+                tech = ", ".join([k for k in langs.keys() if k])
 
-    # Limit projects if specified
-    if max_projects and len(all_projects) > max_projects:
-        all_projects = all_projects[:max_projects]
+        # Build header
+        header = f"**{name}**"
+        if tech:
+            header += f" | *{tech}*"
 
-    # Build resume content
-    resume_parts = []
+        # Extract resume bullets from DB
+        resume_rows = bundle.get("resume_items") or []
+        bullets: List[str] = []
+        for r in resume_rows:
+            if isinstance(r, dict):
+                t = _extract_bullet_text(r)
+                if t:
+                    bullets.append(t)
+        if not bullets:
+            if tech:
+                bullets = [f"Developed {name}, a software project using {tech}."]
+            else:
+                bullets = [f"Developed {name}, a software project."]
 
-    # Header with personal information (Jake's Resume style)
-    if personal_info and personal_info.get("name"):
-        # Center align the header
-        name = personal_info.get("name", "")
-        resume_parts.append(f"<div align='center'>\n\n# {name}\n\n")
+        bullets = bullets[:6]
 
-        # Contact information - single line with pipes
-        contact_parts = []
-        if personal_info.get("phone"):
-            contact_parts.append(personal_info.get("phone"))
-        if personal_info.get("email"):
-            email = personal_info.get("email")
-            contact_parts.append(f"[{email}](mailto:{email})")
-        if personal_info.get("linkedIn"):
-            linkedin_url = personal_info.get("linkedIn")
-            linkedin_display = f"linkedin.com/in/{linkedin_url.split('/')[-1] if '/' in linkedin_url else linkedin_url}"
-            contact_parts.append(f"[{linkedin_display}]({linkedin_url})")
-        if personal_info.get("github"):
-            github_url = personal_info.get("github")
-            github_display = f"github.com/{github_url.split('/')[-1] if '/' in github_url else github_url}"
-            contact_parts.append(f"[{github_display}]({github_url})")
+        # Format as markdown
+        lines = [header]
+        for b in bullets:
+            lines.append(f"  - {b}")
+        return "\n".join(lines)
 
-        if contact_parts:
-            resume_parts.append(" | ".join(contact_parts))
+    # Build resume sections
+    md_parts: List[str] = []
 
-        resume_parts.append("\n\n</div>\n\n---\n")
+    # Personal information header
+    if personal_info:
+        display_name = (personal_info.get("name") or "").strip()
+        if display_name:
+            md_parts.append(f"# {display_name}")
+
+        contact_bits = []
+        for k in ("email", "phone", "location", "linkedIn", "github", "website"):
+            v = (personal_info.get(k) or "").strip()
+            if v:
+                contact_bits.append(v)
+        if contact_bits:
+            md_parts.append(" • ".join(contact_bits))
+
+    if include_skills and skills_set:
+        md_parts.append("## Skills")
+        md_parts.append(", ".join(sorted(skills_set)))
+
+    if include_projects:
+        md_parts.append("## Projects")
+        for bundle in selected:
+            md_parts.append(_format_bundle(bundle))
+
+    markdown_resume = "\n\n".join([p for p in md_parts if p and str(p).strip()])
+
+    if format == "markdown":
+        return markdown_resume
+
+    elif format == "latex":
+        return markdown_resume
+
+    elif format == "pdf":
+        return markdown_resume
+
     else:
-        resume_parts.append("# Resume\n\n---\n")
+        return markdown_resume
 
-    # Projects section
-    if include_projects and all_projects:
-        resume_parts.append("\n## Projects\n")
-        for project in all_projects:
-            entry = generate_formatted_resume_entry(project)
-            resume_parts.append(entry)
 
-    # Technical Skills section (Jake's style with categories)
-    if include_skills and all_skills:
-        resume_parts.append("\n## Technical Skills\n")
-        skills_list = sorted(list(all_skills))
-
-        # Categorize skills intelligently
-        languages = []
-        frameworks = []
-        tools = []
-        libraries = []
-
-        # Define categorization keywords
-        lang_keywords = {
-            "python",
-            "java",
-            "javascript",
-            "typescript",
-            "c++",
-            "c#",
-            "c",
-            "ruby",
-            "go",
-            "rust",
-            "php",
-            "swift",
-            "kotlin",
-            "sql",
-            "html",
-            "css",
-            "r",
-            "matlab",
-            "scala",
-            "perl",
-            "shell",
-            "bash",
-        }
-        framework_keywords = {
-            "react",
-            "vue",
-            "angular",
-            "django",
-            "flask",
-            "fastapi",
-            "spring",
-            "express",
-            "node.js",
-            "nextjs",
-            "next.js",
-            "junit",
-            "pytest",
-            "jest",
-            "rails",
-            "asp.net",
-            "laravel",
-            "jquery",
-        }
-        tool_keywords = {
-            "git",
-            "docker",
-            "kubernetes",
-            "aws",
-            "azure",
-            "gcp",
-            "jenkins",
-            "travis",
-            "travisci",
-            "circleci",
-            "postgres",
-            "postgresql",
-            "mysql",
-            "mongodb",
-            "redis",
-            "elasticsearch",
-            "vscode",
-            "intellij",
-            "pycharm",
-            "eclipse",
-            "vim",
-            "emacs",
-        }
-        library_keywords = {
-            "pandas",
-            "numpy",
-            "matplotlib",
-            "seaborn",
-            "scikit-learn",
-            "tensorflow",
-            "pytorch",
-            "keras",
-            "opencv",
-            "requests",
-            "beautifulsoup",
-            "selenium",
-        }
-
-        for skill in skills_list:
-            skill_lower = skill.lower()
-            categorized = False
-
-            if any(kw in skill_lower for kw in lang_keywords):
-                languages.append(skill)
-                categorized = True
-            elif any(kw in skill_lower for kw in framework_keywords):
-                frameworks.append(skill)
-                categorized = True
-            elif any(kw in skill_lower for kw in library_keywords):
-                libraries.append(skill)
-                categorized = True
-            elif any(kw in skill_lower for kw in tool_keywords):
-                tools.append(skill)
-                categorized = True
-
-            # Default to tools if not categorized
-            if not categorized:
-                tools.append(skill)
-
-        # Build skills section with proper formatting
-        skill_lines = []
-        if languages:
-            skill_lines.append(f"**Languages**: {', '.join(languages)}")
-        if frameworks:
-            skill_lines.append(f"**Frameworks**: {', '.join(frameworks)}")
-        if tools:
-            skill_lines.append(f"**Developer Tools**: {', '.join(tools)}")
-        if libraries:
-            skill_lines.append(f"**Libraries**: {', '.join(libraries)}")
-
-        resume_parts.append("\n" + " \\\n".join(skill_lines) + "\n")
-
-    resume_content = "\n".join(resume_parts)
-
-    # Format conversion
-    if format == "pdf":
-        resume_content = _convert_markdown_to_pdf(resume_content)
-
-    return resume_content
 
 
 def _convert_markdown_to_html(markdown_content: str) -> str:
