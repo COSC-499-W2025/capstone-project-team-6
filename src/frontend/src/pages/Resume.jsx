@@ -11,7 +11,13 @@ const Resume = () => {
   const [generatedResume, setGeneratedResume] = useState(null);
   const [resumeFormat, setResumeFormat] = useState('markdown');
   const [includeSkills, setIncludeSkills] = useState(true);
-  const [includeProjects, setIncludeProjects] = useState(true);
+  const [storedResumes, setStoredResumes] = useState([]);
+  const [storedResumeId, setStoredResumeId] = useState('');
+  const [storedResumeTitle, setStoredResumeTitle] = useState('');
+  const [storedResumeContent, setStoredResumeContent] = useState('');
+  const [storedResumeFormat, setStoredResumeFormat] = useState('markdown');
+  const [storedResumeLoading, setStoredResumeLoading] = useState(false);
+  const [storedResumeSaving, setStoredResumeSaving] = useState(false);
   
   // Personal information
   const [personalInfo, setPersonalInfo] = useState({
@@ -30,6 +36,7 @@ const Resume = () => {
 
   useEffect(() => {
     loadPortfolios();
+    loadStoredResumes();
   }, []);
 
   useEffect(() => {
@@ -51,6 +58,83 @@ const Resume = () => {
       setError(err.response?.data?.detail || 'Failed to load portfolios');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadStoredResumes = async () => {
+    try {
+      setStoredResumeLoading(true);
+      const data = await resumeAPI.listStoredResumes();
+      setStoredResumes(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Error loading stored resumes:', err);
+    } finally {
+      setStoredResumeLoading(false);
+    }
+  };
+
+  const handleCreateStoredResume = async () => {
+    if (!storedResumeTitle.trim() || !storedResumeContent.trim()) {
+      setError('Please add a resume title and content to save.');
+      return;
+    }
+
+    try {
+      setStoredResumeSaving(true);
+      setError('');
+      const created = await resumeAPI.createStoredResume({
+        title: storedResumeTitle.trim(),
+        format: storedResumeFormat,
+        content: storedResumeContent,
+      });
+      setStoredResumes((prev) => [created, ...prev]);
+      setStoredResumeId(created.id);
+    } catch (err) {
+      console.error('Error creating stored resume:', err);
+      setError(err.response?.data?.detail || 'Failed to store resume');
+    } finally {
+      setStoredResumeSaving(false);
+    }
+  };
+
+  const handleUpdateStoredResume = async () => {
+    if (!storedResumeId) {
+      setError('Select a stored resume to update.');
+      return;
+    }
+
+    try {
+      setStoredResumeSaving(true);
+      setError('');
+      const updated = await resumeAPI.updateStoredResume(storedResumeId, storedResumeContent);
+      setStoredResumes((prev) =>
+        prev.map((r) => (r.id === updated.id ? updated : r))
+      );
+    } catch (err) {
+      console.error('Error updating stored resume:', err);
+      setError(err.response?.data?.detail || 'Failed to update resume');
+    } finally {
+      setStoredResumeSaving(false);
+    }
+  };
+
+  const handleSelectStoredResume = async (resumeId) => {
+    setStoredResumeId(resumeId);
+    if (!resumeId) {
+      setStoredResumeTitle('');
+      setStoredResumeContent('');
+      setStoredResumeFormat('markdown');
+      return;
+    }
+
+    try {
+      const resume = await resumeAPI.getStoredResume(resumeId);
+      setStoredResumeTitle(resume.title);
+      setStoredResumeContent(resume.content);
+      setStoredResumeFormat(resume.format);
+    } catch (err) {
+      console.error('Error loading stored resume:', err);
+      setError(err.response?.data?.detail || 'Failed to load stored resume');
     }
   };
 
@@ -84,8 +168,9 @@ const Resume = () => {
       const resume = await resumeAPI.generateResume(selectedPortfolios, {
         format: resumeFormat,
         include_skills: includeSkills,
-        include_projects: includeProjects,
+        include_projects: true,
         personal_info: personalInfo,
+        stored_resume_id: storedResumeId || null,
       });
       setGeneratedResume(resume);
       setEditableContent(resume.content);
@@ -369,6 +454,116 @@ const Resume = () => {
               borderRadius: '12px',
               padding: '24px',
               boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              marginBottom: '24px',
+            }}>
+              <h2 style={{
+                fontSize: '20px',
+                fontWeight: '600',
+                color: '#1a1a1a',
+                margin: 0,
+                marginBottom: '16px',
+              }}>
+                Stored Resume
+              </h2>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <input
+                  type="text"
+                  placeholder="Resume Title"
+                  value={storedResumeTitle}
+                  onChange={(e) => setStoredResumeTitle(e.target.value)}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
+
+                <select
+                  value={storedResumeFormat}
+                  onChange={(e) => setStoredResumeFormat(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    fontSize: '14px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    backgroundColor: 'white',
+                  }}
+                >
+                  <option value="markdown">Markdown</option>
+                  <option value="text">Plain text</option>
+                </select>
+
+                <textarea
+                  value={storedResumeContent}
+                  onChange={(e) => setStoredResumeContent(e.target.value)}
+                  placeholder="Paste your existing resume here..."
+                  style={{
+                    width: '100%',
+                    minHeight: '180px',
+                    padding: '12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontFamily: 'monospace',
+                    lineHeight: '1.5',
+                    resize: 'vertical',
+                    boxSizing: 'border-box',
+                  }}
+                />
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={handleCreateStoredResume}
+                    disabled={storedResumeSaving || storedResumeLoading}
+                    style={{
+                      flex: 1,
+                      padding: '10px 12px',
+                      fontSize: '14px',
+                      color: 'white',
+                      backgroundColor: '#2563eb',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {storedResumeSaving ? 'Saving...' : 'Save New Resume'}
+                  </button>
+                  <button
+                    onClick={handleUpdateStoredResume}
+                    disabled={storedResumeSaving || !storedResumeId}
+                    style={{
+                      flex: 1,
+                      padding: '10px 12px',
+                      fontSize: '14px',
+                      color: '#2563eb',
+                      backgroundColor: 'white',
+                      border: '1px solid #2563eb',
+                      borderRadius: '6px',
+                      cursor: storedResumeId ? 'pointer' : 'not-allowed',
+                    }}
+                  >
+                    Update Resume
+                  </button>
+                </div>
+
+                {storedResumeLoading && (
+                  <div style={{ fontSize: '12px', color: '#737373' }}>
+                    Loading stored resumes...
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
             }}>
               <div style={{
                 display: 'flex',
@@ -498,6 +693,36 @@ const Resume = () => {
                   </select>
                 </div>
 
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{
+                  fontSize: '14px',
+                  color: '#525252',
+                  marginBottom: '4px',
+                  display: 'block',
+                }}>
+                  Use Stored Resume (Markdown only)
+                </label>
+                <select
+                  value={storedResumeId || ''}
+                  onChange={(e) => handleSelectStoredResume(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    fontSize: '14px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    backgroundColor: 'white',
+                  }}
+                >
+                  <option value="">None</option>
+                  {storedResumes.map((resume) => (
+                    <option key={resume.id} value={resume.id}>
+                      {resume.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
                 {/* <label style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -515,21 +740,7 @@ const Resume = () => {
                   Include Skills Section
                 </label> */}
 
-                <label style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  fontSize: '14px',
-                  color: '#525252',
-                  cursor: 'pointer',
-                }}>
-                  <input
-                    type="checkbox"
-                    checked={includeProjects}
-                    onChange={(e) => setIncludeProjects(e.target.checked)}
-                    style={{ marginRight: '8px' }}
-                  />
-                  Include Projects Section
-                </label>
+                
               </div>
 
               {/* Generate Button */}
