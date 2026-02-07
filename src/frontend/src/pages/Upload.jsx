@@ -4,7 +4,7 @@ import Navigation from '../components/Navigation';
 import api from '../services/api';
 
 // Max file size: 100MB
-const MAX_FILE_SIZE_MB = 100;
+const MAX_FILE_SIZE_MB = 200;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 const Upload = () => {
@@ -158,11 +158,15 @@ const Upload = () => {
         // Note: project_name and description are stored locally but not sent
         // to the API as the backend doesn't currently support these fields
 
-        await api.post('/portfolios/upload', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
+        const res = await api.post('/portfolios/upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
         });
+
+        const uploadId = res?.data?.upload_id;
+        if (uploadId) {
+          sessionStorage.setItem("upload_id", String(uploadId));
+        }
+
       } else {
         // Upload multiple files with progress tracking and error aggregation
         const errors = [];
@@ -178,11 +182,10 @@ const Upload = () => {
             formData.append('file', file);
             formData.append('analysis_type', 'non_llm');
 
-            await api.post('/portfolios/upload', formData, {
-              headers: {
-                'Content-Type': 'multipart/form-data',
-              },
-            });
+            const res = await api.post('/portfolios/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+            const uploadId = res?.data?.upload_id;
+            if (uploadId) sessionStorage.setItem("upload_id", String(uploadId));
+
           } catch (err) {
             const errorMsg = err.response?.data?.detail || 'Upload failed';
             errors.push(`${file.name}: ${errorMsg}`);

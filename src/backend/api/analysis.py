@@ -12,7 +12,7 @@ from fastapi import (APIRouter, Depends, File, Form, HTTPException, UploadFile,
                      status)
 from pydantic import BaseModel
 
-from backend.analysis_database import get_analysis_by_uuid, create_upload
+from backend.analysis_database import get_analysis_by_uuid, create_upload, get_upload, update_upload_status, clear_upload_zip_path
 from backend.api.auth import verify_token
 from backend.database import check_user_consent
 from backend.task_manager import TaskType, get_task_manager
@@ -332,3 +332,81 @@ async def start_new_analysis(
         "task_id": task_id,
         "status_url": f"/api/tasks/{task_id}",
     }
+
+
+@router.post("/uploads/{upload_id}/start", status_code=202)
+async def start_analysis_for_upload(
+    upload_id: int,
+    username: str = Depends(verify_token),
+):
+    # consent
+    if not check_user_consent(username):
+        raise HTTPException(status_code=403, detail="User consent required")
+
+    # fetch upload row
+    upload = get_upload(upload_id, username)
+    if not upload:
+        raise HTTPException(status_code=404, detail="Upload not found")
+
+    zip_path = upload.get("zip_path")
+    if not zip_path:
+        raise HTTPException(
+            status_code=400,
+            detail="This upload has no zip_path (it may have already been analyzed and cleaned).",
+        )
+
+    zip_path = Path(zip_path)
+    if not zip_path.exists():
+        raise HTTPException(status_code=400, detail=f"Zip not found on server: {zip_path}")
+
+    # mark as analyzing
+    update_upload_status(upload_id, username, "analyzing")
+
+    # create background task using DB zip path
+    task_manager = get_task_manager()
+
+    # IMPORTANT: choose the task type that matches your pipeline.
+    # If your existing code uses NEW_PORTFOLIO for “analyze zip”, use that:
+    task_id = task_manager.create_task(
+        task_type=TaskType.NEW_PORTFOLIO,
+        username=username,
+        filename=zip_path.name,
+        file_path=zip_path,
+        analysis_type="non_llm",
+        # If your task manager supports metadata, pass upload_id too.
+        # upload_id=upload_id,  # only if supported
+    )
+
+    return {
+        "task_id": task_id,
+        "upload_id": upload_id,
+        "status_url": f"/api/tasks/{task_id}",
+    }
+
+@router.post("/uploads/{upload_id}/cleanup", status_code=200)
+async def cleanup_upload_zip(
+    upload_id: int,
+    username: str = Depends(verify_token),
+):
+    if not check_user_consent(username):
+        raise HTTPException(status_code=403, detail="User consent required")
+
+    upload = get_upload(upload_id, username)
+    if not upload:
+        raise HTTPException(status_code=404, detail="Upload not found")
+
+    zip_path = upload.get("zip_path")
+    if zip_path:
+        p = Path(zip_path)
+        # delete on disk if exists
+        if p.exists():
+            p.unlink()
+
+        # clear in DB
+        clear_upload_zip_path(upload_id, username)
+
+    # mark done
+    update_upload_status(upload_id, username, "done")
+
+    return {"ok": True, "upload_id": upload_id, "status": "done"}
+

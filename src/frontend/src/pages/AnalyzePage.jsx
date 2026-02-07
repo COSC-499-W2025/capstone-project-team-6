@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext"; 
-import {startAnalysisRequest, getTaskStatus } from "../services/analysisApi";
+import {startAnalysisRequest, getTaskStatus, cleanupUploadRequest  } from "../services/analysisApi";
 
 
 //const API_BASE = ""; 
@@ -10,9 +10,13 @@ export default function AnalyzePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  
 
-  //display-only path from previous page 
-  const zipPath = location.state?.zipPath ?? "(path will be loaded from database)";
+  const uploadId = sessionStorage.getItem("upload_id");
+  const zipPath =
+    uploadId
+      ? `(loaded from database) upload_id=${uploadId}`
+      : "(missing upload_id — please upload a zip first)";
 
   const [status, setStatus] = useState("starting"); // starting | running | completed | failed
   const [progress, setProgress] = useState(0);
@@ -31,6 +35,11 @@ export default function AnalyzePage() {
       setError("Missing auth token. Please log in again.");
       return;
     }
+        if (!uploadId) {
+      setStatus("failed");
+      setError("Missing upload_id. Please upload a zip first (Upload page should store upload_id in sessionStorage).");
+      return;
+    }
 
     startAnalysis();
 
@@ -45,7 +54,7 @@ export default function AnalyzePage() {
     try {
       setStatus("starting");
       setError("");
-      const data = await startAnalysisRequest(user.token);
+      const data = await startAnalysisRequest(user.token, uploadId);
       console.log("startAnalysis response:", data);
 
       if (!data.task_id) throw new Error("Start failed: no task_id returned");
@@ -92,6 +101,17 @@ export default function AnalyzePage() {
         if (analysisUuid) {
           sessionStorage.setItem("portfolio_id", analysisUuid);
         }
+
+        try {
+          await cleanupUploadRequest(user.token, uploadId);
+        } catch (cleanupErr) {
+          // Cleanup failing shouldn't block redirect, but we show a warning
+          console.warn("Cleanup failed:", cleanupErr);
+          setError(cleanupErr?.message ?? "Cleanup failed (zip may not have been deleted).");
+        }
+         navigate("/projects");
+        return;
+
 
       } else if (s === "failed") {
         setStatus("failed");
@@ -171,14 +191,13 @@ export default function AnalyzePage() {
         <button onClick={() => navigate("/dashboard")}>Exit</button>
 
         <button
-          onClick={() => navigate("/curate",{
-            state: { portfolioId: sessionStorage.getItem("portfolio_id") },
-          })}
+          onClick={() => navigate("/projects")}
           disabled={!isDone}
           title={!isDone ? "Wait for analysis to complete" : ""}
         >
-          Next
+          Go to Projects
         </button>
+
 
         {/* Optional: retry if failed */}
         {isFailed ? (
