@@ -2,6 +2,9 @@
 
 import tempfile
 import uuid
+import os
+from datetime import datetime
+
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -9,7 +12,7 @@ from fastapi import (APIRouter, Depends, File, Form, HTTPException, UploadFile,
                      status)
 from pydantic import BaseModel
 
-from backend.analysis_database import get_analysis_by_uuid
+from backend.analysis_database import get_analysis_by_uuid, create_upload
 from backend.api.auth import verify_token
 from backend.database import check_user_consent
 from backend.task_manager import TaskType, get_task_manager
@@ -170,6 +173,58 @@ async def quick_analysis(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Analysis failed: {str(e)}",
         )
+
+
+@router.post("/portfolios/upload", status_code=201)
+async def upload_portfolio_zip(
+    file: UploadFile = File(..., description="ZIP file to upload (stored temporarily until analysis)"),
+    username: str = Depends(verify_token),
+):
+    # Consent check (keep consistent with your other endpoints)
+    if not check_user_consent(username):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User consent required",
+        )
+
+    # Validate file
+    if not file.filename or not file.filename.lower().endswith(".zip"):
+        raise HTTPException(status_code=400, detail="File must be a .zip")
+
+    # Where to store temporarily
+    # Uses system temp by default; you can swap this later to a docker volume path
+    base_dir = Path(tempfile.gettempdir()) / "mda_uploads" / username
+    base_dir.mkdir(parents=True, exist_ok=True)
+
+    # Avoid collisions
+    upload_token = str(uuid.uuid4())
+    zip_path = base_dir / f"{upload_token}_{file.filename}"
+
+    # Save zip to disk
+    try:
+        content = await file.read()
+        zip_path.write_bytes(content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save uploaded file: {str(e)}")
+
+    # Create upload row
+    try:
+        upload_id = create_upload(username=username, zip_path=str(zip_path), original_filename=file.filename)
+    except Exception as e:
+        # rollback disk write if DB insert fails
+        try:
+            if zip_path.exists():
+                zip_path.unlink()
+        except Exception:
+            pass
+        raise HTTPException(status_code=500, detail=f"Failed to record upload in DB: {str(e)}")
+
+    return {
+        "upload_id": upload_id,
+        "status": "uploaded",
+        "message": "Upload stored. Ready to analyze.",
+    }
+
 
 
 @router.get("/status")
