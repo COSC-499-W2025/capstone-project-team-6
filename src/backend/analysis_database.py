@@ -72,6 +72,22 @@ def init_db() -> None:
 
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS uploads (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL REFERENCES users(username),
+                zip_path TEXT, -- will be cleared after analysis + deletion
+                original_filename TEXT,
+                status TEXT NOT NULL DEFAULT 'uploaded'
+                    CHECK(status IN ('uploaded','analyzing','done','failed')),
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+
+
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS analyses (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 analysis_uuid TEXT NOT NULL UNIQUE,
@@ -97,6 +113,12 @@ def init_db() -> None:
         if "username" not in existing_columns:
             conn.execute("ALTER TABLE analyses ADD COLUMN username TEXT REFERENCES users(username);")
             conn.commit()
+        
+        existing_columns = {row["name"] for row in conn.execute("PRAGMA table_info(analyses)")}
+        if "upload_id" not in existing_columns:
+            conn.execute("ALTER TABLE analyses ADD COLUMN upload_id INTEGER REFERENCES uploads(id);")
+            conn.commit()
+
 
         conn.execute(
             """
@@ -525,6 +547,73 @@ def _clear_project_children(conn: sqlite3.Connection, project_id: int, project_n
         conn.execute("DELETE FROM resume_items WHERE project_name = ?", (project_name,))
     else:
         conn.execute("DELETE FROM resume_items WHERE project_name = ?", (project_name,))
+
+
+def create_upload(username: str, zip_path: str, original_filename: str) -> int:
+    init_db()
+    with get_connection() as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO uploads (username, zip_path, original_filename, status)
+            VALUES (?, ?, ?, 'uploaded')
+            """,
+            (username, zip_path, original_filename),
+        )
+        conn.commit()
+        return int(cur.lastrowid)
+
+
+def get_upload(upload_id: int, username: str):
+    init_db()
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM uploads WHERE id = ? AND username = ?",
+            (upload_id, username),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def update_upload_status(upload_id: int, username: str, status: str) -> None:
+    init_db()
+    with get_connection() as conn:
+        conn.execute(
+            """
+            UPDATE uploads
+            SET status = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ? AND username = ?
+            """,
+            (status, upload_id, username),
+        )
+        conn.commit()
+
+
+def clear_upload_zip_path(upload_id: int, username: str) -> None:
+    init_db()
+    with get_connection() as conn:
+        conn.execute(
+            """
+            UPDATE uploads
+            SET zip_path = NULL, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ? AND username = ?
+            """,
+            (upload_id, username),
+        )
+        conn.commit()
+
+
+def list_uploads_for_user(username: str, limit: int = 50):
+    init_db()
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT * FROM uploads
+            WHERE username = ?
+            ORDER BY created_at DESC
+            LIMIT ?
+            """,
+            (username, limit),
+        ).fetchall()
+        return [dict(r) for r in rows]
 
 
 def _extract_summary(summary: Dict[str, Any]) -> Dict[str, Any]:
