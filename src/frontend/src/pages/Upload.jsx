@@ -162,10 +162,19 @@ const Upload = () => {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
 
-        const uploadId = res?.data?.upload_id;
-        if (uploadId) {
-          sessionStorage.setItem("upload_id", String(uploadId));
+        console.log("UPLOAD RESPONSE DATA:", res.data);
+
+        // Backend returns task_id inside details
+        const taskId = res?.data?.task_id || res?.data?.details?.task_id;
+
+        if (!taskId) {
+          throw new Error("Upload succeeded but no task_id was returned by the server.");
         }
+
+        // Go straight to Analyze page
+        navigate("/analyze", { state: { taskId } });
+        return; 
+
 
       } else {
         // Upload multiple files with progress tracking and error aggregation
@@ -215,8 +224,8 @@ const Upload = () => {
         fileInputRef.current.value = '';
       }
 
-      // Navigate to projects page after successful upload
-      navigate('/projects');
+      // Navigate to analyze page after successful upload
+      navigate('/analyze');
     } catch (err) {
       console.error('Upload error:', err);
       setError(err.response?.data?.detail || 'Failed to upload project. Please try again.');

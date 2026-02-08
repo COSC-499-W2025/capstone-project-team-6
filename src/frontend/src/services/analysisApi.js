@@ -1,5 +1,5 @@
-export async function startAnalysisRequest(token) {
-  const res = await fetch("/api/analysis/start", {
+export async function startAnalysisRequest(token, uploadId) {
+  const res = await fetch(`/api/analysis/uploads/${uploadId}/start`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -31,4 +31,20 @@ export async function getTaskStatus(taskId, token) {
   }
 
   return await res.json(); // expects { status, progress, error, result, ... }
+}
+
+export async function cleanupUploadRequest(token, uploadId) {
+  const res = await fetch(`/api/analysis/uploads/${uploadId}/cleanup`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Cleanup failed (${res.status}): ${text}`);
+  }
+
+  return await res.json();
 }
