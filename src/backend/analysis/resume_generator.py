@@ -721,7 +721,7 @@ def generate_latex_resume(
     contact_parts.append(rf"\href{{{github}}}{{\underline{{{github_display}}}}}")
     if website:
         contact_parts.append(rf"\href{{{website}}}{{\underline{{{website_display}}}}}")
-    
+
     contact_line = " $|$ ".join(contact_parts)
 
     latex = LATEX_HEADER
