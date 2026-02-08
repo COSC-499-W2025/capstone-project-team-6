@@ -14,7 +14,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
-from backend.analysis_database import (delete_analysis,
+from backend.analysis_database import (delete_all_projects_for_user,
+                                       delete_analysis,
                                        delete_project_for_user,
                                        get_all_analyses_for_user,
                                        get_analysis_by_uuid,
@@ -588,6 +589,8 @@ app.include_router(projects_router)
 app.include_router(analysis_router)
 app.include_router(resume_router)
 app.include_router(tasks_router)
+
+
 @app.delete("/api/projects/{project_id}")
 async def delete_project(
     project_id: int,
@@ -612,3 +615,19 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+@app.delete("/api/projects")
+async def delete_all_projects(username: str = Depends(verify_token)):
+    """Delete all projects for the currently authenticated user."""
+    try:
+        deleted = delete_all_projects_for_user(username)
+        return {
+            "message": "All projects deleted successfully",
+            "deleted_projects": deleted,
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete all projects: {str(e)}",
+        )

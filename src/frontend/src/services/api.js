@@ -90,6 +90,11 @@ export const projectsAPI = {
     return response.data;
   },
 
+  deleteAllProjects: async () => {
+    const response = await api.delete('/projects');
+    return response.data;
+  },  
+
   getResumeItems: async (projectId) => {
     const response = await api.get(`/projects/${projectId}/resume-items`);
     return response.data;
