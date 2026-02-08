@@ -11,6 +11,7 @@
 ## **Date ranges**
 
 January 26th – February 8th
+<img width="1078" height="633" alt="Screenshot 2026-02-07 at 7 47 28 PM" src="https://github.com/user-attachments/assets/184e0af3-a46c-4ee7-ab85-72dc6b934df0" />
 
 ---
 ## **What went well**
