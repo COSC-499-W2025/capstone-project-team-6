@@ -25,6 +25,8 @@ January 26th – February 8th
 
 - All PRs passed CI, and manual checks ensured UI updates, confirmation flows, and DB state behaved correctly after deletion and after logout/login. Overall, I shipped multiple stable features and strengthened my understanding of frontend–backend integration and testing.
 
+- I identified and fixed a critical data-model bug in the resume generation flow where portfolio (analysis) IDs were incorrectly used instead of project IDs. I refactored the backend resume API, resume generator, and frontend resume page to be fully project-based, ensuring resume bullets are correctly sourced per project and that project deletion now cascades cleanly without breaking resume generation. This resolved duplicated/missing resume entries and aligned the feature with the database ownership model.
+
 
 ---
 ## **What didn’t go well**
@@ -44,6 +46,9 @@ January 26th – February 8th
 
 - **Add per-project delete feature with UI updates and backend cleanup**  
   https://github.com/COSC-499-W2025/capstone-project-team-6/pull/338
+
+- **Migrate resume generation from portfolio IDs to project IDs**    
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/350
 
 ---
 ## **PRs reviewed**
@@ -66,6 +71,8 @@ January 26th – February 8th
 ---
 
 ## **Plans for next week**
+
+Next week I will work on removing portfolio_id usage end-to-end (it still exists in the database + tests + function calls). This will require refactoring backend endpoints and database access patterns that still depend on portfolio UUIDs, updating frontend flows (Upload/Analyze/Curate), and rewriting/adjusting related tests to match the new project-based model.
 
 
 # Mohamed Sakr
