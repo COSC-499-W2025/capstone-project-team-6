@@ -1,4 +1,15 @@
 import "@testing-library/jest-dom";
+import { vi } from 'vitest';
+
+// Mock localStorage
+const localStorageMock = {
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
+};
+
+global.localStorage = localStorageMock;
 
 // Node ≥ v25 ships an experimental built-in `localStorage` that is an empty
 // object (no getItem/setItem/removeItem/clear).  This shadows the full

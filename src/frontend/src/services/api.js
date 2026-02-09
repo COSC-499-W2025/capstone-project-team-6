@@ -195,4 +195,81 @@ export const resumeAPI = {
   },
 };
 
+// Curation API calls
+export const curationAPI = {
+  // Get user's curation settings
+  getSettings: async () => {
+    const response = await api.get('/curation/settings');
+    return response.data;
+  },
+
+  // Get all projects for curation
+  getProjects: async () => {
+    const response = await api.get('/curation/projects');
+    return response.data;
+  },
+
+  // Get showcase projects
+  getShowcase: async () => {
+    const response = await api.get('/curation/showcase');
+    return response.data;
+  },
+
+  // Get available skills
+  getSkills: async () => {
+    const response = await api.get('/curation/skills');
+    return response.data;
+  },
+
+  // Get available comparison attributes
+  getAttributes: async () => {
+    const response = await api.get('/curation/attributes');
+    return response.data;
+  },
+
+  // Save chronology correction
+  saveChronology: async (projectId, dates) => {
+    const response = await api.post('/curation/chronology', {
+      project_id: projectId,
+      last_commit_date: dates.last_commit_date || null,
+      last_modified_date: dates.last_modified_date || null,
+      project_start_date: dates.project_start_date || null,
+      project_end_date: dates.project_end_date || null,
+    });
+    return response.data;
+  },
+
+  // Save showcase projects (max 3)
+  saveShowcase: async (projectIds) => {
+    const response = await api.post('/curation/showcase', {
+      project_ids: projectIds,
+    });
+    return response.data;
+  },
+
+  // Save comparison attributes
+  saveAttributes: async (attributes) => {
+    const response = await api.post('/curation/attributes', {
+      attributes: attributes,
+    });
+    return response.data;
+  },
+
+  // Save project order
+  saveOrder: async (projectIds) => {
+    const response = await api.post('/curation/order', {
+      project_ids: projectIds,
+    });
+    return response.data;
+  },
+
+  // Save highlighted skills (max 10)
+  saveSkills: async (skills) => {
+    const response = await api.post('/curation/skills', {
+      skills: skills,
+    });
+    return response.data;
+  },
+};
+
 export default api;

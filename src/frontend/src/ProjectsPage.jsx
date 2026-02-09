@@ -18,6 +18,13 @@ export default function ProjectsPage() {
   const [selectedResumeItemIds, setSelectedResumeItemIds] = useState([]);
   const [addingItems, setAddingItems] = useState(false);
 
+  // Filter state
+  const [filters, setFilters] = useState({
+    searchTerm: '',
+    language: 'all',
+    hasTests: 'all',
+    sortBy: 'date', // date, name, language, files
+  });
 
   // track per-project delete loading
   const [deletingIds, setDeletingIds] = useState({}); // { [projectId]: true/false }
@@ -54,9 +61,17 @@ export default function ProjectsPage() {
           });
         }
 
+        // Ensure we have an array - API returns {username, total_projects, projects: [...]}
+        // But tests may return a plain array
+        const projectsArray = Array.isArray(baseProjects?.projects) 
+          ? baseProjects.projects 
+          : Array.isArray(baseProjects) 
+            ? baseProjects 
+            : [];
+
         // Put base projects on screen ASAP
         // Add placeholders for details so UI doesn't explode
-        const withPlaceholders = baseProjects.map((p) => {
+        const withPlaceholders = projectsArray.map((p) => {
           // Construct composite_id if not provided but we have the parts
           // Note: project_path can be empty string "" or null for projects at root level
           let compositeId = p.composite_id;
@@ -211,6 +226,53 @@ export default function ProjectsPage() {
     }
   }  
 
+  // Filter and sort projects
+  const getFilteredAndSortedProjects = () => {
+    let filtered = projects.filter((p) => {
+      // Search term filter
+      if (filters.searchTerm) {
+        const searchLower = filters.searchTerm.toLowerCase();
+        const nameMatch = p.project_name?.toLowerCase().includes(searchLower);
+        const langMatch = p.primary_language?.toLowerCase().includes(searchLower);
+        if (!nameMatch && !langMatch) return false;
+      }
+
+      // Language filter
+      if (filters.language !== 'all' && p.primary_language !== filters.language) {
+        return false;
+      }
+
+      // Test filter
+      if (filters.hasTests === 'yes' && !p.has_tests) return false;
+      if (filters.hasTests === 'no' && p.has_tests) return false;
+
+      return true;
+    });
+
+    // Sort
+    filtered.sort((a, b) => {
+      switch (filters.sortBy) {
+        case 'name':
+          return (a.project_name || '').localeCompare(b.project_name || '');
+        case 'language':
+          return (a.primary_language || '').localeCompare(b.primary_language || '');
+        case 'files':
+          return (b.total_files || 0) - (a.total_files || 0);
+        case 'date':
+        default:
+          const dateA = a.last_modified_date || '';
+          const dateB = b.last_modified_date || '';
+          return dateB.localeCompare(dateA); // Newest first
+      }
+    });
+
+    return filtered;
+  };
+
+  const filteredProjects = getFilteredAndSortedProjects();
+
+  // Get unique languages for filter dropdown
+  const uniqueLanguages = [...new Set(projects.map(p => p.primary_language).filter(Boolean))].sort();
   async function handleThumbnailUpload(projectId, compositeId, file) {
     if (!file) return;
 
@@ -504,6 +566,139 @@ export default function ProjectsPage() {
           <div style={{ fontSize: '18px', opacity: 0.35 }}>📁</div>
         </div>
 
+        {/* Filter Bar */}
+        {!loading && projects.length > 0 && (
+          <div
+            style={{
+              ...cardStyles,
+              padding: '20px',
+              marginBottom: '24px',
+            }}
+          >
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+              {/* Search input */}
+              <input
+                type="text"
+                placeholder="Search projects by name or language..."
+                value={filters.searchTerm}
+                onChange={(e) => setFilters({ ...filters, searchTerm: e.target.value })}
+                style={{
+                  flex: '1 1 250px',
+                  padding: '10px 14px',
+                  fontSize: '14px',
+                  border: '1px solid #e5e5e5',
+                  borderRadius: '8px',
+                  outline: 'none',
+                  transition: 'border-color 0.2s',
+                }}
+                onFocus={(e) => (e.currentTarget.style.borderColor = '#a3a3a3')}
+                onBlur={(e) => (e.currentTarget.style.borderColor = '#e5e5e5')}
+              />
+
+              {/* Language filter */}
+              <select
+                value={filters.language}
+                onChange={(e) => setFilters({ ...filters, language: e.target.value })}
+                style={{
+                  padding: '10px 14px',
+                  fontSize: '14px',
+                  border: '1px solid #e5e5e5',
+                  borderRadius: '8px',
+                  backgroundColor: 'white',
+                  cursor: 'pointer',
+                  outline: 'none',
+                }}
+              >
+                <option value="all">All Languages</option>
+                {uniqueLanguages.map((lang) => (
+                  <option key={lang} value={lang}>
+                    {lang}
+                  </option>
+                ))}
+              </select>
+
+              {/* Test filter */}
+              <select
+                value={filters.hasTests}
+                onChange={(e) => setFilters({ ...filters, hasTests: e.target.value })}
+                style={{
+                  padding: '10px 14px',
+                  fontSize: '14px',
+                  border: '1px solid #e5e5e5',
+                  borderRadius: '8px',
+                  backgroundColor: 'white',
+                  cursor: 'pointer',
+                  outline: 'none',
+                }}
+              >
+                <option value="all">All Projects</option>
+                <option value="yes">With Tests</option>
+                <option value="no">Without Tests</option>
+              </select>
+
+              {/* Sort dropdown */}
+              <select
+                value={filters.sortBy}
+                onChange={(e) => setFilters({ ...filters, sortBy: e.target.value })}
+                style={{
+                  padding: '10px 14px',
+                  fontSize: '14px',
+                  border: '1px solid #e5e5e5',
+                  borderRadius: '8px',
+                  backgroundColor: 'white',
+                  cursor: 'pointer',
+                  outline: 'none',
+                }}
+              >
+                <option value="date">Sort by Date</option>
+                <option value="name">Sort by Name</option>
+                <option value="language">Sort by Language</option>
+                <option value="files">Sort by File Count</option>
+              </select>
+
+              {/* Clear filters button */}
+              {(filters.searchTerm || filters.language !== 'all' || filters.hasTests !== 'all' || filters.sortBy !== 'date') && (
+                <button
+                  onClick={() =>
+                    setFilters({
+                      searchTerm: '',
+                      language: 'all',
+                      hasTests: 'all',
+                      sortBy: 'date',
+                    })
+                  }
+                  style={{
+                    padding: '10px 14px',
+                    fontSize: '13px',
+                    fontWeight: '500',
+                    border: '1px solid #e5e5e5',
+                    borderRadius: '8px',
+                    backgroundColor: 'white',
+                    color: '#737373',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#f5f5f5';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'white';
+                  }}
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
+
+            {/* Filter results info */}
+            {filteredProjects.length < projects.length && (
+              <div style={{ marginTop: '12px', fontSize: '13px', color: '#737373' }}>
+                Showing {filteredProjects.length} of {projects.length} projects
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Loading */}
         {loading && (
           <div
@@ -575,58 +770,104 @@ export default function ProjectsPage() {
         {/* Projects list */}
         {!loading && !error && projects.length > 0 && (
           <div>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: '12px',
-                margin: '0 0 16px 0',
-              }}
-            >
-              <p
+            {filteredProjects.length === 0 ? (
+              <div
                 style={{
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  margin: 0,
-                  ...headingText,
+                  ...cardStyles,
+                  padding: '40px',
+                  textAlign: 'center',
                 }}
               >
-                Found project(s)
-              </p>
+                <p style={{ fontSize: '18px', ...secondaryText, margin: 0 }}>
+                  No projects match your filters.
+                </p>
+                <button
+                  onClick={() =>
+                    setFilters({
+                      searchTerm: '',
+                      language: 'all',
+                      hasTests: 'all',
+                      sortBy: 'date',
+                    })
+                  }
+                  style={{
+                    marginTop: '16px',
+                    padding: '10px 20px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#1a1a1a',
+                    backgroundColor: 'white',
+                    border: '1px solid #e5e5e5',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#f5f5f5';
+                    e.currentTarget.style.borderColor = '#d4d4d4';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'white';
+                    e.currentTarget.style.borderColor = '#e5e5e5';
+                  }}
+                >
+                  Clear Filters
+                </button>
+              </div>
+            ) : (
+              <>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: '12px',
+                    margin: '0 0 16px 0',
+                  }}
+                >
+                  <p
+                    style={{
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      margin: 0,
+                      ...headingText,
+                    }}
+                  >
+                    Found project(s)
+                  </p>
 
-              <button
-                disabled={deletingAll}
-                onClick={handleDeleteAllProjects}
-                style={{
-                  padding: '10px 14px',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  borderRadius: '10px',
-                  cursor: deletingAll ? 'not-allowed' : 'pointer',
-                  border: '1px solid #fecaca',
-                  backgroundColor: '#fee2e2',
-                  color: '#991b1b',
-                  transition: 'all 0.2s',
-                  whiteSpace: 'nowrap',
-                }}
-                onMouseEnter={(e) => {
-                  if (deletingAll) return;
-                  e.currentTarget.style.backgroundColor = '#fecaca';
-                  e.currentTarget.style.borderColor = '#fca5a5';
-                }}
-                onMouseLeave={(e) => {
-                  if (deletingAll) return;
-                  e.currentTarget.style.backgroundColor = '#fee2e2';
-                  e.currentTarget.style.borderColor = '#fecaca';
-                }}
-              >
-                {deletingAll ? 'Deleting all…' : 'Delete all projects'}
-              </button>
-            </div>
-            
-            <div style={{ display: 'grid', gap: '20px' }}>
-              {projects.map((p) => {
+                  <button
+                    disabled={deletingAll}
+                    onClick={handleDeleteAllProjects}
+                    style={{
+                      padding: '10px 14px',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      borderRadius: '10px',
+                      cursor: deletingAll ? 'not-allowed' : 'pointer',
+                      border: '1px solid #fecaca',
+                      backgroundColor: '#fee2e2',
+                      color: '#991b1b',
+                      transition: 'all 0.2s',
+                      whiteSpace: 'nowrap',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (deletingAll) return;
+                      e.currentTarget.style.backgroundColor = '#fecaca';
+                      e.currentTarget.style.borderColor = '#fca5a5';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (deletingAll) return;
+                      e.currentTarget.style.backgroundColor = '#fee2e2';
+                      e.currentTarget.style.borderColor = '#fecaca';
+                    }}
+                  >
+                    {deletingAll ? 'Deleting all…' : 'Delete all projects'}
+                  </button>
+                </div>
+
+                <div style={{ display: 'grid', gap: '20px' }}>
+                  {filteredProjects.map((p) => {
                 const isDeleting = !!deletingIds[p.id];
 
                 return (
@@ -899,6 +1140,8 @@ export default function ProjectsPage() {
                 );
               })}
             </div>
+              </>
+            )}
           </div>
         )}
       </div>
