@@ -7,7 +7,7 @@ import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict, Optional, Union
-
+from fastapi import HTTPException, status
 import bcrypt
 
 DEFAULT_USERS: Dict[str, str] = {
@@ -284,7 +284,18 @@ def save_llm_allowed(username: str, llm_allowed: bool) -> None:
         )
         conn.commit()
 
-
+def require_llm_allowed(username: str) -> None:
+    """
+    Enforce LLM permission for endpoints that invoke LLM functionality.
+    - None or False => block
+    - True => allow
+    """
+    allowed = get_llm_allowed(username)
+    if allowed is not True:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="LLM features are disabled for this account.",
+        )
 
 if __name__ == "__main__":
     initialize()
