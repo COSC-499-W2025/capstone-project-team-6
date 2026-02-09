@@ -20,6 +20,7 @@ from .analysis.role_predictor import (format_role_prediction,
 from .analysis_database import init_db
 from .consent import ask_for_consent
 from .curation_cli import (curate_project_rank_interactive,
+                           curate_roles_interactive,
                            curate_skills_highlight_interactive)
 
 # Avoid importing heavy optional dependencies at module import time
@@ -1111,6 +1112,9 @@ def main() -> int:
     # Showcase projects
     showcase_parser = curate_subparsers.add_parser("showcase", help="Select top 3 projects to showcase")
 
+    # Role curation
+    roles_parser = curate_subparsers.add_parser("roles", help="Curate predicted developer roles for your projects")
+
     # Status overview
     status_parser = curate_subparsers.add_parser("status", help="Show current curation settings")
 
@@ -1324,20 +1328,25 @@ def main() -> int:
                                         quick_mode=True,
                                     )
 
-                                    # Merge with existing results
+                                    # Merge with existing results using smart comparison
+                                    from .project_comparison import \
+                                        process_incremental_projects
+
                                     existing_projects = results.get("projects", [])
                                     new_projects = new_results.get("projects", [])
 
-                                    # Deduplicate by project_path
-                                    existing_paths = {p.get("project_path") for p in existing_projects}
-                                    added_count = 0
-                                    for proj in new_projects:
-                                        if proj.get("project_path") not in existing_paths:
-                                            existing_projects.append(proj)
-                                            added_count += 1
+                                    # Process projects with 50% change threshold
+                                    merge_result = process_incremental_projects(
+                                        existing_projects=existing_projects, new_projects=new_projects, change_threshold=50.0
+                                    )
 
-                                    results["projects"] = existing_projects
-                                    results["analysis_metadata"]["total_projects"] = len(existing_projects)
+                                    merged_projects = merge_result["merged_projects"]
+                                    added_count = len(merge_result["added_projects"])
+                                    updated_count = len(merge_result["updated_projects"])
+                                    skipped_count = len(merge_result["skipped_projects"])
+
+                                    results["projects"] = merged_projects
+                                    results["analysis_metadata"]["total_projects"] = len(merged_projects)
 
                                     # Update database
                                     import json
@@ -1360,9 +1369,23 @@ def main() -> int:
                                         )
                                         conn.commit()
 
-                                    print(f"\n✓ Added {added_count} new project(s) to portfolio")
-                                    print(f"✓ Total projects now: {len(existing_projects)}")
-                                    print(f"✓ Portfolio UUID: {analysis_uuid}")
+                                    print(f"\n✓ Portfolio updated successfully!")
+                                    print(f"  • Added: {added_count} new project(s)")
+                                    print(f"  • Updated: {updated_count} project(s) with >50% changes")
+                                    print(f"  • Skipped: {skipped_count} project(s) with <50% changes")
+                                    print(f"  • Total projects now: {len(merged_projects)}")
+                                    print(f"  • Portfolio UUID: {analysis_uuid}")
+
+                                    # Show details of updated and skipped projects
+                                    if merge_result["updated_projects"]:
+                                        print(f"\n  Updated projects:")
+                                        for update in merge_result["updated_projects"]:
+                                            print(f"    - {update['project_path']} ({update['change_percentage']}% changed)")
+
+                                    if merge_result["skipped_projects"]:
+                                        print(f"\n  Skipped projects (insufficient changes):")
+                                        for skip in merge_result["skipped_projects"]:
+                                            print(f"    - {skip['project_path']} ({skip['change_percentage']}% changed)")
                                 else:
                                     break
                             except KeyboardInterrupt:
@@ -1827,7 +1850,7 @@ def main() -> int:
                 from .curation_cli import (
                     curate_chronology_interactive,
                     curate_comparison_attributes_interactive,
-                    curate_project_rank_interactive,
+                    curate_project_rank_interactive, curate_roles_interactive,
                     curate_showcase_projects_interactive,
                     curate_skills_highlight_interactive,
                     display_curation_status, display_showcase_summary)
@@ -1857,6 +1880,9 @@ def main() -> int:
             elif args.curate_type == "skills-highlight":
                 curate_skills_highlight_interactive(username)
                 return 0
+            elif args.curate_type == "roles":
+                curate_roles_interactive(username)
+                return 0
             else:
                 print("\nAvailable curation commands:")
                 print("  mda curate chronology  - Correct project dates")
@@ -1865,6 +1891,7 @@ def main() -> int:
                 print("  mda curate status      - Show current settings")
                 print("  mda curate rerank      - Re-rank projects")
                 print("  mda curate skills-highlight - Choose up to 10 skills to display")
+                print("  mda curate roles       - Curate predicted developer roles")
 
                 return 1
 
