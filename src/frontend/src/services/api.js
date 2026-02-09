@@ -249,5 +249,5 @@ export const curationAPI = {
   },
 };
 
-export default api;
+
 export default api;
