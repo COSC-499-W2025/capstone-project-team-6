@@ -18,9 +18,7 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // Response interceptor for error handling
@@ -29,10 +27,9 @@ api.interceptors.response.use(
   (error) => {
     console.error('API Error:', error);
     console.error('Error response:', error.response);
-    
+
     if (error.response?.status === 401) {
       console.log('401 Unauthorized - clearing tokens and redirecting to login');
-      // Clear token and redirect to login
       localStorage.removeItem('access_token');
       localStorage.removeItem('username');
       localStorage.removeItem('token_expiry');
@@ -85,8 +82,10 @@ export const projectsAPI = {
     return data?.projects || [];
   },
 
-  getProjectById: async (portfolioId) => {
-    const response = await api.get(`/portfolios/${portfolioId}`);
+  getProjectById: async (projectId) => {
+    // If you don't have a backend endpoint for this yet, you can remove this later.
+    // Keeping as-is in case it's referenced elsewhere.
+    const response = await api.get(`/projects/${projectId}`);
     return response.data;
   },
 
@@ -94,11 +93,6 @@ export const projectsAPI = {
     const response = await api.delete(`/portfolios/${portfolioId}`);
     return response.data;
   },
-
-  deleteAllProjects: async () => {
-    const response = await api.delete('/projects');
-    return response.data;
-  },  
 
   getResumeItems: async (projectId) => {
     const response = await api.get(`/projects/${projectId}/resume-items`);
@@ -157,16 +151,45 @@ export const portfoliosAPI = {
     return response.data;
   },
 };
+
 // Resume API calls
 export const resumeAPI = {
-  generateResume: async (portfolioIds, options = {}) => {
+  generateResume: async (projectIds, options = {}) => {
     const response = await api.post('/resume/generate', {
-      portfolio_ids: portfolioIds,
+      project_ids: projectIds,
       format: options.format || 'markdown',
       include_skills: options.include_skills !== false,
       include_projects: options.include_projects !== false,
       max_projects: options.max_projects || null,
       personal_info: options.personal_info || null,
+      stored_resume_id: options.stored_resume_id || null,
+    });
+    return response.data;
+  },
+
+  createStoredResume: async (payload) => {
+    const response = await api.post('/resumes', payload);
+    return response.data;
+  },
+
+  listStoredResumes: async () => {
+    const response = await api.get('/resumes');
+    return response.data;
+  },
+
+  getStoredResume: async (resumeId) => {
+    const response = await api.get(`/resumes/${resumeId}`);
+    return response.data;
+  },
+
+  updateStoredResume: async (resumeId, content) => {
+    const response = await api.patch(`/resumes/${resumeId}`, { content });
+    return response.data;
+  },
+
+  addItemsToResume: async (resumeId, resumeItemIds) => {
+    const response = await api.post(`/resumes/${resumeId}/items`, {
+      resume_item_ids: resumeItemIds,
     });
     return response.data;
   },

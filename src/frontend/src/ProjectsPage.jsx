@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
-import { projectsAPI } from './services/api';
+import { projectsAPI, resumeAPI } from './services/api';
 import Navigation from './components/Navigation';
 
 export default function ProjectsPage() {
@@ -13,6 +13,10 @@ export default function ProjectsPage() {
   const [detailsLoading, setDetailsLoading] = useState(false); // loading resume/portfolio details
   const [error, setError] = useState('');
   const [deletingAll, setDeletingAll] = useState(false);
+  const [storedResumes, setStoredResumes] = useState([]);
+  const [selectedResumeId, setSelectedResumeId] = useState('');
+  const [selectedResumeItemIds, setSelectedResumeItemIds] = useState([]);
+  const [addingItems, setAddingItems] = useState(false);
 
   // Filter state
   const [filters, setFilters] = useState({
@@ -126,7 +130,49 @@ export default function ProjectsPage() {
     }
 
     loadProjectsAndDetails();
+    loadStoredResumes();
   }, [isAuthenticated, navigate, user]);
+
+  const loadStoredResumes = async () => {
+    try {
+      const data = await resumeAPI.listStoredResumes();
+      setStoredResumes(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Error loading stored resumes:', err);
+    }
+  };
+
+  const toggleResumeItemSelection = (itemId) => {
+    setSelectedResumeItemIds((prev) => {
+      if (prev.includes(itemId)) {
+        return prev.filter((id) => id !== itemId);
+      }
+      return [...prev, itemId];
+    });
+  };
+
+  const handleAddSelectedItems = async () => {
+    if (!selectedResumeId) {
+      setError('Select a stored resume to add bullets.');
+      return;
+    }
+    if (selectedResumeItemIds.length === 0) {
+      setError('Select at least one bullet to add.');
+      return;
+    }
+
+    try {
+      setAddingItems(true);
+      setError('');
+      await resumeAPI.addItemsToResume(selectedResumeId, selectedResumeItemIds);
+      setSelectedResumeItemIds([]);
+    } catch (err) {
+      console.error('Error adding bullets:', err);
+      setError(err.response?.data?.detail || 'Failed to add bullets to resume');
+    } finally {
+      setAddingItems(false);
+    }
+  };
 
   async function handleDeleteProject(projectId, projectName) {
     const name = projectName || 'this project';
@@ -400,35 +446,79 @@ export default function ProjectsPage() {
             </p>
           </div>
 
-          <button
-            onClick={() => navigate('/dashboard')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '10px 20px',
-              backgroundColor: 'white',
-              color: '#1a1a1a',
-              border: '1px solid #e5e5e5',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-              transition: 'all 0.2s',
-              whiteSpace: 'nowrap',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#f5f5f5';
-              e.currentTarget.style.borderColor = '#d4d4d4';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'white';
-              e.currentTarget.style.borderColor = '#e5e5e5';
-            }}
-          >
-            <span style={{ opacity: 0.8 }}>←</span>
-            <span>Back to Dashboard</span>
-          </button>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <select
+              value={selectedResumeId || ''}
+              onChange={(e) => setSelectedResumeId(e.target.value)}
+              style={{
+                padding: '8px 12px',
+                fontSize: '14px',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                backgroundColor: 'white',
+                minWidth: '220px',
+              }}
+            >
+              <option value="">Select stored resume</option>
+              {storedResumes.map((resume) => (
+                <option key={resume.id} value={resume.id}>
+                  {resume.title}
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={handleAddSelectedItems}
+              disabled={addingItems}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 14px',
+                backgroundColor: '#2563eb',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                transition: 'all 0.2s',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {addingItems ? 'Adding...' : 'Add selected bullets'}
+            </button>
+
+            <button
+              onClick={() => navigate('/dashboard')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 20px',
+                backgroundColor: 'white',
+                color: '#1a1a1a',
+                border: '1px solid #e5e5e5',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                transition: 'all 0.2s',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f5f5f5';
+                e.currentTarget.style.borderColor = '#d4d4d4';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'white';
+                e.currentTarget.style.borderColor = '#e5e5e5';
+              }}
+            >
+              <span style={{ opacity: 0.8 }}>←</span>
+              <span>Back to Dashboard</span>
+            </button>
+          </div>
         </div>
 
         {/* Top stat card (Dashboard-style) */}
@@ -1028,7 +1118,15 @@ export default function ProjectsPage() {
                         <ul style={{ margin: 0, paddingLeft: '18px', color: '#262626' }}>
                           {p.resume_items.map((ri) => (
                             <li key={ri.id} style={{ marginBottom: '6px', lineHeight: 1.45 }}>
-                              {ri.resume_text}
+                              <label style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedResumeItemIds.includes(ri.id)}
+                                  onChange={() => toggleResumeItemSelection(ri.id)}
+                                  style={{ marginTop: '3px' }}
+                                />
+                                <span>{ri.resume_text}</span>
+                              </label>
                             </li>
                           ))}
                         </ul>

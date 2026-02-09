@@ -20,12 +20,13 @@ try:
                            ProjectChronologyCorrection,
                            format_project_comparison,
                            get_available_skills_alphabetical,
-                           get_chronology_corrections, get_showcase_projects,
-                           get_user_curation_settings, get_user_projects,
+                           get_chronology_corrections, get_curated_role,
+                           get_showcase_projects, get_user_curation_settings,
+                           get_user_projects, get_user_projects_with_roles,
                            init_curation_tables, save_chronology_correction,
-                           save_comparison_attributes, save_highlighted_skills,
-                           save_project_order, save_showcase_projects,
-                           validate_date_format)
+                           save_comparison_attributes, save_curated_role,
+                           save_highlighted_skills, save_project_order,
+                           save_showcase_projects, validate_date_format)
 except ImportError:
     # Handle direct execution or testing
     import sys
@@ -38,14 +39,17 @@ except ImportError:
                                   ProjectChronologyCorrection,
                                   format_project_comparison,
                                   get_available_skills_alphabetical,
-                                  get_chronology_corrections,
+                                  get_chronology_corrections, get_curated_role,
                                   get_showcase_projects,
                                   get_user_curation_settings,
-                                  get_user_projects, init_curation_tables,
+                                  get_user_projects,
+                                  get_user_projects_with_roles,
+                                  init_curation_tables,
                                   save_chronology_correction,
                                   save_comparison_attributes,
-                                  save_highlighted_skills, save_project_order,
-                                  save_showcase_projects, validate_date_format)
+                                  save_curated_role, save_highlighted_skills,
+                                  save_project_order, save_showcase_projects,
+                                  validate_date_format)
 
 
 def curate_chronology_interactive(user_id: str) -> None:
@@ -617,5 +621,147 @@ def display_showcase_summary(user_id: str) -> None:
         if project["frameworks"]:
             fws = project["frameworks"][:3]
             print(f"Frameworks: {', '.join(fws)}")
+
+
+def curate_roles_interactive(user_id: str) -> None:
+    """
+    Interactive role curation for user's projects.
+    Allows users to override predicted roles with their own selections.
+    """
+    print("=" * 60)
+    print("PROJECT ROLE CURATION")
+    print("=" * 60)
+    print()
+    print("Review and curate the predicted roles for your projects.")
+    print("You can override AI predictions with your preferred role descriptions.")
+    print()
+
+    # Initialize tables if needed
+    init_curation_tables()
+
+    # Get projects with role information
+    projects = get_user_projects_with_roles(user_id)
+
+    if not projects:
+        print("No projects found to curate roles.")
+        return
+
+    # Available role options (from the role predictor)
+    available_roles = [
+        "Senior Software Engineer",
+        "Full Stack Developer",
+        "Backend Developer",
+        "Frontend Developer",
+        "DevOps Engineer",
+        "Data Engineer",
+        "Mobile Developer",
+        "Game Developer",
+        "Systems Engineer",
+        "Junior Developer",
+        "Team Lead/Architect",
+        "Machine Learning Engineer",
+        "Custom (enter your own)",
+    ]
+
+    print(f"Found {len(projects)} project(s) to review:")
+    print()
+
+    for i, project in enumerate(projects, 1):
+        print(f"\n{'-'*50}")
+        print(f"PROJECT {i}: {project['project_name']}")
+        print(f"{'-'*50}")
+
+        # Show current predicted role
+        predicted_role = project.get("predicted_role")
+        confidence = project.get("predicted_role_confidence")
+        curated_role = project.get("curated_role")
+
+        if predicted_role:
+            print(f"Predicted Role: {predicted_role}")
+            if confidence:
+                print(f"   Confidence: {confidence:.1%}")
+        else:
+            print("Predicted Role: Not available")
+
+        if curated_role:
+            print(f"Your Current Role: {curated_role}")
+        else:
+            print("Your Current Role: Not set")
+
+        print()
+        print("What would you like to do?")
+        print("1. Keep current (no changes)")
+        print("2. Select from role options")
+        print("3. Enter custom role")
+        print("4. Clear curated role (use predicted)")
+
+        while True:
+            choice = input(f"\nEnter choice (1-4) [1]: ").strip()
+            if not choice:
+                choice = "1"
+
+            if choice == "1":
+                # Keep current
+                break
+            elif choice == "2":
+                # Select from options
+                print(f"\nSelect a role for '{project['project_name']}':")
+                for j, role in enumerate(available_roles, 1):
+                    print(f"{j:2}. {role}")
+
+                while True:
+                    try:
+                        role_choice = input(f"\nEnter role number (1-{len(available_roles)}): ").strip()
+                        role_idx = int(role_choice) - 1
+
+                        if 0 <= role_idx < len(available_roles) - 1:  # Not custom option
+                            selected_role = available_roles[role_idx]
+                            if save_curated_role(user_id, project["id"], selected_role):
+                                print(f"Role updated to: {selected_role}")
+                            else:
+                                print("Failed to save role. Please try again.")
+                            break
+                        elif role_idx == len(available_roles) - 1:  # Custom option
+                            custom_role = input("Enter your custom role description: ").strip()
+                            if custom_role:
+                                if save_curated_role(user_id, project["id"], custom_role):
+                                    print(f"Role updated to: {custom_role}")
+                                else:
+                                    print("Failed to save role. Please try again.")
+                                break
+                            else:
+                                print("Please enter a role description.")
+                        else:
+                            print("Invalid selection. Please try again.")
+                    except (ValueError, IndexError):
+                        print("Please enter a valid number.")
+                break
+            elif choice == "3":
+                # Enter custom role
+                custom_role = input("Enter your custom role description: ").strip()
+                if custom_role:
+                    if save_curated_role(user_id, project["id"], custom_role):
+                        print(f"Role updated to: {custom_role}")
+                    else:
+                        print("Failed to save role. Please try again.")
+                else:
+                    print("No role entered. Keeping current.")
+                break
+            elif choice == "4":
+                # Clear curated role
+                if save_curated_role(user_id, project["id"], None):
+                    print("Curated role cleared. Will use predicted role.")
+                else:
+                    print("Failed to clear role. Please try again.")
+                break
+            else:
+                print("Please enter 1, 2, 3, or 4.")
+
+    print("\n" + "=" * 60)
+    print("ROLE CURATION COMPLETE")
+    print("=" * 60)
+    print("Your role preferences have been saved!")
+    print("The curated roles will now be displayed in your project summaries.")
+    print()
 
     print("\n" + "=" * 70)
