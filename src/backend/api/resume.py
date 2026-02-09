@@ -13,7 +13,7 @@ from backend.analysis_database import (add_items_to_user_resume,
                                        list_user_resumes,
                                        get_projects_for_user,
                                        get_resume_items_for_project_id,
-                        `              get_portfolio_item_for_project,
+                                       get_portfolio_item_for_project,
                                        update_user_resume_content)
 
 from backend.api.auth import verify_token
