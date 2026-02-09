@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { projectsAPI } from './services/api';
@@ -174,10 +174,13 @@ export default function ProjectsPage() {
       await projectsAPI.uploadThumbnail(apiId, file);
       // Fetch the new thumbnail as blob
       const blobUrl = await projectsAPI.getThumbnail(apiId);
-      setThumbnailUrls((prev) => ({
-        ...prev,
-        [projectId]: blobUrl,
-      }));
+      setThumbnailUrls((prev) => {
+        // Revoke old blob URL to prevent memory leak
+        if (prev[projectId]) {
+          URL.revokeObjectURL(prev[projectId]);
+        }
+        return { ...prev, [projectId]: blobUrl };
+      });
     } catch (e) {
       console.error('Thumbnail upload failed:', e);
       // FastAPI 422 returns detail as array of error objects, not a string
@@ -198,22 +201,61 @@ export default function ProjectsPage() {
 
   // Load thumbnails when projects load
   useEffect(() => {
-    if (projects.length > 0) {
-      projects.forEach(async (p) => {
-        // Use composite_id for thumbnail API (format: {analysis_uuid}:{project_path})
-        const thumbnailId = p.composite_id || p.id;
-        if (!thumbnailId) return;
+    if (projects.length === 0) return;
 
-        try {
-          const blobUrl = await projectsAPI.getThumbnail(thumbnailId);
-          setThumbnailUrls((prev) => ({ ...prev, [p.id]: blobUrl }));
-        } catch (e) {
-          // No thumbnail exists or failed to load - that's fine, placeholder will show
-          setThumbnailUrls((prev) => ({ ...prev, [p.id]: null }));
-        }
-      });
+    let isCancelled = false;
+    const loadedUrls = [];
+
+    async function loadThumbnails() {
+      const results = await Promise.all(
+        projects.map(async (p) => {
+          const thumbnailId = p.composite_id || p.id;
+          if (!thumbnailId) return { id: p.id, url: null };
+
+          try {
+            const blobUrl = await projectsAPI.getThumbnail(thumbnailId);
+            loadedUrls.push(blobUrl);
+            return { id: p.id, url: blobUrl };
+          } catch (e) {
+            return { id: p.id, url: null };
+          }
+        })
+      );
+
+      if (!isCancelled) {
+        const urlMap = {};
+        results.forEach(({ id, url }) => {
+          urlMap[id] = url;
+        });
+        setThumbnailUrls(urlMap);
+      }
     }
-  }, [projects.length]);
+
+    loadThumbnails();
+
+    // Cleanup: revoke blob URLs when component unmounts or projects change
+    return () => {
+      isCancelled = true;
+      loadedUrls.forEach((url) => {
+        if (url) URL.revokeObjectURL(url);
+      });
+    };
+  }, [projects]);
+
+  // Keep a ref to thumbnailUrls for cleanup on unmount
+  const thumbnailUrlsRef = useRef(thumbnailUrls);
+  useEffect(() => {
+    thumbnailUrlsRef.current = thumbnailUrls;
+  }, [thumbnailUrls]);
+
+  // Cleanup all blob URLs on component unmount only
+  useEffect(() => {
+    return () => {
+      Object.values(thumbnailUrlsRef.current).forEach((url) => {
+        if (url) URL.revokeObjectURL(url);
+      });
+    };
+  }, []);
 
   // --- Shared styles to match Dashboard look ---
   const pageStyles = {
