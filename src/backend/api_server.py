@@ -526,15 +526,8 @@ async def root():
     }
 
 
-@app.get("/api/projects")
-async def list_projects(username: str = Depends(verify_token)) -> List[Dict[str, Any]]:
-    try:
-        return get_projects_for_user(username)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve projects: {str(e)}",
-        )
+# NOTE: /api/projects endpoint moved to backend/api/projects.py
+# Uses get_user_projects() which includes composite_id for thumbnail API
 
 
 @app.get("/api/projects/{project_id}/resume-items")

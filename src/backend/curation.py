@@ -161,6 +161,7 @@ def get_user_projects(user_id: str) -> List[Dict[str, Any]]:
             SELECT p.*,
                    a.analysis_timestamp,
                    a.zip_file,
+                   a.analysis_uuid AS analysis_uuid,
                    -- Use corrections if available, otherwise original values
                    COALESCE(pcc.last_commit_date, p.last_commit_date) as effective_last_commit_date,
                    COALESCE(pcc.last_modified_date, p.last_modified_date) as effective_last_modified_date,
@@ -178,6 +179,14 @@ def get_user_projects(user_id: str) -> List[Dict[str, Any]]:
         projects = []
         for row in rows:
             project = dict(row)
+
+            # Add composite ID for thumbnail API (format: {analysis_uuid}:{project_path})
+            # Note: project_path can be empty string "" or None for projects at root level
+            analysis_uuid = project.get("analysis_uuid")
+            project_path = project.get("project_path") or ""
+
+            if analysis_uuid:
+                project["composite_id"] = f"{analysis_uuid}:{project_path}"
 
             # Add language and framework info
             languages = conn.execute(
@@ -509,6 +518,7 @@ def get_showcase_projects(user_id: str) -> List[Dict[str, Any]]:
             SELECT p.*,
                    a.analysis_timestamp,
                    a.zip_file,
+                   a.analysis_uuid AS analysis_uuid,
                    COALESCE(pcc.last_commit_date, p.last_commit_date) as effective_last_commit_date,
                    COALESCE(pcc.last_modified_date, p.last_modified_date) as effective_last_modified_date,
                    COALESCE(pcc.project_start_date, p.project_start_date) as effective_project_start_date,
@@ -517,7 +527,7 @@ def get_showcase_projects(user_id: str) -> List[Dict[str, Any]]:
             JOIN analyses a ON a.id = p.analysis_id
             LEFT JOIN project_chronology_corrections pcc ON pcc.project_id = p.id AND pcc.user_id = ?
             WHERE p.id IN ({placeholders})
-            ORDER BY 
+            ORDER BY
                 CASE p.id {" ".join(f"WHEN {pid} THEN {i}" for i, pid in enumerate(settings.showcase_project_ids))} END
         """
 
@@ -538,7 +548,7 @@ def get_showcase_projects(user_id: str) -> List[Dict[str, Any]]:
 
             frameworks = conn.execute(
                 """
-                SELECT framework FROM project_frameworks 
+                SELECT framework FROM project_frameworks
                 WHERE project_id = ? ORDER BY framework
             """,
                 (project["id"],),
@@ -546,6 +556,12 @@ def get_showcase_projects(user_id: str) -> List[Dict[str, Any]]:
 
             project["languages"] = {lang["language"]: lang["file_count"] for lang in languages}
             project["frameworks"] = [fw["framework"] for fw in frameworks]
+
+            # Add composite ID for thumbnail API (format: {analysis_uuid}:{project_path})
+            analysis_uuid = project.get("analysis_uuid")
+            project_path = project.get("project_path") or ""
+            if analysis_uuid:
+                project["composite_id"] = f"{analysis_uuid}:{project_path}"
 
             projects.append(project)
 
