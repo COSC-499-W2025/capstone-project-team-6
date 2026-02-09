@@ -81,12 +81,13 @@ def init_db() -> None:
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS user_consent (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT NOT NULL UNIQUE,
-                has_consented BOOLEAN NOT NULL DEFAULT 0,
-                consent_date TEXT,
-                FOREIGN KEY (username) REFERENCES users(username)
-            );
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            llm_allowed BOOLEAN DEFAULT NULL,
+            consent_date TEXT,
+            FOREIGN KEY (username) REFERENCES users(username)
+        );
+
             """
         )
         # change for consent to be tri state
@@ -185,7 +186,7 @@ def authenticate_user(username: str, password: str) -> bool:
         return True
     return False
 
-
+'''
 def check_user_consent(username: str) -> bool:
     """Check if user has given consent.
 
@@ -219,6 +220,22 @@ def save_user_consent(username: str, has_consented: bool) -> None:
             (username, has_consented),
         )
         conn.commit()
+'''
+
+# Backwards-compat wrappers
+def check_user_consent(username: str) -> bool:
+    """
+    Backwards compatible wrapper.
+    """
+    return get_llm_allowed(username) is True
+
+
+def save_user_consent(username: str, has_consented: bool) -> None:
+    """
+    Backwards compatible wrapper.
+    """
+    save_llm_allowed(username, bool(has_consented))
+
 
 
 def seed_default_users(default_users: Optional[Dict[str, str]] = None) -> None:
