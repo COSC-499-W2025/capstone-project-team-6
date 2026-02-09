@@ -89,6 +89,38 @@ def init_db() -> None:
             );
             """
         )
+        # change for consent to be tri state
+        cols = conn.execute("PRAGMA table_info(user_consent);").fetchall()
+        col_names = {c[1] for c in cols}
+
+        if "has_consented" in col_names and "llm_allowed" not in col_names:
+            conn.execute("ALTER TABLE user_consent RENAME TO user_consent_old;")
+
+            conn.execute(
+                """
+                CREATE TABLE user_consent (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT NOT NULL UNIQUE,
+                    llm_allowed BOOLEAN DEFAULT NULL,
+                    consent_date TEXT,
+                    FOREIGN KEY (username) REFERENCES users(username)
+                );
+                """
+            )
+
+            conn.execute(
+                """
+                INSERT INTO user_consent (id, username, llm_allowed, consent_date)
+                SELECT id,
+                       username,
+                       CASE WHEN has_consented = 1 THEN 1 ELSE 0 END,
+                       consent_date
+                FROM user_consent_old;
+                """
+            )
+
+            conn.execute("DROP TABLE user_consent_old;")
+
         conn.commit()
 
 
@@ -201,6 +233,40 @@ def seed_default_users(default_users: Optional[Dict[str, str]] = None) -> None:
 def initialize() -> None:
     init_db()
     seed_default_users()
+
+def get_llm_allowed(username: str) -> Optional[bool]:
+    """Return the user's LLM permission as a tri-state.
+
+    Returns:
+        True  -> user explicitly allowed LLM features
+        False -> user explicitly disallowed LLM features
+        None  -> user has not answered yet (no row or NULL)
+    """
+    with get_connection() as conn:
+        row = conn.execute("SELECT llm_allowed FROM user_consent WHERE username = ?", (username,)).fetchone()
+        if row is None:
+            return None
+        value = row["llm_allowed"]
+        if value is None:
+            return None
+        return bool(value)
+
+
+def save_llm_allowed(username: str, llm_allowed: bool) -> None:
+    """Persist the user's LLM permission."""
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO user_consent (username, llm_allowed, consent_date)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(username) DO UPDATE SET
+                llm_allowed = excluded.llm_allowed,
+                consent_date = CURRENT_TIMESTAMP
+            """,
+            (username, llm_allowed),
+        )
+        conn.commit()
+
 
 
 if __name__ == "__main__":
