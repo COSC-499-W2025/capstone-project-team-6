@@ -1324,20 +1324,25 @@ def main() -> int:
                                         quick_mode=True,
                                     )
 
-                                    # Merge with existing results
+                                    # Merge with existing results using smart comparison
+                                    from .project_comparison import \
+                                        process_incremental_projects
+
                                     existing_projects = results.get("projects", [])
                                     new_projects = new_results.get("projects", [])
 
-                                    # Deduplicate by project_path
-                                    existing_paths = {p.get("project_path") for p in existing_projects}
-                                    added_count = 0
-                                    for proj in new_projects:
-                                        if proj.get("project_path") not in existing_paths:
-                                            existing_projects.append(proj)
-                                            added_count += 1
+                                    # Process projects with 50% change threshold
+                                    merge_result = process_incremental_projects(
+                                        existing_projects=existing_projects, new_projects=new_projects, change_threshold=50.0
+                                    )
 
-                                    results["projects"] = existing_projects
-                                    results["analysis_metadata"]["total_projects"] = len(existing_projects)
+                                    merged_projects = merge_result["merged_projects"]
+                                    added_count = len(merge_result["added_projects"])
+                                    updated_count = len(merge_result["updated_projects"])
+                                    skipped_count = len(merge_result["skipped_projects"])
+
+                                    results["projects"] = merged_projects
+                                    results["analysis_metadata"]["total_projects"] = len(merged_projects)
 
                                     # Update database
                                     import json
@@ -1360,9 +1365,23 @@ def main() -> int:
                                         )
                                         conn.commit()
 
-                                    print(f"\n✓ Added {added_count} new project(s) to portfolio")
-                                    print(f"✓ Total projects now: {len(existing_projects)}")
-                                    print(f"✓ Portfolio UUID: {analysis_uuid}")
+                                    print(f"\n✓ Portfolio updated successfully!")
+                                    print(f"  • Added: {added_count} new project(s)")
+                                    print(f"  • Updated: {updated_count} project(s) with >50% changes")
+                                    print(f"  • Skipped: {skipped_count} project(s) with <50% changes")
+                                    print(f"  • Total projects now: {len(merged_projects)}")
+                                    print(f"  • Portfolio UUID: {analysis_uuid}")
+
+                                    # Show details of updated and skipped projects
+                                    if merge_result["updated_projects"]:
+                                        print(f"\n  Updated projects:")
+                                        for update in merge_result["updated_projects"]:
+                                            print(f"    - {update['project_path']} ({update['change_percentage']}% changed)")
+
+                                    if merge_result["skipped_projects"]:
+                                        print(f"\n  Skipped projects (insufficient changes):")
+                                        for skip in merge_result["skipped_projects"]:
+                                            print(f"    - {skip['project_path']} ({skip['change_percentage']}% changed)")
                                 else:
                                     break
                             except KeyboardInterrupt:

@@ -1408,3 +1408,149 @@ def test_delete_project_for_user_rejects_wrong_owner(temp_analysis_db):
     # Project should still exist
     with adb.get_connection() as conn:
         assert conn.execute("SELECT COUNT(*) AS c FROM projects WHERE id = ?", (project_id,)).fetchone()["c"] == 1
+
+
+def test_delete_all_projects_for_user_deletes_only_owned_projects(temp_analysis_db):
+    # Create analyses for two users
+    alice_analysis = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, username="alice")
+    bob_analysis = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, username="bob")
+
+    with adb.get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+
+        # Count existing projects (record_analysis may or may not auto-create them)
+        alice_before = conn.execute(
+            "SELECT COUNT(*) AS c FROM projects WHERE owner_username = ?",
+            ("alice",),
+        ).fetchone()["c"]
+
+        bob_before = conn.execute(
+            "SELECT COUNT(*) AS c FROM projects WHERE owner_username = ?",
+            ("bob",),
+        ).fetchone()["c"]
+
+        # --- Find FK mapping from projects -> analyses ---
+        fks = conn.execute("PRAGMA foreign_key_list(projects);").fetchall()
+        fk = None
+        for row in fks:
+            if row["table"] == "analyses":
+                fk = row
+                break
+        assert fk is not None, "Expected projects to have a foreign key to analyses"
+
+        projects_fk_col = fk["from"]  # e.g., analysis_id
+        analyses_target_col = fk["to"]  # e.g., analysis_uuid or analysis_id etc.
+
+        # --- Find analyses primary key column (whatever record_analysis returns) ---
+        analyses_cols = conn.execute("PRAGMA table_info(analyses);").fetchall()
+        analyses_pk_col = None
+        for c in analyses_cols:
+            if int(c["pk"]) == 1:
+                analyses_pk_col = c["name"]
+                break
+        assert analyses_pk_col is not None, "Could not find primary key column for analyses"
+
+        def analysis_ref(analysis_pk_value):
+            row = conn.execute(
+                f"SELECT {analyses_target_col} AS v FROM analyses WHERE {analyses_pk_col} = ?",
+                (analysis_pk_value,),
+            ).fetchone()
+            assert row is not None, "Expected analyses row to exist"
+            return row["v"]
+
+        alice_ref = analysis_ref(alice_analysis)
+        bob_ref = analysis_ref(bob_analysis)
+
+        # Insert 2 projects for alice, 1 for bob
+        conn.execute(
+            f"""
+            INSERT INTO projects ({projects_fk_col}, project_name, project_path, owner_username)
+            VALUES (?, ?, ?, ?)
+            """,
+            (alice_ref, "alice_proj_1", "/tmp/alice_proj_1", "alice"),
+        )
+        conn.execute(
+            f"""
+            INSERT INTO projects ({projects_fk_col}, project_name, project_path, owner_username)
+            VALUES (?, ?, ?, ?)
+            """,
+            (alice_ref, "alice_proj_2", "/tmp/alice_proj_2", "alice"),
+        )
+        conn.execute(
+            f"""
+            INSERT INTO projects ({projects_fk_col}, project_name, project_path, owner_username)
+            VALUES (?, ?, ?, ?)
+            """,
+            (bob_ref, "bob_proj_1", "/tmp/bob_proj_1", "bob"),
+        )
+
+        # ✅ IMPORTANT: commit manual inserts so they persist outside this connection
+        conn.commit()
+
+    # Sanity check after insert (robust even if record_analysis created projects)
+    with adb.get_connection() as conn:
+        alice_after = conn.execute(
+            "SELECT COUNT(*) AS c FROM projects WHERE owner_username = ?",
+            ("alice",),
+        ).fetchone()["c"]
+        bob_after = conn.execute(
+            "SELECT COUNT(*) AS c FROM projects WHERE owner_username = ?",
+            ("bob",),
+        ).fetchone()["c"]
+
+        assert alice_after == alice_before + 2
+        assert bob_after == bob_before + 1
+
+    # Delete all alice projects
+    deleted = adb.delete_all_projects_for_user("alice")
+    assert deleted == alice_before + 2  # should delete everything alice had
+
+    # Confirm alice projects are gone, bob remains
+    with adb.get_connection() as conn:
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) AS c FROM projects WHERE owner_username = ?",
+                ("alice",),
+            ).fetchone()["c"]
+            == 0
+        )
+
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) AS c FROM projects WHERE owner_username = ?",
+                ("bob",),
+            ).fetchone()["c"]
+            == bob_before + 1
+        )
+
+
+def test_delete_all_projects_for_user_does_not_delete_other_users_projects(temp_analysis_db):
+    # Alice has projects
+    alice_analysis = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, username="alice")
+    alice_projects = adb.get_projects_for_analysis(alice_analysis)
+    assert len(alice_projects) > 0
+
+    # Bob has projects too
+    bob_analysis = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, username="bob")
+    bob_projects = adb.get_projects_for_analysis(bob_analysis)
+    assert len(bob_projects) > 0
+    bob_project_ids = [p["id"] for p in bob_projects]
+
+    # Alice deletes all her projects
+    deleted = adb.delete_all_projects_for_user("alice")
+    assert deleted == len(alice_projects)
+
+    # Bob's projects should still exist
+    with adb.get_connection() as conn:
+        assert conn.execute(
+            "SELECT COUNT(*) AS c FROM projects WHERE owner_username = ?",
+            ("bob",),
+        ).fetchone()[
+            "c"
+        ] == len(bob_projects)
+
+        # and verify the exact bob project ids still exist
+        assert conn.execute(
+            f"SELECT COUNT(*) AS c FROM projects WHERE id IN ({','.join(['?'] * len(bob_project_ids))})",
+            tuple(bob_project_ids),
+        ).fetchone()["c"] == len(bob_project_ids)

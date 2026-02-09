@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import Navigation from '../components/Navigation';
-import { portfolioAPI, resumeAPI } from '../services/api';
+import { portfoliosAPI, resumeAPI } from '../services/api';
 
 const Resume = () => {
   const [portfolios, setPortfolios] = useState([]);
@@ -32,18 +32,10 @@ const Resume = () => {
     loadPortfolios();
   }, []);
 
-  useEffect(() => {
-    if (generatedResume && generatedResume.format !== resumeFormat) {
-      setGeneratedResume(null);
-      setEditableContent(null);
-      setIsEditing(false);
-    }
-  }, [resumeFormat]);
-
   const loadPortfolios = async () => {
     try {
       setLoading(true);
-      const data = await portfolioAPI.getPortfolios();
+      const data = await portfoliosAPI.listPortfolios();
       setPortfolios(data);
       setError('');
     } catch (err) {
@@ -221,7 +213,6 @@ const Resume = () => {
             margin: 0,
           }}>
             Customize your resume by selecting portfolios and personalizing information.
-            Select portfolios to generate a professional resume from your analyzed projects
           </p>
         </div>
 
@@ -681,11 +672,6 @@ const Resume = () => {
                 borderRadius: '8px',
                 maxHeight: '600px',
                 overflowY: 'auto',
-                fontFamily: resumeFormat === 'pdf' ? 'inherit' : 'monospace',
-                fontSize: '14px',
-                lineHeight: '1.6',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
               }}>
                 {resumeFormat === 'pdf' || resumeFormat === 'latex' ? (
                   <div style={{
@@ -766,7 +752,60 @@ const Resume = () => {
                     }}
                   />
                 ) : (
-                  generatedResume.content
+                  <div style={{
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+                    fontSize: '15px',
+                    lineHeight: '1.7',
+                    color: '#1a1a1a',
+                  }}>
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        h1: ({node, ...props}) => <h1 style={{ fontSize: '32px', fontWeight: '700', marginTop: '24px', marginBottom: '16px', borderBottom: '2px solid #e5e7eb', paddingBottom: '8px' }} {...props} />,
+                        h2: ({node, ...props}) => <h2 style={{ fontSize: '24px', fontWeight: '600', marginTop: '20px', marginBottom: '12px', color: '#2563eb' }} {...props} />,
+                        h3: ({node, ...props}) => <h3 style={{ fontSize: '20px', fontWeight: '600', marginTop: '16px', marginBottom: '8px' }} {...props} />,
+                        h4: ({node, ...props}) => <h4 style={{ fontSize: '18px', fontWeight: '600', marginTop: '12px', marginBottom: '8px' }} {...props} />,
+                        p: ({node, ...props}) => <p style={{ marginBottom: '12px' }} {...props} />,
+                        ul: ({node, ...props}) => <ul style={{ marginLeft: '20px', marginBottom: '12px', listStyleType: 'disc' }} {...props} />,
+                        ol: ({node, ...props}) => <ol style={{ marginLeft: '20px', marginBottom: '12px', listStyleType: 'decimal' }} {...props} />,
+                        li: ({node, ...props}) => <li style={{ marginBottom: '6px' }} {...props} />,
+                        strong: ({node, ...props}) => <strong style={{ fontWeight: '600', color: '#1a1a1a' }} {...props} />,
+                        em: ({node, ...props}) => <em style={{ fontStyle: 'italic' }} {...props} />,
+                        code: ({node, inline, ...props}) => 
+                          inline ? 
+                            <code style={{ 
+                              backgroundColor: '#f3f4f6', 
+                              padding: '2px 6px', 
+                              borderRadius: '4px', 
+                              fontFamily: 'monospace',
+                              fontSize: '14px',
+                              color: '#dc2626'
+                            }} {...props} /> :
+                            <code style={{ 
+                              display: 'block',
+                              backgroundColor: '#f3f4f6', 
+                              padding: '12px', 
+                              borderRadius: '6px', 
+                              fontFamily: 'monospace',
+                              fontSize: '14px',
+                              overflowX: 'auto',
+                              marginBottom: '12px'
+                            }} {...props} />,
+                        blockquote: ({node, ...props}) => <blockquote style={{ 
+                          borderLeft: '4px solid #2563eb', 
+                          paddingLeft: '16px', 
+                          color: '#525252',
+                          fontStyle: 'italic',
+                          marginLeft: '0',
+                          marginBottom: '12px'
+                        }} {...props} />,
+                        a: ({node, ...props}) => <a style={{ color: '#2563eb', textDecoration: 'underline' }} {...props} />,
+                        hr: ({node, ...props}) => <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '24px 0' }} {...props} />,
+                      }}
+                    >
+                      {generatedResume.content}
+                    </ReactMarkdown>
+                  </div>
                 )}
               </div>
             </div>
