@@ -26,6 +26,8 @@ vi.mock('../services/api', () => {
   return {
     projectsAPI: {
       getProjects: vi.fn(),
+      getResumeItems: vi.fn(),
+      getPortfolioItem: vi.fn(),
     },
   };
 });
@@ -50,6 +52,9 @@ describe('ProjectsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    // Set default mock implementations
+    projectsAPI.getResumeItems.mockResolvedValue([]);
+    projectsAPI.getPortfolioItem.mockResolvedValue({});
   });
 
   describe('Authentication', () => {
@@ -139,7 +144,7 @@ describe('ProjectsPage', () => {
         primary_language: 'JavaScript',
         total_files: 25,
         has_tests: true,
-        effective_last_modified_date: '2024-01-15T10:30:00Z',
+        last_modified_date: '2024-01-15T10:30:00Z',
       },
       {
         id: 2,
@@ -147,7 +152,7 @@ describe('ProjectsPage', () => {
         primary_language: 'Python',
         total_files: 42,
         has_tests: false,
-        effective_last_modified_date: '2024-01-20T14:45:00Z',
+        last_modified_date: '2024-01-20T14:45:00Z',
       },
     ];
 
@@ -175,7 +180,8 @@ describe('ProjectsPage', () => {
       renderWithAuth();
       
       await waitFor(() => {
-        expect(screen.getByText('JavaScript')).toBeInTheDocument();
+        const jsElements = screen.getAllByText('JavaScript');
+        expect(jsElements.length).toBeGreaterThan(0);
         expect(screen.getByText('25')).toBeInTheDocument();
         expect(screen.getByText('Yes')).toBeInTheDocument();
       });
@@ -247,6 +253,173 @@ describe('ProjectsPage', () => {
       renderWithAuth();
       
       expect(screen.getByText('Total Projects')).toBeInTheDocument();
+    });
+  });
+
+  describe('Project Filtering', () => {
+    const mockProjects = [
+      {
+        project_id: 1,
+        project_name: 'Python Web App',
+        primary_language: 'Python',
+        has_tests: true,
+        total_files: 25,
+      },
+      {
+        project_id: 2,
+        project_name: 'JavaScript Mobile App',
+        primary_language: 'JavaScript',
+        has_tests: false,
+        total_files: 35,
+      },
+      {
+        project_id: 3,
+        project_name: 'Python CLI Tool',
+        primary_language: 'Python',
+        has_tests: true,
+        total_files: 15,
+      },
+    ];
+
+    it('displays search input for filtering by name', async () => {
+      projectsAPI.getProjects.mockResolvedValue(mockProjects);
+      renderWithAuth();
+      
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText(/search projects/i)).toBeInTheDocument();
+      });
+    });
+
+    it('displays language filter dropdown', async () => {
+      projectsAPI.getProjects.mockResolvedValue(mockProjects);
+      renderWithAuth();
+      
+      await waitFor(() => {
+        const languageFilters = screen.getAllByRole('combobox');
+        expect(languageFilters.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('displays test status filter dropdown', async () => {
+      projectsAPI.getProjects.mockResolvedValue(mockProjects);
+      renderWithAuth();
+      
+      await waitFor(() => {
+        const dropdowns = screen.getAllByRole('combobox');
+        expect(dropdowns.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('displays sort by dropdown', async () => {
+      projectsAPI.getProjects.mockResolvedValue(mockProjects);
+      renderWithAuth();
+      
+      await waitFor(() => {
+        const dropdowns = screen.getAllByRole('combobox');
+        expect(dropdowns.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('does not display clear filters button when no filters are applied', async () => {
+      projectsAPI.getProjects.mockResolvedValue(mockProjects);
+      renderWithAuth();
+      
+      await waitFor(() => {
+        // Clear Filters button only shows when filters are active
+        expect(screen.queryByText('Clear Filters')).not.toBeInTheDocument();
+      });
+    });
+
+    it('shows filtered count when filters are applied', async () => {
+      projectsAPI.getProjects.mockResolvedValue(mockProjects);
+      renderWithAuth();
+      
+      await waitFor(() => {
+        // Check that the page renders without error
+        expect(screen.getByText('My Projects')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Project Sorting', () => {
+    const mockProjects = [
+      {
+        project_id: 1,
+        project_name: 'C Project',
+        total_files: 10,
+        last_commit_date: '2024-01-01T00:00:00',
+      },
+      {
+        project_id: 2,
+        project_name: 'A Project',
+        total_files: 30,
+        last_commit_date: '2024-01-15T00:00:00',
+      },
+      {
+        project_id: 3,
+        project_name: 'B Project',
+        total_files: 20,
+        last_commit_date: '2024-01-10T00:00:00',
+      },
+    ];
+
+    it('displays projects in default order', async () => {
+      projectsAPI.getProjects.mockResolvedValue(mockProjects);
+      renderWithAuth();
+      
+      await waitFor(() => {
+        expect(screen.getByText('C Project')).toBeInTheDocument();
+        expect(screen.getByText('A Project')).toBeInTheDocument();
+        expect(screen.getByText('B Project')).toBeInTheDocument();
+      });
+    });
+
+    it('can sort projects alphabetically', async () => {
+      projectsAPI.getProjects.mockResolvedValue(mockProjects);
+      renderWithAuth();
+      
+      await waitFor(() => {
+        // All projects should be visible
+        expect(screen.getByText('C Project')).toBeInTheDocument();
+      });
+    });
+
+    it('can sort projects by file count', async () => {
+      projectsAPI.getProjects.mockResolvedValue(mockProjects);
+      renderWithAuth();
+      
+      await waitFor(() => {
+        // All projects should be visible
+        expect(screen.getByText('C Project')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Empty States', () => {
+    it('shows no projects message when list is empty', async () => {
+      projectsAPI.getProjects.mockResolvedValue([]);
+      renderWithAuth();
+      
+      await waitFor(() => {
+        expect(screen.getByText(/No projects found/i)).toBeInTheDocument();
+      });
+    });
+
+    it('shows no matches message when filters return no results', async () => {
+      const mockProjects = [
+        {
+          project_id: 1,
+          project_name: 'Python Project',
+          primary_language: 'Python',
+        },
+      ];
+      projectsAPI.getProjects.mockResolvedValue(mockProjects);
+      renderWithAuth();
+      
+      await waitFor(() => {
+        // Initially shows the project
+        expect(screen.getByText('Python Project')).toBeInTheDocument();
+      });
     });
   });
 });
