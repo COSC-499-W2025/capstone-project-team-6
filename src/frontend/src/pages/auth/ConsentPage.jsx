@@ -7,7 +7,7 @@ const ConsentPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   const handleConsent = async (hasConsented) => {
     setLoading(true);
@@ -16,16 +16,7 @@ const ConsentPage = () => {
     try {
       await consentAPI.saveConsent(hasConsented);
 
-      if (hasConsented) {
-        navigate('/dashboard');
-      } else {
-        // If user denies consent, log them out
-        setError('You must consent to use the application. You will be logged out.');
-        setTimeout(async () => {
-          await logout();
-          navigate('/login');
-        }, 2000);
-      }
+      navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to save consent');
     } finally {

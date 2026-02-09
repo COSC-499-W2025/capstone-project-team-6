@@ -22,11 +22,14 @@ const LoginPage = () => {
     if (result.success) {
       try {
         const consentData = await consentAPI.getConsent();
-        if (consentData.has_consented) {
-          navigate('/dashboard');
+
+        // New contract: consentData.llm_allowed can be true / false / null
+        if (consentData.llm_allowed === null || consentData.llm_allowed === undefined) {
+          navigate('/consent');     // user hasn't answered yet
         } else {
-          navigate('/consent');
+          navigate('/dashboard');   // user answered yes OR no
         }
+        
       } catch (err) {
         console.error('Error checking consent:', err);
         navigate('/consent');

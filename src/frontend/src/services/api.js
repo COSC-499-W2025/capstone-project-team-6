@@ -59,16 +59,19 @@ export const authAPI = {
 
 // Consent API calls
 export const consentAPI = {
+  // Keep the function name the same so other code doesn't change
   saveConsent: async (hasConsented) => {
-    const response = await api.post('/user/consent', { has_consented: hasConsented });
-    return response.data;
+    // New backend expects llm_allowed; backend also supports has_consented for backwards compat
+    const response = await api.post('/user/consent', { llm_allowed: hasConsented });
+    return response.data; // { llm_allowed, message }
   },
 
   getConsent: async () => {
     const response = await api.get('/user/consent');
-    return response.data;
+    return response.data; // { llm_allowed, message }
   },
 };
+
 
 // Projects API calls
 export const projectsAPI = {
