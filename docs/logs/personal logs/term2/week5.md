@@ -30,65 +30,65 @@ Additionally, although PRs **#329** and **#330** were completed during the Week 
 
 
 ## PR's Initiated
-Portfolio curation frontend:
+- **Portfolio curation frontend:**
 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/368
 Added a dedicated Curation page with a 5 tab UI (Showcase, Comparison Attributes, Highlighted Skills, Chronology Correction, Project Order) plus backend endpoints and persistent storage so users can customize how their projects are presented. Deferred portfolio/resume generation integration to a later PR.
 
-Project Filtering and Sorting Feature:
+- **Project Filtering and Sorting Feature:**
 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/362
 Implemented search, filtering, and sorting on the Projects page (by name/language, test status, date, file count) with a clear filters reset, filtered count display, supporting API helpers, and comprehensive frontend test coverage.
 
-Role prediction curation:
+- **Role prediction curation:**
 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/342
 Introduced role curation via an interactive CLI that lets users override predicted roles with predefined selections or fully custom role descriptions, stores curated roles in the DB, enforces user/project ownership, and includes a robust automated test suite.
 
-Role prediction:
+- **Role prediction:**
 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/329
 Built the role prediction system that analyzes project characteristics and predicts one of 12 developer roles using a weighted scoring approach, outputs confidence + reasoning, integrates with the analysis pipeline/DB, and supports CLI usage.
 
-Role prediction tests:
+- **Role prediction tests:**
 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/330
 Added a full test suite for the role prediction system (unit + integration + performance + edge cases) to validate correctness, DB/CLI compatibility, and ensure reliable behavior across diverse project inputs.
 
 
 ## PR's reviewed
 
-Added Ansh Rastogi week 4 and 5 personal logs:
+- Added Ansh Rastogi week 4 and 5 personal logs:
 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/360
 
-Incremental Information Upload-Updated:
+- Incremental Information Upload-Updated:
 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/356
 
-project thumbnail upload functionality:
+- project thumbnail upload functionality:
 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/354
 
-added update consent feature in settings + tests:
+- added update consent feature in settings + tests:
 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/348
 
-Wire Portfolio page to list analyses + add regression tests:
+- Wire Portfolio page to list analyses + add regression tests:
 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/340
 
-delete project functionality (UI + backend + DB tests):
+- delete project functionality (UI + backend + DB tests):
 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/338
 
-Add frontend tests configuration and ProjectsPage tests
+- Add frontend tests configuration and ProjectsPage tests
 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/322
 
-Unit tests for analysis, auth, porfolios and projects endpoints
+- Unit tests for analysis, auth, porfolios and projects endpoints
 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/318
 
-Frontend analysis
+- Frontend analysis
 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/317
 
-Duplicate Projects Analysis Outputs
+- Duplicate Projects Analysis Outputs
 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/313
 
-Updated dashboard
+- Updated dashboard
 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/308
 
 ## Distinct PR review
 
-Incremental Information Upload-Updated:
+**Incremental Information Upload-Updated:**
 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/356
 
 For this review, I used a combination of automated testing, manual validation, and code inspection to evaluate correctness and design quality. I ran the backend test suite to confirm the change-detection pipeline behaves correctly across key scenarios (unchanged projects, minor edits, and major refactors), and all tests passed successfully. I also traced the API flow and examined the multi-factor similarity scoring and threshold logic to ensure the decision boundaries were reasonable and consistently applied.
