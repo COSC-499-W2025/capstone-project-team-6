@@ -20,7 +20,8 @@ from .analysis.role_predictor import (format_role_prediction,
 from .analysis_database import init_db
 from .consent import ask_for_consent
 from .curation_cli import (curate_project_rank_interactive,
-                           curate_skills_highlight_interactive)
+                           curate_skills_highlight_interactive,
+                           curate_roles_interactive)
 
 # Avoid importing heavy optional dependencies at module import time
 
@@ -1111,6 +1112,9 @@ def main() -> int:
     # Showcase projects
     showcase_parser = curate_subparsers.add_parser("showcase", help="Select top 3 projects to showcase")
 
+    # Role curation
+    roles_parser = curate_subparsers.add_parser("roles", help="Curate predicted developer roles for your projects")
+
     # Status overview
     status_parser = curate_subparsers.add_parser("status", help="Show current curation settings")
 
@@ -1849,6 +1853,7 @@ def main() -> int:
                     curate_project_rank_interactive,
                     curate_showcase_projects_interactive,
                     curate_skills_highlight_interactive,
+                    curate_roles_interactive,
                     display_curation_status, display_showcase_summary)
 
                 init_db()
@@ -1876,6 +1881,9 @@ def main() -> int:
             elif args.curate_type == "skills-highlight":
                 curate_skills_highlight_interactive(username)
                 return 0
+            elif args.curate_type == "roles":
+                curate_roles_interactive(username)
+                return 0
             else:
                 print("\nAvailable curation commands:")
                 print("  mda curate chronology  - Correct project dates")
@@ -1884,6 +1892,7 @@ def main() -> int:
                 print("  mda curate status      - Show current settings")
                 print("  mda curate rerank      - Re-rank projects")
                 print("  mda curate skills-highlight - Choose up to 10 skills to display")
+                print("  mda curate roles       - Curate predicted developer roles")
 
                 return 1
 
