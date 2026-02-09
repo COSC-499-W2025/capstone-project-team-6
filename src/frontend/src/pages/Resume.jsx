@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import Navigation from '../components/Navigation';
-import { portfolioAPI, resumeAPI } from '../services/api';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { portfoliosAPI, resumeAPI } from '../services/api';
 
 const Resume = () => {
   const [portfolios, setPortfolios] = useState([]);
@@ -37,7 +35,7 @@ const Resume = () => {
   const loadPortfolios = async () => {
     try {
       setLoading(true);
-      const data = await portfolioAPI.getPortfolios();
+      const data = await portfoliosAPI.listPortfolios();
       setPortfolios(data);
       setError('');
     } catch (err) {

@@ -77,7 +77,12 @@ export const consentAPI = {
 export const projectsAPI = {
   getProjects: async () => {
     const response = await api.get('/projects');
-    return response.data || [];
+    // API returns { username, total_projects, projects } - extract the projects array
+    const data = response.data;
+    if (Array.isArray(data)) {
+      return data;
+    }
+    return data?.projects || [];
   },
 
   getProjectById: async (portfolioId) => {
@@ -85,8 +90,8 @@ export const projectsAPI = {
     return response.data;
   },
 
-  deleteProject: async (projectId) => {
-    const response = await api.delete(`/projects/${projectId}`);
+  deleteProject: async (portfolioId) => {
+    const response = await api.delete(`/portfolios/${portfolioId}`);
     return response.data;
   },
 
@@ -104,20 +109,54 @@ export const projectsAPI = {
     const response = await api.get(`/projects/${projectId}/portfolio`);
     return response.data;
   },
+
+  // Thumbnail methods
+  // Note: projectId must be URL-encoded as it may contain special characters (format: uuid:path)
+  uploadThumbnail: async (projectId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const encodedId = encodeURIComponent(projectId);
+    // Must explicitly unset Content-Type to override the default 'application/json' header
+    // This allows axios to automatically set 'multipart/form-data' with the correct boundary
+    const response = await api.post(`/projects/${encodedId}/thumbnail`, formData, {
+      headers: {
+        'Content-Type': undefined,
+      },
+    });
+    return response.data;
+  },
+
+  getThumbnail: async (projectId) => {
+    const encodedId = encodeURIComponent(projectId);
+    const response = await api.get(`/projects/${encodedId}/thumbnail`, {
+      responseType: 'blob',
+    });
+    return URL.createObjectURL(response.data);
+  },
+
+  deleteThumbnail: async (projectId) => {
+    const encodedId = encodeURIComponent(projectId);
+    const response = await api.delete(`/projects/${encodedId}/thumbnail`);
+    return response.data;
+  },
 };
 
-export const portfolioAPI = {
-  getPortfolios: async () => {
+export const portfoliosAPI = {
+  listPortfolios: async () => {
     const response = await api.get('/portfolios');
     return response.data;
   },
 
-  getPortfolioById: async (portfolioId) => {
+  getPortfolioDetail: async (portfolioId) => {
     const response = await api.get(`/portfolios/${portfolioId}`);
     return response.data;
-  }
-};
+  },
 
+  generatePortfolioDocument: async (portfolioId) => {
+    const response = await api.post('/portfolio/generate', { portfolio_id: portfolioId });
+    return response.data;
+  },
+};
 // Resume API calls
 export const resumeAPI = {
   generateResume: async (portfolioIds, options = {}) => {

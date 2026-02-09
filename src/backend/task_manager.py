@@ -423,6 +423,7 @@ class TaskManager:
         """Process an incremental upload to existing portfolio."""
         from .analysis_database import get_analysis_by_uuid, get_connection
         from .cli import analyze_folder
+        from .project_comparison import process_incremental_projects
 
         # Get existing portfolio
         existing_portfolio = get_analysis_by_uuid(task.portfolio_id, task.username)
@@ -443,15 +444,29 @@ class TaskManager:
 
         task.progress = 60
 
-        # Merge: append new projects to existing ones
+        # Process projects: add new, update existing with >50% change
         existing_projects = existing_portfolio.get("projects", [])
         new_projects = new_analysis.get("projects", [])
 
-        # Deduplicate by project path
-        existing_paths = {p.get("project_path") for p in existing_projects}
-        added_projects = [p for p in new_projects if p.get("project_path") not in existing_paths]
+        # Use utility function to process incremental projects
+        result = process_incremental_projects(
+            existing_projects=existing_projects, new_projects=new_projects, change_threshold=50.0
+        )
 
-        merged_projects = existing_projects + added_projects
+        merged_projects = result["merged_projects"]
+        added_projects = result["added_projects"]
+        updated_projects = result["updated_projects"]
+        skipped_projects = result["skipped_projects"]
+
+        # Log details
+        for update in updated_projects:
+            logger.info(f"Updated project '{update['project_path']}' with {update['change_percentage']:.1f}% changes")
+
+        for skip in skipped_projects:
+            logger.info(f"Skipped project '{skip['project_path']}' with only {skip['change_percentage']:.1f}% changes")
+
+        for project in added_projects:
+            logger.info(f"Added new project '{project.get('project_path', 'unknown')}'")
 
         # Merge and recompute metadata
         merged_data = self._merge_analysis_metadata(
@@ -475,7 +490,11 @@ class TaskManager:
         task.progress = 90
 
         logger.info(
-            f"Incremental upload {task.task_id}: " f"added {len(added_projects)} projects, total now {len(merged_projects)}"
+            f"Incremental upload {task.task_id}: "
+            f"added {len(added_projects)} projects, "
+            f"updated {len(updated_projects)} projects, "
+            f"skipped {len(skipped_projects)} projects, "
+            f"total now {len(merged_projects)}"
         )
 
         return {
@@ -483,6 +502,13 @@ class TaskManager:
             "total_projects": len(merged_projects),
             "original_portfolio_id": task.portfolio_id,
             "added_projects": len(added_projects),
+            "updated_projects": len(updated_projects),
+            "skipped_projects": len(skipped_projects),
+            "update_details": {
+                "added": [p.get("project_path", "unknown") if isinstance(p, dict) else "unknown" for p in added_projects],
+                "updated": updated_projects,
+                "skipped": skipped_projects,
+            },
         }
 
     def _merge_analysis_metadata(

@@ -1,8 +1,11 @@
 """Project-related API endpoints."""
 
+import logging
 import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
@@ -10,7 +13,6 @@ from pydantic import BaseModel
 
 from backend.analysis_database import (get_analysis_by_uuid,
                                        get_project_by_path_and_portfolio,
-                                       get_project_thumbnail,
                                        update_project_thumbnail)
 from backend.api.auth import verify_token
 from backend.curation import get_user_projects
@@ -236,12 +238,17 @@ async def upload_project_thumbnail(
     # Delete old thumbnail file to prevent orphaned files
     if old_thumbnail_path:
         old_full_path = Path(__file__).parent.parent / old_thumbnail_path
-        if old_full_path.exists():
-            try:
-                old_full_path.unlink()
-            except Exception:
-                # Log but don't fail - the new thumbnail was uploaded successfully
-                pass
+        # Validate path to prevent directory traversal
+        try:
+            old_full_path = old_full_path.resolve()
+            if THUMBNAIL_UPLOAD_DIR.resolve() in old_full_path.parents or old_full_path.parent == THUMBNAIL_UPLOAD_DIR.resolve():
+                if old_full_path.exists():
+                    old_full_path.unlink()
+            else:
+                logger.warning(f"Attempted to delete file outside thumbnail directory: {old_full_path}")
+        except Exception as e:
+            # Log but don't fail - the new thumbnail was uploaded successfully
+            logger.error(f"Failed to delete old thumbnail {old_thumbnail_path}: {e}")
 
     thumbnail_url = f"/api/projects/{project_id}/thumbnail"
 
@@ -283,8 +290,16 @@ async def get_project_thumbnail(project_id: str, username: str = Depends(verify_
             detail="No thumbnail set for this project",
         )
 
-    # Construct full file path
-    full_path = Path(__file__).parent.parent / thumbnail_path
+    # Construct full file path and validate to prevent directory traversal
+    full_path = (Path(__file__).parent.parent / thumbnail_path).resolve()
+
+    # Ensure the path is within the thumbnail upload directory
+    if THUMBNAIL_UPLOAD_DIR.resolve() not in full_path.parents and full_path.parent != THUMBNAIL_UPLOAD_DIR.resolve():
+        logger.warning(f"Attempted directory traversal in get_thumbnail: {thumbnail_path}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid thumbnail path",
+        )
 
     if not full_path.exists():
         raise HTTPException(
@@ -334,8 +349,17 @@ async def delete_project_thumbnail(project_id: str, username: str = Depends(veri
             detail="No thumbnail set for this project",
         )
 
-    # Delete the file from disk
-    full_path = Path(__file__).parent.parent / thumbnail_path
+    # Delete the file from disk with path validation
+    full_path = (Path(__file__).parent.parent / thumbnail_path).resolve()
+
+    # Ensure the path is within the thumbnail upload directory
+    if THUMBNAIL_UPLOAD_DIR.resolve() not in full_path.parents and full_path.parent != THUMBNAIL_UPLOAD_DIR.resolve():
+        logger.warning(f"Attempted directory traversal in delete_thumbnail: {thumbnail_path}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid thumbnail path",
+        )
+
     if full_path.exists():
         try:
             full_path.unlink()
