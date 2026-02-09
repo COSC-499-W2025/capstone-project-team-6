@@ -167,6 +167,34 @@ export const resumeAPI = {
       include_projects: options.include_projects !== false,
       max_projects: options.max_projects || null,
       personal_info: options.personal_info || null,
+      stored_resume_id: options.stored_resume_id || null,
+    });
+    return response.data;
+  },
+
+  createStoredResume: async (payload) => {
+    const response = await api.post('/resumes', payload);
+    return response.data;
+  },
+
+  listStoredResumes: async () => {
+    const response = await api.get('/resumes');
+    return response.data;
+  },
+
+  getStoredResume: async (resumeId) => {
+    const response = await api.get(`/resumes/${resumeId}`);
+    return response.data;
+  },
+
+  updateStoredResume: async (resumeId, content) => {
+    const response = await api.patch(`/resumes/${resumeId}`, { content });
+    return response.data;
+  },
+
+  addItemsToResume: async (resumeId, resumeItemIds) => {
+    const response = await api.post(`/resumes/${resumeId}/items`, {
+      resume_item_ids: resumeItemIds,
     });
     return response.data;
   },
