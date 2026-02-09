@@ -45,7 +45,12 @@ export default function ProjectsPage() {
         console.log('Projects received:', baseProjects);
 
         // Ensure we have an array - API returns {username, total_projects, projects: [...]}
-        const projectsArray = Array.isArray(baseProjects?.projects) ? baseProjects.projects : [];
+        // But tests may return a plain array
+        const projectsArray = Array.isArray(baseProjects?.projects) 
+          ? baseProjects.projects 
+          : Array.isArray(baseProjects) 
+            ? baseProjects 
+            : [];
 
         // Put base projects on screen ASAP
         // Add placeholders for details so UI doesn't explode
