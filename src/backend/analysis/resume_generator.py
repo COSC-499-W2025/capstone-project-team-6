@@ -703,20 +703,32 @@ def generate_latex_resume(
     name = info.get("name", "Your Name").upper()
     phone = info.get("phone", "123-456-7890")
     email = info.get("email", "email@address.com")
+    location = info.get("location", "")
     linkedin = info.get("linkedIn", "linkedin.com/in/username")
     github = info.get("github", "github.com/username")
+    website = info.get("website", "")
 
     # Clean URLs for display
     linkedin_display = linkedin.replace("https://", "").replace("http://", "")
     github_display = github.replace("https://", "").replace("http://", "")
+    website_display = website.replace("https://", "").replace("http://", "") if website else ""
+
+    contact_parts = [phone]
+    contact_parts.append(rf"\href{{mailto:{email}}}{{\underline{{{email}}}}}")
+    if location:
+        contact_parts.append(location)
+    contact_parts.append(rf"\href{{{linkedin}}}{{\underline{{{linkedin_display}}}}}")
+    contact_parts.append(rf"\href{{{github}}}{{\underline{{{github_display}}}}}")
+    if website:
+        contact_parts.append(rf"\href{{{website}}}{{\underline{{{website_display}}}}}")
+
+    contact_line = " $|$ ".join(contact_parts)
 
     latex = LATEX_HEADER
     latex += rf"""
 \begin{{center}}
     \textbf{{\Huge \scshape {name}}} \\ \vspace{{1pt}}
-    \small {phone} $|$ \href{{mailto:{email}}}{{\underline{{{email}}}}} $|$ 
-    \href{{{linkedin}}}{{\underline{{{linkedin_display}}}}} $|$
-    \href{{{github}}}{{\underline{{{github_display}}}}}
+    \small {contact_line}
 \end{{center}}
 """
 
@@ -974,6 +986,8 @@ def generate_resume(
                 t = _extract_bullet_text(r)
                 if t:
                     bullets.append(t)
+
+        # Fallback bullet if none exist
         if not bullets:
             if tech:
                 bullets = [f"Developed {name}, a software project using {tech}."]
@@ -1005,10 +1019,12 @@ def generate_resume(
         if contact_bits:
             md_parts.append(" • ".join(contact_bits))
 
+    # Skills section
     if include_skills and skills_set:
         md_parts.append("## Skills")
         md_parts.append(", ".join(sorted(skills_set)))
 
+    # Projects section
     if include_projects:
         md_parts.append("## Projects")
         for bundle in selected:
@@ -1018,18 +1034,12 @@ def generate_resume(
 
     if format == "markdown":
         return markdown_resume
-
     elif format == "latex":
         return markdown_resume
-
     elif format == "pdf":
         return markdown_resume
-
     else:
         return markdown_resume
-
-
-
 
 def _convert_markdown_to_html(markdown_content: str) -> str:
     """Convert markdown to styled HTML for PDF generation."""

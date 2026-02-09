@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime, timedelta
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -28,7 +28,7 @@ class TokenResponse(BaseModel):
 
 class MessageResponse(BaseModel):
     message: str
-    details: Dict[str, Any] | None = None
+    details: Optional[Dict[str, Any]] = None
 
 
 def create_access_token(username: str) -> str:
