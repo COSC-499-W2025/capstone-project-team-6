@@ -44,9 +44,12 @@ export default function ProjectsPage() {
         const baseProjects = await projectsAPI.getProjects();
         console.log('Projects received:', baseProjects);
 
+        // Ensure we have an array
+        const projectsArray = Array.isArray(baseProjects) ? baseProjects : [];
+
         // Put base projects on screen ASAP
         // Add placeholders for details so UI doesn't explode
-        const withPlaceholders = baseProjects.map((p) => ({
+        const withPlaceholders = projectsArray.map((p) => ({
           ...p,
           resume_items: null,
           portfolio: null,
