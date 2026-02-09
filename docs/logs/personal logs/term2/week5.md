@@ -1,5 +1,112 @@
 # Mandira Samarasekara
 
+## Date Ranges
+
+January 26-February 8
+<img width="1510" height="882" alt="Screenshot 2026-02-08 212840" src="https://github.com/user-attachments/assets/d12c1791-0065-4b4f-be89-b2ce9abd5c44" />
+
+## Weekly recap (planned last sprint)
+- Completed the planned test coverage for role curation and verified end-to-end behavior.
+- Implemented project/portfolio curation functionality on the frontend (Curate page + tabbed workflow).
+- Initiated and progressed the Projects page filtering/search/sort feature with full test coverage.
+- Reviewed a large number of teammate PRs and provided actionable feedback during code review.
+- Performed thorough manual validation of teammate features to ensure cross-feature compatibility.
+- Attended weekly check-ins and incorporated feedback from peer/heuristic evaluations.
+- Wrote and consolidated team logs for this sprint.
+
+## What went well
+
+Overall, this sprint was productive and moved the frontend forward in a meaningful way. I shipped two substantial UI improvements,**Portfolio Curation** and **Project Filtering/Sorting** that directly improve usability and give users more control over how their work is presented. The in class heuristic evaluation was especially useful, it helped us identify concrete UI/UX refinements and confirm that our current direction is aligned with user expectations. 
+
+On the collaboration side, I reviewed many PRs across the team and backed that up with hands on testing, which helped catch integration issues early and improved overall stability before merges.
+
+
+
+## What didn't go well
+
+I ran into cross platform inconsistencies between macOS and Windows that exposed gaps in our containerization and test environment parity. Some code paths that worked on macOS threw errors on Windows, and I had to manually investigate and patch these issues to ensure consistent behavior across both platforms. One example was `localStorage.clear` behaving unexpectedly depending on the environment, reinforcing how important it is that our Docker setup and test mocks accurately replicate real runtime conditions.  
+
+Additionally, although PRs **#329** and **#330** were completed during the Week 3 window, they weren’t merged in time for grading, which impacted marks despite the work being done. They were merged shortly after, so I’m counting their impact toward this sprint’s delivered progress and included them in my summary.
+
+
+## PR's Initiated
+- **Portfolio curation frontend:**
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/368
+Added a dedicated Curation page with a 5 tab UI (Showcase, Comparison Attributes, Highlighted Skills, Chronology Correction, Project Order) plus backend endpoints and persistent storage so users can customize how their projects are presented. Deferred portfolio/resume generation integration to a later PR.
+
+- **Project Filtering and Sorting Feature:**
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/362
+Implemented search, filtering, and sorting on the Projects page (by name/language, test status, date, file count) with a clear filters reset, filtered count display, supporting API helpers, and comprehensive frontend test coverage.
+
+- **Role prediction curation:**
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/342
+Introduced role curation via an interactive CLI that lets users override predicted roles with predefined selections or fully custom role descriptions, stores curated roles in the DB, enforces user/project ownership, and includes a robust automated test suite.
+
+- **Role prediction:**
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/329
+Built the role prediction system that analyzes project characteristics and predicts one of 12 developer roles using a weighted scoring approach, outputs confidence + reasoning, integrates with the analysis pipeline/DB, and supports CLI usage.
+
+- **Role prediction tests:**
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/330
+Added a full test suite for the role prediction system (unit + integration + performance + edge cases) to validate correctness, DB/CLI compatibility, and ensure reliable behavior across diverse project inputs.
+
+
+## PR's reviewed
+
+- Added Ansh Rastogi week 4 and 5 personal logs:
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/360
+
+- Incremental Information Upload-Updated:
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/356
+
+- project thumbnail upload functionality:
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/354
+
+- added update consent feature in settings + tests:
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/348
+
+- Wire Portfolio page to list analyses + add regression tests:
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/340
+
+- delete project functionality (UI + backend + DB tests):
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/338
+
+- Add frontend tests configuration and ProjectsPage tests
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/322
+
+- Unit tests for analysis, auth, porfolios and projects endpoints
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/318
+
+- Frontend analysis
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/317
+
+- Duplicate Projects Analysis Outputs
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/313
+
+- Updated dashboard
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/308
+
+## Distinct PR review
+
+**Incremental Information Upload-Updated:**
+https://github.com/COSC-499-W2025/capstone-project-team-6/pull/356
+
+For this review, I used a combination of automated testing, manual validation, and code inspection to evaluate correctness and design quality. I ran the backend test suite to confirm the change-detection pipeline behaves correctly across key scenarios (unchanged projects, minor edits, and major refactors), and all tests passed successfully. I also traced the API flow and examined the multi-factor similarity scoring and threshold logic to ensure the decision boundaries were reasonable and consistently applied.
+
+During review, I suggested a potential improvement around metadata merging: the current additive approach may inflate metrics across repeated updates over time. However, given the sprint scope and the fact that the backend behavior is stable and well-tested, I agreed this refinement can be deferred. I also agreed with deferring frontend integration until the UX and data presentation requirements are finalized. Based on the testing results and overall implementation quality, I approved the PR for merge.
+
+## **Issues / Blockers**
+
+- No major blockers this week.
+ 
+
+## Plan for next week
+
+- Attend both Monday and Wednesday guest lectures and incorporate any relevant project feedback.
+- Work toward eliminating cross-platform inconsistencies by improving Docker/container parity and test environment mocks.
+- Integrate frontend curation preferences into Portfolio and Resume generation so outputs reflect curated ordering, highlights, and showcase selections.
+
+
 # Aakash Tirithdas
 
 ## Date Ranges
