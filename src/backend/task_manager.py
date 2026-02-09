@@ -134,7 +134,7 @@ class FileManager:
         temp_path: Path,
         file_hash: str = None,
         *,
-        preserve_source: bool | None = None,
+        preserve_source: Optional[bool] = None,
     ) -> Path:
         """
         Store file in permanent storage with deduplication.
