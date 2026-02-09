@@ -450,23 +450,21 @@ class TaskManager:
 
         # Use utility function to process incremental projects
         result = process_incremental_projects(
-            existing_projects=existing_projects,
-            new_projects=new_projects,
-            change_threshold=50.0
+            existing_projects=existing_projects, new_projects=new_projects, change_threshold=50.0
         )
-        
+
         merged_projects = result["merged_projects"]
         added_projects = result["added_projects"]
         updated_projects = result["updated_projects"]
         skipped_projects = result["skipped_projects"]
-        
+
         # Log details
         for update in updated_projects:
             logger.info(f"Updated project '{update['project_path']}' with {update['change_percentage']:.1f}% changes")
-        
+
         for skip in skipped_projects:
             logger.info(f"Skipped project '{skip['project_path']}' with only {skip['change_percentage']:.1f}% changes")
-        
+
         for project in added_projects:
             logger.info(f"Added new project '{project.get('project_path', 'unknown')}'")
 

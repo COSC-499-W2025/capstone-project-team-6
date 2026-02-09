@@ -4,11 +4,13 @@ Test Project Comparison Functionality
 
 import sys
 from pathlib import Path
+
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "backend"))
 
-from project_comparison import calculate_project_change_percentage, process_incremental_projects
+from project_comparison import (calculate_project_change_percentage,
+                                process_incremental_projects)
 
 
 @pytest.fixture
@@ -20,24 +22,11 @@ def base_project():
         "metadata": {
             "total_lines_of_code": 1000,
             "files": {
-                "code": {
-                    "python": [
-                        {"path": "main.py"},
-                        {"path": "utils.py"}
-                    ]
-                },
-                "summary": {
-                    "code_files": 2,
-                    "doc_files": 1,
-                    "test_files": 1
-                }
-            }
+                "code": {"python": [{"path": "main.py"}, {"path": "utils.py"}]},
+                "summary": {"code_files": 2, "doc_files": 1, "test_files": 1},
+            },
         },
-        "oop_analysis": {
-            "total_classes": 5,
-            "private_methods": 10,
-            "public_methods": 15
-        }
+        "oop_analysis": {"total_classes": 5, "private_methods": 10, "public_methods": 15},
     }
 
 
@@ -53,7 +42,7 @@ def test_minor_changes(base_project):
     project_updated = base_project.copy()
     project_updated["metadata"] = base_project["metadata"].copy()
     project_updated["metadata"]["total_lines_of_code"] = 1100  # 10% increase
-    
+
     change = calculate_project_change_percentage(base_project, project_updated)
     assert change < 50, f"Expected <50% change for minor updates, got {change:.2f}%"
 
@@ -71,23 +60,15 @@ def test_major_changes(base_project):
                         {"path": "main.py"},
                         {"path": "utils.py"},
                         {"path": "new_module.py"},
-                        {"path": "another_module.py"}
+                        {"path": "another_module.py"},
                     ]
                 },
-                "summary": {
-                    "code_files": 6,
-                    "doc_files": 3,
-                    "test_files": 4
-                }
-            }
+                "summary": {"code_files": 6, "doc_files": 3, "test_files": 4},
+            },
         },
-        "oop_analysis": {
-            "total_classes": 12,
-            "private_methods": 25,
-            "public_methods": 30
-        }
+        "oop_analysis": {"total_classes": 12, "private_methods": 25, "public_methods": 30},
     }
-    
+
     change = calculate_project_change_percentage(base_project, project_major)
     assert change > 50, f"Expected >50% change for major updates, got {change:.2f}%"
 
@@ -100,26 +81,13 @@ def test_complete_rewrite(base_project):
         "metadata": {
             "total_lines_of_code": 500,
             "files": {
-                "code": {
-                    "rust": [
-                        {"path": "main.rs"},
-                        {"path": "lib.rs"}
-                    ]
-                },
-                "summary": {
-                    "code_files": 2,
-                    "doc_files": 0,
-                    "test_files": 0
-                }
-            }
+                "code": {"rust": [{"path": "main.rs"}, {"path": "lib.rs"}]},
+                "summary": {"code_files": 2, "doc_files": 0, "test_files": 0},
+            },
         },
-        "oop_analysis": {
-            "total_classes": 0,
-            "private_methods": 0,
-            "public_methods": 0
-        }
+        "oop_analysis": {"total_classes": 0, "private_methods": 0, "public_methods": 0},
     }
-    
+
     change = calculate_project_change_percentage(base_project, project_rewrite)
     assert change > 80, f"Expected >80% change for complete rewrite, got {change:.2f}%"
 
@@ -128,22 +96,22 @@ def test_process_incremental_mixed():
     """Test processing with added, updated, and skipped projects."""
     existing = [
         {"project_path": "project_a", "metadata": {"total_lines_of_code": 1000}},
-        {"project_path": "project_b", "metadata": {"total_lines_of_code": 500}}
+        {"project_path": "project_b", "metadata": {"total_lines_of_code": 500}},
     ]
-    
+
     new = [
         {"project_path": "project_a", "metadata": {"total_lines_of_code": 1050}},  # Minor change
         {"project_path": "project_b", "metadata": {"total_lines_of_code": 2000}},  # Major change
-        {"project_path": "project_c", "metadata": {"total_lines_of_code": 800}}    # New project
+        {"project_path": "project_c", "metadata": {"total_lines_of_code": 800}},  # New project
     ]
-    
+
     result = process_incremental_projects(existing, new, 50.0)
-    
+
     assert len(result["added_projects"]) == 1, f"Expected 1 added project, got {len(result['added_projects'])}"
     assert len(result["updated_projects"]) == 1, f"Expected 1 updated project, got {len(result['updated_projects'])}"
     assert len(result["skipped_projects"]) == 1, f"Expected 1 skipped project, got {len(result['skipped_projects'])}"
     assert len(result["merged_projects"]) == 3, f"Expected 3 total projects, got {len(result['merged_projects'])}"
-    
+
     # Verify correct categorization
     assert result["added_projects"][0]["project_path"] == "project_c"
     assert result["updated_projects"][0]["project_path"] == "project_b"
@@ -155,11 +123,11 @@ def test_new_projects_only():
     existing = []
     new = [
         {"project_path": "project_a", "metadata": {"total_lines_of_code": 1000}},
-        {"project_path": "project_b", "metadata": {"total_lines_of_code": 500}}
+        {"project_path": "project_b", "metadata": {"total_lines_of_code": 500}},
     ]
-    
+
     result = process_incremental_projects(existing, new, 50.0)
-    
+
     assert len(result["added_projects"]) == 2
     assert len(result["updated_projects"]) == 0
     assert len(result["skipped_projects"]) == 0
@@ -168,13 +136,11 @@ def test_new_projects_only():
 
 def test_no_new_projects():
     """Test when no new projects are provided."""
-    existing = [
-        {"project_path": "project_a", "metadata": {"total_lines_of_code": 1000}}
-    ]
+    existing = [{"project_path": "project_a", "metadata": {"total_lines_of_code": 1000}}]
     new = []
-    
+
     result = process_incremental_projects(existing, new, 50.0)
-    
+
     assert len(result["added_projects"]) == 0
     assert len(result["updated_projects"]) == 0
     assert len(result["skipped_projects"]) == 0
@@ -183,30 +149,22 @@ def test_no_new_projects():
 
 def test_custom_threshold_50():
     """Test with 50% threshold - should skip 30% change."""
-    existing = [
-        {"project_path": "project_a", "metadata": {"total_lines_of_code": 1000}}
-    ]
-    new = [
-        {"project_path": "project_a", "metadata": {"total_lines_of_code": 1300}}  # 30% change
-    ]
-    
+    existing = [{"project_path": "project_a", "metadata": {"total_lines_of_code": 1000}}]
+    new = [{"project_path": "project_a", "metadata": {"total_lines_of_code": 1300}}]  # 30% change
+
     result = process_incremental_projects(existing, new, change_threshold=50.0)
-    
+
     assert len(result["skipped_projects"]) == 1
     assert len(result["updated_projects"]) == 0
 
 
 def test_custom_threshold_20():
     """Test with 20% threshold - should update 30% change."""
-    existing = [
-        {"project_path": "project_a", "metadata": {"total_lines_of_code": 1000}}
-    ]
-    new = [
-        {"project_path": "project_a", "metadata": {"total_lines_of_code": 1300}}  # 30% change
-    ]
-    
+    existing = [{"project_path": "project_a", "metadata": {"total_lines_of_code": 1000}}]
+    new = [{"project_path": "project_a", "metadata": {"total_lines_of_code": 1300}}]  # 30% change
+
     result = process_incremental_projects(existing, new, change_threshold=20.0)
-    
+
     assert len(result["skipped_projects"]) == 0
     assert len(result["updated_projects"]) == 1
 
@@ -221,9 +179,9 @@ def test_change_percentage_details():
                 "total_lines_of_code": 1000,
                 "files": {
                     "code": {"python": [{"path": "main.py"}]},
-                    "summary": {"code_files": 1, "doc_files": 1, "test_files": 1}
-                }
-            }
+                    "summary": {"code_files": 1, "doc_files": 1, "test_files": 1},
+                },
+            },
         }
     ]
     new = [
@@ -235,16 +193,16 @@ def test_change_percentage_details():
                 "files": {
                     "code": {
                         "python": [{"path": "main.py"}, {"path": "utils.py"}],  # More files
-                        "javascript": [{"path": "app.js"}]
+                        "javascript": [{"path": "app.js"}],
                     },
-                    "summary": {"code_files": 3, "doc_files": 2, "test_files": 3}  # More files
-                }
-            }
+                    "summary": {"code_files": 3, "doc_files": 2, "test_files": 3},  # More files
+                },
+            },
         }
     ]
-    
+
     result = process_incremental_projects(existing, new, 50.0)
-    
+
     # Should be updated due to >50% change across multiple dimensions
     assert len(result["updated_projects"]) == 1, f"Expected 1 update, got {len(result['updated_projects'])}"
     assert "change_percentage" in result["updated_projects"][0]
@@ -256,19 +214,19 @@ def test_multiple_updates_and_adds():
     existing = [
         {"project_path": "proj1", "metadata": {"total_lines_of_code": 1000}},
         {"project_path": "proj2", "metadata": {"total_lines_of_code": 500}},
-        {"project_path": "proj3", "metadata": {"total_lines_of_code": 750}}
+        {"project_path": "proj3", "metadata": {"total_lines_of_code": 750}},
     ]
-    
+
     new = [
         {"project_path": "proj1", "metadata": {"total_lines_of_code": 3000}},  # Major update
-        {"project_path": "proj2", "metadata": {"total_lines_of_code": 520}},   # Minor update
+        {"project_path": "proj2", "metadata": {"total_lines_of_code": 520}},  # Minor update
         {"project_path": "proj3", "metadata": {"total_lines_of_code": 2500}},  # Major update
-        {"project_path": "proj4", "metadata": {"total_lines_of_code": 600}},   # New
-        {"project_path": "proj5", "metadata": {"total_lines_of_code": 800}}    # New
+        {"project_path": "proj4", "metadata": {"total_lines_of_code": 600}},  # New
+        {"project_path": "proj5", "metadata": {"total_lines_of_code": 800}},  # New
     ]
-    
+
     result = process_incremental_projects(existing, new, 50.0)
-    
+
     assert len(result["added_projects"]) == 2  # proj4, proj5
     assert len(result["updated_projects"]) == 2  # proj1, proj3
     assert len(result["skipped_projects"]) == 1  # proj2

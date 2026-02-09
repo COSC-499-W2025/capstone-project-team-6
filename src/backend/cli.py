@@ -1325,18 +1325,17 @@ def main() -> int:
                                     )
 
                                     # Merge with existing results using smart comparison
-                                    from .project_comparison import process_incremental_projects
-                                    
+                                    from .project_comparison import \
+                                        process_incremental_projects
+
                                     existing_projects = results.get("projects", [])
                                     new_projects = new_results.get("projects", [])
 
                                     # Process projects with 50% change threshold
                                     merge_result = process_incremental_projects(
-                                        existing_projects=existing_projects,
-                                        new_projects=new_projects,
-                                        change_threshold=50.0
+                                        existing_projects=existing_projects, new_projects=new_projects, change_threshold=50.0
                                     )
-                                    
+
                                     merged_projects = merge_result["merged_projects"]
                                     added_count = len(merge_result["added_projects"])
                                     updated_count = len(merge_result["updated_projects"])
@@ -1372,13 +1371,13 @@ def main() -> int:
                                     print(f"  • Skipped: {skipped_count} project(s) with <50% changes")
                                     print(f"  • Total projects now: {len(merged_projects)}")
                                     print(f"  • Portfolio UUID: {analysis_uuid}")
-                                    
+
                                     # Show details of updated and skipped projects
                                     if merge_result["updated_projects"]:
                                         print(f"\n  Updated projects:")
                                         for update in merge_result["updated_projects"]:
                                             print(f"    - {update['project_path']} ({update['change_percentage']}% changed)")
-                                    
+
                                     if merge_result["skipped_projects"]:
                                         print(f"\n  Skipped projects (insufficient changes):")
                                         for skip in merge_result["skipped_projects"]:
