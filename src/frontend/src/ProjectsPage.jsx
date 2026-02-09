@@ -44,8 +44,8 @@ export default function ProjectsPage() {
         const baseProjects = await projectsAPI.getProjects();
         console.log('Projects received:', baseProjects);
 
-        // Ensure we have an array
-        const projectsArray = Array.isArray(baseProjects) ? baseProjects : [];
+        // Ensure we have an array - API returns {username, total_projects, projects: [...]}
+        const projectsArray = Array.isArray(baseProjects?.projects) ? baseProjects.projects : [];
 
         // Put base projects on screen ASAP
         // Add placeholders for details so UI doesn't explode
