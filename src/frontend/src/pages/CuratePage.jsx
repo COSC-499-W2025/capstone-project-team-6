@@ -8,7 +8,10 @@ export default function CuratePage() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
 
-  const [activeTab, setActiveTab] = useState('showcase');
+  const [activeTab, setActiveTab] = useState(() => {
+    // Restore active tab from localStorage
+    return localStorage.getItem('curateActiveTab') || 'showcase';
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -26,6 +29,11 @@ export default function CuratePage() {
   const [selectedSkills, setSelectedSkills] = useState([]);
   const [projectOrder, setProjectOrder] = useState([]);
   const [chronologyEdits, setChronologyEdits] = useState({});
+
+  // Persist active tab to localStorage
+  useEffect(() => {
+    localStorage.setItem('curateActiveTab', activeTab);
+  }, [activeTab]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -55,7 +63,10 @@ export default function CuratePage() {
       setSelectedShowcase(settingsData.showcase_project_ids || []);
       setSelectedAttributes(settingsData.comparison_attributes || []);
       setSelectedSkills(settingsData.highlighted_skills || []);
-      setProjectOrder(settingsData.custom_project_order || []);
+      
+      // Initialize project order with all project IDs if empty
+      const customOrder = settingsData.custom_project_order || [];
+      setProjectOrder(customOrder.length > 0 ? customOrder : projectsData.map(p => p.id));
     } catch (e) {
       console.error('Error loading curation data:', e);
       setError(e?.response?.data?.detail || e?.message || 'Failed to load curation data');
@@ -658,7 +669,7 @@ export default function CuratePage() {
                   </p>
 
                   <div style={{ display: 'grid', gap: '12px', marginBottom: '24px' }}>
-                    {(projectOrder.length > 0 ? projectOrder.map((id) => projects.find((p) => p.id === id)).filter(Boolean) : projects).map(
+                    {projectOrder.map((id) => projects.find((p) => p.id === id)).filter(Boolean).map(
                       (project, index) => (
                         <div
                           key={project.id}
@@ -688,7 +699,7 @@ export default function CuratePage() {
                               ▲
                             </button>
                             <button
-                              disabled={index === projects.length - 1}
+                              disabled={index === projectOrder.length - 1}
                               onClick={() => moveProjectDown(index)}
                               style={{
                                 padding: '4px 8px',
@@ -696,8 +707,8 @@ export default function CuratePage() {
                                 border: '1px solid #e5e5e5',
                                 borderRadius: '4px',
                                 backgroundColor: 'white',
-                                cursor: index === projects.length - 1 ? 'not-allowed' : 'pointer',
-                                opacity: index === projects.length - 1 ? 0.5 : 1,
+                                cursor: index === projectOrder.length - 1 ? 'not-allowed' : 'pointer',
+                                opacity: index === projectOrder.length - 1 ? 0.5 : 1,
                               }}
                             >
                               ▼
@@ -734,7 +745,7 @@ export default function CuratePage() {
                       {saving ? 'Saving...' : 'Save Project Order'}
                     </button>
                     <button
-                      onClick={() => setProjectOrder([])}
+                      onClick={() => setProjectOrder(projects.map(p => p.id))}
                       style={{
                         ...buttonStyles,
                         backgroundColor: 'white',
