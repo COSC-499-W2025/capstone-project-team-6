@@ -2,6 +2,70 @@
 
 # Aakash Tirithdas
 
+## Date Ranges
+
+January 26-February 8
+![Aakash Week 3](../images/aakasht2w5.png)
+
+## Goals for this week (planned last sprint)
+- complete the analysis and upload section
+- fix the bug with the consent during login 
+
+## What went well
+- The peer review session went well. Got good pointers from other teams as well as got an opportunity to compare our work to other teams work. We found several aspects where we were lacking and aspects which we excelled at. Should have been a bit more prepared but overall it went well. 
+- completed 1 of my tasks sucessfully. the upload works well with the analysis. 
+
+
+## What didn't go well
+- week 4 due to my dependency on others work I had to start my work extremely late. this cause me to fail to produce a working PR for that week. 
+- I only took 1 big task in week 4 which due to backlog was not complete. I should have taken another smaller task that i could garentee complete that week.
+- I completed 1 of the 2 tasks i planned on completing, This task took several failed attmepts from me which lead to new branches being created and several not published to get a working version. This  took too much time and therefore could not complete the smaller task. 
+- We did not have a team meeting due to clashing schedules.
+
+
+
+## Coding tasks
+
+- Successfully finished the analysis cycle.
+- Connected the upload frontend to the analyze backend
+- made sure that the zip file uploaded was stored temporally 
+- stored path of zip file, uuid and created a uploadid. this was stored in a new table in teh database.
+- passed relevent information to analyze api. 
+- changed the fixed path analysis to use the path passsed through. 
+- ensured that the analysis upon complete stores the data in teh correct table in the database so that it is accessible for projects page.
+
+- started but have not completed the consent update branch
+- started but not completed the styling of teh analyze loading page for the frontend.
+
+
+## Testing or debugging tasks
+A large amount of manual testing was done to get the analyze cycle to complete. Tested with several files and accounts. Ensure that llm and non-llm works. correct database table filling was done. 
+
+
+## **Issues / Blockers**
+
+- No major blockers this week.
+
+## PR's initiated
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/364
+  
+
+## PR's reviewed
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/350
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/359
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/352
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/342
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/336
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/329
+
+
+## Plan for next week
+- complete multi- upload compatibility
+- enhance the current analyze and upload feature in the frontend
+- complete the consent fix for llm and non llm
+
+
+
 # Mithish Ravisankar Geetha
 
 ## Date Ranges
