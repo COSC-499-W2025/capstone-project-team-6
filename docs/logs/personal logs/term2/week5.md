@@ -102,7 +102,7 @@ During review, I suggested a potential improvement around metadata merging: the 
 
 ## Plan for next week
 
--Attend both Monday and Wednesday guest lectures and incorporate any relevant project feedback.
+- Attend both Monday and Wednesday guest lectures and incorporate any relevant project feedback.
 - Work toward eliminating cross-platform inconsistencies by improving Docker/container parity and test environment mocks.
 - Integrate frontend curation preferences into Portfolio and Resume generation so outputs reflect curated ordering, highlights, and showcase selections.
 
