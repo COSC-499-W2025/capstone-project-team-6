@@ -27,6 +27,7 @@ from backend.analysis_database import record_analysis
 # Import routers from modular API structure
 from backend.api.analysis import router as analysis_router
 from backend.api.auth import router as auth_router
+from backend.api.curation import router as curation_router
 from backend.api.health import router as health_router
 from backend.api.portfolios import router as portfolios_router
 from backend.api.projects import router as projects_router
@@ -589,6 +590,7 @@ app.include_router(projects_router)
 app.include_router(analysis_router)
 app.include_router(resume_router)
 app.include_router(tasks_router)
+app.include_router(curation_router)
 
 
 @app.delete("/api/projects/{project_id}")
