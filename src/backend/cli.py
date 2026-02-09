@@ -20,8 +20,8 @@ from .analysis.role_predictor import (format_role_prediction,
 from .analysis_database import init_db
 from .consent import ask_for_consent
 from .curation_cli import (curate_project_rank_interactive,
-                           curate_skills_highlight_interactive,
-                           curate_roles_interactive)
+                           curate_roles_interactive,
+                           curate_skills_highlight_interactive)
 
 # Avoid importing heavy optional dependencies at module import time
 
@@ -1850,10 +1850,9 @@ def main() -> int:
                 from .curation_cli import (
                     curate_chronology_interactive,
                     curate_comparison_attributes_interactive,
-                    curate_project_rank_interactive,
+                    curate_project_rank_interactive, curate_roles_interactive,
                     curate_showcase_projects_interactive,
                     curate_skills_highlight_interactive,
-                    curate_roles_interactive,
                     display_curation_status, display_showcase_summary)
 
                 init_db()
