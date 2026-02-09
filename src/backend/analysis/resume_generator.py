@@ -905,6 +905,7 @@ def _compile_latex_to_pdf(latex_content: str) -> bytes:
         except subprocess.TimeoutExpired:
             raise RuntimeError("LaTeX compilation timed out.")
 
+
 def generate_resume(
     projects: List[Dict[str, Any]],
     format: str = "markdown",
@@ -1040,6 +1041,7 @@ def generate_resume(
         return markdown_resume
     else:
         return markdown_resume
+
 
 def _convert_markdown_to_html(markdown_content: str) -> str:
     """Convert markdown to styled HTML for PDF generation."""

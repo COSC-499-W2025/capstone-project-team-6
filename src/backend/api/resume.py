@@ -9,13 +9,12 @@ from backend.analysis_database import (add_items_to_user_resume,
                                        create_user_resume,
                                        get_all_analyses_for_user,
                                        get_analysis_by_uuid, get_connection,
-                                       get_user_resume, get_user_resume_items,
-                                       list_user_resumes,
+                                       get_portfolio_item_for_project,
                                        get_projects_for_user,
                                        get_resume_items_for_project_id,
-                                       get_portfolio_item_for_project,
+                                       get_user_resume, get_user_resume_items,
+                                       list_user_resumes,
                                        update_user_resume_content)
-
 from backend.api.auth import verify_token
 
 router = APIRouter(prefix="/api", tags=["Resume"])
@@ -183,7 +182,7 @@ async def generate_resume(
                 detail=f"Project(s) not found or access denied: {missing}",
             )
 
-        # 3) Build projects 
+        # 3) Build projects
         projects_for_resume: List[Dict[str, Any]] = []
 
         for pid in request.project_ids:
@@ -194,14 +193,17 @@ async def generate_resume(
 
             portfolio_item = get_portfolio_item_for_project(pid) or {}
 
-            projects_for_resume.append({
-                "project": project_row,       
-                "resume_items": resume_rows,  
-                "portfolio": portfolio_item,  
-            })
+            projects_for_resume.append(
+                {
+                    "project": project_row,
+                    "resume_items": resume_rows,
+                    "portfolio": portfolio_item,
+                }
+            )
 
-        # 4) Generate resume using the existing generator 
-        from backend.analysis.resume_generator import generate_resume as generate_resume_impl
+        # 4) Generate resume using the existing generator
+        from backend.analysis.resume_generator import \
+            generate_resume as generate_resume_impl
 
         resume_content = generate_resume_impl(
             projects=projects_for_resume,
