@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from backend.analysis_database import (add_items_to_user_resume,
-                                       create_user_resume, get_all_analyses_for_user,
+                                       create_user_resume,
+                                       get_all_analyses_for_user,
                                        get_analysis_by_uuid, get_connection,
                                        get_user_resume, get_user_resume_items,
                                        list_user_resumes,
@@ -27,9 +28,7 @@ class ResumeRequest(BaseModel):
     personal_info: Optional[Dict[str, str]] = Field(
         None, description="Personal information (name, email, phone, location, linkedIn, github, website)"
     )
-    stored_resume_id: Optional[int] = Field(
-        None, description="Optional stored resume to use as the base"
-    )
+    stored_resume_id: Optional[int] = Field(None, description="Optional stored resume to use as the base")
 
 
 class ResumeResponse(BaseModel):
@@ -152,11 +151,7 @@ def _merge_resume_content(base_content: str, generated_content: str) -> str:
     while insert_idx < len(base_lines) and not base_lines[insert_idx].strip():
         insert_idx += 1
 
-    merged_lines = (
-        base_lines[:insert_idx]
-        + [generated_projects, ""]
-        + base_lines[insert_idx:]
-    )
+    merged_lines = base_lines[:insert_idx] + [generated_projects, ""] + base_lines[insert_idx:]
     return "\n".join(merged_lines).rstrip() + "\n"
 
 
@@ -208,9 +203,7 @@ async def generate_resume(
                 max_projects=request.max_projects,
                 personal_info=request.personal_info,
             )
-            resume_content = _merge_resume_content(
-                stored_resume["content_text"], generated_content
-            )
+            resume_content = _merge_resume_content(stored_resume["content_text"], generated_content)
         else:
             # Generate a full resume from selected portfolios
             resume_content = generate_resume(
@@ -276,9 +269,7 @@ async def edit_resume(
 
 
 @router.post("/resumes", response_model=StoredResumeResponse)
-async def create_stored_resume(
-    request: StoredResumeCreateRequest, username: str = Depends(verify_token)
-):
+async def create_stored_resume(request: StoredResumeCreateRequest, username: str = Depends(verify_token)):
     if request.format not in ("markdown", "text"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -338,9 +329,7 @@ async def get_stored_resume(resume_id: int, username: str = Depends(verify_token
 
 
 @router.patch("/resumes/{resume_id}", response_model=StoredResumeResponse)
-async def update_stored_resume(
-    resume_id: int, request: StoredResumeUpdateRequest, username: str = Depends(verify_token)
-):
+async def update_stored_resume(resume_id: int, request: StoredResumeUpdateRequest, username: str = Depends(verify_token)):
     update_user_resume_content(resume_id, username, request.content)
     row = get_user_resume(resume_id, username)
     items = get_user_resume_items(resume_id, username)
@@ -356,9 +345,7 @@ async def update_stored_resume(
 
 
 @router.post("/resumes/{resume_id}/items", response_model=StoredResumeResponse)
-async def add_items_to_stored_resume(
-    resume_id: int, request: AddResumeItemsRequest, username: str = Depends(verify_token)
-):
+async def add_items_to_stored_resume(resume_id: int, request: AddResumeItemsRequest, username: str = Depends(verify_token)):
     if not request.resume_item_ids:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No resume items selected")
 
@@ -389,9 +376,7 @@ async def add_items_to_stored_resume(
     add_items_to_user_resume(resume_id, username, items)
 
     resume = get_user_resume(resume_id, username)
-    merged_content = _append_markdown_bullets(
-        resume["content_text"], [row["resume_text"] for row in rows]
-    )
+    merged_content = _append_markdown_bullets(resume["content_text"], [row["resume_text"] for row in rows])
     update_user_resume_content(resume_id, username, merged_content)
 
     updated = get_user_resume(resume_id, username)

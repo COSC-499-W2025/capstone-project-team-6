@@ -14,10 +14,10 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.api.auth import active_tokens
-from backend.api_server import app
 from backend import analysis_database as adb
 from backend import database as udb
+from backend.api.auth import active_tokens
+from backend.api_server import app
 
 client = TestClient(app)
 
@@ -72,7 +72,7 @@ def _create_test_portfolio(username: str, portfolio_uuid: str = None):
     """Helper to create a test portfolio/analysis."""
     if portfolio_uuid is None:
         portfolio_uuid = str(uuid.uuid4())
-    
+
     payload = {
         "analysis_metadata": {
             "zip_file": f"/tmp/test_{portfolio_uuid}.zip",
@@ -109,7 +109,7 @@ def _create_test_portfolio(username: str, portfolio_uuid: str = None):
             "frameworks_used": ["Django"],
         },
     }
-    
+
     analysis_id = adb.record_analysis("non_llm", payload, username=username, analysis_uuid=portfolio_uuid)
     return portfolio_uuid, analysis_id
 
@@ -184,9 +184,7 @@ class TestResumeEndpoints:
 
     @patch("backend.api.resume.get_analysis_by_uuid")
     @patch("backend.analysis.resume_generator.generate_resume")
-    def test_generate_resume_merges_with_stored_resume(
-        self, mock_generate_resume, mock_get_analysis, auth_token
-    ):
+    def test_generate_resume_merges_with_stored_resume(self, mock_generate_resume, mock_get_analysis, auth_token):
         token, _ = auth_token
         portfolio_id = str(uuid.uuid4())
 
@@ -196,8 +194,7 @@ class TestResumeEndpoints:
             "total_projects": 1,
         }
         mock_generate_resume.return_value = (
-            "John Doe\njohn@example.com\n\n## Projects\n\n"
-            "**GenProj** | *Python*\n- gen bullet\n"
+            "John Doe\njohn@example.com\n\n## Projects\n\n" "**GenProj** | *Python*\n- gen bullet\n"
         )
 
         create_response = client.post(
@@ -264,7 +261,9 @@ class TestResumeEndpoints:
             "projects": [],
             "total_projects": 1,
         }
-        mock_generate_resume.return_value = "John Doe\njohn@example.com\n\n## Projects\n\n**TestProject** | *Python*\n- Test bullet\n"
+        mock_generate_resume.return_value = (
+            "John Doe\njohn@example.com\n\n## Projects\n\n**TestProject** | *Python*\n- Test bullet\n"
+        )
 
         response = client.post(
             "/api/resume/generate",
@@ -840,8 +839,9 @@ class TestResumeEndpoints:
         token, username = auth_token
         portfolio_id = str(uuid.uuid4())
 
-        with patch("backend.api.resume.get_analysis_by_uuid") as mock_get_analysis, \
-             patch("backend.analysis.resume_generator.generate_resume") as mock_generate_resume:
+        with patch("backend.api.resume.get_analysis_by_uuid") as mock_get_analysis, patch(
+            "backend.analysis.resume_generator.generate_resume"
+        ) as mock_generate_resume:
             mock_get_analysis.return_value = {
                 "analysis_uuid": portfolio_id,
                 "projects": [],
