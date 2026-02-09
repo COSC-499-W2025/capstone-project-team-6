@@ -35,7 +35,7 @@ from backend.api.tasks import router as tasks_router
 from backend.curation import init_curation_tables
 from backend.database import authenticate_user, check_user_consent, create_user
 from backend.database import init_db as init_user_db
-from backend.database import save_user_consent
+from backend.database import get_llm_allowed, save_llm_allowed
 from backend.task_manager import (TaskType, cleanup_background_tasks,
                                   get_task_manager)
 from backend.token_storage import active_tokens
@@ -103,12 +103,13 @@ class MessageResponse(BaseModel):
 
 
 class ConsentRequest(BaseModel):
-    has_consented: bool
+    has_consented: Optional[bool] = None
+    llm_allowed: Optional[bool] = None 
 
 
 class ConsentResponse(BaseModel):
-    has_consented: bool
     message: str
+    llm_allowed: Optional[bool]
 
 
 class TaskStatusResponse(BaseModel):
@@ -205,11 +206,26 @@ async def logout(username: str = Depends(verify_token)):
 
 @app.post("/api/user/consent", response_model=ConsentResponse)
 async def save_consent(consent: ConsentRequest, username: str = Depends(verify_token)):
-    """Save user consent status."""
+    """Save user LLM permission (Yes/No) without blocking app access."""
     try:
-        save_user_consent(username, consent.has_consented)
-        message = "Consent saved successfully" if consent.has_consented else "Consent declined"
-        return ConsentResponse(has_consented=consent.has_consented, message=message)
+        # Accept either the new field or the old field name
+        value = consent.llm_allowed
+        if value is None and consent.has_consented is not None:
+            value = consent.has_consented
+
+        # Must be explicit True/False for POST
+        if value is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Request must include llm_allowed (true/false).",
+            )
+
+        save_llm_allowed(username, bool(value))
+        message = "LLM enabled" if value else "LLM disabled"
+        return ConsentResponse(llm_allowed=bool(value), message=message)
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -217,18 +233,28 @@ async def save_consent(consent: ConsentRequest, username: str = Depends(verify_t
         )
 
 
+
 @app.get("/api/user/consent", response_model=ConsentResponse)
 async def get_consent(username: str = Depends(verify_token)):
-    """Get user consent status."""
+    """Get user's LLM permission (tri-state)."""
     try:
-        has_consented = check_user_consent(username)
-        message = "User has consented" if has_consented else "User has not consented"
-        return ConsentResponse(has_consented=has_consented, message=message)
+        llm_allowed = get_llm_allowed(username)
+
+        if llm_allowed is None:
+            message = "User has not answered consent yet"
+        elif llm_allowed is True:
+            message = "User allowed LLM"
+        else:
+            message = "User disallowed LLM"
+
+        return ConsentResponse(llm_allowed=llm_allowed, message=message)
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve consent: {str(e)}",
         )
+
 
 
 @app.get("/api/portfolios", response_model=List[PortfolioListItem])
