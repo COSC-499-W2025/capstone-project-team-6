@@ -76,8 +76,8 @@ export const consentAPI = {
 // Projects API calls
 export const projectsAPI = {
   getProjects: async () => {
-    const response = await api.get('/projects');
-    return response.data || [];
+    const response = await api.get('/projects');  // Changed from /portfolios to /projects
+    return response.data;
   },
 
   getProjectById: async (portfolioId) => {
@@ -85,8 +85,8 @@ export const projectsAPI = {
     return response.data;
   },
 
-  deleteProject: async (projectId) => {
-    const response = await api.delete(`/projects/${projectId}`);
+  deleteProject: async (portfolioId) => {
+    const response = await api.delete(`/portfolios/${portfolioId}`);
     return response.data;
   },
 
@@ -106,18 +106,22 @@ export const projectsAPI = {
   },
 };
 
-export const portfolioAPI = {
-  getPortfolios: async () => {
+export const portfoliosAPI = {
+  listPortfolios: async () => {
     const response = await api.get('/portfolios');
     return response.data;
   },
 
-  getPortfolioById: async (portfolioId) => {
+  getPortfolioDetail: async (portfolioId) => {
     const response = await api.get(`/portfolios/${portfolioId}`);
     return response.data;
-  }
-};
+  },
 
+  generatePortfolioDocument: async (portfolioId) => {
+    const response = await api.post('/portfolio/generate', { portfolio_id: portfolioId });
+    return response.data;
+  },
+};
 // Resume API calls
 export const resumeAPI = {
   generateResume: async (portfolioIds, options = {}) => {
