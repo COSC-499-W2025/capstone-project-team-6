@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/Navigation';
 import api from '../services/api';
 
-// Max file size: 100MB
-const MAX_FILE_SIZE_MB = 100;
+// Max file size: 500MB
+const MAX_FILE_SIZE_MB = 500;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 const Upload = () => {
