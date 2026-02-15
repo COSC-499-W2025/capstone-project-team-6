@@ -450,7 +450,7 @@ class TaskManager:
 
         # Use utility function to process incremental projects
         result = process_incremental_projects(
-            existing_projects=existing_projects, new_projects=new_projects, change_threshold=50.0
+            existing_projects=existing_projects, new_projects=new_projects, change_threshold=30.0
         )
 
         merged_projects = result["merged_projects"]
