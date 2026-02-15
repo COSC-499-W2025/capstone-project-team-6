@@ -150,6 +150,17 @@ export const portfoliosAPI = {
     const response = await api.post('/portfolio/generate', { portfolio_id: portfolioId });
     return response.data;
   },
+
+  addToPortfolio: async (portfolioId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post(`/portfolios/${portfolioId}/add`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
 };
 
 // Resume API calls

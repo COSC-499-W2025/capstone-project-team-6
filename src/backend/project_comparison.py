@@ -7,47 +7,74 @@ from typing import Any, Dict
 
 def calculate_project_change_percentage(old_project: Dict[str, Any], new_project: Dict[str, Any]) -> float:
     """Calculate the percentage of changes between two project versions."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     total_checks = 0
     changes = 0
 
-    # Compare file counts and names
-    old_files = old_project.get("metadata", {}).get("files", {})
-    new_files = new_project.get("metadata", {}).get("files", {})
+    # Compare file counts (direct fields, not nested in metadata)
+    for field in ["code_files", "total_files", "test_files", "doc_files", "config_files"]:
+        old_count = old_project.get(field, 0)
+        new_count = new_project.get(field, 0)
 
-    # Compare code files
-    old_code_files = set()
-    new_code_files = set()
+        if old_count or new_count:
+            total_checks += 1
+            max_count = max(old_count, new_count)
+            if max_count > 0:
+                count_change = abs(old_count - new_count) / max_count
+                changes += min(count_change, 1.0)
 
-    for lang_files in old_files.get("code", {}).values():
-        if isinstance(lang_files, list):
-            old_code_files.update([f.get("path", "") for f in lang_files if isinstance(f, dict)])
-
-    for lang_files in new_files.get("code", {}).values():
-        if isinstance(lang_files, list):
-            new_code_files.update([f.get("path", "") for f in lang_files if isinstance(f, dict)])
-
-    if old_code_files or new_code_files:
+    # Compare code ownership if available
+    old_ownership = old_project.get("code_ownership", [])
+    new_ownership = new_project.get("code_ownership", [])
+    
+    if old_ownership or new_ownership:
         total_checks += 1
-        # Calculate Jaccard distance as change metric
-        if old_code_files and new_code_files:
-            intersection = len(old_code_files & new_code_files)
-            union = len(old_code_files | new_code_files)
+        old_files = {item.get("path") for item in old_ownership if isinstance(item, dict)}
+        new_files = {item.get("path") for item in new_ownership if isinstance(item, dict)}
+        
+        if old_files and new_files:
+            intersection = len(old_files & new_files)
+            union = len(old_files | new_files)
             if union > 0:
                 similarity = intersection / union
-                changes += 1 - similarity  # Convert similarity to change
-        elif old_code_files or new_code_files:
-            changes += 1  # Complete change if one is empty
+                changes += 1 - similarity
+        elif old_files or new_files:
+            changes += 1
 
-    # Compare lines of code
-    old_loc = old_project.get("metadata", {}).get("total_lines_of_code", 0)
-    new_loc = new_project.get("metadata", {}).get("total_lines_of_code", 0)
-
-    if old_loc or new_loc:
+    # Compare blame summary (contributor lines)
+    old_blame = old_project.get("blame_summary", {})
+    new_blame = new_project.get("blame_summary", {})
+    
+    if old_blame or new_blame:
         total_checks += 1
-        max_loc = max(old_loc, new_loc)
-        if max_loc > 0:
-            loc_change = abs(old_loc - new_loc) / max_loc
-            changes += min(loc_change, 1.0)  # Cap at 1.0
+        old_total = sum(v for v in old_blame.values() if isinstance(v, (int, float)))
+        new_total = sum(v for v in new_blame.values() if isinstance(v, (int, float)))
+        
+        if old_total or new_total:
+            max_total = max(old_total, new_total)
+            if max_total > 0:
+                blame_change = abs(old_total - new_total) / max_total
+                changes += min(blame_change, 1.0)
+
+    # Compare activity breakdown
+    old_activity = old_project.get("activity_breakdown", {})
+    new_activity = new_project.get("activity_breakdown", {})
+    
+    if old_activity or new_activity:
+        total_checks += 1
+        old_contributors = set(old_activity.keys())
+        new_contributors = set(new_activity.keys())
+        
+        if old_contributors and new_contributors:
+            contributor_intersection = len(old_contributors & new_contributors)
+            contributor_union = len(old_contributors | new_contributors)
+            if contributor_union > 0:
+                contributor_similarity = contributor_intersection / contributor_union
+                changes += 1 - contributor_similarity
+        elif old_contributors or new_contributors:
+            changes += 1
 
     # Compare languages
     old_langs = set(old_project.get("languages", {}).keys())
@@ -64,20 +91,27 @@ def calculate_project_change_percentage(old_project: Dict[str, Any], new_project
         elif old_langs or new_langs:
             changes += 1
 
-    # Compare file counts by type
-    old_file_counts = old_files.get("summary", {})
-    new_file_counts = new_files.get("summary", {})
+    # Compare commit counts
+    old_commits = old_project.get("total_commits", 0)
+    new_commits = new_project.get("total_commits", 0)
+    
+    if old_commits or new_commits:
+        total_checks += 1
+        max_commits = max(old_commits, new_commits)
+        if max_commits > 0:
+            commit_change = abs(old_commits - new_commits) / max_commits
+            changes += min(commit_change, 1.0)
 
-    for file_type in ["code_files", "doc_files", "test_files", "config_files"]:
-        old_count = old_file_counts.get(file_type, 0)
-        new_count = new_file_counts.get(file_type, 0)
-
-        if old_count or new_count:
-            total_checks += 1
-            max_count = max(old_count, new_count)
-            if max_count > 0:
-                count_change = abs(old_count - new_count) / max_count
-                changes += min(count_change, 1.0)
+    # Compare branch counts
+    old_branches = old_project.get("branch_count", 0)
+    new_branches = new_project.get("branch_count", 0)
+    
+    if old_branches or new_branches:
+        total_checks += 1
+        max_branches = max(old_branches, new_branches)
+        if max_branches > 0:
+            branch_change = abs(old_branches - new_branches) / max_branches
+            changes += min(branch_change, 1.0)
 
     # Compare OOP metrics if available
     old_oop = old_project.get("oop_analysis", {})
@@ -97,9 +131,11 @@ def calculate_project_change_percentage(old_project: Dict[str, Any], new_project
 
     # Calculate overall change percentage
     if total_checks == 0:
+        logger.warning(f"No comparable data found between projects - assuming 100% change")
         return 100.0  # If we can't compare, assume complete change
 
     change_percentage = (changes / total_checks) * 100.0
+    logger.info(f"Change calculation: {changes:.2f} changes across {total_checks} checks = {change_percentage:.2f}%")
     return min(change_percentage, 100.0)
 
 
@@ -118,8 +154,25 @@ def process_incremental_projects(existing_projects: list, new_projects: list, ch
         - updated_projects: List of updated projects with change details
         - skipped_projects: List of skipped projects with change details
     """
-    # Build a map of existing projects by path for quick lookup
-    existing_project_map = {p.get("project_path"): i for i, p in enumerate(existing_projects)}
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Build a map of existing projects for quick lookup
+    # Use project_path as primary key, but also track by project_name for fallback matching
+    existing_by_path = {}
+    existing_by_name = {}
+    
+    for i, p in enumerate(existing_projects):
+        path = p.get("project_path") or ""
+        name = p.get("project_name") or p.get("name", "")
+        
+        # Only map by path if it's not empty
+        if path:
+            existing_by_path[path] = i
+        
+        # Map by name for fallback
+        if name:
+            existing_by_name[name] = i
 
     added_projects = []
     updated_projects = []
@@ -129,15 +182,32 @@ def process_incremental_projects(existing_projects: list, new_projects: list, ch
     merged_projects = existing_projects.copy()
 
     for new_project in new_projects:
-        project_path = new_project.get("project_path")
-
-        if project_path in existing_project_map:
+        project_path = new_project.get("project_path") or ""
+        project_name = new_project.get("project_name") or new_project.get("name", "")
+        
+        # Try to find a match - first by path, then by name
+        existing_index = None
+        match_type = None
+        
+        if project_path and project_path in existing_by_path:
+            existing_index = existing_by_path[project_path]
+            match_type = "path"
+        elif project_name and project_name in existing_by_name:
+            existing_index = existing_by_name[project_name]
+            match_type = "name"
+        
+        if existing_index is not None:
             # Project exists, check for changes
-            existing_index = existing_project_map[project_path]
             old_project = merged_projects[existing_index]
+            
+            logger.info(f"Matching project '{project_name}' (path: '{project_path}') by {match_type}")
+            logger.info(f"  Old project metadata keys: {list(old_project.get('metadata', {}).keys())}")
+            logger.info(f"  New project metadata keys: {list(new_project.get('metadata', {}).keys())}")
 
             # Calculate change percentage
             change_percentage = calculate_project_change_percentage(old_project, new_project)
+            
+            logger.info(f"  Calculated change percentage: {change_percentage:.2f}%")
 
             if change_percentage > change_threshold:
                 # Update the existing project
@@ -148,6 +218,7 @@ def process_incremental_projects(existing_projects: list, new_projects: list, ch
                 skipped_projects.append({"project_path": project_path, "change_percentage": round(change_percentage, 2)})
         else:
             # New project, add it
+            logger.info(f"Adding new project '{project_name}' (path: '{project_path}')")
             merged_projects.append(new_project)
             added_projects.append(new_project)
 
