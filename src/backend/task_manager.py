@@ -450,7 +450,7 @@ class TaskManager:
 
         # Use utility function to process incremental projects
         result = process_incremental_projects(
-            existing_projects=existing_projects, new_projects=new_projects, change_threshold=50.0
+            existing_projects=existing_projects, new_projects=new_projects, change_threshold=30.0
         )
 
         merged_projects = result["merged_projects"]
@@ -475,16 +475,171 @@ class TaskManager:
             merged_projects=merged_projects,
         )
 
-        # Update the raw_json in database
-        with get_connection() as conn:
+        # Update the analysis and re-record projects
+        from .analysis_database import get_connection as get_analysis_conn
+        
+        with get_analysis_conn() as conn:
+            # Get the analysis_id
+            analysis_row = conn.execute(
+                "SELECT id FROM analyses WHERE analysis_uuid = ?",
+                (task.portfolio_id,)
+            ).fetchone()
+            
+            if not analysis_row:
+                raise ValueError(f"Analysis {task.portfolio_id} not found")
+            
+            analysis_id = analysis_row["id"]
+            
+            # Delete old projects and their related data (cascades automatically)
+            conn.execute(
+                "DELETE FROM projects WHERE analysis_id = ?",
+                (analysis_id,)
+            )
+            
+            # Update the analysis row with new data
+            summary_fields = merged_data.get("summary", {})
+            languages_str = json.dumps(summary_fields.get("languages", []))
+            frameworks_str = json.dumps(summary_fields.get("frameworks", []))
+            
             conn.execute(
                 """UPDATE analyses 
                    SET raw_json = ?, 
                        total_projects = ?,
-                       analysis_timestamp = datetime('now')
+                       analysis_timestamp = datetime('now'),
+                       summary_total_files = ?,
+                       summary_total_size_bytes = ?,
+                       summary_total_size_mb = ?,
+                       summary_languages = ?,
+                       summary_frameworks = ?
                    WHERE analysis_uuid = ?""",
-                (json.dumps(merged_data), len(merged_projects), task.portfolio_id),
+                (
+                    json.dumps(merged_data),
+                    len(merged_projects),
+                    summary_fields.get("total_files", 0),
+                    summary_fields.get("total_size", 0),
+                    summary_fields.get("total_size_mb", 0.0),
+                    languages_str,
+                    frameworks_str,
+                    task.portfolio_id
+                ),
             )
+            
+            # Now insert updated project records
+            from .analysis_database import _normalize_username_value, _normalize_project_path_value
+            owner_username = _normalize_username_value(task.username)
+            
+            for project in merged_projects:
+                target_user_stats = project.get("target_user_stats") or {}
+                target_user_email = project.get("target_user_email") or target_user_stats.get("email")
+                target_user_name = target_user_stats.get("name")
+                target_user_commits = target_user_stats.get("commit_count") or target_user_stats.get("commits")
+                target_user_commit_pct = target_user_stats.get("percentage")
+                contribution_volume = project.get("contribution_volume") or {}
+                blame_summary = project.get("blame_summary") or {}
+                target_user_lines_changed = contribution_volume.get(target_user_email) if target_user_email else None
+                target_user_surviving_lines = blame_summary.get(target_user_email) if target_user_email else None
+                target_user_last_commit = target_user_stats.get("last_commit_date") or project.get("last_commit_date")
+                project_name = project.get("project_name") or "Project"
+                project_path = _normalize_project_path_value(project.get("project_path"))
+                
+                # Role prediction
+                role_prediction_data = project.get("role_prediction", {})
+                predicted_role = None
+                predicted_role_confidence = None
+                role_prediction_json = None
+                
+                if role_prediction_data:
+                    predicted_role = (
+                        role_prediction_data.get("predicted_role", {}).get("value")
+                        if isinstance(role_prediction_data.get("predicted_role"), dict)
+                        else str(role_prediction_data.get("predicted_role"))
+                    )
+                    predicted_role_confidence = role_prediction_data.get("confidence_score")
+                    role_prediction_json = json.dumps(role_prediction_data)
+                
+                conn.execute(
+                    """
+                    INSERT INTO projects (
+                        analysis_id,
+                        project_name,
+                        project_path,
+                        owner_username,
+                        primary_language,
+                        total_files,
+                        total_size,
+                        code_files,
+                        test_files,
+                        doc_files,
+                        config_files,
+                        has_tests,
+                        has_readme,
+                        has_ci_cd,
+                        has_docker,
+                        test_coverage_estimate,
+                        is_git_repo,
+                        total_commits,
+                        primary_branch,
+                        total_branches,
+                        has_remote,
+                        last_commit_date,
+                        last_modified_date,
+                        directory_depth,
+                        project_start_date,
+                        project_end_date,
+                        project_active_days,
+                        target_user_email,
+                        target_user_name,
+                        target_user_commits,
+                        target_user_commit_pct,
+                        target_user_lines_changed,
+                        target_user_surviving_lines,
+                        target_user_last_commit,
+                        predicted_role,
+                        predicted_role_confidence,
+                        role_prediction_data
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        analysis_id,
+                        project_name,
+                        project_path,
+                        owner_username,
+                        project.get("primary_language"),
+                        project.get("total_files", 0),
+                        project.get("total_size", 0),
+                        project.get("code_files", 0),
+                        project.get("test_files", 0),
+                        project.get("doc_files", 0),
+                        project.get("config_files", 0),
+                        project.get("has_tests", False),
+                        project.get("has_readme", False),
+                        project.get("has_ci_cd", False),
+                        project.get("has_docker", False),
+                        project.get("test_coverage_estimate"),
+                        project.get("is_git_repo", False),
+                        project.get("total_commits", 0),
+                        project.get("primary_branch"),
+                        project.get("total_branches", 0),
+                        project.get("has_remote", False),
+                        project.get("last_commit_date"),
+                        project.get("last_modified_date"),
+                        project.get("directory_depth", 0),
+                        project.get("project_start_date"),
+                        project.get("project_end_date"),
+                        project.get("project_active_days", 0),
+                        target_user_email,
+                        target_user_name,
+                        target_user_commits,
+                        target_user_commit_pct,
+                        target_user_lines_changed,
+                        target_user_surviving_lines,
+                        target_user_last_commit,
+                        predicted_role,
+                        predicted_role_confidence,
+                        role_prediction_json,
+                    ),
+                )
+            
             conn.commit()
 
         task.progress = 90
