@@ -82,6 +82,17 @@ const mockDetailFirst = {
       summary: 'Alpha summary',
     },
   ],
+  portfolio_items: [
+    {
+      title: 'Alpha highlight',
+      project_name: 'Alpha',
+      text_summary: 'A Python backend project with strong code quality signals.',
+      tech_stack: ['Python', 'FastAPI'],
+      skills_exercised: ['API design', 'Testing'],
+      quality_score: 45,
+      sophistication_level: 'intermediate',
+    },
+  ],
 };
 
 const mockDetailSecond = {
@@ -100,6 +111,18 @@ const mockDetailSecond = {
       primary_language: 'JavaScript',
       total_files: 5,
       summary: 'Beta summary',
+    },
+  ],
+  items: [
+    {
+      project_name: 'Beta',
+      text_summary: 'A JavaScript project with nested stats output shape.',
+      tech_stack: ['JavaScript'],
+      skills_exercised: ['Frontend development'],
+      project_statistics: {
+        quality_score: 38,
+        sophistication_level: 'intermediate',
+      },
     },
   ],
 };
@@ -147,6 +170,9 @@ describe('Portfolio page', () => {
       expect(screen.getByText('Summary of run 1')).toBeInTheDocument();
       expect(screen.getByText('Python')).toBeInTheDocument();
       expect(screen.getByText('Alpha')).toBeInTheDocument();
+      expect(screen.getByText('Alpha highlight')).toBeInTheDocument();
+      expect(screen.getByText(/Quality score: 45/)).toBeInTheDocument();
+      expect(screen.getByText(/Sophistication: intermediate/)).toBeInTheDocument();
     });
   });
 
@@ -167,6 +193,8 @@ describe('Portfolio page', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Summary of run 2')).toBeInTheDocument();
+      expect(screen.getByText(/Quality score: 38/)).toBeInTheDocument();
+      expect(screen.getByText(/Sophistication: intermediate/)).toBeInTheDocument();
     });
 
     expect(portfoliosAPI.getPortfolioDetail).toHaveBeenCalledWith('run-2');

@@ -80,6 +80,7 @@ class PortfolioListItem(BaseModel):
     analysis_timestamp: str
     total_projects: int
     analysis_type: str
+    project_names: List[str] = Field(default_factory=list)
 
 
 class PortfolioDetail(BaseModel):
@@ -91,6 +92,8 @@ class PortfolioDetail(BaseModel):
     projects: List[Dict[str, Any]]
     skills: List[Dict[str, Any]]
     summary: Optional[Dict[str, Any]] = None
+    items: List[Dict[str, Any]] = Field(default_factory=list)
+    portfolio_items: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class IncrementalUploadRequest(BaseModel):
@@ -243,6 +246,7 @@ async def list_portfolios(username: str = Depends(verify_token)):
             analysis_timestamp=a["analysis_timestamp"],
             total_projects=a["total_projects"],
             analysis_type=a["analysis_type"],
+            project_names=a.get("project_names", []),
         )
         for a in analyses
     ]
@@ -259,6 +263,10 @@ async def get_portfolio(portfolio_id: str, username: str = Depends(verify_token)
             detail=f"Portfolio {portfolio_id} not found",
         )
 
+    portfolio_items = analysis.get("portfolio_items")
+    if not isinstance(portfolio_items, list):
+        portfolio_items = []
+
     return PortfolioDetail(
         analysis_uuid=analysis["analysis_uuid"],
         analysis_type=analysis["analysis_type"],
@@ -268,6 +276,8 @@ async def get_portfolio(portfolio_id: str, username: str = Depends(verify_token)
         projects=analysis.get("projects", []),
         skills=analysis.get("skills", []),
         summary=analysis.get("summary"),
+        items=portfolio_items,
+        portfolio_items=portfolio_items,
     )
 
 

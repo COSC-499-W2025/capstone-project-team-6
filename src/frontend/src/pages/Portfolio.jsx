@@ -116,13 +116,37 @@ const Portfolio = () => {
     );
   }, [selectedPortfolioDetail]);
 
-  const skillTags = selectedPortfolioDetail?.skills ?? [];
   const projectList = selectedPortfolioDetail?.projects ?? [];
   const portfolioItems =
     selectedPortfolioDetail?.portfolio_items ||
     selectedPortfolioDetail?.items ||
     selectedPortfolioDetail?.portfolio ||
     [];
+  const skillTags = useMemo(() => {
+    const rawSkills = selectedPortfolioDetail?.skills;
+    if (Array.isArray(rawSkills) && rawSkills.length > 0) {
+      return rawSkills;
+    }
+
+    const skillCounts = new Map();
+    for (const item of portfolioItems) {
+      const skills = item?.skills_exercised;
+      const normalizedSkills = Array.isArray(skills)
+        ? skills
+        : typeof skills === 'string'
+          ? skills.split(',').map((skill) => skill.trim())
+          : [];
+      for (const skill of normalizedSkills) {
+        if (!skill) continue;
+        skillCounts.set(skill, (skillCounts.get(skill) ?? 0) + 1);
+      }
+    }
+
+    return [...skillCounts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 10)
+      .map(([skill, count]) => ({ skill, count }));
+  }, [selectedPortfolioDetail, portfolioItems]);
 
   const handleSelectPortfolio = (portfolioId) => {
     if (portfolioId === selectedPortfolioId) return;
@@ -311,27 +335,6 @@ const Portfolio = () => {
               </div>
 
               <div style={{ marginTop: '32px' }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '12px',
-                  }}
-                >
-                  <h2 style={{ margin: 0, fontSize: '20px', color: '#0f172a' }}>Summary</h2>
-                  {detailLoading && (
-                    <span style={{ fontSize: '12px', color: '#6b7280' }}>Loading details…</span>
-                  )}
-                </div>
-                {detailError ? (
-                  <p style={{ color: '#b91c1c', margin: 0 }}>{detailError}</p>
-                ) : (
-                  <p style={{ margin: 0, color: '#374151', lineHeight: 1.6 }}>{displaySummary}</p>
-                )}
-              </div>
-
-              <div style={{ marginTop: '32px' }}>
                 <h3 style={{ margin: 0, fontSize: '18px', color: '#0f172a' }}>Highlighted skills</h3>
                 {skillTags.length > 0 ? (
                   <div
@@ -377,44 +380,59 @@ const Portfolio = () => {
                     }}
                   >
                     {portfolioItems.map((item, idx) => (
-                      <div
-                        key={`portfolio-item-${idx}`}
-                        style={{
-                          borderRadius: '14px',
-                          border: '1px solid #e5e7eb',
-                          padding: '16px',
-                          backgroundColor: 'white',
-                        }}
-                      >
-                        <strong style={{ display: 'block', marginBottom: '6px', color: '#0f172a' }}>
-                          {item.title || item.project_name || `Item ${idx + 1}`}
-                        </strong>
-                        {item.text_summary && (
-                          <p style={{ margin: 0, color: '#374151', fontSize: '14px', lineHeight: 1.5 }}>
-                            {item.text_summary}
-                          </p>
-                        )}
-                        {item.tech_stack && (
-                          <p style={{ margin: '8px 0 0', color: '#6b7280', fontSize: '13px' }}>
-                            Tech stack: {item.tech_stack}
-                          </p>
-                        )}
-                        {item.skills_exercised && (
-                          <p style={{ margin: '6px 0 0', color: '#6b7280', fontSize: '13px' }}>
-                            Skills: {item.skills_exercised}
-                          </p>
-                        )}
-                        {item.quality_score !== undefined && (
-                          <p style={{ margin: '6px 0 0', color: '#6b7280', fontSize: '13px' }}>
-                            Quality score: {item.quality_score}
-                          </p>
-                        )}
-                        {item.sophistication_level && (
-                          <p style={{ margin: '6px 0 0', color: '#6b7280', fontSize: '13px' }}>
-                            Sophistication: {item.sophistication_level}
-                          </p>
-                        )}
-                      </div>
+                      (() => {
+                        const qualityScore =
+                          item.quality_score ?? item.project_statistics?.quality_score;
+                        const sophisticationLevel =
+                          item.sophistication_level ?? item.project_statistics?.sophistication_level;
+                        const techStack = Array.isArray(item.tech_stack)
+                          ? item.tech_stack.join(', ')
+                          : item.tech_stack;
+                        const skillsExercised = Array.isArray(item.skills_exercised)
+                          ? item.skills_exercised.join(', ')
+                          : item.skills_exercised;
+
+                        return (
+                          <div
+                            key={`portfolio-item-${idx}`}
+                            style={{
+                              borderRadius: '14px',
+                              border: '1px solid #e5e7eb',
+                              padding: '16px',
+                              backgroundColor: 'white',
+                            }}
+                          >
+                            <strong style={{ display: 'block', marginBottom: '6px', color: '#0f172a' }}>
+                              {item.title || item.project_name || `Item ${idx + 1}`}
+                            </strong>
+                            {item.text_summary && (
+                              <p style={{ margin: 0, color: '#374151', fontSize: '14px', lineHeight: 1.5 }}>
+                                {item.text_summary}
+                              </p>
+                            )}
+                            {techStack && (
+                              <p style={{ margin: '8px 0 0', color: '#6b7280', fontSize: '13px' }}>
+                                Tech stack: {techStack}
+                              </p>
+                            )}
+                            {skillsExercised && (
+                              <p style={{ margin: '6px 0 0', color: '#6b7280', fontSize: '13px' }}>
+                                Skills: {skillsExercised}
+                              </p>
+                            )}
+                            {qualityScore !== undefined && (
+                              <p style={{ margin: '6px 0 0', color: '#6b7280', fontSize: '13px' }}>
+                                Quality score: {qualityScore}
+                              </p>
+                            )}
+                            {sophisticationLevel && (
+                              <p style={{ margin: '6px 0 0', color: '#6b7280', fontSize: '13px' }}>
+                                Sophistication: {sophisticationLevel}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()
                     ))}
                   </div>
                 ) : (
@@ -482,6 +500,9 @@ const Portfolio = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {portfolios.map((portfolio) => {
                   const isActive = portfolio.analysis_uuid === selectedPortfolioId;
+                  const projectNames = Array.isArray(portfolio.project_names)
+                    ? portfolio.project_names.filter(Boolean)
+                    : [];
                   return (
                     <button
                       data-testid={`portfolio-card-${portfolio.analysis_uuid}`}
@@ -501,7 +522,7 @@ const Portfolio = () => {
                       }}
                     >
                       <span style={{ fontSize: '14px', fontWeight: '600', color: '#111827' }}>
-                        {portfolio.analysis_type?.toUpperCase() ?? 'LLM'}
+                        {projectNames.length > 0 ? projectNames.join(', ') : 'Unnamed project'}
                       </span>
                       <span style={{ fontSize: '13px', color: '#4b5563' }}>
                         {formatTimestamp(portfolio.analysis_timestamp)}
