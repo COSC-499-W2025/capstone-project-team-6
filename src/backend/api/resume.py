@@ -14,6 +14,8 @@ from backend.analysis_database import (add_items_to_user_resume,
                                        get_resume_items_for_project_id,
                                        get_user_resume, get_user_resume_items,
                                        list_user_resumes,
+                                       get_user_personal_info,
+                                       upsert_user_personal_info,
                                        update_user_resume_content)
 from backend.api.auth import verify_token
 
@@ -64,6 +66,8 @@ class StoredResumeUpdateRequest(BaseModel):
 class AddResumeItemsRequest(BaseModel):
     resume_item_ids: List[int]
 
+class PersonalInfoSaveRequest(BaseModel):
+    personal_info: Dict[str, str] = Field(default_factory=dict)
 
 class StoredResumeResponse(BaseModel):
     id: int
@@ -74,6 +78,15 @@ class StoredResumeResponse(BaseModel):
     created_at: str
     updated_at: str
 
+class PersonalInfoUpsertRequest(BaseModel):
+    personal_info: Dict[str, str] = Field(
+        ...,
+        description="Personal information (name, email, phone, location, linkedIn, github, website)",
+    )
+
+
+class PersonalInfoResponse(BaseModel):
+    personal_info: Optional[Dict[str, str]] = None
 
 def _append_markdown_bullets(content: str, bullets: List[str]) -> str:
     if not bullets:
@@ -158,6 +171,15 @@ def _merge_resume_content(base_content: str, generated_content: str) -> str:
     merged_lines = base_lines[:insert_idx] + [generated_projects, ""] + base_lines[insert_idx:]
     return "\n".join(merged_lines).rstrip() + "\n"
 
+@router.get("/resume/personal-info")
+async def get_personal_info(username: str = Depends(verify_token)):
+    return {"personal_info": get_user_personal_info(username)}
+
+
+@router.put("/resume/personal-info")
+async def save_personal_info(request: PersonalInfoSaveRequest, username: str = Depends(verify_token)):
+    upsert_user_personal_info(username, request.personal_info)
+    return {"ok": True}
 
 @router.post("/resume/generate", response_model=ResumeResponse)
 async def generate_resume(
@@ -305,6 +327,20 @@ async def list_stored_resumes(username: str = Depends(verify_token)):
         for row in rows
     ]
 
+@router.get("/resume/personal-info", response_model=PersonalInfoResponse)
+async def get_personal_info(username: str = Depends(verify_token)):
+    info = get_user_personal_info(username)
+    return PersonalInfoResponse(personal_info=info or None)
+
+
+@router.put("/resume/personal-info", response_model=PersonalInfoResponse)
+async def upsert_personal_info(
+    request: PersonalInfoUpsertRequest,
+    username: str = Depends(verify_token),
+):
+    upsert_user_personal_info(username, request.personal_info)
+    saved = get_user_personal_info(username)
+    return PersonalInfoResponse(personal_info=saved or None)
 
 @router.get("/resumes/{resume_id}", response_model=StoredResumeResponse)
 async def get_stored_resume(resume_id: int, username: str = Depends(verify_token)):

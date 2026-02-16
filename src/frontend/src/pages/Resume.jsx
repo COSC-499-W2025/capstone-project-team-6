@@ -42,6 +42,7 @@ const Resume = () => {
   useEffect(() => {
     loadProjects();
     loadStoredResumes();
+    loadPersonalInfo();
   }, []);
 
   const loadProjects = async () => {
@@ -69,6 +70,22 @@ const Resume = () => {
       console.error('Error loading stored resumes:', err);
     } finally {
       setStoredResumeLoading(false);
+    }
+  };
+
+  const loadPersonalInfo = async () => {
+    try {
+      const data = await resumeAPI.getPersonalInfo();
+      const saved = data?.personal_info || {};
+
+      if (saved && typeof saved === 'object') {
+        setPersonalInfo((prev) => ({
+          ...prev,
+          ...saved,
+        }));
+      }
+    } catch (err) {
+      console.error('Error loading personal info:', err);
     }
   };
 
