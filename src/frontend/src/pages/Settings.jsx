@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/Navigation';
-import { consentAPI } from '../services/api';
+import { consentAPI, resumeAPI } from '../services/api';
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -9,22 +9,60 @@ const Settings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Current saved value from DB
-  const [currentConsent, setCurrentConsent] = useState(null); // true/false when loaded
-
-  // What the toggle UI currently shows
+  // Consent
+  const [currentConsent, setCurrentConsent] = useState(null);
   const [toggleConsent, setToggleConsent] = useState(false);
-
-  // Confirmation modal state
   const [showConfirm, setShowConfirm] = useState(false);
-  const [pendingConsent, setPendingConsent] = useState(null); // the value user is trying to change to
+  const [pendingConsent, setPendingConsent] = useState(null);
 
   const [statusMsg, setStatusMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
+  // --- Personal Info state ---
+  const emptyPersonal = {
+    name: '',
+    email: '',
+    phone: '',
+    location: '',
+    linkedIn: '',
+    github: '',
+    website: '',
+  };
+
+  const [personalInfo, setPersonalInfo] = useState(emptyPersonal);
+
+  // what we loaded from DB last time (used to detect changes)
+  const [originalPersonalInfo, setOriginalPersonalInfo] = useState(emptyPersonal);
+
+  const [loadingPersonalInfo, setLoadingPersonalInfo] = useState(true);
+  const [savingPersonalInfo, setSavingPersonalInfo] = useState(false);
+
+  const [personalStatusMsg, setPersonalStatusMsg] = useState('');
+  const [personalErrorMsg, setPersonalErrorMsg] = useState('');
+
+  const normalize = (v) => (v || '').trim();
+
+  const infosEqual = (a, b) => {
+    const keys = Object.keys(emptyPersonal);
+    for (const k of keys) {
+      if (normalize(a[k]) !== normalize(b[k])) return false;
+    }
+    return true;
+  };
+
+  const hasPersonalChanges = !infosEqual(personalInfo, originalPersonalInfo);
+
+  const hasAnyPersonalInfoSaved = () => {
+    const values = Object.values(personalInfo || {});
+    for (let i = 0; i < values.length; i++) {
+      const v = (values[i] || '').toString().trim();
+      if (v.length > 0) return true;
+    }
+    return false;
+  };
+
   useEffect(() => {
     const loadConsent = async () => {
-      setLoading(true);
       setErrorMsg('');
       setStatusMsg('');
 
@@ -39,19 +77,55 @@ const Settings = () => {
           err?.response?.data?.detail ||
             'Failed to load your consent status. Please try again.'
         );
+      }
+    };
+
+    const loadPersonalInfo = async () => {
+      setLoadingPersonalInfo(true);
+      setPersonalErrorMsg('');
+      setPersonalStatusMsg('');
+
+      try {
+        const res = await resumeAPI.getPersonalInfo();
+        const info = res?.personal_info || {};
+
+        const loaded = {
+          name: info?.name || '',
+          email: info?.email || '',
+          phone: info?.phone || '',
+          location: info?.location || '',
+          linkedIn: info?.linkedIn || '',
+          github: info?.github || '',
+          website: info?.website || '',
+        };
+
+        setPersonalInfo(loaded);
+        setOriginalPersonalInfo(loaded);
+      } catch (err) {
+        setPersonalErrorMsg(
+          err?.response?.data?.detail ||
+            'Failed to load personal info. Please try again.'
+        );
+      } finally {
+        setLoadingPersonalInfo(false);
+      }
+    };
+
+    const loadAll = async () => {
+      setLoading(true);
+      try {
+        await Promise.all([loadConsent(), loadPersonalInfo()]);
       } finally {
         setLoading(false);
       }
     };
 
-    loadConsent();
+    loadAll();
   }, []);
 
   const consentLabel =
     currentConsent === null ? 'Unknown' : currentConsent ? 'Consented' : 'Not Consented';
 
-  // User clicks toggle => we DO NOT save immediately.
-  // We open confirmation modal first.
   const onToggleClick = () => {
     if (loading || saving || currentConsent === null) return;
 
@@ -61,7 +135,6 @@ const Settings = () => {
   };
 
   const onCancelChange = () => {
-    // Revert UI back to the saved value
     setToggleConsent(!!currentConsent);
     setPendingConsent(null);
     setShowConfirm(false);
@@ -78,13 +151,11 @@ const Settings = () => {
       const res = await consentAPI.saveConsent(pendingConsent);
       const updated = !!res?.has_consented;
 
-      // Save succeeded => reflect new saved state + UI
       setCurrentConsent(updated);
       setToggleConsent(updated);
 
       setStatusMsg(res?.message || 'Consent updated successfully.');
     } catch (err) {
-      // Save failed => revert UI back to saved state
       setToggleConsent(!!currentConsent);
 
       setErrorMsg(
@@ -97,7 +168,39 @@ const Settings = () => {
     }
   };
 
-  // A simple toggle switch (no external libs)
+  const onChangePersonalField = (key, value) => {
+    setPersonalInfo((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const onSavePersonalInfo = async () => {
+    setPersonalErrorMsg('');
+    setPersonalStatusMsg('');
+
+    // ✅ Nothing changed -> do nothing (and show no "saved" popup)
+    if (!hasPersonalChanges) return;
+
+    setSavingPersonalInfo(true);
+
+    try {
+      await resumeAPI.savePersonalInfo(personalInfo);
+
+      // ✅ Only show this because we *know* something changed
+      setPersonalStatusMsg('Personal info saved successfully.');
+
+      // ✅ mark the form as "clean" now
+      setOriginalPersonalInfo(personalInfo);
+    } catch (err) {
+      setPersonalErrorMsg(
+        err?.response?.data?.detail || 'Failed to save personal info. Please try again.'
+      );
+    } finally {
+      setSavingPersonalInfo(false);
+    }
+  };
+
   const Toggle = ({ checked, disabled, onClick }) => {
     return (
       <button
@@ -135,33 +238,43 @@ const Settings = () => {
     );
   };
 
-  // --- Shared styles to match your Projects/Dashboard look ---
-  const pageStyles = {
-    minHeight: '100vh',
-    backgroundColor: '#fafafa',
-  };
-
-  const containerStyles = {
-    maxWidth: '1100px',
-    margin: '0 auto',
-    padding: '48px 32px',
-  };
-
+  const pageStyles = { minHeight: '100vh', backgroundColor: '#fafafa' };
+  const containerStyles = { maxWidth: '1100px', margin: '0 auto', padding: '48px 32px' };
   const cardStyles = {
     backgroundColor: 'white',
     border: '1px solid #e5e5e5',
     borderRadius: '16px',
   };
-
   const secondaryText = { color: '#737373' };
   const headingText = { color: '#1a1a1a' };
+
+  const personalButtonLabel = hasAnyPersonalInfoSaved()
+    ? 'Update Personal Info'
+    : 'Save Personal Info';
+
+  const inputStyle = {
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: '10px',
+    border: '1px solid #e5e5e5',
+    outline: 'none',
+    fontSize: '14px',
+    backgroundColor: '#ffffff',
+  };
+
+  const labelStyle = {
+    fontSize: '13px',
+    color: '#374151',
+    fontWeight: 600,
+    marginBottom: '6px',
+  };
 
   return (
     <div style={pageStyles}>
       <Navigation />
 
       <div style={containerStyles}>
-        {/* Header (Dashboard-style) */}
+        {/* Header */}
         <div
           style={{
             marginBottom: '32px',
@@ -188,7 +301,6 @@ const Settings = () => {
             </p>
           </div>
 
-          {/* ✅ Exact same back button (copied style + hover handlers) */}
           <button
             onClick={() => navigate('/dashboard')}
             style={{
@@ -221,7 +333,7 @@ const Settings = () => {
         </div>
 
         {/* Consent Card */}
-        <div style={{ ...cardStyles, padding: '24px' }}>
+        <div style={{ ...cardStyles, padding: '24px', marginBottom: '20px' }}>
           <div
             style={{
               display: 'flex',
@@ -336,6 +448,210 @@ const Settings = () => {
               )}
             </div>
           </div>
+        </div>
+
+        {/* Personal Info Card */}
+        <div style={{ ...cardStyles, padding: '24px' }}>
+          {/* Header Row */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              gap: '16px',
+              flexWrap: 'wrap',
+              marginBottom: '18px',
+            }}
+          >
+            <div style={{ minWidth: '260px', flex: 1 }}>
+              <h2
+                style={{
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  color: '#1a1a1a',
+                  margin: '0 0 8px 0',
+                }}
+              >
+                Personal Information
+              </h2>
+              <p style={{ fontSize: '14px', color: '#666', margin: 0, lineHeight: 1.5 }}>
+                Save your personal details so Resume Generator can auto-fill them.
+              </p>
+
+              <div style={{ marginTop: '12px' }}>
+                <span
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    color: loadingPersonalInfo
+                      ? '#737373'
+                      : hasAnyPersonalInfoSaved()
+                      ? '#166534'
+                      : '#991b1b',
+                    backgroundColor: loadingPersonalInfo
+                      ? '#f5f5f5'
+                      : hasAnyPersonalInfoSaved()
+                      ? '#dcfce7'
+                      : '#fee2e2',
+                    padding: '4px 10px',
+                    borderRadius: '999px',
+                    border: '1px solid #e5e5e5',
+                    display: 'inline-block',
+                  }}
+                >
+                  {loadingPersonalInfo
+                    ? 'Loading…'
+                    : hasAnyPersonalInfoSaved()
+                    ? 'Saved'
+                    : 'Not saved yet'}
+                </span>
+              </div>
+            </div>
+
+            {/* Action Button */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={onSavePersonalInfo}
+                disabled={loadingPersonalInfo || savingPersonalInfo || !hasPersonalChanges}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '12px',
+                  border: '1px solid #e5e5e5',
+                  backgroundColor: '#111827',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  cursor:
+                    loadingPersonalInfo || savingPersonalInfo || !hasPersonalChanges
+                      ? 'not-allowed'
+                      : 'pointer',
+                  minWidth: '190px',
+                  transition: 'transform 0.05s ease',
+                }}
+                onMouseDown={(e) => {
+                  e.currentTarget.style.transform = 'scale(0.98)';
+                }}
+                onMouseUp={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              >
+                {savingPersonalInfo ? 'Saving…' : personalButtonLabel}
+              </button>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div style={{ height: '1px', backgroundColor: '#e5e5e5', marginBottom: '18px' }} />
+
+          {/* Form Grid */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+              gap: '14px',
+            }}
+          >
+            {/* Full Name (full width) */}
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div style={labelStyle}>Full Name</div>
+              <input
+                style={inputStyle}
+                value={personalInfo.name}
+                onChange={(e) => onChangePersonalField('name', e.target.value)}
+                placeholder="Full Name"
+                disabled={loadingPersonalInfo || savingPersonalInfo}
+              />
+            </div>
+
+            <div>
+              <div style={labelStyle}>Email</div>
+              <input
+                style={inputStyle}
+                value={personalInfo.email}
+                onChange={(e) => onChangePersonalField('email', e.target.value)}
+                placeholder="Email Address"
+                disabled={loadingPersonalInfo || savingPersonalInfo}
+              />
+            </div>
+
+            <div>
+              <div style={labelStyle}>Phone</div>
+              <input
+                style={inputStyle}
+                value={personalInfo.phone}
+                onChange={(e) => onChangePersonalField('phone', e.target.value)}
+                placeholder="Phone Number"
+                disabled={loadingPersonalInfo || savingPersonalInfo}
+              />
+            </div>
+
+            {/* Location (full width) */}
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div style={labelStyle}>Location</div>
+              <input
+                style={inputStyle}
+                value={personalInfo.location}
+                onChange={(e) => onChangePersonalField('location', e.target.value)}
+                placeholder="Location (e.g., City, State)"
+                disabled={loadingPersonalInfo || savingPersonalInfo}
+              />
+            </div>
+
+            <div>
+              <div style={labelStyle}>LinkedIn</div>
+              <input
+                style={inputStyle}
+                value={personalInfo.linkedIn}
+                onChange={(e) => onChangePersonalField('linkedIn', e.target.value)}
+                placeholder="LinkedIn URL"
+                disabled={loadingPersonalInfo || savingPersonalInfo}
+              />
+            </div>
+
+            <div>
+              <div style={labelStyle}>GitHub</div>
+              <input
+                style={inputStyle}
+                value={personalInfo.github}
+                onChange={(e) => onChangePersonalField('github', e.target.value)}
+                placeholder="GitHub URL"
+                disabled={loadingPersonalInfo || savingPersonalInfo}
+              />
+            </div>
+
+            {/* Website (full width) */}
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div style={labelStyle}>Website</div>
+              <input
+                style={inputStyle}
+                value={personalInfo.website}
+                onChange={(e) => onChangePersonalField('website', e.target.value)}
+                placeholder="Personal Website"
+                disabled={loadingPersonalInfo || savingPersonalInfo}
+              />
+            </div>
+          </div>
+
+          {/* Status messages */}
+          {(personalStatusMsg || personalErrorMsg) && (
+            <div
+              style={{
+                marginTop: '16px',
+                borderRadius: '12px',
+                padding: '12px 14px',
+                border: '1px solid #e5e5e5',
+                backgroundColor: personalErrorMsg ? '#fff1f2' : '#ecfeff',
+                color: personalErrorMsg ? '#991b1b' : '#0f766e',
+                fontSize: '13px',
+                lineHeight: 1.4,
+              }}
+            >
+              {personalErrorMsg || personalStatusMsg}
+            </div>
+          )}
         </div>
       </div>
 

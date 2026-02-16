@@ -70,6 +70,17 @@ def init_db() -> None:
             """
         )
 
+        # Per-user profile info (used for resume personal info autofill)
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_profile (
+                username TEXT PRIMARY KEY REFERENCES users(username) ON DELETE CASCADE,
+                personal_info_json TEXT,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS analyses (
@@ -1756,3 +1767,53 @@ def get_project_thumbnail(project_id: int) -> Optional[str]:
             (project_id,),
         ).fetchone()
         return row["thumbnail_image_path"] if row else None
+    
+def get_user_personal_info(username: str) -> Dict[str, str]:
+    if not username:
+        return {}
+
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT personal_info_json
+            FROM user_profile
+            WHERE username = ?
+            """,
+            (username,),
+        ).fetchone()
+
+        if not row or not row["personal_info_json"]:
+            return {}
+
+        try:
+            data = json.loads(row["personal_info_json"])
+            return data if isinstance(data, dict) else {}
+        except json.JSONDecodeError:
+            return {}
+
+
+def upsert_user_personal_info(username: str, personal_info: Dict[str, str]) -> None:
+    if not username:
+        raise ValueError("username is required")
+
+    cleaned: Dict[str, str] = {}
+    for k, v in (personal_info or {}).items():
+        if v is None:
+            continue
+        cleaned[str(k)] = str(v).strip()
+
+    with get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+        conn.execute("INSERT OR IGNORE INTO users (username) VALUES (?)", (username,))
+
+        conn.execute(
+            """
+            INSERT INTO user_profile (username, personal_info_json)
+            VALUES (?, ?)
+            ON CONFLICT(username) DO UPDATE SET
+                personal_info_json = excluded.personal_info_json,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (username, json.dumps(cleaned, separators=(",", ":"))),
+        )
+        conn.commit()

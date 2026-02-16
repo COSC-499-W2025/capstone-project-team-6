@@ -193,6 +193,28 @@ export const resumeAPI = {
     });
     return response.data;
   },
+
+  getPersonalInfo: async () => {
+    const response = await api.get('/resume/personal-info');
+    return response.data;
+  },
+
+  savePersonalInfo: async (personalInfo) => {
+    const response = await api.put('/resume/personal-info', { personal_info: personalInfo });
+    return response.data;
+  },
+
+  getPersonalInfo: async () => {
+    const response = await api.get('/resume/personal-info');
+    return response.data;
+  },
+
+  savePersonalInfo: async (personalInfo) => {
+    const response = await api.put('/resume/personal-info', {
+      personal_info: personalInfo,
+    });
+    return response.data;
+  },
 };
 
 // Curation API calls
