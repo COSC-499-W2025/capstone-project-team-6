@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
-import { projectsAPI } from './services/api';
+import { projectsAPI, resumeAPI } from './services/api';
 import Navigation from './components/Navigation';
 
 export default function ProjectsPage() {
@@ -13,10 +13,26 @@ export default function ProjectsPage() {
   const [detailsLoading, setDetailsLoading] = useState(false); // loading resume/portfolio details
   const [error, setError] = useState('');
   const [deletingAll, setDeletingAll] = useState(false);
+  const [storedResumes, setStoredResumes] = useState([]);
+  const [selectedResumeId, setSelectedResumeId] = useState('');
+  const [selectedResumeItemIds, setSelectedResumeItemIds] = useState([]);
+  const [addingItems, setAddingItems] = useState(false);
 
+  // Filter state
+  const [filters, setFilters] = useState({
+    searchTerm: '',
+    language: 'all',
+    hasTests: 'all',
+    sortBy: 'date', // date, name, language, files
+  });
 
   // track per-project delete loading
   const [deletingIds, setDeletingIds] = useState({}); // { [projectId]: true/false }
+
+  // track per-project thumbnail state
+  const [thumbnailUrls, setThumbnailUrls] = useState({}); // { [projectId]: url or null }
+  const [thumbnailLoading, setThumbnailLoading] = useState({}); // { [projectId]: true/false }
+  const [thumbnailErrors, setThumbnailErrors] = useState({}); // { [projectId]: error message }
 
   useEffect(() => {
     console.log('ProjectsPage - Auth status:', { isAuthenticated, user });
@@ -36,15 +52,41 @@ export default function ProjectsPage() {
         console.log('Fetching projects...');
         const baseProjects = await projectsAPI.getProjects();
         console.log('Projects received:', baseProjects);
+        console.log('First project:', baseProjects[0]);
+        if (baseProjects[0]) {
+          console.log('Composite ID fields:', {
+            composite_id: baseProjects[0].composite_id,
+            analysis_uuid: baseProjects[0].analysis_uuid,
+            project_path: baseProjects[0].project_path,
+          });
+        }
+
+        // Ensure we have an array - API returns {username, total_projects, projects: [...]}
+        // But tests may return a plain array
+        const projectsArray = Array.isArray(baseProjects?.projects) 
+          ? baseProjects.projects 
+          : Array.isArray(baseProjects) 
+            ? baseProjects 
+            : [];
 
         // Put base projects on screen ASAP
         // Add placeholders for details so UI doesn't explode
-        const withPlaceholders = baseProjects.map((p) => ({
-          ...p,
-          resume_items: null,
-          portfolio: null,
-          details_error: null,
-        }));
+        const withPlaceholders = projectsArray.map((p) => {
+          // Construct composite_id if not provided but we have the parts
+          // Note: project_path can be empty string "" or null for projects at root level
+          let compositeId = p.composite_id;
+          if (!compositeId && p.analysis_uuid) {
+            const projectPath = p.project_path ?? '';
+            compositeId = `${p.analysis_uuid}:${projectPath}`;
+          }
+          return {
+            ...p,
+            composite_id: compositeId,
+            resume_items: null,
+            portfolio: null,
+            details_error: null,
+          };
+        });
         setProjects(withPlaceholders);
 
         // Now fetch details (resume + portfolio) for each project
@@ -88,7 +130,49 @@ export default function ProjectsPage() {
     }
 
     loadProjectsAndDetails();
+    loadStoredResumes();
   }, [isAuthenticated, navigate, user]);
+
+  const loadStoredResumes = async () => {
+    try {
+      const data = await resumeAPI.listStoredResumes();
+      setStoredResumes(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Error loading stored resumes:', err);
+    }
+  };
+
+  const toggleResumeItemSelection = (itemId) => {
+    setSelectedResumeItemIds((prev) => {
+      if (prev.includes(itemId)) {
+        return prev.filter((id) => id !== itemId);
+      }
+      return [...prev, itemId];
+    });
+  };
+
+  const handleAddSelectedItems = async () => {
+    if (!selectedResumeId) {
+      setError('Select a stored resume to add bullets.');
+      return;
+    }
+    if (selectedResumeItemIds.length === 0) {
+      setError('Select at least one bullet to add.');
+      return;
+    }
+
+    try {
+      setAddingItems(true);
+      setError('');
+      await resumeAPI.addItemsToResume(selectedResumeId, selectedResumeItemIds);
+      setSelectedResumeItemIds([]);
+    } catch (err) {
+      console.error('Error adding bullets:', err);
+      setError(err.response?.data?.detail || 'Failed to add bullets to resume');
+    } finally {
+      setAddingItems(false);
+    }
+  };
 
   async function handleDeleteProject(projectId, projectName) {
     const name = projectName || 'this project';
@@ -141,6 +225,173 @@ export default function ProjectsPage() {
       setDeletingAll(false);
     }
   }  
+
+  // Filter and sort projects
+  const getFilteredAndSortedProjects = () => {
+    let filtered = projects.filter((p) => {
+      // Search term filter
+      if (filters.searchTerm) {
+        const searchLower = filters.searchTerm.toLowerCase();
+        const nameMatch = p.project_name?.toLowerCase().includes(searchLower);
+        const langMatch = p.primary_language?.toLowerCase().includes(searchLower);
+        if (!nameMatch && !langMatch) return false;
+      }
+
+      // Language filter
+      if (filters.language !== 'all' && p.primary_language !== filters.language) {
+        return false;
+      }
+
+      // Test filter
+      if (filters.hasTests === 'yes' && !p.has_tests) return false;
+      if (filters.hasTests === 'no' && p.has_tests) return false;
+
+      return true;
+    });
+
+    // Sort
+    filtered.sort((a, b) => {
+      switch (filters.sortBy) {
+        case 'name':
+          return (a.project_name || '').localeCompare(b.project_name || '');
+        case 'language':
+          return (a.primary_language || '').localeCompare(b.primary_language || '');
+        case 'files':
+          return (b.total_files || 0) - (a.total_files || 0);
+        case 'date':
+        default:
+          const dateA = a.last_modified_date || '';
+          const dateB = b.last_modified_date || '';
+          return dateB.localeCompare(dateA); // Newest first
+      }
+    });
+
+    return filtered;
+  };
+
+  const filteredProjects = getFilteredAndSortedProjects();
+
+  // Get unique languages for filter dropdown
+  const uniqueLanguages = [...new Set(projects.map(p => p.primary_language).filter(Boolean))].sort();
+  async function handleThumbnailUpload(projectId, compositeId, file) {
+    if (!file) return;
+
+    // Use composite_id for API calls (format: {analysis_uuid}:{project_path})
+    const apiId = compositeId || projectId;
+
+    // Check if we have a valid composite ID format
+    if (!apiId || !String(apiId).includes(':')) {
+      console.error('Invalid composite_id for thumbnail upload:', { projectId, compositeId, apiId });
+      setThumbnailErrors((prev) => ({
+        ...prev,
+        [projectId]: 'Unable to upload: missing project identifier. Please refresh the page.'
+      }));
+      return;
+    }
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setThumbnailErrors((prev) => ({ ...prev, [projectId]: 'Please select a valid image (JPG, PNG, GIF, or WebP)' }));
+      return;
+    }
+
+    // Validate file size (5MB max)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setThumbnailErrors((prev) => ({ ...prev, [projectId]: 'Image must be less than 5MB' }));
+      return;
+    }
+
+    setThumbnailLoading((prev) => ({ ...prev, [projectId]: true }));
+    setThumbnailErrors((prev) => ({ ...prev, [projectId]: null }));
+
+    try {
+      await projectsAPI.uploadThumbnail(apiId, file);
+      // Fetch the new thumbnail as blob
+      const blobUrl = await projectsAPI.getThumbnail(apiId);
+      setThumbnailUrls((prev) => {
+        // Revoke old blob URL to prevent memory leak
+        if (prev[projectId]) {
+          URL.revokeObjectURL(prev[projectId]);
+        }
+        return { ...prev, [projectId]: blobUrl };
+      });
+    } catch (e) {
+      console.error('Thumbnail upload failed:', e);
+      // FastAPI 422 returns detail as array of error objects, not a string
+      let msg = 'Failed to upload thumbnail';
+      const detail = e?.response?.data?.detail;
+      if (typeof detail === 'string') {
+        msg = detail;
+      } else if (Array.isArray(detail) && detail.length > 0) {
+        msg = detail[0]?.msg || msg;
+      } else if (e?.message) {
+        msg = e.message;
+      }
+      setThumbnailErrors((prev) => ({ ...prev, [projectId]: msg }));
+    } finally {
+      setThumbnailLoading((prev) => ({ ...prev, [projectId]: false }));
+    }
+  }
+
+  // Load thumbnails when projects load
+  useEffect(() => {
+    if (projects.length === 0) return;
+
+    let isCancelled = false;
+    const loadedUrls = [];
+
+    async function loadThumbnails() {
+      const results = await Promise.all(
+        projects.map(async (p) => {
+          const thumbnailId = p.composite_id || p.id;
+          if (!thumbnailId) return { id: p.id, url: null };
+
+          try {
+            const blobUrl = await projectsAPI.getThumbnail(thumbnailId);
+            loadedUrls.push(blobUrl);
+            return { id: p.id, url: blobUrl };
+          } catch (e) {
+            return { id: p.id, url: null };
+          }
+        })
+      );
+
+      if (!isCancelled) {
+        const urlMap = {};
+        results.forEach(({ id, url }) => {
+          urlMap[id] = url;
+        });
+        setThumbnailUrls(urlMap);
+      }
+    }
+
+    loadThumbnails();
+
+    // Cleanup: revoke blob URLs when component unmounts or projects change
+    return () => {
+      isCancelled = true;
+      loadedUrls.forEach((url) => {
+        if (url) URL.revokeObjectURL(url);
+      });
+    };
+  }, [projects]);
+
+  // Keep a ref to thumbnailUrls for cleanup on unmount
+  const thumbnailUrlsRef = useRef(thumbnailUrls);
+  useEffect(() => {
+    thumbnailUrlsRef.current = thumbnailUrls;
+  }, [thumbnailUrls]);
+
+  // Cleanup all blob URLs on component unmount only
+  useEffect(() => {
+    return () => {
+      Object.values(thumbnailUrlsRef.current).forEach((url) => {
+        if (url) URL.revokeObjectURL(url);
+      });
+    };
+  }, []);
 
   // --- Shared styles to match Dashboard look ---
   const pageStyles = {
@@ -195,35 +446,79 @@ export default function ProjectsPage() {
             </p>
           </div>
 
-          <button
-            onClick={() => navigate('/dashboard')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '10px 20px',
-              backgroundColor: 'white',
-              color: '#1a1a1a',
-              border: '1px solid #e5e5e5',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-              transition: 'all 0.2s',
-              whiteSpace: 'nowrap',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#f5f5f5';
-              e.currentTarget.style.borderColor = '#d4d4d4';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'white';
-              e.currentTarget.style.borderColor = '#e5e5e5';
-            }}
-          >
-            <span style={{ opacity: 0.8 }}>←</span>
-            <span>Back to Dashboard</span>
-          </button>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <select
+              value={selectedResumeId || ''}
+              onChange={(e) => setSelectedResumeId(e.target.value)}
+              style={{
+                padding: '8px 12px',
+                fontSize: '14px',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                backgroundColor: 'white',
+                minWidth: '220px',
+              }}
+            >
+              <option value="">Select stored resume</option>
+              {storedResumes.map((resume) => (
+                <option key={resume.id} value={resume.id}>
+                  {resume.title}
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={handleAddSelectedItems}
+              disabled={addingItems}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 14px',
+                backgroundColor: '#2563eb',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                transition: 'all 0.2s',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {addingItems ? 'Adding...' : 'Add selected bullets'}
+            </button>
+
+            <button
+              onClick={() => navigate('/dashboard')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 20px',
+                backgroundColor: 'white',
+                color: '#1a1a1a',
+                border: '1px solid #e5e5e5',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                transition: 'all 0.2s',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f5f5f5';
+                e.currentTarget.style.borderColor = '#d4d4d4';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'white';
+                e.currentTarget.style.borderColor = '#e5e5e5';
+              }}
+            >
+              <span style={{ opacity: 0.8 }}>←</span>
+              <span>Back to Dashboard</span>
+            </button>
+          </div>
         </div>
 
         {/* Top stat card (Dashboard-style) */}
@@ -270,6 +565,139 @@ export default function ProjectsPage() {
 
           <div style={{ fontSize: '18px', opacity: 0.35 }}>📁</div>
         </div>
+
+        {/* Filter Bar */}
+        {!loading && projects.length > 0 && (
+          <div
+            style={{
+              ...cardStyles,
+              padding: '20px',
+              marginBottom: '24px',
+            }}
+          >
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+              {/* Search input */}
+              <input
+                type="text"
+                placeholder="Search projects by name or language..."
+                value={filters.searchTerm}
+                onChange={(e) => setFilters({ ...filters, searchTerm: e.target.value })}
+                style={{
+                  flex: '1 1 250px',
+                  padding: '10px 14px',
+                  fontSize: '14px',
+                  border: '1px solid #e5e5e5',
+                  borderRadius: '8px',
+                  outline: 'none',
+                  transition: 'border-color 0.2s',
+                }}
+                onFocus={(e) => (e.currentTarget.style.borderColor = '#a3a3a3')}
+                onBlur={(e) => (e.currentTarget.style.borderColor = '#e5e5e5')}
+              />
+
+              {/* Language filter */}
+              <select
+                value={filters.language}
+                onChange={(e) => setFilters({ ...filters, language: e.target.value })}
+                style={{
+                  padding: '10px 14px',
+                  fontSize: '14px',
+                  border: '1px solid #e5e5e5',
+                  borderRadius: '8px',
+                  backgroundColor: 'white',
+                  cursor: 'pointer',
+                  outline: 'none',
+                }}
+              >
+                <option value="all">All Languages</option>
+                {uniqueLanguages.map((lang) => (
+                  <option key={lang} value={lang}>
+                    {lang}
+                  </option>
+                ))}
+              </select>
+
+              {/* Test filter */}
+              <select
+                value={filters.hasTests}
+                onChange={(e) => setFilters({ ...filters, hasTests: e.target.value })}
+                style={{
+                  padding: '10px 14px',
+                  fontSize: '14px',
+                  border: '1px solid #e5e5e5',
+                  borderRadius: '8px',
+                  backgroundColor: 'white',
+                  cursor: 'pointer',
+                  outline: 'none',
+                }}
+              >
+                <option value="all">All Projects</option>
+                <option value="yes">With Tests</option>
+                <option value="no">Without Tests</option>
+              </select>
+
+              {/* Sort dropdown */}
+              <select
+                value={filters.sortBy}
+                onChange={(e) => setFilters({ ...filters, sortBy: e.target.value })}
+                style={{
+                  padding: '10px 14px',
+                  fontSize: '14px',
+                  border: '1px solid #e5e5e5',
+                  borderRadius: '8px',
+                  backgroundColor: 'white',
+                  cursor: 'pointer',
+                  outline: 'none',
+                }}
+              >
+                <option value="date">Sort by Date</option>
+                <option value="name">Sort by Name</option>
+                <option value="language">Sort by Language</option>
+                <option value="files">Sort by File Count</option>
+              </select>
+
+              {/* Clear filters button */}
+              {(filters.searchTerm || filters.language !== 'all' || filters.hasTests !== 'all' || filters.sortBy !== 'date') && (
+                <button
+                  onClick={() =>
+                    setFilters({
+                      searchTerm: '',
+                      language: 'all',
+                      hasTests: 'all',
+                      sortBy: 'date',
+                    })
+                  }
+                  style={{
+                    padding: '10px 14px',
+                    fontSize: '13px',
+                    fontWeight: '500',
+                    border: '1px solid #e5e5e5',
+                    borderRadius: '8px',
+                    backgroundColor: 'white',
+                    color: '#737373',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#f5f5f5';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'white';
+                  }}
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
+
+            {/* Filter results info */}
+            {filteredProjects.length < projects.length && (
+              <div style={{ marginTop: '12px', fontSize: '13px', color: '#737373' }}>
+                Showing {filteredProjects.length} of {projects.length} projects
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Loading */}
         {loading && (
@@ -342,58 +770,104 @@ export default function ProjectsPage() {
         {/* Projects list */}
         {!loading && !error && projects.length > 0 && (
           <div>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: '12px',
-                margin: '0 0 16px 0',
-              }}
-            >
-              <p
+            {filteredProjects.length === 0 ? (
+              <div
                 style={{
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  margin: 0,
-                  ...headingText,
+                  ...cardStyles,
+                  padding: '40px',
+                  textAlign: 'center',
                 }}
               >
-                Found project(s)
-              </p>
+                <p style={{ fontSize: '18px', ...secondaryText, margin: 0 }}>
+                  No projects match your filters.
+                </p>
+                <button
+                  onClick={() =>
+                    setFilters({
+                      searchTerm: '',
+                      language: 'all',
+                      hasTests: 'all',
+                      sortBy: 'date',
+                    })
+                  }
+                  style={{
+                    marginTop: '16px',
+                    padding: '10px 20px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#1a1a1a',
+                    backgroundColor: 'white',
+                    border: '1px solid #e5e5e5',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#f5f5f5';
+                    e.currentTarget.style.borderColor = '#d4d4d4';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'white';
+                    e.currentTarget.style.borderColor = '#e5e5e5';
+                  }}
+                >
+                  Clear Filters
+                </button>
+              </div>
+            ) : (
+              <>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: '12px',
+                    margin: '0 0 16px 0',
+                  }}
+                >
+                  <p
+                    style={{
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      margin: 0,
+                      ...headingText,
+                    }}
+                  >
+                    Found project(s)
+                  </p>
 
-              <button
-                disabled={deletingAll}
-                onClick={handleDeleteAllProjects}
-                style={{
-                  padding: '10px 14px',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  borderRadius: '10px',
-                  cursor: deletingAll ? 'not-allowed' : 'pointer',
-                  border: '1px solid #fecaca',
-                  backgroundColor: '#fee2e2',
-                  color: '#991b1b',
-                  transition: 'all 0.2s',
-                  whiteSpace: 'nowrap',
-                }}
-                onMouseEnter={(e) => {
-                  if (deletingAll) return;
-                  e.currentTarget.style.backgroundColor = '#fecaca';
-                  e.currentTarget.style.borderColor = '#fca5a5';
-                }}
-                onMouseLeave={(e) => {
-                  if (deletingAll) return;
-                  e.currentTarget.style.backgroundColor = '#fee2e2';
-                  e.currentTarget.style.borderColor = '#fecaca';
-                }}
-              >
-                {deletingAll ? 'Deleting all…' : 'Delete all projects'}
-              </button>
-            </div>
-            
-            <div style={{ display: 'grid', gap: '20px' }}>
-              {projects.map((p) => {
+                  <button
+                    disabled={deletingAll}
+                    onClick={handleDeleteAllProjects}
+                    style={{
+                      padding: '10px 14px',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      borderRadius: '10px',
+                      cursor: deletingAll ? 'not-allowed' : 'pointer',
+                      border: '1px solid #fecaca',
+                      backgroundColor: '#fee2e2',
+                      color: '#991b1b',
+                      transition: 'all 0.2s',
+                      whiteSpace: 'nowrap',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (deletingAll) return;
+                      e.currentTarget.style.backgroundColor = '#fecaca';
+                      e.currentTarget.style.borderColor = '#fca5a5';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (deletingAll) return;
+                      e.currentTarget.style.backgroundColor = '#fee2e2';
+                      e.currentTarget.style.borderColor = '#fecaca';
+                    }}
+                  >
+                    {deletingAll ? 'Deleting all…' : 'Delete all projects'}
+                  </button>
+                </div>
+
+                <div style={{ display: 'grid', gap: '20px' }}>
+                  {filteredProjects.map((p) => {
                 const isDeleting = !!deletingIds[p.id];
 
                 return (
@@ -454,7 +928,97 @@ export default function ProjectsPage() {
                       </div>
 
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px' }}>
-                        <div style={{ fontSize: '18px', opacity: 0.3 }}>📦</div>
+                        {/* Thumbnail upload area */}
+                        <div style={{ position: 'relative' }}>
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/gif,image/webp"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleThumbnailUpload(p.id, p.composite_id, file);
+                              e.target.value = ''; // Reset input
+                            }}
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              width: '100%',
+                              height: '100%',
+                              opacity: 0,
+                              cursor: 'pointer',
+                              zIndex: 2,
+                            }}
+                            disabled={thumbnailLoading[p.id]}
+                          />
+                          <div
+                            style={{
+                              width: '80px',
+                              height: '80px',
+                              borderRadius: '12px',
+                              border: '2px dashed #d4d4d4',
+                              backgroundColor: '#fafafa',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              overflow: 'hidden',
+                              transition: 'all 0.2s',
+                              cursor: 'pointer',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.borderColor = '#a3a3a3';
+                              e.currentTarget.style.backgroundColor = '#f5f5f5';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.borderColor = '#d4d4d4';
+                              e.currentTarget.style.backgroundColor = '#fafafa';
+                            }}
+                          >
+                            {thumbnailLoading[p.id] ? (
+                              <span style={{ fontSize: '12px', color: '#737373' }}>Uploading...</span>
+                            ) : thumbnailUrls[p.id] ? (
+                              <img
+                                src={thumbnailUrls[p.id]}
+                                alt={`${p.project_name || 'Project'} thumbnail`}
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  objectFit: 'cover',
+                                }}
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  color: '#a3a3a3',
+                                  fontSize: '10px',
+                                  textAlign: 'center',
+                                  pointerEvents: 'none',
+                                }}
+                              >
+                                <span style={{ fontSize: '20px' }}>📷</span>
+                                <span>Add image</span>
+                              </div>
+                            )}
+                          </div>
+                          {thumbnailErrors[p.id] && (
+                            <div
+                              style={{
+                                position: 'absolute',
+                                top: '100%',
+                                right: 0,
+                                marginTop: '4px',
+                                fontSize: '11px',
+                                color: '#B91C1C',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {thumbnailErrors[p.id]}
+                            </div>
+                          )}
+                        </div>
 
                         {/* Delete button */}
                         <button
@@ -554,7 +1118,15 @@ export default function ProjectsPage() {
                         <ul style={{ margin: 0, paddingLeft: '18px', color: '#262626' }}>
                           {p.resume_items.map((ri) => (
                             <li key={ri.id} style={{ marginBottom: '6px', lineHeight: 1.45 }}>
-                              {ri.resume_text}
+                              <label style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedResumeItemIds.includes(ri.id)}
+                                  onChange={() => toggleResumeItemSelection(ri.id)}
+                                  style={{ marginTop: '3px' }}
+                                />
+                                <span>{ri.resume_text}</span>
+                              </label>
                             </li>
                           ))}
                         </ul>
@@ -568,6 +1140,8 @@ export default function ProjectsPage() {
                 );
               })}
             </div>
+              </>
+            )}
           </div>
         )}
       </div>

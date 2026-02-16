@@ -27,6 +27,7 @@ from backend.analysis_database import record_analysis
 # Import routers from modular API structure
 from backend.api.analysis import router as analysis_router
 from backend.api.auth import router as auth_router
+from backend.api.curation import router as curation_router
 from backend.api.health import router as health_router
 from backend.api.portfolios import router as portfolios_router
 from backend.api.projects import router as projects_router
@@ -163,6 +164,7 @@ async def signup(credentials: UserCredentials):
         from backend.database import UserAlreadyExistsError
 
         create_user(credentials.username, credentials.password)
+        save_user_consent(credentials.username, False)  # Initial consent = false
         token = create_access_token(credentials.username)
 
         return TokenResponse(
@@ -526,15 +528,8 @@ async def root():
     }
 
 
-@app.get("/api/projects")
-async def list_projects(username: str = Depends(verify_token)) -> List[Dict[str, Any]]:
-    try:
-        return get_projects_for_user(username)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve projects: {str(e)}",
-        )
+# NOTE: /api/projects endpoint moved to backend/api/projects.py
+# Uses get_user_projects() which includes composite_id for thumbnail API
 
 
 @app.get("/api/projects/{project_id}/resume-items")
@@ -589,6 +584,7 @@ app.include_router(projects_router)
 app.include_router(analysis_router)
 app.include_router(resume_router)
 app.include_router(tasks_router)
+app.include_router(curation_router)
 
 
 @app.delete("/api/projects/{project_id}")

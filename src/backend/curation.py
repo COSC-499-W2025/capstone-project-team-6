@@ -161,6 +161,7 @@ def get_user_projects(user_id: str) -> List[Dict[str, Any]]:
             SELECT p.*,
                    a.analysis_timestamp,
                    a.zip_file,
+                   a.analysis_uuid AS analysis_uuid,
                    -- Use corrections if available, otherwise original values
                    COALESCE(pcc.last_commit_date, p.last_commit_date) as effective_last_commit_date,
                    COALESCE(pcc.last_modified_date, p.last_modified_date) as effective_last_modified_date,
@@ -178,6 +179,14 @@ def get_user_projects(user_id: str) -> List[Dict[str, Any]]:
         projects = []
         for row in rows:
             project = dict(row)
+
+            # Add composite ID for thumbnail API (format: {analysis_uuid}:{project_path})
+            # Note: project_path can be empty string "" or None for projects at root level
+            analysis_uuid = project.get("analysis_uuid")
+            project_path = project.get("project_path") or ""
+
+            if analysis_uuid:
+                project["composite_id"] = f"{analysis_uuid}:{project_path}"
 
             # Add language and framework info
             languages = conn.execute(
@@ -509,6 +518,7 @@ def get_showcase_projects(user_id: str) -> List[Dict[str, Any]]:
             SELECT p.*,
                    a.analysis_timestamp,
                    a.zip_file,
+                   a.analysis_uuid AS analysis_uuid,
                    COALESCE(pcc.last_commit_date, p.last_commit_date) as effective_last_commit_date,
                    COALESCE(pcc.last_modified_date, p.last_modified_date) as effective_last_modified_date,
                    COALESCE(pcc.project_start_date, p.project_start_date) as effective_project_start_date,
@@ -517,7 +527,7 @@ def get_showcase_projects(user_id: str) -> List[Dict[str, Any]]:
             JOIN analyses a ON a.id = p.analysis_id
             LEFT JOIN project_chronology_corrections pcc ON pcc.project_id = p.id AND pcc.user_id = ?
             WHERE p.id IN ({placeholders})
-            ORDER BY 
+            ORDER BY
                 CASE p.id {" ".join(f"WHEN {pid} THEN {i}" for i, pid in enumerate(settings.showcase_project_ids))} END
         """
 
@@ -538,7 +548,7 @@ def get_showcase_projects(user_id: str) -> List[Dict[str, Any]]:
 
             frameworks = conn.execute(
                 """
-                SELECT framework FROM project_frameworks 
+                SELECT framework FROM project_frameworks
                 WHERE project_id = ? ORDER BY framework
             """,
                 (project["id"],),
@@ -546,6 +556,12 @@ def get_showcase_projects(user_id: str) -> List[Dict[str, Any]]:
 
             project["languages"] = {lang["language"]: lang["file_count"] for lang in languages}
             project["frameworks"] = [fw["framework"] for fw in frameworks]
+
+            # Add composite ID for thumbnail API (format: {analysis_uuid}:{project_path})
+            analysis_uuid = project.get("analysis_uuid")
+            project_path = project.get("project_path") or ""
+            if analysis_uuid:
+                project["composite_id"] = f"{analysis_uuid}:{project_path}"
 
             projects.append(project)
 
@@ -616,3 +632,112 @@ def format_project_comparison(projects: List[Dict[str, Any]], user_id: str) -> s
         lines.append(row)
 
     return "\n".join(lines)
+
+
+def save_curated_role(user_id: str, project_id: int, curated_role: str) -> bool:
+    """
+    Save user's curated role for a specific project.
+
+    Args:
+        user_id: User identifier
+        project_id: Project identifier
+        curated_role: The user-curated role name
+
+    Returns:
+        bool: True if saved successfully
+    """
+    try:
+        with db.get_connection() as conn:
+            conn.execute("PRAGMA foreign_keys = ON;")
+
+            # Update the curated_role in the projects table
+            # First verify the user owns this project
+            result = conn.execute(
+                """SELECT p.id FROM projects p 
+                   JOIN analyses a ON p.analysis_id = a.id 
+                   WHERE p.id = ? AND a.username = ?""",
+                (project_id, user_id),
+            ).fetchone()
+
+            if not result:
+                print(f"Project {project_id} not found or not owned by user {user_id}")
+                return False
+
+            # Update curated role
+            conn.execute("UPDATE projects SET curated_role = ? WHERE id = ?", (curated_role, project_id))
+
+            conn.commit()
+            return True
+
+    except Exception as e:
+        print(f"Error saving curated role: {e}")
+        return False
+
+
+def get_curated_role(user_id: str, project_id: int) -> Optional[str]:
+    """
+    Get user's curated role for a specific project.
+
+    Args:
+        user_id: User identifier
+        project_id: Project identifier
+
+    Returns:
+        The curated role string, or None if not set
+    """
+    try:
+        with db.get_connection() as conn:
+            result = conn.execute(
+                """SELECT p.curated_role FROM projects p 
+                   JOIN analyses a ON p.analysis_id = a.id 
+                   WHERE p.id = ? AND a.username = ?""",
+                (project_id, user_id),
+            ).fetchone()
+
+            return result[0] if result and result[0] else None
+
+    except Exception as e:
+        print(f"Error getting curated role: {e}")
+        return None
+
+
+def get_user_projects_with_roles(user_id: str) -> List[Dict[str, Any]]:
+    """
+    Get user's projects with both predicted and curated roles.
+
+    Args:
+        user_id: User identifier
+
+    Returns:
+        List of project dictionaries with role information
+    """
+    try:
+        with db.get_connection() as conn:
+            rows = conn.execute(
+                """SELECT p.id, p.project_name, p.predicted_role, p.predicted_role_confidence, 
+                          p.curated_role, p.role_prediction_data
+                   FROM projects p 
+                   JOIN analyses a ON p.analysis_id = a.id 
+                   WHERE a.username = ?
+                   ORDER BY p.project_name""",
+                (user_id,),
+            ).fetchall()
+
+            projects = []
+            for row in rows:
+                projects.append(
+                    {
+                        "id": row["id"],
+                        "project_name": row["project_name"],
+                        "predicted_role": row["predicted_role"],
+                        "predicted_role_confidence": row["predicted_role_confidence"],
+                        "curated_role": row["curated_role"],
+                        "role_prediction_data": row["role_prediction_data"],
+                    }
+                )
+
+            return projects
+
+    except Exception as e:
+        print(f"Error getting user projects with roles: {e}")
+        return []
