@@ -101,9 +101,7 @@ def _migrate_user_consent(conn: sqlite3.Connection) -> None:
         return  # Table doesn't exist yet, CREATE TABLE will create it
     columns = [row[1] for row in cursor.fetchall()]
     if "has_consented" not in columns:
-        conn.execute(
-            "ALTER TABLE user_consent ADD COLUMN has_consented BOOLEAN NOT NULL DEFAULT 0"
-        )
+        conn.execute("ALTER TABLE user_consent ADD COLUMN has_consented BOOLEAN NOT NULL DEFAULT 0")
     if "consent_date" not in columns:
         conn.execute("ALTER TABLE user_consent ADD COLUMN consent_date TEXT")
 

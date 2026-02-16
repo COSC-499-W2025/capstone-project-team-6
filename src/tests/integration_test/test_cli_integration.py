@@ -283,9 +283,7 @@ class TestCLIAnalyzeFlow:
         valid_dir = tmp_path / "valid_dir"
         valid_dir.mkdir()
 
-        with patch("sys.argv", ["cli", "analyze", str(valid_dir), "--all"]), patch(
-            "sys.stdout", new=StringIO()
-        ) as fake_out:
+        with patch("sys.argv", ["cli", "analyze", str(valid_dir), "--all"]), patch("sys.stdout", new=StringIO()) as fake_out:
             result = main()
             output = fake_out.getvalue()
 
@@ -336,9 +334,7 @@ class TestCLIEnhancedRankingIntegration:
     the feature doesn't produce output in the test environment.
     """
 
-    @pytest.mark.skip(
-        reason="Enhanced ranking requires git/contribution data; minimal test project may not trigger it"
-    )
+    @pytest.mark.skip(reason="Enhanced ranking requires git/contribution data; minimal test project may not trigger it")
     def test_analyze_displays_enhanced_ranking_section(self, isolated_test_env, temp_session_file, test_directory):
         """Test that analyze command displays enhanced ranking section with all metrics."""
         # Setup: Create user with consent and session
@@ -375,9 +371,7 @@ class TestCLIEnhancedRankingIntegration:
             assert "Collaboration Diversity:" in output
             assert "Activity Duration:" in output
 
-    @pytest.mark.skip(
-        reason="Enhanced ranking requires git/contribution data; minimal test project may not trigger it"
-    )
+    @pytest.mark.skip(reason="Enhanced ranking requires git/contribution data; minimal test project may not trigger it")
     def test_analyze_displays_composite_score_and_category(self, isolated_test_env, temp_session_file, test_directory):
         """Test that analyze command displays composite score and project category."""
         # Setup: Create user with consent and session
@@ -405,9 +399,7 @@ class TestCLIEnhancedRankingIntegration:
             category_keywords = ["Flagship", "Major", "Standard", "Minor", "Minimal", "Portfolio Filler"]
             assert any(keyword in output for keyword in category_keywords)
 
-    @pytest.mark.skip(
-        reason="Enhanced ranking requires git/contribution data; minimal test project may not trigger it"
-    )
+    @pytest.mark.skip(reason="Enhanced ranking requires git/contribution data; minimal test project may not trigger it")
     def test_analyze_displays_score_breakdown_with_weights(self, isolated_test_env, temp_session_file, test_directory):
         """Test that analyze command shows score breakdown with proper weight categories."""
         # Setup: Create user with consent and session
@@ -433,9 +425,7 @@ class TestCLIEnhancedRankingIntegration:
             # Verify score breakdown section exists
             assert "Score Breakdown:" in output
 
-    @pytest.mark.skip(
-        reason="Enhanced ranking requires git/contribution data; minimal test project may not trigger it"
-    )
+    @pytest.mark.skip(reason="Enhanced ranking requires git/contribution data; minimal test project may not trigger it")
     def test_analyze_displays_enhanced_ranking_details(self, isolated_test_env, temp_session_file, test_directory):
         """Test that analyze command shows enhanced ranking justifications."""
         # Setup: Create user with consent and session
@@ -496,9 +486,7 @@ class TestCLIEndToEndWorkflow:
             assert "[*] Analyzing" in fake_out.getvalue()
             assert "Analysis complete" in fake_out.getvalue()
 
-    @pytest.mark.skip(
-        reason="Enhanced ranking requires git/contribution data; minimal test project may not trigger it"
-    )
+    @pytest.mark.skip(reason="Enhanced ranking requires git/contribution data; minimal test project may not trigger it")
     def test_complete_workflow_with_enhanced_ranking_display(self, isolated_test_env, temp_session_file, test_directory):
         """Test complete workflow verifying enhanced ranking is displayed in analyze output."""
         # Step 1: Signup with consent
