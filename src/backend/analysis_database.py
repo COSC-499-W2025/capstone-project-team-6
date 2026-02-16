@@ -1767,7 +1767,8 @@ def get_project_thumbnail(project_id: int) -> Optional[str]:
             (project_id,),
         ).fetchone()
         return row["thumbnail_image_path"] if row else None
-    
+
+
 def get_user_personal_info(username: str) -> Dict[str, str]:
     if not username:
         return {}
