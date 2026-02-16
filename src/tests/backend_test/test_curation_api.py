@@ -54,17 +54,17 @@ def setup_test_db(tmp_path, monkeypatch):
 @pytest.fixture
 def client():
     """Create an authenticated test client for the FastAPI app."""
-    from backend.api_server import app
     from backend.api.auth import verify_token
+    from backend.api_server import app
 
     # Override the dependency to return a mock username (string, not dict)
     def mock_verify_token():
         return "test_user"
-    
+
     app.dependency_overrides[verify_token] = mock_verify_token
-    
+
     yield TestClient(app)
-    
+
     # Clean up
     app.dependency_overrides.clear()
 
@@ -73,6 +73,7 @@ def client():
 def unauthenticated_client():
     """Create an unauthenticated test client (no auth override)."""
     from backend.api_server import app
+
     return TestClient(app)
 
 
@@ -93,7 +94,7 @@ def mock_verify_token():
 def sample_user_and_projects():
     """Create a sample user with projects."""
     user_id = "test_user"
-    
+
     # Create user
     with db.get_connection() as conn:
         conn.execute("PRAGMA foreign_keys = ON;")
@@ -153,9 +154,9 @@ def sample_user_and_projects():
                 ),
             )
             projects.append(cursor.lastrowid)
-        
+
         conn.commit()
-    
+
     return {"user_id": user_id, "project_ids": projects}
 
 
@@ -173,7 +174,7 @@ class TestCurationSettingsAPI:
             "/api/curation/settings",
             headers={"Authorization": "Bearer test_token"},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "comparison_attributes" in data
@@ -197,12 +198,12 @@ class TestCurationProjectsAPI:
             "/api/curation/projects",
             headers={"Authorization": "Bearer test_token"},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
         assert len(data) == 3
-        
+
         # Check project structure
         project = data[0]
         assert "id" in project
@@ -224,7 +225,7 @@ class TestShowcaseAPI:
             "/api/curation/showcase",
             headers={"Authorization": "Bearer test_token"},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         # GET /skills returns all available skills (not user's highlighted skills)
@@ -233,13 +234,13 @@ class TestShowcaseAPI:
     def test_save_showcase_success(self, client, sample_user_and_projects):
         """Test successfully saving showcase projects."""
         project_ids = sample_user_and_projects["project_ids"]
-        
+
         response = client.post(
             "/api/curation/showcase",
             headers={"Authorization": "Bearer test_token"},
             json={"project_ids": [project_ids[0], project_ids[1]]},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["success"] == True
@@ -247,34 +248,34 @@ class TestShowcaseAPI:
     def test_save_showcase_max_three(self, client, sample_user_and_projects):
         """Test that showcase is limited to 3 projects."""
         project_ids = sample_user_and_projects["project_ids"]
-        
+
         # Try to save more than 3
         response = client.post(
             "/api/curation/showcase",
             headers={"Authorization": "Bearer test_token"},
             json={"project_ids": project_ids + [999]},  # 4 projects
         )
-        
+
         # Pydantic validation returns 422 for field validation errors
         assert response.status_code == 422
 
     def test_get_showcase_after_save(self, client, sample_user_and_projects):
         """Test getting showcase after saving."""
         project_ids = sample_user_and_projects["project_ids"]
-        
+
         # Save showcase
         client.post(
             "/api/curation/showcase",
             headers={"Authorization": "Bearer test_token"},
             json={"project_ids": [project_ids[0]]},
         )
-        
+
         # Get showcase - returns full project objects, not just IDs
         response = client.get(
             "/api/curation/showcase",
             headers={"Authorization": "Bearer test_token"},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
@@ -296,7 +297,7 @@ class TestAttributesAPI:
             "/api/curation/attributes",
             headers={"Authorization": "Bearer test_token"},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
@@ -310,7 +311,7 @@ class TestAttributesAPI:
             headers={"Authorization": "Bearer test_token"},
             json={"attributes": ["total_files", "has_tests", "primary_language"]},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["success"] == True
@@ -322,7 +323,7 @@ class TestAttributesAPI:
             headers={"Authorization": "Bearer test_token"},
             json={"attributes": ["invalid_attribute"]},
         )
-        
+
         assert response.status_code == 400
 
 
@@ -340,7 +341,7 @@ class TestSkillsAPI:
             "/api/curation/skills",
             headers={"Authorization": "Bearer test_token"},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         # GET /skills returns all available skills (not user's highlighted skills)
@@ -353,7 +354,7 @@ class TestSkillsAPI:
             headers={"Authorization": "Bearer test_token"},
             json={"skills": ["Python", "JavaScript", "React", "FastAPI"]},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["success"] == True
@@ -361,20 +362,20 @@ class TestSkillsAPI:
     def test_save_skills_max_ten(self, client, sample_user_and_projects):
         """Test that skills are limited to 10."""
         skills = [f"Skill{i}" for i in range(11)]
-        
+
         response = client.post(
             "/api/curation/skills",
             headers={"Authorization": "Bearer test_token"},
             json={"skills": skills},
         )
-        
+
         # Pydantic validation returns 422 for field validation errors
         assert response.status_code == 422
 
     def test_get_skills_after_save(self, client, sample_user_and_projects):
         """Test getting skills after saving user's highlighted skills."""
         skills = ["Python", "JavaScript"]
-        
+
         # Save skills
         save_response = client.post(
             "/api/curation/skills",
@@ -382,13 +383,13 @@ class TestSkillsAPI:
             json={"skills": skills},
         )
         assert save_response.status_code == 200
-        
+
         # Get settings to verify skills were saved (not from GET /skills which returns all available)
         response = client.get(
             "/api/curation/settings",
             headers={"Authorization": "Bearer test_token"},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "highlighted_skills" in data
@@ -402,7 +403,7 @@ class TestChronologyAPI:
     def test_save_chronology_success(self, client, sample_user_and_projects):
         """Test successfully saving chronology correction."""
         project_id = sample_user_and_projects["project_ids"][0]
-        
+
         response = client.post(
             "/api/curation/chronology",
             headers={"Authorization": "Bearer test_token"},
@@ -414,7 +415,7 @@ class TestChronologyAPI:
                 "project_end_date": "2024-01-31",
             },
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["success"] == True
@@ -422,7 +423,7 @@ class TestChronologyAPI:
     def test_save_chronology_partial_dates(self, client, sample_user_and_projects):
         """Test saving chronology with only some dates."""
         project_id = sample_user_and_projects["project_ids"][0]
-        
+
         response = client.post(
             "/api/curation/chronology",
             headers={"Authorization": "Bearer test_token"},
@@ -431,7 +432,7 @@ class TestChronologyAPI:
                 "last_commit_date": "2024-01-15",
             },
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["success"] == True
@@ -445,13 +446,13 @@ class TestProjectOrderAPI:
         project_ids = sample_user_and_projects["project_ids"]
         # Reverse the order
         reversed_order = list(reversed(project_ids))
-        
+
         response = client.post(
             "/api/curation/order",
             headers={"Authorization": "Bearer test_token"},
             json={"project_ids": reversed_order},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["success"] == True
@@ -463,7 +464,7 @@ class TestProjectOrderAPI:
             headers={"Authorization": "Bearer test_token"},
             json={"project_ids": []},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["success"] == True
@@ -476,12 +477,12 @@ class TestIntegrationWorkflow:
         """Test a complete curation workflow through the API."""
         headers = {"Authorization": "Bearer test_token"}
         project_ids = sample_user_and_projects["project_ids"]
-        
+
         # 1. Get initial settings
         response = client.get("/api/curation/settings", headers=headers)
         assert response.status_code == 200
         initial_settings = response.json()
-        
+
         # 2. Set showcase projects
         response = client.post(
             "/api/curation/showcase",
@@ -489,7 +490,7 @@ class TestIntegrationWorkflow:
             json={"project_ids": [project_ids[0], project_ids[1]]},
         )
         assert response.status_code == 200
-        
+
         # 3. Set comparison attributes
         response = client.post(
             "/api/curation/attributes",
@@ -497,7 +498,7 @@ class TestIntegrationWorkflow:
             json={"attributes": ["total_files", "has_tests", "primary_language"]},
         )
         assert response.status_code == 200
-        
+
         # 4. Set highlighted skills
         response = client.post(
             "/api/curation/skills",
@@ -505,7 +506,7 @@ class TestIntegrationWorkflow:
             json={"skills": ["Python", "React", "PostgreSQL"]},
         )
         assert response.status_code == 200
-        
+
         # 5. Set project order
         response = client.post(
             "/api/curation/order",
@@ -513,7 +514,7 @@ class TestIntegrationWorkflow:
             json={"project_ids": project_ids[::-1]},  # Reversed
         )
         assert response.status_code == 200
-        
+
         # 6. Save chronology for a project
         response = client.post(
             "/api/curation/chronology",
@@ -524,12 +525,12 @@ class TestIntegrationWorkflow:
             },
         )
         assert response.status_code == 200
-        
+
         # 7. Verify all settings were saved
         response = client.get("/api/curation/settings", headers=headers)
         assert response.status_code == 200
         final_settings = response.json()
-        
+
         assert len(final_settings["showcase_project_ids"]) == 2
         assert len(final_settings["comparison_attributes"]) == 3
         assert len(final_settings["highlighted_skills"]) == 3
