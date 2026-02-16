@@ -95,14 +95,44 @@ def test_complete_rewrite(base_project):
 def test_process_incremental_mixed():
     """Test processing with added, updated, and skipped projects."""
     existing = [
-        {"project_path": "project_a", "metadata": {"total_lines_of_code": 1000}},
-        {"project_path": "project_b", "metadata": {"total_lines_of_code": 500}},
+        {
+            "project_path": "project_a",
+            "code_files": 10,
+            "total_files": 15,
+            "total_commits": 50,
+            "languages": {"python": 80, "javascript": 20},
+        },
+        {
+            "project_path": "project_b",
+            "code_files": 5,
+            "total_files": 8,
+            "total_commits": 20,
+            "languages": {"python": 100},
+        },
     ]
 
     new = [
-        {"project_path": "project_a", "metadata": {"total_lines_of_code": 1050}},  # Minor change
-        {"project_path": "project_b", "metadata": {"total_lines_of_code": 2000}},  # Major change
-        {"project_path": "project_c", "metadata": {"total_lines_of_code": 800}},  # New project
+        {
+            "project_path": "project_a",
+            "code_files": 11,  # Minor change: +1 file
+            "total_files": 16,
+            "total_commits": 52,  # Minor change: +2 commits
+            "languages": {"python": 80, "javascript": 20},
+        },
+        {
+            "project_path": "project_b",
+            "code_files": 20,  # Major change: 5 -> 20 files (300% increase)
+            "total_files": 30,
+            "total_commits": 100,  # Major change: 20 -> 100 commits (400% increase)
+            "languages": {"python": 70, "typescript": 30},  # New language
+        },
+        {
+            "project_path": "project_c",
+            "code_files": 8,
+            "total_files": 12,
+            "total_commits": 30,
+            "languages": {"javascript": 100},
+        },
     ]
 
     result = process_incremental_projects(existing, new, 50.0)
@@ -149,8 +179,22 @@ def test_no_new_projects():
 
 def test_custom_threshold_50():
     """Test with 50% threshold - should skip 30% change."""
-    existing = [{"project_path": "project_a", "metadata": {"total_lines_of_code": 1000}}]
-    new = [{"project_path": "project_a", "metadata": {"total_lines_of_code": 1300}}]  # 30% change
+    existing = [
+        {
+            "project_path": "project_a",
+            "code_files": 10,
+            "total_files": 15,
+            "total_commits": 100,
+        }
+    ]
+    new = [
+        {
+            "project_path": "project_a",
+            "code_files": 13,  # 30% change
+            "total_files": 19,  # ~27% change
+            "total_commits": 130,  # 30% change
+        }
+    ]
 
     result = process_incremental_projects(existing, new, change_threshold=50.0)
 
@@ -160,8 +204,22 @@ def test_custom_threshold_50():
 
 def test_custom_threshold_20():
     """Test with 20% threshold - should update 30% change."""
-    existing = [{"project_path": "project_a", "metadata": {"total_lines_of_code": 1000}}]
-    new = [{"project_path": "project_a", "metadata": {"total_lines_of_code": 1300}}]  # 30% change
+    existing = [
+        {
+            "project_path": "project_a",
+            "code_files": 10,
+            "total_files": 15,
+            "total_commits": 100,
+        }
+    ]
+    new = [
+        {
+            "project_path": "project_a",
+            "code_files": 13,  # 30% change
+            "total_files": 19,  # ~27% change
+            "total_commits": 130,  # 30% change
+        }
+    ]
 
     result = process_incremental_projects(existing, new, change_threshold=20.0)
 
@@ -175,29 +233,22 @@ def test_change_percentage_details():
         {
             "project_path": "project_a",
             "languages": {"python": 100},
-            "metadata": {
-                "total_lines_of_code": 1000,
-                "files": {
-                    "code": {"python": [{"path": "main.py"}]},
-                    "summary": {"code_files": 1, "doc_files": 1, "test_files": 1},
-                },
-            },
+            "code_files": 1,
+            "total_files": 3,
+            "test_files": 1,
+            "doc_files": 1,
+            "total_commits": 50,
         }
     ]
     new = [
         {
             "project_path": "project_a",
             "languages": {"python": 80, "javascript": 20},  # Added language
-            "metadata": {
-                "total_lines_of_code": 2000,  # Doubled
-                "files": {
-                    "code": {
-                        "python": [{"path": "main.py"}, {"path": "utils.py"}],  # More files
-                        "javascript": [{"path": "app.js"}],
-                    },
-                    "summary": {"code_files": 3, "doc_files": 2, "test_files": 3},  # More files
-                },
-            },
+            "code_files": 3,  # Tripled
+            "total_files": 8,  # More than doubled
+            "test_files": 3,  # Tripled
+            "doc_files": 2,  # Doubled
+            "total_commits": 150,  # Tripled
         }
     ]
 
@@ -212,17 +263,17 @@ def test_change_percentage_details():
 def test_multiple_updates_and_adds():
     """Test scenario with multiple updates and additions."""
     existing = [
-        {"project_path": "proj1", "metadata": {"total_lines_of_code": 1000}},
-        {"project_path": "proj2", "metadata": {"total_lines_of_code": 500}},
-        {"project_path": "proj3", "metadata": {"total_lines_of_code": 750}},
+        {"project_path": "proj1", "code_files": 10, "total_files": 15, "total_commits": 50},
+        {"project_path": "proj2", "code_files": 5, "total_files": 8, "total_commits": 20},
+        {"project_path": "proj3", "code_files": 7, "total_files": 10, "total_commits": 30},
     ]
 
     new = [
-        {"project_path": "proj1", "metadata": {"total_lines_of_code": 3000}},  # Major update
-        {"project_path": "proj2", "metadata": {"total_lines_of_code": 520}},  # Minor update
-        {"project_path": "proj3", "metadata": {"total_lines_of_code": 2500}},  # Major update
-        {"project_path": "proj4", "metadata": {"total_lines_of_code": 600}},  # New
-        {"project_path": "proj5", "metadata": {"total_lines_of_code": 800}},  # New
+        {"project_path": "proj1", "code_files": 30, "total_files": 45, "total_commits": 150},  # Major update (3x)
+        {"project_path": "proj2", "code_files": 6, "total_files": 9, "total_commits": 22},  # Minor update (~10%)
+        {"project_path": "proj3", "code_files": 25, "total_files": 35, "total_commits": 120},  # Major update (3-4x)
+        {"project_path": "proj4", "code_files": 6, "total_files": 10, "total_commits": 25},  # New
+        {"project_path": "proj5", "code_files": 8, "total_files": 12, "total_commits": 35},  # New
     ]
 
     result = process_incremental_projects(existing, new, 50.0)
