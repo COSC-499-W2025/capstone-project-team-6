@@ -38,8 +38,7 @@ const Dashboard = () => {
         // Calculate total lines of code
         let totalLines = 0;
         projects.forEach(project => {
-          const metadata = project.metadata || {};
-          totalLines += metadata.total_lines || 0;
+          totalLines += project.total_lines || 0;
         });
 
         setStats({
