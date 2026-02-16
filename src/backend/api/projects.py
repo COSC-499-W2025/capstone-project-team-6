@@ -123,14 +123,14 @@ async def upload_project_alias(username: str = Depends(verify_token)):
 @router.get("/skills")
 async def get_aggregated_skills(username: str = Depends(verify_token)):
     """Get aggregated skills across all projects for authenticated user."""
-    from ..analysis_database import db
+    from ..analysis_database import get_connection
 
     projects = get_user_projects(username)
 
     # Aggregate skills from project_skills table
     skills_map: Dict[str, Dict[str, Any]] = {}
 
-    with db.get_connection() as conn:
+    with get_connection() as conn:
         for project in projects:
             project_id = project.get("id")
             project_name = project.get("project_name") or project.get("name", "Unknown")
