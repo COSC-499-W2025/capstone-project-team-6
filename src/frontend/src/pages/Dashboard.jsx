@@ -12,7 +12,7 @@ const Dashboard = () => {
   const [stats, setStats] = useState({
     totalProjects: 0,
     analyzedProjects: 0,
-    totalLinesOfCode: 0,
+    totalFiles: 0,
     skillsDetected: 0,
     aiAnalyzedProjects: 0,
   });
@@ -35,16 +35,16 @@ const Dashboard = () => {
           .filter(p => p.analysis_type === 'llm')
           .reduce((sum, p) => sum + (p.total_projects || 0), 0);
 
-        // Calculate total lines of code
-        let totalLines = 0;
+        // Calculate total files across all projects
+        let totalFiles = 0;
         projects.forEach(project => {
-          totalLines += project.total_lines || 0;
+          totalFiles += project.total_files || 0;
         });
 
         setStats({
           totalProjects: projects.length,
           analyzedProjects: projects.length,
-          totalLinesOfCode: totalLines,
+          totalFiles: totalFiles,
           skillsDetected: totalSkills,
           aiAnalyzedProjects: aiAnalyzedCount,
         });
@@ -261,7 +261,7 @@ const Dashboard = () => {
                 color: '#737373',
                 margin: 0,
               }}>
-                Total Lines of Code
+                Total Files
               </h3>
               <span style={{
                 fontSize: '18px',
@@ -275,7 +275,7 @@ const Dashboard = () => {
               margin: 0,
               letterSpacing: '-1px'
             }}>
-              {stats.totalLinesOfCode.toLocaleString()}
+              {stats.totalFiles.toLocaleString()}
             </p>
           </div>
 
