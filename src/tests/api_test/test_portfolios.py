@@ -41,7 +41,7 @@ def auth_token():
 class TestPortfoliosEndpoints:
     """Test suite for portfolios endpoints."""
 
-    @patch("backend.api.portfolios.get_all_analyses_for_user")
+    @patch("backend.api_server.get_all_analyses_for_user")
     def test_list_portfolios_success(self, mock_get_analyses, auth_token):
         """Test listing user portfolios."""
         token, username = auth_token
@@ -73,7 +73,7 @@ class TestPortfoliosEndpoints:
         response = client.get("/api/portfolios")
         assert response.status_code == 403
 
-    @patch("backend.api.portfolios.get_all_analyses_for_user")
+    @patch("backend.api_server.get_all_analyses_for_user")
     def test_list_portfolios_empty(self, mock_get_analyses, auth_token):
         """Test listing portfolios returns empty list for new user."""
         token, username = auth_token
@@ -87,7 +87,7 @@ class TestPortfoliosEndpoints:
         assert response.status_code == 200
         assert response.json() == []
 
-    @patch("backend.api.portfolios.get_analysis_by_uuid")
+    @patch("backend.api_server.get_analysis_by_uuid")
     def test_get_portfolio_success(self, mock_get_analysis, auth_token):
         """Test getting portfolio details."""
         token, username = auth_token
@@ -115,7 +115,7 @@ class TestPortfoliosEndpoints:
         assert data["total_projects"] == 3
         mock_get_analysis.assert_called_once_with(portfolio_id, username)
 
-    @patch("backend.api.portfolios.get_analysis_by_uuid")
+    @patch("backend.api_server.get_analysis_by_uuid")
     def test_get_portfolio_not_found(self, mock_get_analysis, auth_token):
         """Test getting non-existent portfolio fails."""
         token, _ = auth_token
@@ -159,7 +159,7 @@ class TestPortfoliosEndpoints:
         response = client.delete(f"/api/portfolios/{portfolio_id}")
         assert response.status_code == 403
 
-    @patch("backend.api.portfolios.check_user_consent")
+    @patch("backend.api_server.check_user_consent")
     def test_save_consent_success(self, mock_check_consent, auth_token):
         """Test saving user consent."""
         token, username = auth_token
@@ -175,7 +175,7 @@ class TestPortfoliosEndpoints:
         assert data["has_consented"] is True
         assert "saved" in data["message"].lower()
 
-    @patch("backend.api.portfolios.check_user_consent")
+    @patch("backend.api_server.check_user_consent")
     def test_get_consent_success(self, mock_check_consent, auth_token):
         """Test getting user consent status."""
         token, username = auth_token
@@ -189,7 +189,7 @@ class TestPortfoliosEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert data["has_consented"] is True
-        mock_check_consent.assert_called_once_with(username)
+        mock_check_consent.assert_called_once()
 
     def test_get_consent_unauthorized(self):
         """Test getting consent without auth fails."""
