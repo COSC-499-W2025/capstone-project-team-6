@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { consentAPI } from '../../services/api';
 
 const LoginPage = () => {
   const [username, setUsername] = useState('');
@@ -20,17 +19,7 @@ const LoginPage = () => {
     const result = await login(username, password);
 
     if (result.success) {
-      try {
-        const consentData = await consentAPI.getConsent();
-        if (consentData.has_consented) {
-          navigate('/dashboard');
-        } else {
-          navigate('/consent');
-        }
-      } catch (err) {
-        console.error('Error checking consent:', err);
-        navigate('/consent');
-      }
+      navigate('/dashboard');
     } else {
       setError(result.error);
     }
