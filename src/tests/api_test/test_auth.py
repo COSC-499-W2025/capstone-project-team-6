@@ -46,6 +46,24 @@ class TestAuthEndpoints:
         assert "access_token" in data
         assert data["token_type"] == "Bearer"
 
+    def test_signup_creates_consent_record_false(self):
+        """Test signup creates consent record with has_consented=False."""
+        test_username = f"testuser_{uuid.uuid4().hex[:8]}"
+
+        signup_response = client.post(
+            "/api/auth/signup",
+            json={"username": test_username, "password": "password123"},
+        )
+        assert signup_response.status_code == 201
+        token = signup_response.json()["access_token"]
+
+        consent_response = client.get(
+            "/api/user/consent",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert consent_response.status_code == 200
+        assert consent_response.json()["has_consented"] is False
+
     def test_signup_duplicate_username(self):
         """Test signup with existing username fails."""
         test_username = f"testuser_{uuid.uuid4().hex[:8]}"

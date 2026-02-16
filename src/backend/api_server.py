@@ -163,6 +163,7 @@ async def signup(credentials: UserCredentials):
         from backend.database import UserAlreadyExistsError
 
         create_user(credentials.username, credentials.password)
+        save_user_consent(credentials.username, False)  # Initial consent = false
         token = create_access_token(credentials.username)
 
         return TokenResponse(

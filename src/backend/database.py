@@ -89,7 +89,23 @@ def init_db() -> None:
             );
             """
         )
+        _migrate_user_consent(conn)
         conn.commit()
+
+
+def _migrate_user_consent(conn: sqlite3.Connection) -> None:
+    """Add has_consented/consent_date columns if missing (backward compatibility)."""
+    try:
+        cursor = conn.execute("PRAGMA table_info(user_consent)")
+    except sqlite3.OperationalError:
+        return  # Table doesn't exist yet, CREATE TABLE will create it
+    columns = [row[1] for row in cursor.fetchall()]
+    if "has_consented" not in columns:
+        conn.execute(
+            "ALTER TABLE user_consent ADD COLUMN has_consented BOOLEAN NOT NULL DEFAULT 0"
+        )
+    if "consent_date" not in columns:
+        conn.execute("ALTER TABLE user_consent ADD COLUMN consent_date TEXT")
 
 
 def reset_db() -> None:
