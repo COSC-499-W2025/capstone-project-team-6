@@ -123,22 +123,31 @@ async def upload_project_alias(username: str = Depends(verify_token)):
 @router.get("/skills")
 async def get_aggregated_skills(username: str = Depends(verify_token)):
     """Get aggregated skills across all projects for authenticated user."""
+    from ..analysis_database import get_connection
+
     projects = get_user_projects(username)
 
-    # Aggregate skills
+    # Aggregate skills from project_skills table
     skills_map: Dict[str, Dict[str, Any]] = {}
 
-    for project in projects:
-        metadata = project.get("metadata", {})
-        project_skills = metadata.get("skills", [])
-        project_name = project.get("name", "Unknown")
+    with get_connection() as conn:
+        for project in projects:
+            project_id = project.get("id")
+            project_name = project.get("project_name") or project.get("name", "Unknown")
 
-        for skill in project_skills:
-            if skill not in skills_map:
-                skills_map[skill] = {"skill": skill, "count": 0, "projects": []}
-            skills_map[skill]["count"] += 1
-            if project_name not in skills_map[skill]["projects"]:
-                skills_map[skill]["projects"].append(project_name)
+            # Fetch skills from project_skills table
+            skills_rows = conn.execute(
+                "SELECT skill FROM project_skills WHERE project_id = ?",
+                (project_id,)
+            ).fetchall()
+
+            for row in skills_rows:
+                skill = row["skill"]
+                if skill not in skills_map:
+                    skills_map[skill] = {"skill": skill, "count": 0, "projects": []}
+                skills_map[skill]["count"] += 1
+                if project_name not in skills_map[skill]["projects"]:
+                    skills_map[skill]["projects"].append(project_name)
 
     # Convert to list and sort by count
     skills_list = sorted(
