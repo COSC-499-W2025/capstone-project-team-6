@@ -8,8 +8,9 @@ from typing import Any, Dict
 def calculate_project_change_percentage(old_project: Dict[str, Any], new_project: Dict[str, Any]) -> float:
     """Calculate the percentage of changes between two project versions."""
     import logging
+
     logger = logging.getLogger(__name__)
-    
+
     total_checks = 0
     changes = 0
 
@@ -28,12 +29,12 @@ def calculate_project_change_percentage(old_project: Dict[str, Any], new_project
     # Compare code ownership if available
     old_ownership = old_project.get("code_ownership", [])
     new_ownership = new_project.get("code_ownership", [])
-    
+
     if old_ownership or new_ownership:
         total_checks += 1
         old_files = {item.get("path") for item in old_ownership if isinstance(item, dict)}
         new_files = {item.get("path") for item in new_ownership if isinstance(item, dict)}
-        
+
         if old_files and new_files:
             intersection = len(old_files & new_files)
             union = len(old_files | new_files)
@@ -46,12 +47,12 @@ def calculate_project_change_percentage(old_project: Dict[str, Any], new_project
     # Compare blame summary (contributor lines)
     old_blame = old_project.get("blame_summary", {})
     new_blame = new_project.get("blame_summary", {})
-    
+
     if old_blame or new_blame:
         total_checks += 1
         old_total = sum(v for v in old_blame.values() if isinstance(v, (int, float)))
         new_total = sum(v for v in new_blame.values() if isinstance(v, (int, float)))
-        
+
         if old_total or new_total:
             max_total = max(old_total, new_total)
             if max_total > 0:
@@ -61,12 +62,12 @@ def calculate_project_change_percentage(old_project: Dict[str, Any], new_project
     # Compare activity breakdown
     old_activity = old_project.get("activity_breakdown", {})
     new_activity = new_project.get("activity_breakdown", {})
-    
+
     if old_activity or new_activity:
         total_checks += 1
         old_contributors = set(old_activity.keys())
         new_contributors = set(new_activity.keys())
-        
+
         if old_contributors and new_contributors:
             contributor_intersection = len(old_contributors & new_contributors)
             contributor_union = len(old_contributors | new_contributors)
@@ -94,7 +95,7 @@ def calculate_project_change_percentage(old_project: Dict[str, Any], new_project
     # Compare commit counts
     old_commits = old_project.get("total_commits", 0)
     new_commits = new_project.get("total_commits", 0)
-    
+
     if old_commits or new_commits:
         total_checks += 1
         max_commits = max(old_commits, new_commits)
@@ -105,7 +106,7 @@ def calculate_project_change_percentage(old_project: Dict[str, Any], new_project
     # Compare branch counts
     old_branches = old_project.get("branch_count", 0)
     new_branches = new_project.get("branch_count", 0)
-    
+
     if old_branches or new_branches:
         total_checks += 1
         max_branches = max(old_branches, new_branches)
@@ -155,21 +156,22 @@ def process_incremental_projects(existing_projects: list, new_projects: list, ch
         - skipped_projects: List of skipped projects with change details
     """
     import logging
+
     logger = logging.getLogger(__name__)
-    
+
     # Build a map of existing projects for quick lookup
     # Use project_path as primary key, but also track by project_name for fallback matching
     existing_by_path = {}
     existing_by_name = {}
-    
+
     for i, p in enumerate(existing_projects):
         path = p.get("project_path") or ""
         name = p.get("project_name") or p.get("name", "")
-        
+
         # Only map by path if it's not empty
         if path:
             existing_by_path[path] = i
-        
+
         # Map by name for fallback
         if name:
             existing_by_name[name] = i
@@ -184,29 +186,29 @@ def process_incremental_projects(existing_projects: list, new_projects: list, ch
     for new_project in new_projects:
         project_path = new_project.get("project_path") or ""
         project_name = new_project.get("project_name") or new_project.get("name", "")
-        
+
         # Try to find a match - first by path, then by name
         existing_index = None
         match_type = None
-        
+
         if project_path and project_path in existing_by_path:
             existing_index = existing_by_path[project_path]
             match_type = "path"
         elif project_name and project_name in existing_by_name:
             existing_index = existing_by_name[project_name]
             match_type = "name"
-        
+
         if existing_index is not None:
             # Project exists, check for changes
             old_project = merged_projects[existing_index]
-            
+
             logger.info(f"Matching project '{project_name}' (path: '{project_path}') by {match_type}")
             logger.info(f"  Old project metadata keys: {list(old_project.get('metadata', {}).keys())}")
             logger.info(f"  New project metadata keys: {list(new_project.get('metadata', {}).keys())}")
 
             # Calculate change percentage
             change_percentage = calculate_project_change_percentage(old_project, new_project)
-            
+
             logger.info(f"  Calculated change percentage: {change_percentage:.2f}%")
 
             if change_percentage > change_threshold:

@@ -477,30 +477,24 @@ class TaskManager:
 
         # Update the analysis and re-record projects
         from .analysis_database import get_connection as get_analysis_conn
-        
+
         with get_analysis_conn() as conn:
             # Get the analysis_id
-            analysis_row = conn.execute(
-                "SELECT id FROM analyses WHERE analysis_uuid = ?",
-                (task.portfolio_id,)
-            ).fetchone()
-            
+            analysis_row = conn.execute("SELECT id FROM analyses WHERE analysis_uuid = ?", (task.portfolio_id,)).fetchone()
+
             if not analysis_row:
                 raise ValueError(f"Analysis {task.portfolio_id} not found")
-            
+
             analysis_id = analysis_row["id"]
-            
+
             # Delete old projects and their related data (cascades automatically)
-            conn.execute(
-                "DELETE FROM projects WHERE analysis_id = ?",
-                (analysis_id,)
-            )
-            
+            conn.execute("DELETE FROM projects WHERE analysis_id = ?", (analysis_id,))
+
             # Update the analysis row with new data
             summary_fields = merged_data.get("summary", {})
             languages_str = json.dumps(summary_fields.get("languages", []))
             frameworks_str = json.dumps(summary_fields.get("frameworks", []))
-            
+
             conn.execute(
                 """UPDATE analyses 
                    SET raw_json = ?, 
@@ -520,14 +514,16 @@ class TaskManager:
                     summary_fields.get("total_size_mb", 0.0),
                     languages_str,
                     frameworks_str,
-                    task.portfolio_id
+                    task.portfolio_id,
                 ),
             )
-            
+
             # Now insert updated project records
-            from .analysis_database import _normalize_username_value, _normalize_project_path_value
+            from .analysis_database import (_normalize_project_path_value,
+                                            _normalize_username_value)
+
             owner_username = _normalize_username_value(task.username)
-            
+
             for project in merged_projects:
                 target_user_stats = project.get("target_user_stats") or {}
                 target_user_email = project.get("target_user_email") or target_user_stats.get("email")
@@ -541,13 +537,13 @@ class TaskManager:
                 target_user_last_commit = target_user_stats.get("last_commit_date") or project.get("last_commit_date")
                 project_name = project.get("project_name") or "Project"
                 project_path = _normalize_project_path_value(project.get("project_path"))
-                
+
                 # Role prediction
                 role_prediction_data = project.get("role_prediction", {})
                 predicted_role = None
                 predicted_role_confidence = None
                 role_prediction_json = None
-                
+
                 if role_prediction_data:
                     predicted_role = (
                         role_prediction_data.get("predicted_role", {}).get("value")
@@ -556,7 +552,7 @@ class TaskManager:
                     )
                     predicted_role_confidence = role_prediction_data.get("confidence_score")
                     role_prediction_json = json.dumps(role_prediction_data)
-                
+
                 conn.execute(
                     """
                     INSERT INTO projects (
@@ -639,7 +635,7 @@ class TaskManager:
                         role_prediction_json,
                     ),
                 )
-            
+
             conn.commit()
 
         task.progress = 90
