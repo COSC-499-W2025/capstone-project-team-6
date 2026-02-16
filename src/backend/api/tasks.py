@@ -60,6 +60,13 @@ async def get_task_status(task_id: str, username: str = Depends(verify_token)):
     )
 
 
+# Alias endpoint for more RESTful /status path
+@router.get("/tasks/{task_id}/status", response_model=TaskStatusResponse)
+async def get_task_status_alias(task_id: str, username: str = Depends(verify_token)):
+    """Get status of a specific task (alias endpoint)."""
+    return await get_task_status(task_id, username)
+
+
 @router.get("/tasks", response_model=List[TaskStatusResponse])
 async def list_user_tasks(
     username: str = Depends(verify_token),

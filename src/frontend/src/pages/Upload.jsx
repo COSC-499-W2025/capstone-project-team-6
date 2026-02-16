@@ -252,13 +252,74 @@ const Upload = () => {
         // Upload to existing portfolio
         const response = await portfoliosAPI.addToPortfolio(selectedPortfolio, incrementalFile);
         
-        // Show results if available (task details)
+        // Poll for task completion and show results
         if (response && response.details) {
-          setIncrementalResults({
-            message: response.message,
-            taskId: response.details.task_id,
-            portfolioId: response.details.portfolio_id,
-          });
+          const taskId = response.details.task_id;
+          let taskComplete = false;
+          let taskResult = null;
+          
+          // Poll every 2 seconds for up to 5 minutes
+          const maxAttempts = 150;
+          let attempts = 0;
+          
+          while (!taskComplete && attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            try {
+              const statusResponse = await api.get(`/tasks/${taskId}/status`);
+              const task = statusResponse.data;
+              
+              if (task.status === 'completed') {
+                taskComplete = true;
+                taskResult = task.result;
+              } else if (task.status === 'failed') {
+                throw new Error(task.error || 'Task failed');
+              }
+            } catch (err) {
+              console.error('Error polling task:', err);
+              break;
+            }
+            
+            attempts++;
+          }
+          
+          // Close uploading state before showing modal
+          setIsUploading(false);
+          setUploadProgress({ current: 0, total: 0 });
+          
+          // Show results
+          if (taskResult && taskResult.update_details) {
+            setIncrementalResults({
+              message: response.message,
+              taskId: taskId,
+              portfolioId: response.details.portfolio_id,
+              completed: true,
+              details: {
+                added: taskResult.added_projects || 0,
+                updated: taskResult.updated_projects || 0,
+                skipped: taskResult.skipped_projects || 0,
+                total: taskResult.total_projects || 0,
+                updateDetails: taskResult.update_details,
+              }
+            });
+          } else {
+            setIncrementalResults({
+              message: response.message,
+              taskId: taskId,
+              portfolioId: response.details.portfolio_id,
+              completed: false,
+            });
+          }
+          
+          // Don't navigate automatically - let user see results
+          setSelectedFile(null);
+          setMultipleFiles([]);
+          setIncrementalFile(null);
+          setSelectedPortfolio('');
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
+          return;
         }
       }
 
@@ -273,13 +334,16 @@ const Upload = () => {
         fileInputRef.current.value = '';
       }
 
-      // Navigate to projects page after successful upload
+      // Navigate to projects page after successful upload (only for non-incremental)
       navigate('/projects');
     } catch (err) {
       console.error('Upload error:', err);
       setError(err.response?.data?.detail || 'Failed to upload project. Please try again.');
     } finally {
-      setIsUploading(false);
+      // Only set uploading false if not incremental (incremental handles it separately above)
+      if (activeTab !== 'incremental') {
+        setIsUploading(false);
+      }
       setUploadProgress({ current: 0, total: 0 });
     }
   };
@@ -906,39 +970,121 @@ const Upload = () => {
               marginTop: 0,
               marginBottom: '16px',
             }}>
-              Upload Processing
+              {incrementalResults.completed ? 'Portfolio Updated' : 'Upload Processing'}
             </h2>
             
-            <div style={{
-              padding: '16px',
-              backgroundColor: '#eff6ff',
-              border: '1px solid #bfdbfe',
-              borderRadius: '8px',
-              marginBottom: '24px',
-            }}>
-              <p style={{ fontSize: '14px', color: '#1d4ed8', margin: 0 }}>
-                {incrementalResults.message}
-              </p>
-              <p style={{ fontSize: '12px', color: '#60a5fa', margin: '8px 0 0 0' }}>
-                Task ID: {incrementalResults.taskId}
-              </p>
-            </div>
+            {incrementalResults.completed && incrementalResults.details ? (
+              <>
+                <div style={{
+                  padding: '16px',
+                  backgroundColor: '#dcfce7',
+                  border: '1px solid #86efac',
+                  borderRadius: '8px',
+                  marginBottom: '24px',
+                }}>
+                  <p style={{ fontSize: '14px', color: '#15803d', margin: 0, fontWeight: '500' }}>
+                    Successfully updated portfolio!
+                  </p>
+                </div>
 
-            <div style={{
-              padding: '16px',
-              backgroundColor: '#f9fafb',
-              borderRadius: '8px',
-              marginBottom: '24px',
-            }}>
-              <p style={{ fontSize: '14px', color: '#737373', margin: '0 0 8px 0' }}>
-                Your portfolio is being updated in the background. The system will:
-              </p>
-              <ul style={{ fontSize: '14px', color: '#1a1a1a', margin: 0, paddingLeft: '20px' }}>
-                <li style={{ marginBottom: '4px' }}>Add new projects found in the ZIP file</li>
-                <li style={{ marginBottom: '4px' }}>Update existing projects if changes exceed 50%</li>
-                <li style={{ marginBottom: '4px' }}>Skip projects with minor changes (less than 50%)</li>
-              </ul>
-            </div>
+                <div style={{
+                  padding: '16px',
+                  backgroundColor: '#f9fafb',
+                  borderRadius: '8px',
+                  marginBottom: '24px',
+                }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1a1a1a', margin: '0 0 12px 0' }}>
+                    Update Summary
+                  </h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div style={{ padding: '12px', backgroundColor: '#ffffff', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
+                      <div style={{ fontSize: '24px', fontWeight: '700', color: '#16a34a' }}>
+                        {incrementalResults.details.added}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#737373', marginTop: '4px' }}>
+                        Projects Added
+                      </div>
+                    </div>
+                    <div style={{ padding: '12px', backgroundColor: '#ffffff', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
+                      <div style={{ fontSize: '24px', fontWeight: '700', color: '#2563eb' }}>
+                        {incrementalResults.details.updated}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#737373', marginTop: '4px' }}>
+                        Projects Updated
+                      </div>
+                    </div>
+                    <div style={{ padding: '12px', backgroundColor: '#ffffff', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
+                      <div style={{ fontSize: '24px', fontWeight: '700', color: '#d97706' }}>
+                        {incrementalResults.details.skipped}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#737373', marginTop: '4px' }}>
+                        Projects Skipped
+                      </div>
+                    </div>
+                    <div style={{ padding: '12px', backgroundColor: '#ffffff', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
+                      <div style={{ fontSize: '24px', fontWeight: '700', color: '#1a1a1a' }}>
+                        {incrementalResults.details.total}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#737373', marginTop: '4px' }}>
+                        Total Projects
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {incrementalResults.details.updateDetails && (
+                    <div style={{ marginTop: '16px', fontSize: '13px', color: '#737373' }}>
+                      {incrementalResults.details.updated > 0 && (
+                        <p style={{ margin: '0 0 4px 0' }}>
+                          <strong>Updated:</strong> {incrementalResults.details.updateDetails.updated?.map(u => 
+                            `${u.project_path || 'root'} (${u.change_percentage}% changed)`
+                          ).join(', ')}
+                        </p>
+                      )}
+                      {incrementalResults.details.skipped > 0 && (
+                        <p style={{ margin: '4px 0 0 0' }}>
+                          <strong>Skipped:</strong> {incrementalResults.details.updateDetails.skipped?.map(s => 
+                            `${s.project_path || 'root'} (only ${s.change_percentage}% changed)`
+                          ).join(', ')}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{
+                  padding: '16px',
+                  backgroundColor: '#eff6ff',
+                  border: '1px solid #bfdbfe',
+                  borderRadius: '8px',
+                  marginBottom: '24px',
+                }}>
+                  <p style={{ fontSize: '14px', color: '#1d4ed8', margin: 0 }}>
+                    {incrementalResults.message}
+                  </p>
+                  <p style={{ fontSize: '12px', color: '#60a5fa', margin: '8px 0 0 0' }}>
+                    Task ID: {incrementalResults.taskId}
+                  </p>
+                </div>
+
+                <div style={{
+                  padding: '16px',
+                  backgroundColor: '#f9fafb',
+                  borderRadius: '8px',
+                  marginBottom: '24px',
+                }}>
+                  <p style={{ fontSize: '14px', color: '#737373', margin: '0 0 8px 0' }}>
+                    Your portfolio is being updated in the background. The system will:
+                  </p>
+                  <ul style={{ fontSize: '14px', color: '#1a1a1a', margin: 0, paddingLeft: '20px' }}>
+                    <li style={{ marginBottom: '4px' }}>Add new projects found in the ZIP file</li>
+                    <li style={{ marginBottom: '4px' }}>Update existing projects if changes exceed 30%</li>
+                    <li style={{ marginBottom: '4px' }}>Skip projects with minor changes (less than 30%)</li>
+                  </ul>
+                </div>
+              </>
+            )}
 
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
               <button
@@ -959,21 +1105,23 @@ const Upload = () => {
               >
                 View Projects
               </button>
-              <button
-                onClick={() => setIncrementalResults(null)}
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: '#f3f4f6',
-                  color: '#1a1a1a',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                }}
-              >
-                Close
-              </button>
+              {!incrementalResults.completed && (
+                <button
+                  onClick={() => setIncrementalResults(null)}
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#f3f4f6',
+                    color: '#1a1a1a',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Close
+                </button>
+              )}
             </div>
           </div>
         </div>
