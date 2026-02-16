@@ -136,10 +136,7 @@ async def get_aggregated_skills(username: str = Depends(verify_token)):
             project_name = project.get("project_name") or project.get("name", "Unknown")
 
             # Fetch skills from project_skills table
-            skills_rows = conn.execute(
-                "SELECT skill FROM project_skills WHERE project_id = ?",
-                (project_id,)
-            ).fetchall()
+            skills_rows = conn.execute("SELECT skill FROM project_skills WHERE project_id = ?", (project_id,)).fetchall()
 
             for row in skills_rows:
                 skill = row["skill"]
