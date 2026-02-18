@@ -22,6 +22,11 @@ const Navigation = () => {
       icon: '📁'
     },
     {
+      label: 'Curate',
+      path: '/curate',
+      icon: '✨'
+    },
+    {
       label: 'Portfolio',
       path: '/portfolio',
       icon: '🎨'

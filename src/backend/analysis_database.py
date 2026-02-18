@@ -8,7 +8,7 @@ import sqlite3
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Union
 
 VALID_ANALYSIS_TYPES = {"llm", "non_llm"}
 
@@ -31,7 +31,7 @@ def get_db_path() -> Path:
     return _DB_PATH
 
 
-def set_db_path(path: Path | str) -> Path:
+def set_db_path(path: Union[Path, str]) -> Path:
     global _DB_PATH
     previous = _DB_PATH
     _DB_PATH = Path(path).expanduser().resolve()
@@ -66,6 +66,17 @@ def init_db() -> None:
                 username TEXT NOT NULL UNIQUE,
                 password_hash TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+
+        # Per-user profile info (used for resume personal info autofill)
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_profile (
+                username TEXT PRIMARY KEY REFERENCES users(username) ON DELETE CASCADE,
+                personal_info_json TEXT,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
             """
         )
@@ -343,6 +354,42 @@ def init_db() -> None:
             );
             """
         )
+
+        # Stored user resumes and their selected bullets
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_resumes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+                title TEXT NOT NULL,
+                format TEXT NOT NULL,
+                content_text TEXT NOT NULL,
+                original_filename TEXT,
+                original_mime TEXT,
+                original_blob BLOB,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_resume_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                resume_id INTEGER NOT NULL REFERENCES user_resumes(id) ON DELETE CASCADE,
+                resume_item_id INTEGER REFERENCES resume_items(id) ON DELETE SET NULL,
+                analysis_id INTEGER,
+                project_id INTEGER,
+                bullet_text TEXT NOT NULL,
+                bullet_order INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_user_resumes_user ON user_resumes(username);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_user_resume_items_resume ON user_resume_items(resume_id, bullet_order);")
 
         # Migrations for older installs (add missing columns safely)
         existing = {row["name"] for row in conn.execute("PRAGMA table_info(resume_items)")}
@@ -1446,6 +1493,124 @@ def get_all_resume_items(username: Optional[str] = None) -> List[sqlite3.Row]:
         ).fetchall()
 
 
+def create_user_resume(
+    username: str,
+    title: str,
+    format: str,
+    content_text: str,
+    original_filename: Optional[str] = None,
+    original_mime: Optional[str] = None,
+    original_blob: Optional[bytes] = None,
+) -> int:
+    if not content_text or not content_text.strip():
+        raise ValueError("content_text is required")
+
+    with get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO users (username)
+            VALUES (?)
+            """,
+            (username,),
+        )
+        cursor = conn.execute(
+            """
+            INSERT INTO user_resumes (username, title, format, content_text, original_filename, original_mime, original_blob)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (username, title.strip(), format, content_text, original_filename, original_mime, original_blob),
+        )
+        conn.commit()
+        return int(cursor.lastrowid)
+
+
+def list_user_resumes(username: str) -> List[sqlite3.Row]:
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT id, username, title, format, content_text, original_filename, original_mime, created_at, updated_at
+            FROM user_resumes
+            WHERE username = ?
+            ORDER BY updated_at DESC
+            """,
+            (username,),
+        ).fetchall()
+
+
+def get_user_resume(resume_id: int, username: str) -> Optional[sqlite3.Row]:
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT id, username, title, format, content_text, original_filename, original_mime, created_at, updated_at
+            FROM user_resumes
+            WHERE id = ? AND username = ?
+            """,
+            (resume_id, username),
+        ).fetchone()
+
+
+def update_user_resume_content(resume_id: int, username: str, content_text: str) -> None:
+    with get_connection() as conn:
+        conn.execute(
+            """
+            UPDATE user_resumes
+            SET content_text = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ? AND username = ?
+            """,
+            (content_text, resume_id, username),
+        )
+        conn.commit()
+
+
+def add_items_to_user_resume(
+    resume_id: int,
+    username: str,
+    items: List[Dict[str, Any]],
+) -> None:
+    with get_connection() as conn:
+        owner = conn.execute(
+            "SELECT id FROM user_resumes WHERE id = ? AND username = ?",
+            (resume_id, username),
+        ).fetchone()
+        if not owner:
+            raise ValueError("resume not found")
+
+        for idx, item in enumerate(items):
+            conn.execute(
+                """
+                INSERT INTO user_resume_items (
+                    resume_id, resume_item_id, analysis_id, project_id, bullet_text, bullet_order
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    resume_id,
+                    item.get("resume_item_id"),
+                    item.get("analysis_id"),
+                    item.get("project_id"),
+                    item["bullet_text"],
+                    item.get("bullet_order", idx),
+                ),
+            )
+        conn.commit()
+
+
+def get_user_resume_items(resume_id: int, username: str) -> List[sqlite3.Row]:
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT uri.id, uri.resume_id, uri.resume_item_id, uri.analysis_id, uri.project_id,
+                   uri.bullet_text, uri.bullet_order, uri.created_at
+            FROM user_resume_items uri
+            JOIN user_resumes ur ON ur.id = uri.resume_id
+            WHERE uri.resume_id = ? AND ur.username = ?
+            ORDER BY uri.bullet_order ASC, uri.id ASC
+            """,
+            (resume_id, username),
+        ).fetchall()
+
+
 def get_resume_items_for_project(project_id: int) -> List[sqlite3.Row]:
     """
     Backwards-compatible alias for older code/tests.
@@ -1691,3 +1856,54 @@ def get_project_thumbnail(project_id: int) -> Optional[str]:
             (project_id,),
         ).fetchone()
         return row["thumbnail_image_path"] if row else None
+
+
+def get_user_personal_info(username: str) -> Dict[str, str]:
+    if not username:
+        return {}
+
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT personal_info_json
+            FROM user_profile
+            WHERE username = ?
+            """,
+            (username,),
+        ).fetchone()
+
+        if not row or not row["personal_info_json"]:
+            return {}
+
+        try:
+            data = json.loads(row["personal_info_json"])
+            return data if isinstance(data, dict) else {}
+        except json.JSONDecodeError:
+            return {}
+
+
+def upsert_user_personal_info(username: str, personal_info: Dict[str, str]) -> None:
+    if not username:
+        raise ValueError("username is required")
+
+    cleaned: Dict[str, str] = {}
+    for k, v in (personal_info or {}).items():
+        if v is None:
+            continue
+        cleaned[str(k)] = str(v).strip()
+
+    with get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+        conn.execute("INSERT OR IGNORE INTO users (username) VALUES (?)", (username,))
+
+        conn.execute(
+            """
+            INSERT INTO user_profile (username, personal_info_json)
+            VALUES (?, ?)
+            ON CONFLICT(username) DO UPDATE SET
+                personal_info_json = excluded.personal_info_json,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (username, json.dumps(cleaned, separators=(",", ":"))),
+        )
+        conn.commit()
