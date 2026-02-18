@@ -51,8 +51,7 @@ export default function AnalyzePage() {
       cancelledRef.current = true;
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.token]);
+  }, [user?.token, taskIdFromNav]);
 
 
   function beginPolling(id) {

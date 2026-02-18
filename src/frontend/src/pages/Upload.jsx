@@ -228,7 +228,7 @@ const Upload = () => {
       navigate('/analyze');
     } catch (err) {
       console.error('Upload error:', err);
-      setError(err.response?.data?.detail || 'Failed to upload project. Please try again.');
+      setError(err.response?.data?.detail || err.message || 'Failed to upload project. Please try again.');
     } finally {
       setIsUploading(false);
       setUploadProgress({ current: 0, total: 0 });
