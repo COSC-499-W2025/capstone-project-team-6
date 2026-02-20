@@ -149,7 +149,10 @@ class TestUploadAnalysisCycle:
         r = client.get("/api/projects", headers=headers)
         assert r.status_code == 200, f"Projects list failed: {r.text}"
 
-        projects = r.json()
+        data = r.json()
+        assert "projects" in data
+        assert "total_projects" in data
+        projects = data["projects"]
         assert isinstance(projects, list)
         # New user may have 0 projects; just verify structure
         for p in projects:

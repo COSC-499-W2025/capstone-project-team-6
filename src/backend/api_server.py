@@ -112,18 +112,6 @@ class ConsentResponse(BaseModel):
     message: str
 
 
-class TaskStatusResponse(BaseModel):
-    task_id: str
-    status: str
-    progress: int
-    created_at: str
-    updated_at: str
-    filename: str
-    task_type: str
-    result: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
-
-
 def create_access_token(username: str) -> str:
     """Create a new access token for a user."""
     token = str(uuid.uuid4())
@@ -430,60 +418,6 @@ async def delete_portfolio(portfolio_id: str, username: str = Depends(verify_tok
     return MessageResponse(
         message=f"Portfolio {portfolio_id} deleted successfully",
     )
-
-
-@app.get("/api/tasks/{task_id}", response_model=TaskStatusResponse)
-async def get_task_status(task_id: str, username: str = Depends(verify_token)):
-    """Get status of a background task."""
-    task_manager = get_task_manager()
-    task = task_manager.get_task_status(task_id)
-
-    if not task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Task {task_id} not found",
-        )
-
-    # Verify task belongs to user
-    if task.username != username:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to this task",
-        )
-
-    return TaskStatusResponse(
-        task_id=task.task_id,
-        status=task.status.value,
-        progress=task.progress,
-        created_at=task.created_at.isoformat(),
-        updated_at=task.updated_at.isoformat(),
-        filename=task.filename,
-        task_type=task.task_type.value,
-        result=task.result,
-        error=task.error,
-    )
-
-
-@app.get("/api/tasks", response_model=List[TaskStatusResponse])
-async def get_user_tasks(username: str = Depends(verify_token), limit: int = 20):
-    """Get all tasks for the current user."""
-    task_manager = get_task_manager()
-    tasks = task_manager.get_user_tasks(username, limit)
-
-    return [
-        TaskStatusResponse(
-            task_id=task.task_id,
-            status=task.status.value,
-            progress=task.progress,
-            created_at=task.created_at.isoformat(),
-            updated_at=task.updated_at.isoformat(),
-            filename=task.filename,
-            task_type=task.task_type.value,
-            result=task.result,
-            error=task.error,
-        )
-        for task in tasks
-    ]
 
 
 @app.post("/api/admin/cleanup")

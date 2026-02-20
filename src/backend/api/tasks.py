@@ -1,5 +1,7 @@
 """Task management API endpoints."""
 
+import logging
+import traceback
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -9,6 +11,7 @@ from pydantic import BaseModel
 from backend.api.auth import verify_token
 from backend.task_manager import TaskStatus, get_task_manager
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["Tasks"])
 
 
@@ -20,44 +23,73 @@ class TaskStatusResponse(BaseModel):
     task_type: str
     username: str
     filename: str
-    created_at: datetime
-    updated_at: datetime
+    created_at: str
+    updated_at: str
     progress: int = 0
     error: Optional[str] = None
     result: Optional[Dict[str, Any]] = None
 
 
+def _sanitize_for_json(obj: Any) -> Any:
+    """Recursively sanitize values for JSON serialization."""
+    if obj is None:
+        return None
+    if isinstance(obj, (str, int, float, bool)):
+        if isinstance(obj, float) and (obj != obj or obj == float("inf") or obj == float("-inf")):
+            return None
+        return obj
+    if isinstance(obj, (list, tuple)):
+        return [_sanitize_for_json(x) for x in obj]
+    if isinstance(obj, dict):
+        return {str(k): _sanitize_for_json(v) for k, v in obj.items()}
+    if hasattr(obj, "isoformat"):
+        return obj.isoformat()
+    if hasattr(obj, "__str__"):
+        return str(obj)
+    return None
+
+
 @router.get("/tasks/{task_id}", response_model=TaskStatusResponse)
 async def get_task_status(task_id: str, username: str = Depends(verify_token)):
     """Get status of a specific task."""
-    task_manager = get_task_manager()
-    task = task_manager.get_task_status(task_id)
+    try:
+        task_manager = get_task_manager()
+        task = task_manager.get_task_status(task_id)
 
-    if not task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Task {task_id} not found",
+        if not task:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Task {task_id} not found",
+            )
+
+        if task.username != username:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied to this task",
+            )
+
+        created_at = task.created_at.isoformat() if hasattr(task.created_at, "isoformat") else str(task.created_at)
+        updated_at = task.updated_at.isoformat() if hasattr(task.updated_at, "isoformat") else str(task.updated_at)
+        result = _sanitize_for_json(task.result) if task.result else None
+
+        return TaskStatusResponse(
+            task_id=task.task_id,
+            status=task.status.value,
+            task_type=task.task_type.value,
+            username=task.username,
+            filename=task.filename,
+            created_at=created_at,
+            updated_at=updated_at,
+            error=task.error,
+            result=result,
+            progress=task.progress,
         )
-
-    # Verify task belongs to user
-    if task.username != username:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to this task",
-        )
-
-    return TaskStatusResponse(
-        task_id=task.task_id,
-        status=task.status.value,
-        task_type=task.task_type.value,
-        username=task.username,
-        filename=task.filename,
-        created_at=task.created_at,
-        updated_at=task.updated_at,
-        error=task.error,
-        result=task.result,
-        progress=task.progress,
-    )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("get_task_status failed for task_id=%s: %s", task_id, e)
+        traceback.print_exc()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 # Alias endpoint for more RESTful /status path
@@ -76,28 +108,31 @@ async def list_user_tasks(
     task_manager = get_task_manager()
     all_tasks = task_manager.get_user_tasks(username)
 
-    # Sort by created_at descending and limit
     sorted_tasks = sorted(
         all_tasks,
         key=lambda t: t.created_at,
         reverse=True,
     )[:limit]
 
-    return [
-        TaskStatusResponse(
-            task_id=task.task_id,
-            status=task.status.value,
-            task_type=task.task_type.value,
-            username=task.username,
-            filename=task.filename,
-            created_at=task.created_at,
-            updated_at=task.updated_at,
-            error=task.error,
-            result=task.result,
-            progress=task.progress,
+    result_list = []
+    for task in sorted_tasks:
+        created_at = task.created_at.isoformat() if hasattr(task.created_at, "isoformat") else str(task.created_at)
+        updated_at = task.updated_at.isoformat() if hasattr(task.updated_at, "isoformat") else str(task.updated_at)
+        result_list.append(
+            TaskStatusResponse(
+                task_id=task.task_id,
+                status=task.status.value,
+                task_type=task.task_type.value,
+                username=task.username,
+                filename=task.filename,
+                created_at=created_at,
+                updated_at=updated_at,
+                error=task.error,
+                result=_sanitize_for_json(task.result) if task.result else None,
+                progress=task.progress,
+            )
         )
-        for task in sorted_tasks
-    ]
+    return result_list
 
 
 @router.post("/admin/cleanup")

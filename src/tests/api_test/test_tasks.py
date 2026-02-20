@@ -55,13 +55,13 @@ class TestTasksEndpoints:
         mock_task.task_type = TaskType.NEW_PORTFOLIO
         mock_task.username = username
         mock_task.filename = "test.zip"
-        mock_task.created_at = datetime.now().isoformat()
-        mock_task.updated_at = datetime.now().isoformat()
+        mock_task.created_at = datetime.now()
+        mock_task.updated_at = datetime.now()
         mock_task.error = None
         mock_task.result = {"analysis_uuid": str(uuid.uuid4())}
 
         mock_manager = MagicMock()
-        mock_manager.get_task.return_value = mock_task
+        mock_manager.get_task_status.return_value = mock_task
         mock_get_manager.return_value = mock_manager
 
         response = client.get(
@@ -82,7 +82,7 @@ class TestTasksEndpoints:
         task_id = str(uuid.uuid4())
 
         mock_manager = MagicMock()
-        mock_manager.get_task.return_value = None
+        mock_manager.get_task_status.return_value = None
         mock_get_manager.return_value = mock_manager
 
         response = client.get(
@@ -103,7 +103,7 @@ class TestTasksEndpoints:
         mock_task.username = "different_user"
 
         mock_manager = MagicMock()
-        mock_manager.get_task.return_value = mock_task
+        mock_manager.get_task_status.return_value = mock_task
         mock_get_manager.return_value = mock_manager
 
         response = client.get(
@@ -131,8 +131,8 @@ class TestTasksEndpoints:
         mock_task1.task_type = TaskType.NEW_PORTFOLIO
         mock_task1.username = username
         mock_task1.filename = "test1.zip"
-        mock_task1.created_at = datetime.now().isoformat()
-        mock_task1.updated_at = datetime.now().isoformat()
+        mock_task1.created_at = datetime.now()
+        mock_task1.updated_at = datetime.now()
         mock_task1.error = None
         mock_task1.result = {}
 
@@ -142,8 +142,8 @@ class TestTasksEndpoints:
         mock_task2.task_type = TaskType.INCREMENTAL_UPLOAD
         mock_task2.username = username
         mock_task2.filename = "test2.zip"
-        mock_task2.created_at = datetime.now().isoformat()
-        mock_task2.updated_at = datetime.now().isoformat()
+        mock_task2.created_at = datetime.now()
+        mock_task2.updated_at = datetime.now()
         mock_task2.error = None
         mock_task2.result = None
 
@@ -197,7 +197,7 @@ class TestTasksEndpoints:
         mock_task.status = TaskStatus.RUNNING
 
         mock_manager = MagicMock()
-        mock_manager.get_task.return_value = mock_task
+        mock_manager.get_task_status.return_value = mock_task
         mock_manager.cancel_task.return_value = True
         mock_get_manager.return_value = mock_manager
 
@@ -216,7 +216,7 @@ class TestTasksEndpoints:
         task_id = str(uuid.uuid4())
 
         mock_manager = MagicMock()
-        mock_manager.get_task.return_value = None
+        mock_manager.get_task_status.return_value = None
         mock_get_manager.return_value = mock_manager
 
         response = client.post(
@@ -238,13 +238,13 @@ class TestTasksEndpoints:
         mock_task.task_type = TaskType.NEW_PORTFOLIO
         mock_task.username = username
         mock_task.filename = "test.zip"
-        mock_task.created_at = datetime.now().isoformat()
-        mock_task.updated_at = datetime.now().isoformat()
+        mock_task.created_at = datetime.now()
+        mock_task.updated_at = datetime.now()
         mock_task.error = "Analysis failed: Invalid ZIP file"
         mock_task.result = None
 
         mock_manager = MagicMock()
-        mock_manager.get_task.return_value = mock_task
+        mock_manager.get_task_status.return_value = mock_task
         mock_get_manager.return_value = mock_manager
 
         response = client.get(
