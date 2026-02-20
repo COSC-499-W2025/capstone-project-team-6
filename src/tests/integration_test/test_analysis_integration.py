@@ -462,8 +462,9 @@ class TestDatabaseStorageIntegration:
             assert "Analysis complete" in output
 
 
+@pytest.mark.skip(reason="Deprecated: analyze-llm CLI subparser was purposely removed")
 class TestLLMPipelineIntegration:
-    """Test LLM pipeline integration in CLI."""
+    """Test LLM pipeline integration in CLI (deprecated - analyze-llm command removed)."""
 
     def test_llm_command_requires_login(self, isolated_test_env, sample_python_project_zip):
         """Test that LLM analysis requires login."""

@@ -1,5 +1,6 @@
 """Tests for text_extractor OCR functions."""
 
+import shutil
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,7 @@ def test_extract_text_from_plain_text(tmp_path):
     assert "Direct text" in text
 
 
+@pytest.mark.skipif(not shutil.which("tesseract"), reason="Tesseract not installed or not in PATH")
 def test_extract_text_from_image(tmp_path):
     """Should extract text from an image using Tesseract."""
     img_path = tmp_path / "ocr_image.png"
@@ -33,6 +35,7 @@ def test_extract_text_from_image(tmp_path):
     assert "test" in text.lower() or "ocr" in text.lower() or "rtest" in text.lower()
 
 
+@pytest.mark.skipif(not shutil.which("pdftoppm"), reason="Poppler not installed or not in PATH")
 def test_extract_text_from_pdf(tmp_path):
     """Should convert PDF to images to OCR text."""
     pdf_path = tmp_path / "ocr_test.pdf"

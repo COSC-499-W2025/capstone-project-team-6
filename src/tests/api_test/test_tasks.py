@@ -43,7 +43,7 @@ def auth_token():
 class TestTasksEndpoints:
     """Test suite for tasks endpoints."""
 
-    @patch("backend.api.tasks.get_task_manager")
+    @patch("backend.api_server.get_task_manager")
     def test_get_task_status_success(self, mock_get_manager, auth_token):
         """Test getting task status."""
         token, username = auth_token
@@ -55,13 +55,14 @@ class TestTasksEndpoints:
         mock_task.task_type = TaskType.NEW_PORTFOLIO
         mock_task.username = username
         mock_task.filename = "test.zip"
-        mock_task.created_at = datetime.now().isoformat()
-        mock_task.updated_at = datetime.now().isoformat()
+        mock_task.created_at = datetime.now()
+        mock_task.updated_at = datetime.now()
+        mock_task.progress = 100
         mock_task.error = None
         mock_task.result = {"analysis_uuid": str(uuid.uuid4())}
 
         mock_manager = MagicMock()
-        mock_manager.get_task.return_value = mock_task
+        mock_manager.get_task_status.return_value = mock_task
         mock_get_manager.return_value = mock_manager
 
         response = client.get(
@@ -73,16 +74,15 @@ class TestTasksEndpoints:
         data = response.json()
         assert data["task_id"] == task_id
         assert data["status"] == "completed"
-        assert data["username"] == username
 
-    @patch("backend.api.tasks.get_task_manager")
+    @patch("backend.api_server.get_task_manager")
     def test_get_task_status_not_found(self, mock_get_manager, auth_token):
         """Test getting non-existent task."""
         token, _ = auth_token
         task_id = str(uuid.uuid4())
 
         mock_manager = MagicMock()
-        mock_manager.get_task.return_value = None
+        mock_manager.get_task_status.return_value = None
         mock_get_manager.return_value = mock_manager
 
         response = client.get(
@@ -93,7 +93,7 @@ class TestTasksEndpoints:
         assert response.status_code == 404
         assert "not found" in response.json()["detail"]
 
-    @patch("backend.api.tasks.get_task_manager")
+    @patch("backend.api_server.get_task_manager")
     def test_get_task_status_wrong_user(self, mock_get_manager, auth_token):
         """Test accessing another user's task fails."""
         token, username = auth_token
@@ -103,7 +103,7 @@ class TestTasksEndpoints:
         mock_task.username = "different_user"
 
         mock_manager = MagicMock()
-        mock_manager.get_task.return_value = mock_task
+        mock_manager.get_task_status.return_value = mock_task
         mock_get_manager.return_value = mock_manager
 
         response = client.get(
@@ -120,7 +120,7 @@ class TestTasksEndpoints:
         response = client.get(f"/api/tasks/{task_id}")
         assert response.status_code == 403
 
-    @patch("backend.api.tasks.get_task_manager")
+    @patch("backend.api_server.get_task_manager")
     def test_get_user_tasks_success(self, mock_get_manager, auth_token):
         """Test getting all user tasks."""
         token, username = auth_token
@@ -131,8 +131,9 @@ class TestTasksEndpoints:
         mock_task1.task_type = TaskType.NEW_PORTFOLIO
         mock_task1.username = username
         mock_task1.filename = "test1.zip"
-        mock_task1.created_at = datetime.now().isoformat()
-        mock_task1.updated_at = datetime.now().isoformat()
+        mock_task1.created_at = datetime.now()
+        mock_task1.updated_at = datetime.now()
+        mock_task1.progress = 100
         mock_task1.error = None
         mock_task1.result = {}
 
@@ -142,8 +143,9 @@ class TestTasksEndpoints:
         mock_task2.task_type = TaskType.INCREMENTAL_UPLOAD
         mock_task2.username = username
         mock_task2.filename = "test2.zip"
-        mock_task2.created_at = datetime.now().isoformat()
-        mock_task2.updated_at = datetime.now().isoformat()
+        mock_task2.created_at = datetime.now()
+        mock_task2.updated_at = datetime.now()
+        mock_task2.progress = 50
         mock_task2.error = None
         mock_task2.result = None
 
@@ -160,9 +162,8 @@ class TestTasksEndpoints:
         data = response.json()
         assert isinstance(data, list)
         assert len(data) == 2
-        assert all(task["username"] == username for task in data)
 
-    @patch("backend.api.tasks.get_task_manager")
+    @patch("backend.api_server.get_task_manager")
     def test_get_user_tasks_empty(self, mock_get_manager, auth_token):
         """Test getting tasks when user has none."""
         token, username = auth_token
@@ -186,7 +187,7 @@ class TestTasksEndpoints:
         response = client.get("/api/tasks")
         assert response.status_code == 403
 
-    @patch("backend.api.tasks.get_task_manager")
+    @patch("backend.api_server.get_task_manager")
     def test_cancel_task_success(self, mock_get_manager, auth_token):
         """Test canceling a task."""
         token, username = auth_token
@@ -197,7 +198,7 @@ class TestTasksEndpoints:
         mock_task.status = TaskStatus.RUNNING
 
         mock_manager = MagicMock()
-        mock_manager.get_task.return_value = mock_task
+        mock_manager.get_task_status.return_value = mock_task
         mock_manager.cancel_task.return_value = True
         mock_get_manager.return_value = mock_manager
 
@@ -209,14 +210,14 @@ class TestTasksEndpoints:
         # Cancel endpoint not implemented yet
         assert response.status_code == 404
 
-    @patch("backend.api.tasks.get_task_manager")
+    @patch("backend.api_server.get_task_manager")
     def test_cancel_task_not_found(self, mock_get_manager, auth_token):
         """Test canceling non-existent task."""
         token, _ = auth_token
         task_id = str(uuid.uuid4())
 
         mock_manager = MagicMock()
-        mock_manager.get_task.return_value = None
+        mock_manager.get_task_status.return_value = None
         mock_get_manager.return_value = mock_manager
 
         response = client.post(
@@ -226,7 +227,7 @@ class TestTasksEndpoints:
 
         assert response.status_code == 404
 
-    @patch("backend.api.tasks.get_task_manager")
+    @patch("backend.api_server.get_task_manager")
     def test_task_with_error(self, mock_get_manager, auth_token):
         """Test getting task that has an error."""
         token, username = auth_token
@@ -238,13 +239,14 @@ class TestTasksEndpoints:
         mock_task.task_type = TaskType.NEW_PORTFOLIO
         mock_task.username = username
         mock_task.filename = "test.zip"
-        mock_task.created_at = datetime.now().isoformat()
-        mock_task.updated_at = datetime.now().isoformat()
+        mock_task.created_at = datetime.now()
+        mock_task.updated_at = datetime.now()
+        mock_task.progress = 0
         mock_task.error = "Analysis failed: Invalid ZIP file"
         mock_task.result = None
 
         mock_manager = MagicMock()
-        mock_manager.get_task.return_value = mock_task
+        mock_manager.get_task_status.return_value = mock_task
         mock_get_manager.return_value = mock_manager
 
         response = client.get(

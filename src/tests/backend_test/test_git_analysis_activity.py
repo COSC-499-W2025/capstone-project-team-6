@@ -49,8 +49,8 @@ def _init_repo_with_commits(tmpdir: Path):
 
 
 def test_activity_breakdown_classification():
-    # Create repo inside workspace to avoid sandbox permission issues
-    with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as tmp:
+    # Use system temp dir to avoid cluttering the project directory
+    with tempfile.TemporaryDirectory(prefix="pytest_git_activity_") as tmp:
         repo_path = Path(tmp)
         _init_repo_with_commits(repo_path)
 

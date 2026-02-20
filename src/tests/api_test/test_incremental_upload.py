@@ -166,9 +166,9 @@ class TestTaskManagerIncrementalUpload:
             "backend.cli.analyze_folder", return_value=new_analysis
         ), patch("backend.analysis_database.get_connection") as mock_conn:
 
-            # Mock database connection with proper execute().fetchone() chain
+            # Mock database connection - first fetchone returns analysis row with id
             mock_cursor = MagicMock()
-            mock_cursor.fetchone.return_value = {"raw_json": json.dumps(existing_portfolio)}
+            mock_cursor.fetchone.return_value = {"id": 1}
 
             mock_conn_obj = MagicMock()
             mock_conn_obj.__enter__ = MagicMock(return_value=mock_conn_obj)
@@ -247,10 +247,9 @@ class TestTaskManagerIncrementalUpload:
             mock_conn_obj.__enter__ = MagicMock(return_value=mock_conn_obj)
             mock_conn_obj.__exit__ = MagicMock(return_value=False)
 
-            # Mock row result
-            mock_row = {"raw_json": json.dumps(existing_portfolio)}
+            # Mock row result - SELECT id FROM analyses returns analysis row with id
             mock_cursor = MagicMock()
-            mock_cursor.fetchone.return_value = mock_row
+            mock_cursor.fetchone.return_value = {"id": 1}
             mock_conn_obj.execute.return_value = mock_cursor
             mock_conn_obj.commit = MagicMock()
 

@@ -8,7 +8,7 @@ if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
 
 import uuid
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -169,21 +169,29 @@ class TestProjectsEndpoints:
 
         assert response.status_code == 404
 
+    @patch("backend.analysis_database.get_connection")
     @patch("backend.api.projects.get_user_projects")
-    def test_get_aggregated_skills(self, mock_get_projects, auth_token):
+    def test_get_aggregated_skills(self, mock_get_projects, mock_get_connection, auth_token):
         """Test getting aggregated skills."""
         token, username = auth_token
 
+        # API queries project_skills table by project id - mock must include id
         mock_get_projects.return_value = [
-            {
-                "name": "Project1",
-                "metadata": {"skills": ["Python", "FastAPI"]},
-            },
-            {
-                "name": "Project2",
-                "metadata": {"skills": ["Python", "React"]},
-            },
+            {"id": 1, "project_name": "Project1", "name": "Project1"},
+            {"id": 2, "project_name": "Project2", "name": "Project2"},
         ]
+
+        # Mock skills from project_skills: Project1 has Python, FastAPI; Project2 has Python, React
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall.side_effect = [
+            [{"skill": "Python"}, {"skill": "FastAPI"}],
+            [{"skill": "Python"}, {"skill": "React"}],
+        ]
+        mock_conn = MagicMock()
+        mock_conn.execute.return_value = mock_cursor
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
+        mock_get_connection.return_value = mock_conn
 
         response = client.get(
             "/api/skills",

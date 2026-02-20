@@ -232,11 +232,9 @@ def create_branch(repo_path, branch_name):
 def temp_dir():
     """
     Create a temporary directory that gets cleaned up after the test.
+    Uses system temp dir to avoid cluttering the project directory.
     """
-    # Constrain temp dirs to workspace to avoid sandbox write restrictions
-    project_root = Path(__file__).resolve().parents[3]
-    project_root.mkdir(parents=True, exist_ok=True)
-    temp_path = tempfile.mkdtemp(dir=project_root)
+    temp_path = tempfile.mkdtemp(prefix="pytest_git_analysis_")
     yield Path(temp_path)
     shutil.rmtree(temp_path, ignore_errors=True)
 
