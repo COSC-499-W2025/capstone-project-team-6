@@ -64,6 +64,7 @@ class TaskInfo(BaseModel):
     analysis_type: Optional[str] = None
     portfolio_id: Optional[str] = None  # For incremental uploads
     project_name: Optional[str] = None  # User-provided project name override
+    analysis_phase: Optional[str] = None  # "non_llm" or "llm" for display during processing
 
 
 class FileManager:
@@ -362,6 +363,7 @@ class TaskManager:
         loop = asyncio.get_event_loop()
 
         # 1) NON-LLM ANALYSIS (always)
+        task.analysis_phase = "non_llm"
         analysis_result = await loop.run_in_executor(_executor, analyze_folder, file_path)
         task.progress = 80
 
@@ -400,6 +402,7 @@ class TaskManager:
             result_payload["llm_error"] = f"Consent check failed: {e}"
 
         if has_consented and (task.analysis_type or "non_llm") == "llm":
+            task.analysis_phase = "llm"
             task.progress = 92
             try:
                 # Choose active features
@@ -417,9 +420,11 @@ class TaskManager:
 
                 task.progress = 97
 
-                # Store LLM under same user
+                # Store LLM under same user. Use empty projects to avoid duplicate project rows
+                # (non_llm analysis already stored the projects; LLM only adds enhancements)
                 llm_results["non_llm_results"] = analysis_result
-                llm_analysis_id = record_analysis("llm", llm_results, username=task.username)
+                llm_payload = {**llm_results, "projects": []}
+                llm_analysis_id = record_analysis("llm", llm_payload, username=task.username)
 
                 result_payload["llm_ran"] = True
                 result_payload["llm_analysis_id"] = llm_analysis_id

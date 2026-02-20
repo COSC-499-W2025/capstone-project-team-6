@@ -218,6 +218,7 @@ const Upload = () => {
     setIsUploading(true);
     setError('');
 
+    let taskIdForAnalyze = null;
     try {
       if (activeTab === 'single') {
         const formData = new FormData();
@@ -238,7 +239,9 @@ const Upload = () => {
           throw new Error("Upload succeeded but no task_id was returned by the server.");
         }
 
-        // Go straight to Analyze page
+        // Go straight to Analyze page; persist taskId for refresh/back navigation
+        taskIdForAnalyze = taskId;
+        sessionStorage.setItem("analyze_task_id", taskId);
         navigate("/analyze", { state: { taskId } });
         return; 
 
@@ -248,6 +251,7 @@ const Upload = () => {
         const errors = [];
         const total = multipleFiles.length;
         setUploadProgress({ current: 0, total });
+        let lastTaskId = null;
 
         for (let i = 0; i < multipleFiles.length; i++) {
           const file = multipleFiles[i];
@@ -259,9 +263,12 @@ const Upload = () => {
             formData.append('analysis_type', effectiveAnalysisType);
 
             const res = await api.post('/portfolios/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-            const uploadId = res?.data?.upload_id;
-            if (uploadId) sessionStorage.setItem("upload_id", String(uploadId));
-
+            const taskId = res?.data?.task_id || res?.data?.details?.task_id;
+            if (taskId) {
+              lastTaskId = taskId;
+              taskIdForAnalyze = taskId;
+              sessionStorage.setItem("analyze_task_id", taskId);
+            }
           } catch (err) {
             const errorMsg = err.response?.data?.detail || 'Upload failed';
             errors.push(`${file.name}: ${errorMsg}`);
@@ -366,8 +373,12 @@ const Upload = () => {
         fileInputRef.current.value = '';
       }
 
-      // Navigate to analyze page after successful upload
-      navigate('/analyze');
+      // Navigate to analyze page after successful upload (with taskId for multiple)
+      if (taskIdForAnalyze) {
+        navigate("/analyze", { state: { taskId: taskIdForAnalyze } });
+      } else {
+        navigate('/analyze');
+      }
     } catch (err) {
       console.error('Upload error:', err);
       setError(err.response?.data?.detail || err.message || 'Failed to upload project. Please try again.');

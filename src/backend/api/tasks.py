@@ -28,6 +28,7 @@ class TaskStatusResponse(BaseModel):
     progress: int = 0
     error: Optional[str] = None
     result: Optional[Dict[str, Any]] = None
+    analysis_phase: Optional[str] = None  # "non_llm" or "llm" during processing
 
 
 def _sanitize_for_json(obj: Any) -> Any:
@@ -83,6 +84,7 @@ async def get_task_status(task_id: str, username: str = Depends(verify_token)):
             error=task.error,
             result=result,
             progress=task.progress,
+            analysis_phase=getattr(task, "analysis_phase", None),
         )
     except HTTPException:
         raise
@@ -130,6 +132,7 @@ async def list_user_tasks(
                 error=task.error,
                 result=_sanitize_for_json(task.result) if task.result else None,
                 progress=task.progress,
+                analysis_phase=getattr(task, "analysis_phase", None),
             )
         )
     return result_list
