@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext"; 
-import {startAnalysisRequest, getTaskStatus } from "../services/analysisApi";
+//import {startAnalysisRequest, getTaskStatus, cleanupUploadRequest  } from "../services/analysisApi";
+import { getTaskStatus } from "../services/analysisApi";
 
 
 //const API_BASE = ""; 
@@ -10,9 +11,11 @@ export default function AnalyzePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  
 
-  //display-only path from previous page 
-  const zipPath = location.state?.zipPath ?? "(path will be loaded from database)";
+  const uploadId = sessionStorage.getItem("upload_id");
+  const taskIdFromNav = location.state?.taskId ?? null;
+  const displayInfo = taskIdFromNav ? `Task: ${taskIdFromNav}` : "(missing taskId — please upload and analyze again)";
 
   const [status, setStatus] = useState("starting"); // starting | running | completed | failed
   const [progress, setProgress] = useState(0);
@@ -25,43 +28,31 @@ export default function AnalyzePage() {
   useEffect(() => {
     cancelledRef.current = false;
 
-    // If user isn't ready yet, don't start.
     if (!user?.token) {
       setStatus("failed");
       setError("Missing auth token. Please log in again.");
       return;
     }
 
-    startAnalysis();
+    if (!taskIdFromNav) {
+      setStatus("failed");
+      setError("Missing taskId. Please go back to Upload and click Analyze again.");
+      return;
+    }
+
+    setTaskId(taskIdFromNav);
+    setStatus("running");
+    setProgress(0);
+    setError("");
+
+    beginPolling(taskIdFromNav);
 
     return () => {
       cancelledRef.current = true;
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.token]);
+  }, [user?.token, taskIdFromNav]);
 
-  async function startAnalysis() {
-    try {
-      setStatus("starting");
-      setError("");
-      const data = await startAnalysisRequest(user.token);
-      console.log("startAnalysis response:", data);
-
-      if (!data.task_id) throw new Error("Start failed: no task_id returned");
-      if (cancelledRef.current) return;
-
-      setTaskId(data.task_id);
-      setStatus("running");
-      setProgress(0);
-
-      beginPolling(data.task_id);
-    } catch (e) {
-      if (cancelledRef.current) return;
-      setStatus("failed");
-      setError(e?.message ?? "Unknown error starting analysis");
-    }
-  }
 
   function beginPolling(id) {
     // poll immediately once, then every 1s
@@ -93,6 +84,9 @@ export default function AnalyzePage() {
           sessionStorage.setItem("portfolio_id", analysisUuid);
         }
 
+        navigate("/projects");
+
+
       } else if (s === "failed") {
         setStatus("failed");
         setError(data.error || "Analysis failed");
@@ -116,7 +110,7 @@ export default function AnalyzePage() {
 
       <div style={{ marginTop: 12, marginBottom: 18 }}>
         <div style={{ fontSize: 14, opacity: 0.8 }}>Project path</div>
-        <div style={{ fontFamily: "monospace", marginTop: 6 }}>{zipPath}</div>
+        <div style={{ fontFamily: "monospace", marginTop: 6 }}>{displayInfo}</div>
       </div>
 
       <div style={{ marginTop: 12 }}>
@@ -171,19 +165,18 @@ export default function AnalyzePage() {
         <button onClick={() => navigate("/dashboard")}>Exit</button>
 
         <button
-          onClick={() => navigate("/curate",{
-            state: { portfolioId: sessionStorage.getItem("portfolio_id") },
-          })}
+          onClick={() => navigate("/projects")}
           disabled={!isDone}
           title={!isDone ? "Wait for analysis to complete" : ""}
         >
-          Next
+          Go to Projects
         </button>
 
-        {/* Optional: retry if failed */}
+
         {isFailed ? (
-          <button onClick={startAnalysis}>Retry</button>
+          <button onClick={() => taskIdFromNav && beginPolling(taskIdFromNav)}>Retry</button>
         ) : null}
+
       </div>
     </div>
   );

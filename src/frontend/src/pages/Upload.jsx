@@ -205,11 +205,24 @@ const Upload = () => {
         // Note: project_name and description are stored locally but not sent
         // to the API as the backend doesn't currently support these fields
 
-        await api.post('/portfolios/upload', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
+        const res = await api.post('/portfolios/upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
         });
+
+        console.log("UPLOAD RESPONSE DATA:", res.data);
+
+        // Backend returns task_id inside details
+        const taskId = res?.data?.task_id || res?.data?.details?.task_id;
+
+        if (!taskId) {
+          throw new Error("Upload succeeded but no task_id was returned by the server.");
+        }
+
+        // Go straight to Analyze page
+        navigate("/analyze", { state: { taskId } });
+        return; 
+
+
       } else if (activeTab === 'multiple') {
         // Upload multiple files with progress tracking and error aggregation
         const errors = [];
@@ -225,11 +238,10 @@ const Upload = () => {
             formData.append('file', file);
             formData.append('analysis_type', 'non_llm');
 
-            await api.post('/portfolios/upload', formData, {
-              headers: {
-                'Content-Type': 'multipart/form-data',
-              },
-            });
+            const res = await api.post('/portfolios/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+            const uploadId = res?.data?.upload_id;
+            if (uploadId) sessionStorage.setItem("upload_id", String(uploadId));
+
           } catch (err) {
             const errorMsg = err.response?.data?.detail || 'Upload failed';
             errors.push(`${file.name}: ${errorMsg}`);
@@ -334,11 +346,11 @@ const Upload = () => {
         fileInputRef.current.value = '';
       }
 
-      // Navigate to projects page after successful upload (only for non-incremental)
-      navigate('/projects');
+      // Navigate to analyze page after successful upload
+      navigate('/analyze');
     } catch (err) {
       console.error('Upload error:', err);
-      setError(err.response?.data?.detail || 'Failed to upload project. Please try again.');
+      setError(err.response?.data?.detail || err.message || 'Failed to upload project. Please try again.');
     } finally {
       // Only set uploading false if not incremental (incremental handles it separately above)
       if (activeTab !== 'incremental') {
