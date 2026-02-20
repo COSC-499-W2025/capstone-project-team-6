@@ -14,10 +14,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+#moved to below main() function
 # Configure stdout/stderr to use UTF-8 encoding on Windows to handle Unicode characters
-if sys.platform.startswith("win"):
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
+#if sys.platform.startswith("win"):
+#    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+#    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
 
 # Add paths for imports
 current_dir = Path(__file__).parent
@@ -1303,6 +1304,11 @@ def summarize_top_ranked_projects(
 
 
 def main():
+    # Configure stdout/stderr to use UTF-8 encoding on Windows (only when run as script)
+    if sys.platform.startswith("win"):
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
+
     if len(sys.argv) < 2:
         print("Usage: python src/backend/analysis/analyze.py <zip_file_path>")
         print("   or: python src/backend/analysis/analyze.py --summarize [limit]")

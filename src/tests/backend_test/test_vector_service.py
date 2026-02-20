@@ -1,9 +1,17 @@
 import os
 import sys
+from pathlib import Path
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 
 import pytest
+from dotenv import load_dotenv
+
+# Load .env from backend directory
+load_dotenv(Path(__file__).resolve().parents[2] / "backend" / ".env")
+
+if not os.getenv("VECTOR_DB_URL"):
+    pytest.skip("VECTOR_DB_URL not configured - skipping vector service tests", allow_module_level=True)
 
 from src.backend.database_vector import Document, DocumentChunk, SessionLocal
 from src.backend.vector_service import store_document
@@ -20,12 +28,6 @@ def clean_db():
     db.commit()
     db.close()
     yield
-
-
-import os
-
-from src.backend.database_vector import Document, DocumentChunk, SessionLocal
-from src.backend.vector_service import store_document
 
 
 def test_store_document_creates_entries(tmp_path):
