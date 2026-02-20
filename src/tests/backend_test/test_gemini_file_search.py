@@ -273,3 +273,53 @@ class TestLLMPipeline:
         uploaded_batch = client_mock.upload_batch.call_args[0][0]
         assert len(uploaded_batch) == 1
         assert uploaded_batch[0]["path"] == "_offline_analysis.json"
+
+    def test_run_gemini_analysis_with_custom_prompt(self, mock_deps, tmp_path):
+        """Test that prompt_override is passed through to generate_content."""
+        fake_zip = tmp_path / "project.zip"
+        fake_zip.touch()
+
+        mock_deps.report_gen.return_value = {"summary": {}, "projects": []}
+        mock_classifier = mock_deps.classifier.return_value.__enter__.return_value
+        mock_classifier.classify_project.return_value = {
+            "files": {"code": {"python": [{"path": "app.py"}]}, "configs": [], "docs": [], "tests": [], "other": []}
+        }
+        mock_zip = MagicMock()
+        mock_zip.read.return_value = b"print('hi')"
+        mock_zip.__enter__.return_value = mock_zip
+        mock_classifier.zip_file = mock_zip
+
+        client_mock = mock_deps.gemini_client.return_value
+        client_mock.upload_batch.return_value = ["ref1", "ref2"]
+        client_mock.generate_content.return_value = "Custom analysis result"
+
+        custom_prompt = "Analyze code quality and suggest improvements"
+        result = run_gemini_analysis(fake_zip, prompt_override=custom_prompt)
+
+        assert result["llm_summary"] == "Custom analysis result"
+        args, _ = client_mock.generate_content.call_args
+        assert args[1] == custom_prompt
+
+    def test_pipeline_handles_generate_content_error(self, mock_deps, tmp_path):
+        """Test that errors during generate_content are caught and returned as llm_error."""
+        fake_zip = tmp_path / "project.zip"
+        fake_zip.touch()
+
+        mock_deps.report_gen.return_value = {"summary": {}, "projects": []}
+        mock_classifier = mock_deps.classifier.return_value.__enter__.return_value
+        mock_classifier.classify_project.return_value = {
+            "files": {"code": {"python": [{"path": "app.py"}]}, "configs": [], "docs": [], "tests": [], "other": []}
+        }
+        mock_zip = MagicMock()
+        mock_zip.read.return_value = b"print('hi')"
+        mock_zip.__enter__.return_value = mock_zip
+        mock_classifier.zip_file = mock_zip
+
+        client_mock = mock_deps.gemini_client.return_value
+        client_mock.upload_batch.return_value = ["ref1", "ref2"]
+        client_mock.generate_content.side_effect = Exception("API rate limit exceeded")
+
+        result = run_gemini_analysis(fake_zip)
+
+        assert "llm_error" in result
+        assert "API rate limit exceeded" in result["llm_error"]

@@ -2,6 +2,7 @@
 
 import builtins
 import sys
+import zipfile
 from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
@@ -289,6 +290,37 @@ class TestCLIAnalyzeFlow:
 
             assert result == 1
             assert "Please provide consent" in output
+
+    def test_analyze_with_llm_mock_success(self, isolated_test_env, temp_session_file, tmp_path):
+        """Test that analyze --all invokes LLM pipeline and displays results when mocked."""
+        database.create_user("testuser", "password123")
+        database.save_user_consent("testuser", True)
+
+        from backend import session
+
+        session.save_session("testuser")
+
+        # Create minimal ZIP for analysis
+        sample_zip = tmp_path / "python_project.zip"
+        with zipfile.ZipFile(sample_zip, "w") as zf:
+            zf.writestr("main.py", "print('hello')")
+            zf.writestr("README.md", "# Test")
+
+        mock_llm_result = {
+            "analysis_metadata": {"analysis_uuid": "test-uuid", "zip_file": "test.zip", "analysis_timestamp": "2025-01-01"},
+            "summary": {},
+            "llm_summary": "Mock AI analysis: The code demonstrates good practices.",
+            "projects": [],
+        }
+
+        with patch("sys.argv", ["cli", "analyze", str(sample_zip), "--all"]), patch(
+            "backend.analysis.llm_pipeline.run_gemini_analysis", return_value=mock_llm_result
+        ), patch("sys.stdout", new=StringIO()) as fake_out:
+            result = main()
+            output = fake_out.getvalue()
+
+        assert result == 0
+        assert "Mock AI analysis" in output or "AI-Powered" in output or "Gemini" in output
 
     def test_analyze_with_invalid_path(self, isolated_test_env, temp_session_file):
         """Test analyze with non-existent path."""
