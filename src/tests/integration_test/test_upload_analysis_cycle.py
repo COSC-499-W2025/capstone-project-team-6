@@ -93,6 +93,33 @@ def minimal_zip(tmp_path):
     return zip_path
 
 
+@pytest.fixture
+def multi_project_zip(tmp_path):
+    """Create a ZIP containing multiple projects (for multi-project detection)."""
+    zip_path = tmp_path / "multi_project.zip"
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        # Project A: Python with requirements.txt
+        zf.writestr("project_a/main.py", "print('Project A')")
+        zf.writestr("project_a/requirements.txt", "requests==1.0")
+        zf.writestr("project_a/README.md", "# Project A")
+        # Project B: Node with package.json
+        zf.writestr("project_b/index.js", "console.log('Project B')")
+        zf.writestr("project_b/package.json", '{"name": "project-b"}')
+        zf.writestr("project_b/README.md", "# Project B")
+    return zip_path
+
+
+@pytest.fixture
+def auth_headers_no_consent(client):
+    """Sign up without consent and return auth headers."""
+    username = f"no_consent_{int(time.time())}"
+    password = "testpass123"
+    r = client.post("/api/auth/signup", json={"username": username, "password": password})
+    assert r.status_code in [200, 201], f"Signup failed: {r.text}"
+    token = r.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}, username
+
+
 class TestUploadAnalysisCycle:
     """Test the complete upload -> analyze -> projects flow."""
 
@@ -103,7 +130,7 @@ class TestUploadAnalysisCycle:
             r = client.post(
                 "/api/portfolios/upload",
                 files={"file": ("test_project.zip", f, "application/zip")},
-                data={"analysis_type": "non_llm"},
+                data={"analysis_type": "non_llm", "project_name": "Test Project"},
                 headers=headers,
             )
 
@@ -124,7 +151,7 @@ class TestUploadAnalysisCycle:
             r = client.post(
                 "/api/portfolios/upload",
                 files={"file": ("test_project.zip", f, "application/zip")},
-                data={"analysis_type": "non_llm"},
+                data={"analysis_type": "non_llm", "project_name": "Test Project"},
                 headers=headers,
             )
         assert r.status_code == 202
@@ -159,23 +186,69 @@ class TestUploadAnalysisCycle:
             assert "id" in p
             assert "project_name" in p or "project_path" in p
 
-    def test_upload_requires_consent(self, client, minimal_zip):
-        """Upload fails without consent."""
-        # Signup without consent
-        username = f"no_consent_{int(time.time())}"
-        r = client.post("/api/auth/signup", json={"username": username, "password": "testpass123"})
-        assert r.status_code in [200, 201]
-        token = r.json()["access_token"]
-        headers = {"Authorization": f"Bearer {token}"}
-
-        # Do NOT give consent - try upload
+    def test_upload_non_llm_without_consent_succeeds(self, client, auth_headers_no_consent, minimal_zip):
+        """Non-LLM upload succeeds without consent."""
+        headers, _ = auth_headers_no_consent
         with open(minimal_zip, "rb") as f:
             r = client.post(
                 "/api/portfolios/upload",
                 files={"file": ("test_project.zip", f, "application/zip")},
-                data={"analysis_type": "non_llm"},
+                data={"analysis_type": "non_llm", "project_name": "My Test Project"},
                 headers=headers,
             )
+        assert r.status_code == 202, f"Non-LLM upload without consent should succeed: {r.text}"
+        assert "task_id" in r.json().get("details", {})
 
-        assert r.status_code == 403
+    def test_upload_llm_without_consent_fails(self, client, auth_headers_no_consent, minimal_zip):
+        """LLM upload fails without consent."""
+        headers, _ = auth_headers_no_consent
+        with open(minimal_zip, "rb") as f:
+            r = client.post(
+                "/api/portfolios/upload",
+                files={"file": ("test_project.zip", f, "application/zip")},
+                data={"analysis_type": "llm", "project_name": "My Test Project"},
+                headers=headers,
+            )
+        assert r.status_code == 403, f"LLM upload without consent should fail: {r.text}"
         assert "consent" in r.json()["detail"].lower()
+
+    def test_multi_project_zip_analyzed_correctly(self, client, auth_headers, multi_project_zip):
+        """Single ZIP with multiple projects is analyzed and all projects appear."""
+        headers, username = auth_headers
+
+        with open(multi_project_zip, "rb") as f:
+            r = client.post(
+                "/api/portfolios/upload",
+                files={"file": ("multi_project.zip", f, "application/zip")},
+                data={"analysis_type": "non_llm", "project_name": "Multi Portfolio"},
+                headers=headers,
+            )
+        assert r.status_code == 202, f"Upload failed: {r.text}"
+        task_id = r.json()["details"]["task_id"]
+
+        # Poll until complete
+        max_wait = 90
+        poll_interval = 0.5
+        elapsed = 0
+        while elapsed < max_wait:
+            r = client.get(f"/api/tasks/{task_id}", headers=headers)
+            assert r.status_code == 200, f"Task status failed: {r.text}"
+            data = r.json()
+            if data["status"] == "completed":
+                result = data.get("result", {})
+                total = result.get("total_projects", 0)
+                assert total >= 2, f"Expected at least 2 projects, got {total}"
+                break
+            if data["status"] == "failed":
+                pytest.fail(f"Task failed: {data.get('error', 'Unknown error')}")
+            time.sleep(poll_interval)
+            elapsed += poll_interval
+        else:
+            pytest.fail("Task did not complete within timeout")
+
+        # Verify projects appear in /api/projects
+        r = client.get("/api/projects", headers=headers)
+        assert r.status_code == 200
+        projects_data = r.json()
+        projects = projects_data.get("projects", [])
+        assert len(projects) >= 2, f"Expected at least 2 projects in list, got {len(projects)}"

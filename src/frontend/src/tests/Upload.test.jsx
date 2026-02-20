@@ -16,6 +16,13 @@ vi.mock('../services/api', () => ({
   default: {
     post: vi.fn(),
   },
+  consentAPI: {
+    getConsent: vi.fn().mockResolvedValue({ has_consented: false }),
+  },
+  portfoliosAPI: {
+    listPortfolios: vi.fn().mockResolvedValue([]),
+    addToPortfolio: vi.fn(),
+  },
 }));
 
 import Upload from '../pages/Upload';
@@ -47,9 +54,11 @@ describe('Upload', () => {
         </BrowserRouter>
       );
 
-      // Select file (single tab is default) - input is hidden
+      // Select file and enter project name (both required for Analyze to be enabled)
       const input = container.querySelector('input[type="file"]');
       fireEvent.change(input, { target: { files: [file] } });
+      const nameInput = screen.getByPlaceholderText('My Awesome Project');
+      fireEvent.change(nameInput, { target: { value: 'My Project' } });
 
       // Click Analyze Project
       const submitButton = screen.getByText('Analyze Project');
@@ -86,6 +95,7 @@ describe('Upload', () => {
 
       const input = container.querySelector('input[type="file"]');
       fireEvent.change(input, { target: { files: [file] } });
+      fireEvent.change(screen.getByPlaceholderText('My Awesome Project'), { target: { value: 'My Project' } });
 
       fireEvent.click(screen.getByText('Analyze Project'));
 
@@ -112,6 +122,7 @@ describe('Upload', () => {
 
       const input = container.querySelector('input[type="file"]');
       fireEvent.change(input, { target: { files: [file] } });
+      fireEvent.change(screen.getByPlaceholderText('My Awesome Project'), { target: { value: 'My Project' } });
 
       fireEvent.click(screen.getByText('Analyze Project'));
 

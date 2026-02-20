@@ -63,6 +63,7 @@ class TaskInfo(BaseModel):
     error: Optional[str] = None
     analysis_type: Optional[str] = None
     portfolio_id: Optional[str] = None  # For incremental uploads
+    project_name: Optional[str] = None  # User-provided project name override
 
 
 class FileManager:
@@ -219,6 +220,7 @@ class TaskManager:
         file_path: Path,
         analysis_type: str = None,
         portfolio_id: str = None,
+        project_name: str = None,
     ) -> str:
         """Create a new task and return task ID."""
         task_id = str(uuid.uuid4())
@@ -236,6 +238,7 @@ class TaskManager:
             file_hash=file_hash,
             analysis_type=analysis_type,
             portfolio_id=portfolio_id,
+            project_name=project_name,
         )
 
         self.tasks[task_id] = task
@@ -362,6 +365,17 @@ class TaskManager:
         analysis_result = await loop.run_in_executor(_executor, analyze_folder, file_path)
         task.progress = 80
 
+        # Override project name with user-provided value if set
+        if task.project_name and task.project_name.strip():
+            projects = analysis_result.get("projects", [])
+            if len(projects) == 1:
+                projects[0]["project_name"] = task.project_name.strip()
+            elif len(projects) > 1:
+                for p in projects:
+                    if (p.get("project_path") or "") == "" or p.get("project_name") == "root_project":
+                        p["project_name"] = task.project_name.strip()
+                        break
+
         analysis_id = record_analysis(task.analysis_type or "non_llm", analysis_result, username=task.username)
         row = get_analysis(analysis_id)
         analysis_uuid = row["analysis_uuid"] if row and "analysis_uuid" in row else None
@@ -385,7 +399,7 @@ class TaskManager:
             has_consented = False
             result_payload["llm_error"] = f"Consent check failed: {e}"
 
-        if has_consented:
+        if has_consented and (task.analysis_type or "non_llm") == "llm":
             task.progress = 92
             try:
                 # Choose active features

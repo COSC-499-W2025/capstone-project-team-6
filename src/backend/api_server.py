@@ -265,16 +265,17 @@ async def get_portfolio(portfolio_id: str, username: str = Depends(verify_token)
 async def upload_new_portfolio(
     file: UploadFile = File(..., description="ZIP file containing project"),
     analysis_type: str = Form("llm", description="Analysis type: llm or non_llm"),
+    project_name: Optional[str] = Form(None, description="User-provided project name (for single project)"),
     username: str = Depends(verify_token),
 ):
     """Upload a new portfolio (create new analysis).
     Returns immediately with task ID.
     """
-    # Verify user consent
-    if not check_user_consent(username):
+    # Require consent only for LLM analysis; non_llm works without consent
+    if analysis_type == "llm" and not check_user_consent(username):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User consent required. Please provide consent before uploading.",
+            detail="Consent required for LLM analysis. Use non_llm or provide consent in Settings.",
         )
 
     # Validate file type
@@ -315,6 +316,7 @@ async def upload_new_portfolio(
         filename=file.filename,
         file_path=zip_path,
         analysis_type=analysis_type,
+        project_name=project_name.strip() if project_name and project_name.strip() else None,
     )
 
     return MessageResponse(
@@ -333,6 +335,7 @@ async def upload_new_portfolio(
 async def add_to_existing_portfolio(
     portfolio_id: str,
     file: UploadFile = File(..., description="ZIP file with additional projects"),
+    analysis_type: str = Form("non_llm", description="Analysis type: llm or non_llm"),
     username: str = Depends(verify_token),
 ):
     """Add incremental data to an existing portfolio"""
@@ -344,11 +347,11 @@ async def add_to_existing_portfolio(
             detail=f"Portfolio {portfolio_id} not found or access denied",
         )
 
-    # Verify user consent
-    if not check_user_consent(username):
+    # Require consent only for LLM analysis
+    if analysis_type == "llm" and not check_user_consent(username):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User consent required",
+            detail="Consent required for LLM analysis. Use non_llm or provide consent in Settings.",
         )
 
     # Validate file type
