@@ -252,3 +252,39 @@ class TestUploadAnalysisCycle:
         projects_data = r.json()
         projects = projects_data.get("projects", [])
         assert len(projects) >= 2, f"Expected at least 2 projects in list, got {len(projects)}"
+
+    @pytest.mark.skip(reason="LLM requires Gemini API; run manually with API key")
+    def test_llm_analysis_no_duplicate_projects(self, client, auth_headers, minimal_zip):
+        """LLM analysis should not create duplicate project rows (single project = 1 row)."""
+        headers, username = auth_headers
+
+        with open(minimal_zip, "rb") as f:
+            r = client.post(
+                "/api/portfolios/upload",
+                files={"file": ("test_project.zip", f, "application/zip")},
+                data={"analysis_type": "llm", "project_name": "Single Project"},
+                headers=headers,
+            )
+        assert r.status_code == 202
+        task_id = r.json()["details"]["task_id"]
+
+        max_wait = 180  # LLM can take longer
+        poll_interval = 1
+        elapsed = 0
+        while elapsed < max_wait:
+            r = client.get(f"/api/tasks/{task_id}", headers=headers)
+            assert r.status_code == 200
+            data = r.json()
+            if data["status"] == "completed":
+                break
+            if data["status"] == "failed":
+                pytest.fail(f"Task failed: {data.get('error')}")
+            time.sleep(poll_interval)
+            elapsed += poll_interval
+        else:
+            pytest.fail("Task did not complete within timeout")
+
+        r = client.get("/api/projects", headers=headers)
+        assert r.status_code == 200
+        projects = r.json().get("projects", [])
+        assert len(projects) == 1, f"Expected 1 project (no duplicates), got {len(projects)}"

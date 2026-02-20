@@ -141,4 +141,40 @@ describe('Upload', () => {
       expect(screen.getByText('Analyze Project')).toBeInTheDocument();
     });
   });
+
+  describe('Multiple projects upload flow', () => {
+    it('navigates to analyze with taskId from last upload', async () => {
+      const lastTaskId = 'task-from-last-upload';
+      api.post.mockResolvedValue({
+        data: {
+          message: 'Upload accepted',
+          details: { task_id: lastTaskId, filename: 'project.zip', status: 'processing' },
+        },
+      });
+
+      const file1 = new File(['a'], 'project1.zip', { type: 'application/zip' });
+      const file2 = new File(['b'], 'project2.zip', { type: 'application/zip' });
+      const { container } = render(
+        <BrowserRouter>
+          <Upload />
+        </BrowserRouter>
+      );
+
+      fireEvent.click(screen.getByText('Multiple Projects'));
+      const input = container.querySelector('input[type="file"]');
+      fireEvent.change(input, { target: { files: [file1, file2] } });
+
+      await waitFor(() => {
+        expect(screen.getByText('Analyze Projects')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Analyze Projects'));
+
+      await waitFor(() => {
+        expect(api.post).toHaveBeenCalledTimes(2);
+      });
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith('/analyze', { state: { taskId: lastTaskId } });
+      });
+    });
+  });
 });

@@ -59,6 +59,7 @@ class TestTasksEndpoints:
         mock_task.updated_at = datetime.now()
         mock_task.error = None
         mock_task.result = {"analysis_uuid": str(uuid.uuid4())}
+        mock_task.analysis_phase = "llm"
 
         mock_manager = MagicMock()
         mock_manager.get_task_status.return_value = mock_task
@@ -74,6 +75,7 @@ class TestTasksEndpoints:
         assert data["task_id"] == task_id
         assert data["status"] == "completed"
         assert data["username"] == username
+        assert data["analysis_phase"] == "llm"
 
     @patch("backend.api.tasks.get_task_manager")
     def test_get_task_status_not_found(self, mock_get_manager, auth_token):
