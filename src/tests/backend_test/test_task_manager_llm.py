@@ -5,6 +5,7 @@ Verifies the fix for duplicate projects when LLM analysis runs:
 LLM record_analysis must be called with projects=[] to avoid creating duplicate project rows.
 """
 
+import asyncio
 import sys
 import tempfile
 import zipfile
@@ -78,11 +79,8 @@ def test_llm_analysis_passes_empty_projects_to_record_analysis(
     mock_record.return_value = 1
 
     manager = TaskManager()
-    import asyncio
 
-    result = asyncio.get_event_loop().run_until_complete(
-        manager._process_new_portfolio(task_with_llm)
-    )
+    result = asyncio.run(manager._process_new_portfolio(task_with_llm))
 
     assert result.get("llm_ran") is True
 
