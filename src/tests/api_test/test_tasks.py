@@ -137,6 +137,7 @@ class TestTasksEndpoints:
         mock_task1.updated_at = datetime.now()
         mock_task1.error = None
         mock_task1.result = {}
+        mock_task1.analysis_phase = None
 
         mock_task2 = MagicMock()
         mock_task2.task_id = str(uuid.uuid4())
@@ -148,6 +149,7 @@ class TestTasksEndpoints:
         mock_task2.updated_at = datetime.now()
         mock_task2.error = None
         mock_task2.result = None
+        mock_task2.analysis_phase = None
 
         mock_manager = MagicMock()
         mock_manager.get_user_tasks.return_value = [mock_task1, mock_task2]
@@ -244,6 +246,7 @@ class TestTasksEndpoints:
         mock_task.updated_at = datetime.now()
         mock_task.error = "Analysis failed: Invalid ZIP file"
         mock_task.result = None
+        mock_task.analysis_phase = None
 
         mock_manager = MagicMock()
         mock_manager.get_task_status.return_value = mock_task

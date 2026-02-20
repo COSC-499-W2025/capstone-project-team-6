@@ -10,6 +10,7 @@ Tests the full flow:
 6. After completion, projects page shows the analyzed project
 """
 
+import asyncio
 import sys
 import tempfile
 import time
@@ -21,6 +22,7 @@ src_dir = Path(__file__).resolve().parent.parent.parent
 if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
 
+import httpx
 from fastapi.testclient import TestClient
 
 from backend.analysis_database import (
@@ -57,6 +59,15 @@ def client(temp_dbs):
     """Create test client with clean token state."""
     active_tokens.clear()
     yield TestClient(app)
+    active_tokens.clear()
+
+
+@pytest.fixture
+def async_client(temp_dbs):
+    """Async client - shares event loop with app so asyncio.create_task runs."""
+    active_tokens.clear()
+    transport = httpx.ASGITransport(app=app)
+    yield httpx.AsyncClient(transport=transport, base_url="http://test")
     active_tokens.clear()
 
 
@@ -212,12 +223,19 @@ class TestUploadAnalysisCycle:
         assert r.status_code == 403, f"LLM upload without consent should fail: {r.text}"
         assert "consent" in r.json()["detail"].lower()
 
-    def test_multi_project_zip_analyzed_correctly(self, client, auth_headers, multi_project_zip):
-        """Single ZIP with multiple projects is analyzed and all projects appear."""
+    @pytest.mark.asyncio
+    async def test_multi_project_zip_analyzed_correctly(
+        self, client, async_client, auth_headers, multi_project_zip
+    ):
+        """Single ZIP with multiple projects is analyzed and all projects appear.
+
+        Uses AsyncClient so asyncio.create_task in the upload handler runs on the same
+        event loop; TestClient does not run background tasks.
+        """
         headers, username = auth_headers
 
         with open(multi_project_zip, "rb") as f:
-            r = client.post(
+            r = await async_client.post(
                 "/api/portfolios/upload",
                 files={"file": ("multi_project.zip", f, "application/zip")},
                 data={"analysis_type": "non_llm", "project_name": "Multi Portfolio"},
@@ -226,12 +244,12 @@ class TestUploadAnalysisCycle:
         assert r.status_code == 202, f"Upload failed: {r.text}"
         task_id = r.json()["details"]["task_id"]
 
-        # Poll until complete
-        max_wait = 90
-        poll_interval = 0.5
+        # Poll until complete (AsyncClient shares event loop, so background task runs)
+        max_wait = 120
+        poll_interval = 1
         elapsed = 0
         while elapsed < max_wait:
-            r = client.get(f"/api/tasks/{task_id}", headers=headers)
+            r = await async_client.get(f"/api/tasks/{task_id}", headers=headers)
             assert r.status_code == 200, f"Task status failed: {r.text}"
             data = r.json()
             if data["status"] == "completed":
@@ -241,13 +259,13 @@ class TestUploadAnalysisCycle:
                 break
             if data["status"] == "failed":
                 pytest.fail(f"Task failed: {data.get('error', 'Unknown error')}")
-            time.sleep(poll_interval)
+            await asyncio.sleep(poll_interval)
             elapsed += poll_interval
         else:
             pytest.fail("Task did not complete within timeout")
 
         # Verify projects appear in /api/projects
-        r = client.get("/api/projects", headers=headers)
+        r = await async_client.get("/api/projects", headers=headers)
         assert r.status_code == 200
         projects_data = r.json()
         projects = projects_data.get("projects", [])

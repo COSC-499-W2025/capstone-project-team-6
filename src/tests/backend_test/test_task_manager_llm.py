@@ -50,10 +50,10 @@ def task_with_llm(minimal_zip):
 
 
 @patch("backend.database.check_user_consent")
-@patch("backend.task_manager.get_analysis")
-@patch("backend.task_manager.record_analysis")
-@patch("backend.task_manager.run_gemini_analysis")
-@patch("backend.task_manager.analyze_folder")
+@patch("backend.analysis_database.get_analysis")
+@patch("backend.analysis_database.record_analysis")
+@patch("backend.analysis.llm_pipeline.run_gemini_analysis")
+@patch("backend.cli.analyze_folder")
 def test_llm_analysis_passes_empty_projects_to_record_analysis(
     mock_analyze,
     mock_run_gemini,
