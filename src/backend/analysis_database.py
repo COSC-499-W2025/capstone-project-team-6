@@ -96,7 +96,6 @@ def init_db() -> None:
             """
         )
 
-
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS analyses (
@@ -124,12 +123,11 @@ def init_db() -> None:
         if "username" not in existing_columns:
             conn.execute("ALTER TABLE analyses ADD COLUMN username TEXT REFERENCES users(username);")
             conn.commit()
-        
+
         existing_columns = {row["name"] for row in conn.execute("PRAGMA table_info(analyses)")}
         if "upload_id" not in existing_columns:
             conn.execute("ALTER TABLE analyses ADD COLUMN upload_id INTEGER REFERENCES uploads(id);")
             conn.commit()
-
 
         conn.execute(
             """

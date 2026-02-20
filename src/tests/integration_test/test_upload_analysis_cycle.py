@@ -15,6 +15,7 @@ import tempfile
 import time
 import zipfile
 from pathlib import Path
+
 import pytest
 
 src_dir = Path(__file__).resolve().parent.parent.parent
@@ -23,14 +24,13 @@ if str(src_dir) not in sys.path:
 
 from fastapi.testclient import TestClient
 
-from backend.analysis_database import (
-    init_db as init_analysis_db,
-    set_db_path as set_analysis_db_path,
-)
+from backend.analysis_database import init_db as init_analysis_db
+from backend.analysis_database import set_db_path as set_analysis_db_path
 from backend.api.auth import active_tokens
 from backend.api_server import app
 from backend.curation import init_curation_tables
-from backend.database import init_db as init_user_db, set_db_path as set_user_db_path
+from backend.database import init_db as init_user_db
+from backend.database import set_db_path as set_user_db_path
 
 
 @pytest.fixture

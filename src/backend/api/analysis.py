@@ -1,10 +1,9 @@
 """Analysis pipeline API endpoints."""
 
+import os
 import tempfile
 import uuid
-import os
 from datetime import datetime
-
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -12,7 +11,9 @@ from fastapi import (APIRouter, Depends, File, Form, HTTPException, UploadFile,
                      status)
 from pydantic import BaseModel
 
-from backend.analysis_database import get_analysis_by_uuid, create_upload, get_upload, update_upload_status, clear_upload_zip_path
+from backend.analysis_database import (clear_upload_zip_path, create_upload,
+                                       get_analysis_by_uuid, get_upload,
+                                       update_upload_status)
 from backend.api.auth import verify_token
 from backend.database import check_user_consent
 from backend.task_manager import TaskType, get_task_manager
@@ -226,7 +227,6 @@ async def upload_portfolio_zip(
     }
 
 
-
 @router.get("/status")
 async def get_analysis_status(username: str = Depends(verify_token)):
     """Get overall analysis pipeline status and statistics."""
@@ -383,6 +383,7 @@ async def start_analysis_for_upload(
         "status_url": f"/api/tasks/{task_id}",
     }
 
+
 @router.post("/uploads/{upload_id}/cleanup", status_code=200)
 async def cleanup_upload_zip(
     upload_id: int,
@@ -409,4 +410,3 @@ async def cleanup_upload_zip(
     update_upload_status(upload_id, username, "done")
 
     return {"ok": True, "upload_id": upload_id, "status": "done"}
-
