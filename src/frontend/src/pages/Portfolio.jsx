@@ -104,18 +104,6 @@ const Portfolio = () => {
   const heroTimestamp =
     selectedPortfolioDetail?.analysis_timestamp ?? selectedSummaryEntry?.analysis_timestamp ?? null;
 
-  const displaySummary = useMemo(() => {
-    const summary = selectedPortfolioDetail?.summary;
-    if (!summary) return 'This portfolio does not yet have a readable summary.';
-    return (
-      summary.text_summary ||
-      summary.analysis_summary ||
-      summary.llm_summary ||
-      summary.brief ||
-      'This portfolio does not yet have a readable summary.'
-    );
-  }, [selectedPortfolioDetail]);
-
   const projectList = selectedPortfolioDetail?.projects ?? [];
   const portfolioItems =
     selectedPortfolioDetail?.portfolio_items ||
@@ -332,11 +320,6 @@ const Portfolio = () => {
                     {analysisType.toUpperCase()}
                   </p>
                 </div>
-              </div>
-
-              <div style={{ marginTop: '24px' }}>
-                <h3 style={{ margin: 0, fontSize: '18px', color: '#0f172a' }}>Summary</h3>
-                <p style={{ margin: '10px 0 0', color: '#374151', lineHeight: 1.7 }}>{displaySummary}</p>
               </div>
 
               <div style={{ marginTop: '32px' }}>
