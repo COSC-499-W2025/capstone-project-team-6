@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
@@ -51,6 +51,7 @@ const mockPortfolioList = [
     analysis_timestamp: '2026-01-01T08:00:00Z',
     total_projects: 2,
     analysis_type: 'llm',
+    project_names: ['Alpha'],
   },
   {
     analysis_uuid: 'run-2',
@@ -58,6 +59,7 @@ const mockPortfolioList = [
     analysis_timestamp: '2026-02-02T11:30:00Z',
     total_projects: 1,
     analysis_type: 'non_llm',
+    project_names: ['Beta'],
   },
 ];
 
@@ -160,19 +162,64 @@ describe('Portfolio page', () => {
     });
   });
 
-  it('displays summary, skills, and projects once data is available', async () => {
+  it('displays skills and projects once data is available', async () => {
     portfoliosAPI.listPortfolios.mockResolvedValue(mockPortfolioList);
     portfoliosAPI.getPortfolioDetail.mockResolvedValue(mockDetailFirst);
 
     renderWithAuth();
 
     await waitFor(() => {
-      expect(screen.getByText('Summary of run 1')).toBeInTheDocument();
       expect(screen.getByText('Python')).toBeInTheDocument();
-      expect(screen.getByText('Alpha')).toBeInTheDocument();
+      expect(screen.getAllByText('Alpha').length).toBeGreaterThan(0);
       expect(screen.getByText('Alpha highlight')).toBeInTheDocument();
       expect(screen.getByText(/Quality score: 45/)).toBeInTheDocument();
       expect(screen.getByText(/Sophistication: intermediate/)).toBeInTheDocument();
+    });
+  });
+
+  it('does not render the summary section', async () => {
+    portfoliosAPI.listPortfolios.mockResolvedValue(mockPortfolioList);
+    portfoliosAPI.getPortfolioDetail.mockResolvedValue(mockDetailFirst);
+
+    renderWithAuth();
+
+    await waitFor(() => {
+      expect(screen.queryByText('Summary')).not.toBeInTheDocument();
+      expect(screen.queryByText('Summary of run 1')).not.toBeInTheDocument();
+    });
+  });
+
+  it('derives highlighted skills from portfolio items when skills list is empty', async () => {
+    portfoliosAPI.listPortfolios.mockResolvedValue(mockPortfolioList);
+    portfoliosAPI.getPortfolioDetail.mockResolvedValue({
+      ...mockDetailFirst,
+      skills: [],
+      portfolio_items: [
+        {
+          project_name: 'Alpha',
+          text_summary: 'Skill fallback test',
+          skills_exercised: ['Backend APIs', 'Testing', 'Backend APIs'],
+        },
+      ],
+    });
+
+    renderWithAuth();
+
+    await waitFor(() => {
+      expect(screen.getByText('Backend APIs')).toBeInTheDocument();
+      expect(screen.getByText('Testing')).toBeInTheDocument();
+    });
+  });
+
+  it('shows project names in available analyses cards', async () => {
+    portfoliosAPI.listPortfolios.mockResolvedValue(mockPortfolioList);
+    portfoliosAPI.getPortfolioDetail.mockResolvedValue(mockDetailFirst);
+
+    renderWithAuth();
+
+    await waitFor(() => {
+      expect(screen.getByText('Alpha')).toBeInTheDocument();
+      expect(screen.getByText('Beta')).toBeInTheDocument();
     });
   });
 
@@ -185,18 +232,51 @@ describe('Portfolio page', () => {
     renderWithAuth();
 
     await waitFor(() => {
-      expect(screen.getByText('Summary of run 1')).toBeInTheDocument();
+      expect(screen.getByText('Alpha highlight')).toBeInTheDocument();
     });
 
     const secondCard = screen.getByTestId('portfolio-card-run-2');
-    secondCard.click();
+    fireEvent.click(secondCard);
 
     await waitFor(() => {
-      expect(screen.getByText('Summary of run 2')).toBeInTheDocument();
+      expect(screen.getByText('A JavaScript project with nested stats output shape.')).toBeInTheDocument();
       expect(screen.getByText(/Quality score: 38/)).toBeInTheDocument();
       expect(screen.getByText(/Sophistication: intermediate/)).toBeInTheDocument();
     });
 
     expect(portfoliosAPI.getPortfolioDetail).toHaveBeenCalledWith('run-2');
+  });
+
+  it('renders portfolio item metadata fields (summary, tech stack, and skills)', async () => {
+    portfoliosAPI.listPortfolios.mockResolvedValue(mockPortfolioList);
+    portfoliosAPI.getPortfolioDetail.mockResolvedValue(mockDetailFirst);
+
+    renderWithAuth();
+
+    await waitFor(() => {
+      expect(screen.getByText('Alpha highlight')).toBeInTheDocument();
+      expect(
+        screen.getByText('A Python backend project with strong code quality signals.')
+      ).toBeInTheDocument();
+      expect(screen.getByText('Tech stack: Python, FastAPI')).toBeInTheDocument();
+      expect(screen.getByText('Skills: API design, Testing')).toBeInTheDocument();
+    });
+  });
+
+  it('shows empty state when no portfolio items are returned', async () => {
+    portfoliosAPI.listPortfolios.mockResolvedValue(mockPortfolioList);
+    portfoliosAPI.getPortfolioDetail.mockResolvedValue({
+      ...mockDetailFirst,
+      portfolio_items: [],
+      items: [],
+    });
+
+    renderWithAuth();
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('No portfolio items were returned by the backend yet.')
+      ).toBeInTheDocument();
+    });
   });
 });
