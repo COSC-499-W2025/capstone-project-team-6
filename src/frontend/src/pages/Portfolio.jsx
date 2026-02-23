@@ -334,6 +334,11 @@ const Portfolio = () => {
                 </div>
               </div>
 
+              <div style={{ marginTop: '24px' }}>
+                <h3 style={{ margin: 0, fontSize: '18px', color: '#0f172a' }}>Summary</h3>
+                <p style={{ margin: '10px 0 0', color: '#374151', lineHeight: 1.7 }}>{displaySummary}</p>
+              </div>
+
               <div style={{ marginTop: '32px' }}>
                 <h3 style={{ margin: 0, fontSize: '18px', color: '#0f172a' }}>Highlighted skills</h3>
                 {skillTags.length > 0 ? (
