@@ -52,7 +52,7 @@ class ConsentResponse(BaseModel):
     message: str
 
 
-@router.get("/portfolios", response_model=List[PortfolioListItem])
+@router.get("/portfolios", response_model=List[PortfolioListItem], operation_id="list_portfolios")
 async def list_portfolios(username: str = Depends(verify_token)):
     """List all portfolios for the authenticated user."""
     analyses = get_all_analyses_for_user(username)
@@ -69,7 +69,7 @@ async def list_portfolios(username: str = Depends(verify_token)):
     ]
 
 
-@router.get("/portfolios/{portfolio_id}", response_model=PortfolioDetail)
+@router.get("/portfolios/{portfolio_id}", response_model=PortfolioDetail, operation_id="get_portfolio")
 async def get_portfolio(portfolio_id: str, username: str = Depends(verify_token)):
     """Get detailed information about a specific portfolio."""
     analysis = get_analysis_by_uuid(portfolio_id, username)
@@ -93,13 +93,13 @@ async def get_portfolio(portfolio_id: str, username: str = Depends(verify_token)
 
 
 # Alias for GET portfolio
-@router.get("/portfolio/{portfolio_id}", response_model=PortfolioDetail)
+@router.get("/portfolio/{portfolio_id}", response_model=PortfolioDetail, operation_id="get_portfolio_alias")
 async def get_portfolio_alias(portfolio_id: str, username: str = Depends(verify_token)):
     """Get detailed information about a specific portfolio (alias)."""
     return await get_portfolio(portfolio_id, username)
 
 
-@router.post("/portfolios/upload", status_code=202)
+@router.post("/portfolios/upload", status_code=202, operation_id="upload_new_portfolio")
 async def upload_new_portfolio(
     file: UploadFile = File(..., description="ZIP file containing project"),
     analysis_type: str = Form("llm", description="Analysis type: llm or non_llm"),
@@ -167,7 +167,7 @@ async def upload_new_portfolio(
     )
 
 
-@router.post("/portfolios/{portfolio_id}/add", status_code=202)
+@router.post("/portfolios/{portfolio_id}/add", status_code=202, operation_id="add_to_existing_portfolio")
 async def add_to_existing_portfolio(
     portfolio_id: str,
     file: UploadFile = File(..., description="ZIP file with additional projects"),
@@ -234,7 +234,7 @@ async def add_to_existing_portfolio(
     )
 
 
-@router.delete("/portfolios/{portfolio_id}")
+@router.delete("/portfolios/{portfolio_id}", operation_id="delete_portfolio")
 async def delete_portfolio(portfolio_id: str, username: str = Depends(verify_token)):
     """Delete a portfolio and all associated data."""
 
@@ -259,7 +259,7 @@ async def delete_portfolio(portfolio_id: str, username: str = Depends(verify_tok
 
 
 # Consent endpoints (kept with portfolios for now)
-@router.post("/user/consent", response_model=ConsentResponse)
+@router.post("/user/consent", response_model=ConsentResponse, operation_id="save_consent")
 async def save_consent(consent: ConsentRequest, username: str = Depends(verify_token)):
     """Save user consent status."""
     try:
@@ -275,13 +275,13 @@ async def save_consent(consent: ConsentRequest, username: str = Depends(verify_t
         )
 
 
-@router.post("/privacy-consent", response_model=ConsentResponse)
+@router.post("/privacy-consent", response_model=ConsentResponse, operation_id="save_privacy_consent")
 async def save_privacy_consent(consent: ConsentRequest, username: str = Depends(verify_token)):
-    """Save user privacy consent status (alias for /api/user/consent)."""
+    """Save user privacy consent status."""
     return await save_consent(consent, username)
 
 
-@router.get("/user/consent", response_model=ConsentResponse)
+@router.get("/user/consent", response_model=ConsentResponse, operation_id="get_consent")
 async def get_consent(username: str = Depends(verify_token)):
     """Get user consent status."""
     try:
@@ -295,7 +295,7 @@ async def get_consent(username: str = Depends(verify_token)):
         )
 
 
-@router.post("/portfolio/generate")
+@router.post("/portfolio/generate", operation_id="generate_portfolio_document")
 async def generate_portfolio_document(
     portfolio_id: str,
     username: str = Depends(verify_token),

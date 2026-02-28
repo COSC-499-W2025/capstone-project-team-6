@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -16,6 +16,7 @@ from backend.analysis_database import (get_analysis_by_uuid,
                                        update_project_thumbnail)
 from backend.api.auth import verify_token
 from backend.curation import get_user_projects
+from backend.api.portfolios import upload_new_portfolio
 
 router = APIRouter(prefix="/api", tags=["Projects"])
 
@@ -50,7 +51,7 @@ class SkillInfo(BaseModel):
     projects: List[str]
 
 
-@router.get("/projects")
+@router.get("/projects", operation_id="list_all_projects")
 async def list_all_projects(username: str = Depends(verify_token)):
     """List all projects across all portfolios for authenticated user."""
     projects = get_user_projects(username)
@@ -61,7 +62,7 @@ async def list_all_projects(username: str = Depends(verify_token)):
     }
 
 
-@router.get("/projects/{project_id}")
+@router.get("/projects/{project_id}", operation_id="get_project_detail")
 async def get_project_detail(project_id: str, username: str = Depends(verify_token)):
     """Get detailed information about a specific project."""
     # Project ID format: {portfolio_uuid}:{project_path}
@@ -110,17 +111,16 @@ async def get_project_detail(project_id: str, username: str = Depends(verify_tok
 
 
 # Alias for upload endpoint (redirects to portfolios/upload)
-@router.post("/projects/upload", status_code=202)
-async def upload_project_alias(username: str = Depends(verify_token)):
-    """Alias for /api/portfolios/upload. Use that endpoint instead."""
-    raise HTTPException(
-        status_code=status.HTTP_308_PERMANENT_REDIRECT,
-        detail="Use POST /api/portfolios/upload instead",
-        headers={"Location": "/api/portfolios/upload"},
-    )
+@router.post("/projects/upload", status_code=202, operation_id="upload_project_alias")
+async def upload_project_alias(
+    request: Request,
+    username: str = Depends(verify_token),
+):
+    """Accept project upload and forward to /api/portfolios/upload logic."""
+    return await upload_new_portfolio(request, username)
 
 
-@router.get("/skills")
+@router.get("/skills", operation_id="get_aggregated_skills")
 async def get_aggregated_skills(username: str = Depends(verify_token)):
     """Get aggregated skills across all projects for authenticated user."""
     from ..analysis_database import get_connection
@@ -160,7 +160,7 @@ async def get_aggregated_skills(username: str = Depends(verify_token)):
     }
 
 
-@router.post("/projects/{project_id}/thumbnail", response_model=ThumbnailUploadResponse)
+@router.post("/projects/{project_id}/thumbnail", response_model=ThumbnailUploadResponse, operation_id="upload_project_thumbnail")
 async def upload_project_thumbnail(
     project_id: str,
     file: UploadFile = File(..., description="Thumbnail image file (JPG, PNG, GIF, WebP)"),
