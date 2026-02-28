@@ -124,7 +124,9 @@ export const projectsAPI = {
     const encodedId = encodeURIComponent(projectId);
     const response = await api.get(`/projects/${encodedId}/thumbnail`, {
       responseType: 'blob',
+      validateStatus: (status) => status === 200 || status === 404,
     });
+    if (response.status === 404) return null;
     return URL.createObjectURL(response.data);
   },
 

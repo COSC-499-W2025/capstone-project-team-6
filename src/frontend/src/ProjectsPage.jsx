@@ -35,11 +35,7 @@ export default function ProjectsPage() {
   const [thumbnailErrors, setThumbnailErrors] = useState({}); // { [projectId]: error message }
 
   useEffect(() => {
-    console.log('ProjectsPage - Auth status:', { isAuthenticated, user });
-    console.log('ProjectsPage - Token:', localStorage.getItem('access_token'));
-
     if (!isAuthenticated) {
-      console.log('Not authenticated, redirecting to login');
       navigate('/login');
       return;
     }
@@ -49,17 +45,7 @@ export default function ProjectsPage() {
       setError('');
 
       try {
-        console.log('Fetching projects...');
         const baseProjects = await projectsAPI.getProjects();
-        console.log('Projects received:', baseProjects);
-        console.log('First project:', baseProjects[0]);
-        if (baseProjects[0]) {
-          console.log('Composite ID fields:', {
-            composite_id: baseProjects[0].composite_id,
-            analysis_uuid: baseProjects[0].analysis_uuid,
-            project_path: baseProjects[0].project_path,
-          });
-        }
 
         // Ensure we have an array - API returns {username, total_projects, projects: [...]}
         // But tests may return a plain array
@@ -273,6 +259,26 @@ export default function ProjectsPage() {
 
   // Get unique languages for filter dropdown
   const uniqueLanguages = [...new Set(projects.map(p => p.primary_language).filter(Boolean))].sort();
+  async function handleThumbnailDelete(projectId, compositeId) {
+    const apiId = compositeId || projectId;
+    if (!apiId || !String(apiId).includes(':')) return;
+
+    setThumbnailLoading((prev) => ({ ...prev, [projectId]: true }));
+    setThumbnailErrors((prev) => ({ ...prev, [projectId]: null }));
+
+    try {
+      await projectsAPI.deleteThumbnail(apiId);
+      setThumbnailUrls((prev) => {
+        if (prev[projectId]) URL.revokeObjectURL(prev[projectId]);
+        return { ...prev, [projectId]: null };
+      });
+    } catch (e) {
+      setThumbnailErrors((prev) => ({ ...prev, [projectId]: 'Failed to remove thumbnail' }));
+    } finally {
+      setThumbnailLoading((prev) => ({ ...prev, [projectId]: false }));
+    }
+  }
+
   async function handleThumbnailUpload(projectId, compositeId, file) {
     if (!file) return;
 
@@ -350,7 +356,7 @@ export default function ProjectsPage() {
 
           try {
             const blobUrl = await projectsAPI.getThumbnail(thumbnailId);
-            loadedUrls.push(blobUrl);
+            if (blobUrl) loadedUrls.push(blobUrl);
             return { id: p.id, url: blobUrl };
           } catch (e) {
             return { id: p.id, url: null };
@@ -1019,6 +1025,22 @@ export default function ProjectsPage() {
                             </div>
                           )}
                         </div>
+                        {thumbnailUrls[p.id] && !thumbnailLoading[p.id] && (
+                          <button
+                            onClick={() => handleThumbnailDelete(p.id, p.composite_id)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              padding: 0,
+                              fontSize: '11px',
+                              color: '#a3a3a3',
+                              cursor: 'pointer',
+                              textDecoration: 'underline',
+                            }}
+                          >
+                            Remove
+                          </button>
+                        )}
 
                         {/* Delete button */}
                         <button
