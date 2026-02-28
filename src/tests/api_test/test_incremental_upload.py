@@ -168,7 +168,8 @@ class TestTaskManagerIncrementalUpload:
 
             # Mock database connection with proper execute().fetchone() chain
             mock_cursor = MagicMock()
-            mock_cursor.fetchone.return_value = {"raw_json": json.dumps(existing_portfolio)}
+            # FIX: added "id" key so row["id"] doesn't raise KeyError
+            mock_cursor.fetchone.return_value = {"id": 1, "raw_json": json.dumps(existing_portfolio)}
 
             mock_conn_obj = MagicMock()
             mock_conn_obj.__enter__ = MagicMock(return_value=mock_conn_obj)
@@ -246,9 +247,7 @@ class TestTaskManagerIncrementalUpload:
             mock_conn_obj = MagicMock()
             mock_conn_obj.__enter__ = MagicMock(return_value=mock_conn_obj)
             mock_conn_obj.__exit__ = MagicMock(return_value=False)
-
-            # Mock row result
-            mock_row = {"raw_json": json.dumps(existing_portfolio)}
+            mock_row = {"id": 1, "raw_json": json.dumps(existing_portfolio)}
             mock_cursor = MagicMock()
             mock_cursor.fetchone.return_value = mock_row
             mock_conn_obj.execute.return_value = mock_cursor
