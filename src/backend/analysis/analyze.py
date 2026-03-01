@@ -14,8 +14,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-# Configure stdout/stderr to use UTF-8 encoding on Windows to handle Unicode characters
-if sys.platform.startswith("win"):
+# Configure stdout/stderr to use UTF-8 encoding on Windows to handle Unicode characters.
+# Only when run as script - avoid breaking pytest capture when imported as module.
+if __name__ == "__main__" and sys.platform.startswith("win"):
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
 

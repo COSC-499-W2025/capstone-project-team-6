@@ -115,18 +115,6 @@ class ConsentResponse(BaseModel):
     message: str
 
 
-class TaskStatusResponse(BaseModel):
-    task_id: str
-    status: str
-    progress: int
-    created_at: str
-    updated_at: str
-    filename: str
-    task_type: str
-    result: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
-
-
 def create_access_token(username: str) -> str:
     """Create a new access token for a user."""
     token = str(uuid.uuid4())
@@ -287,16 +275,17 @@ async def get_portfolio(portfolio_id: str, username: str = Depends(verify_token)
 async def upload_new_portfolio(
     file: UploadFile = File(..., description="ZIP file containing project"),
     analysis_type: str = Form("llm", description="Analysis type: llm or non_llm"),
+    project_name: Optional[str] = Form(None, description="User-provided project name (for single project)"),
     username: str = Depends(verify_token),
 ):
     """Upload a new portfolio (create new analysis).
     Returns immediately with task ID.
     """
-    # Verify user consent
-    if not check_user_consent(username):
+    # Require consent only for LLM analysis; non_llm works without consent
+    if analysis_type == "llm" and not check_user_consent(username):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User consent required. Please provide consent before uploading.",
+            detail="Consent required for LLM analysis. Use non_llm or provide consent in Settings.",
         )
 
     # Validate file type
@@ -337,6 +326,7 @@ async def upload_new_portfolio(
         filename=file.filename,
         file_path=zip_path,
         analysis_type=analysis_type,
+        project_name=project_name.strip() if project_name and project_name.strip() else None,
     )
 
     return MessageResponse(
@@ -355,6 +345,7 @@ async def upload_new_portfolio(
 async def add_to_existing_portfolio(
     portfolio_id: str,
     file: UploadFile = File(..., description="ZIP file with additional projects"),
+    analysis_type: str = Form("non_llm", description="Analysis type: llm or non_llm"),
     username: str = Depends(verify_token),
 ):
     """Add incremental data to an existing portfolio"""
@@ -366,11 +357,11 @@ async def add_to_existing_portfolio(
             detail=f"Portfolio {portfolio_id} not found or access denied",
         )
 
-    # Verify user consent
-    if not check_user_consent(username):
+    # Require consent only for LLM analysis
+    if analysis_type == "llm" and not check_user_consent(username):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User consent required",
+            detail="Consent required for LLM analysis. Use non_llm or provide consent in Settings.",
         )
 
     # Validate file type
@@ -440,60 +431,6 @@ async def delete_portfolio(portfolio_id: str, username: str = Depends(verify_tok
     return MessageResponse(
         message=f"Portfolio {portfolio_id} deleted successfully",
     )
-
-
-@app.get("/api/tasks/{task_id}", response_model=TaskStatusResponse)
-async def get_task_status(task_id: str, username: str = Depends(verify_token)):
-    """Get status of a background task."""
-    task_manager = get_task_manager()
-    task = task_manager.get_task_status(task_id)
-
-    if not task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Task {task_id} not found",
-        )
-
-    # Verify task belongs to user
-    if task.username != username:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to this task",
-        )
-
-    return TaskStatusResponse(
-        task_id=task.task_id,
-        status=task.status.value,
-        progress=task.progress,
-        created_at=task.created_at.isoformat(),
-        updated_at=task.updated_at.isoformat(),
-        filename=task.filename,
-        task_type=task.task_type.value,
-        result=task.result,
-        error=task.error,
-    )
-
-
-@app.get("/api/tasks", response_model=List[TaskStatusResponse])
-async def get_user_tasks(username: str = Depends(verify_token), limit: int = 20):
-    """Get all tasks for the current user."""
-    task_manager = get_task_manager()
-    tasks = task_manager.get_user_tasks(username, limit)
-
-    return [
-        TaskStatusResponse(
-            task_id=task.task_id,
-            status=task.status.value,
-            progress=task.progress,
-            created_at=task.created_at.isoformat(),
-            updated_at=task.updated_at.isoformat(),
-            filename=task.filename,
-            task_type=task.task_type.value,
-            result=task.result,
-            error=task.error,
-        )
-        for task in tasks
-    ]
 
 
 @app.post("/api/admin/cleanup")
