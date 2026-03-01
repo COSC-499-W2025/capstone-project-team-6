@@ -130,21 +130,29 @@ async def get_aggregated_skills(username: str = Depends(verify_token)):
     # Aggregate skills from project_skills table
     skills_map: Dict[str, Dict[str, Any]] = {}
 
-    with get_connection() as conn:
-        for project in projects:
-            project_id = project.get("id")
-            project_name = project.get("project_name") or project.get("name", "Unknown")
-
-            # Fetch skills from project_skills table
-            skills_rows = conn.execute("SELECT skill FROM project_skills WHERE project_id = ?", (project_id,)).fetchall()
-
-            for row in skills_rows:
-                skill = row["skill"]
+    for project in projects:
+        project_id = project.get("id")
+        project_name = project.get("project_name") or project.get("name", "Unknown")
+        metadata = project.get("metadata", {})
+        skills_from_metadata = metadata.get("skills", [])
+        
+        if skills_from_metadata:
+            for skill in skills_from_metadata:
                 if skill not in skills_map:
                     skills_map[skill] = {"skill": skill, "count": 0, "projects": []}
                 skills_map[skill]["count"] += 1
                 if project_name not in skills_map[skill]["projects"]:
                     skills_map[skill]["projects"].append(project_name)
+        elif project_id:
+            with get_connection() as conn:
+                skills_rows = conn.execute("SELECT skill FROM project_skills WHERE project_id = ?", (project_id,)).fetchall()
+                for row in skills_rows:
+                    skill = row["skill"]
+                    if skill not in skills_map:
+                        skills_map[skill] = {"skill": skill, "count": 0, "projects": []}
+                    skills_map[skill]["count"] += 1
+                    if project_name not in skills_map[skill]["projects"]:
+                        skills_map[skill]["projects"].append(project_name)
 
     # Convert to list and sort by count
     skills_list = sorted(
