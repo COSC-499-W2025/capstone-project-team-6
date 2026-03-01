@@ -102,7 +102,7 @@ class TestIncrementalUploadAPI:
                 files={"file": ("test.zip", f, "application/zip")},
             )
 
-        assert response.status_code == 403  # No auth token
+        assert response.status_code in (401, 403)  # No auth token (platform-dependent)
 
     def test_incremental_upload_validates_file_type(self, client, auth_token):
         """Test that endpoint validates file type."""

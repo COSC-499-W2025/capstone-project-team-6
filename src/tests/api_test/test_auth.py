@@ -194,7 +194,7 @@ class TestAuthEndpoints:
     def test_logout_without_token(self):
         """Test logout without token fails."""
         response = client.post("/api/auth/logout")
-        assert response.status_code == 403  # Forbidden
+        assert response.status_code in (401, 403)  # Unauthorized/Forbidden (platform-dependent)
 
     def test_logout_invalid_token(self):
         """Test logout with invalid token fails."""

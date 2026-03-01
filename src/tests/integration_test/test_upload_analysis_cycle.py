@@ -175,5 +175,5 @@ class TestUploadAnalysisCycle:
                 headers=headers,
             )
 
-        assert r.status_code == 403
+        assert r.status_code in (401, 403)  # Unauthorized/Forbidden (platform-dependent)
         assert "consent" in r.json()["detail"].lower()

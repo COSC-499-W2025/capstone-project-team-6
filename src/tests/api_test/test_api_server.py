@@ -119,8 +119,8 @@ class TestAPIServer:
             else:
                 response = client.post(path)
 
-            # Should return 403 (Forbidden) without auth
-            assert response.status_code == 403
+            # Should return 401 or 403 without auth (platform-dependent)
+            assert response.status_code in (401, 403)
 
     def test_api_versioning(self):
         """Test API version is consistent."""

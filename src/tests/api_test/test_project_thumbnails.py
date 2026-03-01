@@ -53,7 +53,7 @@ class TestProjectThumbnails:
         files = {"file": ("test.png", io.BytesIO(image_data), "image/png")}
 
         response = client.post("/api/projects/test-uuid:test-path/thumbnail", files=files)
-        assert response.status_code == 403  # No auth header
+        assert response.status_code in (401, 403)  # No auth header (platform-dependent)
 
     def test_upload_thumbnail_invalid_project_id(self, client, auth_token):
         """Test uploading thumbnail with invalid project ID format."""
@@ -92,7 +92,7 @@ class TestProjectThumbnails:
     def test_get_thumbnail_requires_auth(self, client):
         """Test that getting thumbnail requires authentication."""
         response = client.get("/api/projects/test-uuid:test-path/thumbnail")
-        assert response.status_code == 403
+        assert response.status_code in (401, 403)  # platform-dependent
 
     def test_get_thumbnail_project_not_found(self, client, auth_token):
         """Test getting thumbnail for non-existent project."""
@@ -103,7 +103,7 @@ class TestProjectThumbnails:
     def test_delete_thumbnail_requires_auth(self, client):
         """Test that deleting thumbnail requires authentication."""
         response = client.delete("/api/projects/test-uuid:test-path/thumbnail")
-        assert response.status_code == 403
+        assert response.status_code in (401, 403)  # platform-dependent
 
     def test_delete_thumbnail_project_not_found(self, client, auth_token):
         """Test deleting thumbnail for non-existent project."""

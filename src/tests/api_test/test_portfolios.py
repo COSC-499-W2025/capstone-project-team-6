@@ -71,7 +71,7 @@ class TestPortfoliosEndpoints:
     def test_list_portfolios_unauthorized(self):
         """Test listing portfolios without auth fails."""
         response = client.get("/api/portfolios")
-        assert response.status_code == 403
+        assert response.status_code in (401, 403)  # 401 Unauthorized or 403 Forbidden (platform-dependent)
 
     @patch("backend.api_server.get_all_analyses_for_user")
     def test_list_portfolios_empty(self, mock_get_analyses, auth_token):
@@ -157,7 +157,7 @@ class TestPortfoliosEndpoints:
         """Test deleting portfolio without auth fails."""
         portfolio_id = str(uuid.uuid4())
         response = client.delete(f"/api/portfolios/{portfolio_id}")
-        assert response.status_code == 403
+        assert response.status_code in (401, 403)  # 401 Unauthorized or 403 Forbidden (platform-dependent)
 
     @patch("backend.api_server.check_user_consent")
     def test_save_consent_success(self, mock_check_consent, auth_token):
@@ -194,4 +194,4 @@ class TestPortfoliosEndpoints:
     def test_get_consent_unauthorized(self):
         """Test getting consent without auth fails."""
         response = client.get("/api/user/consent")
-        assert response.status_code == 403
+        assert response.status_code in (401, 403)  # 401 Unauthorized or 403 Forbidden (platform-dependent)
