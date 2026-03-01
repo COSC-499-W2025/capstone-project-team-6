@@ -89,8 +89,13 @@ export const projectsAPI = {
     return response.data;
   },
 
-  deleteProject: async (portfolioId) => {
-    const response = await api.delete(`/portfolios/${portfolioId}`);
+  deleteProject: async (projectId) => {
+    const response = await api.delete(`/projects/${projectId}`);
+    return response.data;
+  },
+
+  deleteAllProjects: async () => {
+    const response = await api.delete('/projects');
     return response.data;
   },
 
