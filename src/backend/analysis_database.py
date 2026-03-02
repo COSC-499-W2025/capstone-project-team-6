@@ -1780,6 +1780,7 @@ def get_portfolio_items_for_analysis(analysis_uuid: str, username: Optional[str]
 
     return items
 
+
 def delete_user_personal_info(username: str) -> bool:
     """
     Remove a user's stored personal info entirely.
@@ -1799,6 +1800,7 @@ def delete_user_personal_info(username: str) -> bool:
         )
         conn.commit()
         return (cur.rowcount or 0) > 0
+
 
 def delete_resume_item(item_id: int) -> None:
     with get_connection() as conn:

@@ -7,7 +7,7 @@ and that the parameter integrates correctly through the API layer.
 
 import sys
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 import pytest
 
@@ -18,10 +18,10 @@ if str(SRC) not in sys.path:
 
 from backend.analysis.resume_generator import generate_resume
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_bundle(
     name: str = "TestProject",
@@ -51,6 +51,7 @@ def _make_bundle(
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 class TestHighlightedSkillsInGenerateResume:
     """Tests for the highlighted_skills parameter."""
