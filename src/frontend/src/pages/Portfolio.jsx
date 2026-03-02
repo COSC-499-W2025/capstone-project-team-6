@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/Navigation';
 import { useAuth } from '../contexts/AuthContext';
-import { portfoliosAPI } from '../services/api';
+import { portfoliosAPI, curationAPI } from '../services/api';
 
 const formatTimestamp = (value) => {
   if (!value) return 'N/A';
@@ -29,6 +29,9 @@ const Portfolio = () => {
   const [error, setError] = useState('');
   const [detailError, setDetailError] = useState('');
 
+  // Curation settings
+  const [curationSettings, setCurationSettings] = useState(null);
+
   const loadPortfolios = useCallback(async () => {
     setError('');
     setLoading(true);
@@ -53,6 +56,11 @@ const Portfolio = () => {
     }
 
     loadPortfolios();
+
+    // Load curation settings
+    curationAPI.getSettings()
+      .then((settings) => setCurationSettings(settings))
+      .catch(() => setCurationSettings(null));
   }, [isAuthenticated, navigate, loadPortfolios]);
 
   useEffect(() => {
@@ -110,7 +118,13 @@ const Portfolio = () => {
     selectedPortfolioDetail?.items ||
     selectedPortfolioDetail?.portfolio ||
     [];
+  // Use curated highlighted skills if available, otherwise auto-derive
   const skillTags = useMemo(() => {
+    const curatedSkills = curationSettings?.highlighted_skills;
+    if (Array.isArray(curatedSkills) && curatedSkills.length > 0) {
+      return curatedSkills.map((skill) => ({ skill, count: null, curated: true }));
+    }
+
     const rawSkills = selectedPortfolioDetail?.skills;
     if (Array.isArray(rawSkills) && rawSkills.length > 0) {
       return rawSkills;
@@ -134,7 +148,59 @@ const Portfolio = () => {
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .slice(0, 10)
       .map(([skill, count]) => ({ skill, count }));
-  }, [selectedPortfolioDetail, portfolioItems]);
+  }, [selectedPortfolioDetail, portfolioItems, curationSettings]);
+
+  // Apply custom project order from curation settings
+  const orderedPortfolioItems = useMemo(() => {
+    if (!Array.isArray(portfolioItems) || portfolioItems.length === 0) return portfolioItems;
+    const orderIds = curationSettings?.custom_project_order;
+    if (!Array.isArray(orderIds) || orderIds.length === 0) return portfolioItems;
+
+    const itemsCopy = [...portfolioItems];
+    itemsCopy.sort((a, b) => {
+      const aId = a.project_id ?? a.id;
+      const bId = b.project_id ?? b.id;
+      const aIdx = orderIds.indexOf(aId);
+      const bIdx = orderIds.indexOf(bId);
+      if (aIdx === -1 && bIdx === -1) return 0;
+      if (aIdx === -1) return 1;
+      if (bIdx === -1) return -1;
+      return aIdx - bIdx;
+    });
+    return itemsCopy;
+  }, [portfolioItems, curationSettings]);
+
+  const orderedProjectList = useMemo(() => {
+    if (!Array.isArray(projectList) || projectList.length === 0) return projectList;
+    const orderIds = curationSettings?.custom_project_order;
+    if (!Array.isArray(orderIds) || orderIds.length === 0) return projectList;
+
+    const listCopy = [...projectList];
+    listCopy.sort((a, b) => {
+      const aId = a.id;
+      const bId = b.id;
+      const aIdx = orderIds.indexOf(aId);
+      const bIdx = orderIds.indexOf(bId);
+      if (aIdx === -1 && bIdx === -1) return 0;
+      if (aIdx === -1) return 1;
+      if (bIdx === -1) return -1;
+      return aIdx - bIdx;
+    });
+    return listCopy;
+  }, [projectList, curationSettings]);
+
+  // Showcase project IDs → rank (1, 2, 3)
+  const showcaseRanks = useMemo(() => {
+    const ids = curationSettings?.showcase_project_ids ?? [];
+    const map = new Map();
+    ids.forEach((id, i) => map.set(id, i + 1));
+    return map;
+  }, [curationSettings]);
+
+  // Selected comparison attributes
+  const selectedAttributes = useMemo(() => {
+    return new Set(curationSettings?.comparison_attributes ?? []);
+  }, [curationSettings]);
 
   const handleSelectPortfolio = (portfolioId) => {
     if (portfolioId === selectedPortfolioId) return;
@@ -323,7 +389,20 @@ const Portfolio = () => {
               </div>
 
               <div style={{ marginTop: '32px' }}>
-                <h3 style={{ margin: 0, fontSize: '18px', color: '#0f172a' }}>Highlighted skills</h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h3 style={{ margin: 0, fontSize: '18px', color: '#0f172a' }}>Highlighted Skills</h3>
+                  {skillTags.length > 0 && skillTags[0]?.curated && (
+                    <span style={{
+                      padding: '2px 8px',
+                      borderRadius: '999px',
+                      backgroundColor: '#f0fdf4',
+                      color: '#166534',
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      border: '1px solid #bbf7d0',
+                    }}>Curated</span>
+                  )}
+                </div>
                 {skillTags.length > 0 ? (
                   <div
                     style={{
@@ -339,10 +418,11 @@ const Portfolio = () => {
                         style={{
                           padding: '6px 12px',
                           borderRadius: '999px',
-                          backgroundColor: '#eef2ff',
-                          color: '#4338ca',
+                          backgroundColor: skill.curated ? '#f0fdf4' : '#eef2ff',
+                          color: skill.curated ? '#166534' : '#4338ca',
                           fontSize: '13px',
                           fontWeight: '600',
+                          border: skill.curated ? '1px solid #bbf7d0' : 'none',
                         }}
                       >
                         {skill.skill || skill.name}
@@ -358,7 +438,7 @@ const Portfolio = () => {
 
               <div style={{ marginTop: '32px' }}>
                 <h3 style={{ margin: 0, fontSize: '18px', color: '#0f172a' }}>Portfolio Items</h3>
-                {Array.isArray(portfolioItems) && portfolioItems.length > 0 ? (
+                {Array.isArray(orderedPortfolioItems) && orderedPortfolioItems.length > 0 ? (
                   <div
                     style={{
                       marginTop: '16px',
@@ -367,8 +447,11 @@ const Portfolio = () => {
                       gap: '16px',
                     }}
                   >
-                    {portfolioItems.map((item, idx) => (
+                    {orderedPortfolioItems.map((item, idx) => (
                       (() => {
+                        const itemId = item.project_id ?? item.id;
+                        const showcaseRank = showcaseRanks.get(itemId);
+                        const isShowcase = !!showcaseRank;
                         const qualityScore =
                           item.quality_score ?? item.project_statistics?.quality_score;
                         const sophisticationLevel =
@@ -380,16 +463,33 @@ const Portfolio = () => {
                           ? item.skills_exercised.join(', ')
                           : item.skills_exercised;
 
+                        // Attribute visibility based on curation
+                        const showAttr = (key) => selectedAttributes.size === 0 || selectedAttributes.has(key);
+
                         return (
                           <div
                             key={`portfolio-item-${idx}`}
                             style={{
                               borderRadius: '14px',
-                              border: '1px solid #e5e7eb',
+                              border: isShowcase ? '2px solid #f59e0b' : '1px solid #e5e7eb',
                               padding: '16px',
-                              backgroundColor: 'white',
+                              backgroundColor: isShowcase ? '#fffbeb' : 'white',
+                              position: 'relative',
                             }}
                           >
+                            {isShowcase && (
+                              <span style={{
+                                position: 'absolute',
+                                top: '-10px',
+                                right: '12px',
+                                padding: '2px 8px',
+                                borderRadius: '999px',
+                                backgroundColor: '#f59e0b',
+                                color: 'white',
+                                fontSize: '11px',
+                                fontWeight: '700',
+                              }}>⭐ Top {showcaseRank}</span>
+                            )}
                             <strong style={{ display: 'block', marginBottom: '6px', color: '#0f172a' }}>
                               {item.title || item.project_name || `Item ${idx + 1}`}
                             </strong>
@@ -398,7 +498,7 @@ const Portfolio = () => {
                                 {item.text_summary}
                               </p>
                             )}
-                            {techStack && (
+                            {techStack && showAttr('primary_language') && (
                               <p style={{ margin: '8px 0 0', color: '#6b7280', fontSize: '13px' }}>
                                 Tech stack: {techStack}
                               </p>
@@ -408,7 +508,7 @@ const Portfolio = () => {
                                 Skills: {skillsExercised}
                               </p>
                             )}
-                            {qualityScore !== undefined && (
+                            {qualityScore !== undefined && showAttr('test_coverage_estimate') && (
                               <p style={{ margin: '6px 0 0', color: '#6b7280', fontSize: '13px' }}>
                                 Quality score: {qualityScore}
                               </p>
@@ -441,7 +541,7 @@ const Portfolio = () => {
 
               <div style={{ marginTop: '32px' }}>
                 <h3 style={{ margin: 0, fontSize: '18px', color: '#0f172a' }}>Projects</h3>
-                {projectList.length > 0 ? (
+                {orderedProjectList.length > 0 ? (
                   <ul
                     style={{
                       margin: '16px 0 0',
@@ -450,22 +550,38 @@ const Portfolio = () => {
                       lineHeight: 1.6,
                     }}
                   >
-                    {projectList.map((project, index) => (
-                      <li key={`${project.project_name}-${index}`} style={{ marginBottom: '12px' }}>
-                        <strong style={{ display: 'block', fontSize: '16px', color: '#0f172a' }}>
-                          {project.project_name || project.name || 'Unnamed project'}
-                        </strong>
-                        <span style={{ fontSize: '13px', color: '#6b7280' }}>
-                          {project.primary_language || 'Language unknown'} •{' '}
-                          {project.total_files ?? '0'} files
-                        </span>
-                        {project.summary && (
-                          <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#374151' }}>
-                            {project.summary}
-                          </p>
-                        )}
-                      </li>
-                    ))}
+                    {orderedProjectList.map((project, index) => {
+                      const showcaseRank = showcaseRanks.get(project.id);
+                      const isShowcase = !!showcaseRank;
+                      return (
+                        <li key={`${project.project_name}-${index}`} style={{ marginBottom: '12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <strong style={{ fontSize: '16px', color: '#0f172a' }}>
+                              {project.project_name || project.name || 'Unnamed project'}
+                            </strong>
+                            {isShowcase && (
+                              <span style={{
+                                padding: '1px 6px',
+                                borderRadius: '999px',
+                                backgroundColor: '#fef3c7',
+                                color: '#b45309',
+                                fontSize: '11px',
+                                fontWeight: '600',
+                              }}>⭐ Top {showcaseRank}</span>
+                            )}
+                          </div>
+                          <span style={{ fontSize: '13px', color: '#6b7280' }}>
+                            {project.primary_language || 'Language unknown'} •{' '}
+                            {project.total_files ?? '0'} files
+                          </span>
+                          {project.summary && (
+                            <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#374151' }}>
+                              {project.summary}
+                            </p>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 ) : (
                   <p style={{ marginTop: '12px', color: '#6b7280' }}>
