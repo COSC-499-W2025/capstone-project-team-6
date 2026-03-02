@@ -8,22 +8,24 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import bcrypt
-from fastapi import (Depends, FastAPI, File, Form, HTTPException, Security,
-                     UploadFile, status)
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Security, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
-from backend.analysis_database import (delete_all_projects_for_user,
-                                       delete_analysis,
-                                       delete_project_for_user,
-                                       get_all_analyses_for_user,
-                                       get_analysis_by_uuid,
-                                       get_portfolio_item_for_project,
-                                       get_projects_for_user,
-                                       get_resume_items_for_project_id)
+from backend.analysis_database import (
+    delete_all_projects_for_user,
+    delete_analysis,
+    delete_project_for_user,
+    get_all_analyses_for_user,
+    get_analysis_by_uuid,
+    get_portfolio_item_for_project,
+    get_projects_for_user,
+    get_resume_items_for_project_id,
+)
 from backend.analysis_database import init_db as init_analysis_db
 from backend.analysis_database import record_analysis
+
 # Import routers from modular API structure
 from backend.api.analysis import router as analysis_router
 from backend.api.auth import router as auth_router
@@ -37,8 +39,7 @@ from backend.curation import init_curation_tables
 from backend.database import authenticate_user, check_user_consent, create_user
 from backend.database import init_db as init_user_db
 from backend.database import save_user_consent
-from backend.task_manager import (TaskType, cleanup_background_tasks,
-                                  get_task_manager)
+from backend.task_manager import TaskType, cleanup_background_tasks, get_task_manager
 from backend.token_storage import active_tokens
 
 # Initialize databases

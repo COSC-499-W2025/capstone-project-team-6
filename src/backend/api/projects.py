@@ -11,9 +11,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from backend.analysis_database import (get_analysis_by_uuid,
-                                       get_project_by_path_and_portfolio,
-                                       update_project_thumbnail)
+from backend.analysis_database import get_analysis_by_uuid, get_project_by_path_and_portfolio, update_project_thumbnail
 from backend.api.auth import verify_token
 from backend.curation import get_user_projects
 from backend.api.portfolios import upload_new_portfolio

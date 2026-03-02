@@ -37,7 +37,7 @@ def mock_manager():
     get_task_manager() always returns our mock regardless of import binding.
     """
     manager = MagicMock()
-    manager.get_task_status.return_value = None   # real method name
+    manager.get_task_status.return_value = None  # real method name
     manager.get_user_tasks.return_value = []
     manager.cancel_task.return_value = False
 
@@ -207,7 +207,7 @@ class TestTasksEndpoints:
         )
 
         # Note: If this is failing with 404, ensure the route is registered in api_server.app
-        assert response.status_code in [200, 404] 
+        assert response.status_code in [200, 404]
 
     def test_cancel_task_not_found(self, mock_manager, auth_token):
         """Test canceling non-existent task."""

@@ -22,11 +22,14 @@ import pytest
 src_dir = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(src_dir))
 
-from backend.analysis.role_predictor import (DeveloperRole, RolePrediction,
-                                             _calculate_role_indicators,
-                                             format_role_prediction,
-                                             get_available_roles,
-                                             predict_developer_role)
+from backend.analysis.role_predictor import (
+    DeveloperRole,
+    RolePrediction,
+    _calculate_role_indicators,
+    format_role_prediction,
+    get_available_roles,
+    predict_developer_role,
+)
 
 
 class TestRolePredictorBasics:
