@@ -87,18 +87,11 @@ async def get_task_status(task_id: str, username: str = Depends(verify_token)):
             analysis_phase=getattr(task, "analysis_phase", None),
         )
 
-    return TaskStatusResponse(
-        task_id=task.task_id,
-        status=task.status.value,
-        task_type=task.task_type.value,
-        username=task.username,
-        filename=task.filename,
-        created_at=task.created_at,
-        updated_at=task.updated_at,
-        error=task.error,
-        result=task.result,
-        progress=getattr(task, "progress", 0),
-    )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Error getting task status")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 # Alias endpoint for more RESTful /status path
@@ -125,18 +118,23 @@ async def list_user_tasks(
 
     sorted_tasks = sorted(all_tasks, key=_sort_key, reverse=True)[:limit]
 
-    return [
-        TaskStatusResponse(
-            task_id=task.task_id,
-            status=task.status.value,
-            task_type=task.task_type.value,
-            username=task.username,
-            filename=task.filename,
-            created_at=task.created_at,
-            updated_at=task.updated_at,
-            error=task.error,
-            result=task.result,
-            progress=getattr(task, "progress", 0),
+    result_list = []
+    for task in sorted_tasks:
+        created_at = task.created_at.isoformat() if hasattr(task.created_at, "isoformat") else str(task.created_at)
+        updated_at = task.updated_at.isoformat() if hasattr(task.updated_at, "isoformat") else str(task.updated_at)
+        result_list.append(
+            TaskStatusResponse(
+                task_id=task.task_id,
+                status=task.status.value,
+                task_type=task.task_type.value,
+                username=task.username,
+                filename=task.filename,
+                created_at=created_at,
+                updated_at=updated_at,
+                error=task.error,
+                result=_sanitize_for_json(task.result) if task.result else None,
+                progress=getattr(task, "progress", 0),
+            )
         )
     return result_list
 
