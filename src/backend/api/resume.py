@@ -35,6 +35,10 @@ class ResumeRequest(BaseModel):
         description="Personal information (name, email, phone, location, linkedIn, github, website)",
     )
     stored_resume_id: Optional[int] = Field(None, description="Optional stored resume to use as the base")
+    highlighted_skills: Optional[List[str]] = Field(
+        None,
+        description="Curated highlighted skills to use in the skills section (from curation settings)",
+    )
 
 
 class ResumeResponse(BaseModel):
@@ -240,6 +244,7 @@ async def generate_resume(
             include_projects=request.include_projects,
             max_projects=request.max_projects,
             personal_info=request.personal_info,
+            highlighted_skills=request.highlighted_skills,
         )
 
         # Convert PDF bytes to base64 string for JSON response
