@@ -287,7 +287,11 @@ class TestComplexityReport:
         # Add good practices
         report.add_insight(
             ComplexityInsight(
-                file_path="test.py", line_number=1, complexity_type="set_operations", severity="good_practice", description="Set"
+                file_path="test.py",
+                line_number=1,
+                complexity_type="set_operations",
+                severity="good_practice",
+                description="Set",
             )
         )
         report.add_insight(
@@ -303,7 +307,11 @@ class TestComplexityReport:
         # Add bad practice
         report.add_insight(
             ComplexityInsight(
-                file_path="test.py", line_number=3, complexity_type="nested_loops", severity="suggestion", description="Loop"
+                file_path="test.py",
+                line_number=3,
+                complexity_type="nested_loops",
+                severity="suggestion",
+                description="Loop",
             )
         )
 
@@ -514,6 +522,425 @@ def mixed():
         # Should handle gracefully (either parse or return empty)
         insights = analyze_python_file("mixed.py", code)
         assert isinstance(insights, list)
+
+
+class TestJavaComplexityAnalyzer:
+    """Test suite for Java complexity analysis."""
+
+    def test_nested_loops_detection_java(self):
+        """Test detection of nested loops (O(n²)) in Java code."""
+        code = """
+public class Test {
+    public boolean findDuplicates(int[] arr) {
+        for (int i = 0; i < arr.length; i++) {
+            for (int j = i + 1; j < arr.length; j++) {
+                if (arr[i] == arr[j]) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+}
+"""
+        from backend.analysis.complexity_analyzer import analyze_java_file
+
+        insights = analyze_java_file("Test.java", code)
+        nested_loop_insights = [i for i in insights if i.complexity_type == "nested_loops"]
+        assert len(nested_loop_insights) >= 1
+        assert "O(n²)" in nested_loop_insights[0].description
+
+    def test_hashset_usage_java(self):
+        """Test detection of HashSet usage (efficient data structure)."""
+        code = """
+public class Test {
+    public void removeDuplicates() {
+        Set<String> uniqueNames = new HashSet<>();
+        uniqueNames.add("Alice");
+        return uniqueNames.contains("Bob");
+    }
+}
+"""
+        from backend.analysis.complexity_analyzer import analyze_java_file
+
+        insights = analyze_java_file("Test.java", code)
+        hashset_insights = [i for i in insights if i.complexity_type == "efficient_data_structure"]
+        assert len(hashset_insights) >= 1
+        assert any("HashSet" in i.description for i in hashset_insights)
+        assert hashset_insights[0].severity == "good_practice"
+
+    def test_hashmap_usage_java(self):
+        """Test detection of HashMap usage."""
+        code = """
+public class Test {
+    public Map<String, Integer> countFrequencies(String[] items) {
+        Map<String, Integer> freq = new HashMap<>();
+        for (String item : items) {
+            freq.put(item, freq.getOrDefault(item, 0) + 1);
+        }
+        return freq;
+    }
+}
+"""
+        from backend.analysis.complexity_analyzer import analyze_java_file
+
+        insights = analyze_java_file("Test.java", code)
+        hashmap_insights = [i for i in insights if i.complexity_type == "efficient_data_structure"]
+        assert len(hashmap_insights) >= 1
+        assert any("HashMap" in i.description for i in hashmap_insights)
+
+    def test_stream_operations_java(self):
+        """Test detection of Java Stream API usage."""
+        code = """
+public class Test {
+    public List<String> processData(List<Integer> numbers) {
+        return numbers.stream()
+            .filter(x -> x > 0)
+            .map(String::valueOf)
+            .collect(Collectors.toList());
+    }
+}
+"""
+        from backend.analysis.complexity_analyzer import analyze_java_file
+
+        insights = analyze_java_file("Test.java", code)
+        stream_insights = [i for i in insights if i.complexity_type == "stream_operations"]
+        assert len(stream_insights) >= 3  # stream(), filter(), map(), collect()
+        assert all(i.severity == "good_practice" for i in stream_insights)
+
+    def test_parallel_stream_java(self):
+        """Test detection of parallel stream usage."""
+        code = """
+public class Test {
+    public long countLargeNumbers(List<Integer> numbers) {
+        return numbers.parallelStream()
+            .filter(x -> x > 1000)
+            .count();
+    }
+}
+"""
+        from backend.analysis.complexity_analyzer import analyze_java_file
+
+        insights = analyze_java_file("Test.java", code)
+        parallel_insights = [i for i in insights if "parallel" in i.description.lower()]
+        assert len(parallel_insights) >= 1
+        assert "efficient" in parallel_insights[0].description.lower()
+
+    def test_binary_search_java(self):
+        """Test detection of binary search in Java."""
+        code = """
+public class Test {
+    public int findPosition(int[] arr, int target) {
+        int index = Arrays.binarySearch(arr, target);
+        return index;
+    }
+    
+    public int findInList(List<Integer> list, int target) {
+        return Collections.binarySearch(list, target);
+    }
+}
+"""
+        from backend.analysis.complexity_analyzer import analyze_java_file
+
+        insights = analyze_java_file("Test.java", code)
+        binary_insights = [i for i in insights if i.complexity_type == "binary_search"]
+        assert len(binary_insights) >= 2
+        assert all("O(log n)" in i.description for i in binary_insights)
+
+    def test_string_builder_java(self):
+        """Test detection of StringBuilder usage."""
+        code = """
+public class Test {
+    public String concatenateStrings(List<String> items) {
+        StringBuilder sb = new StringBuilder();
+        for (String item : items) {
+            sb.append(item);
+        }
+        return sb.toString();
+    }
+}
+"""
+        from backend.analysis.complexity_analyzer import analyze_java_file
+
+        insights = analyze_java_file("Test.java", code)
+        sb_insights = [i for i in insights if i.complexity_type == "string_builder"]
+        assert len(sb_insights) >= 1
+        assert "StringBuilder" in sb_insights[0].description
+        assert "O(n)" in sb_insights[0].description
+
+    def test_inefficient_string_concat_java(self):
+        """Test detection of inefficient string concatenation in loops."""
+        code = """
+public class Test {
+    public String buildString(int n) {
+        String result = "";
+        for (int i = 0; i < n; i++) {
+            result += "item" + i;
+        }
+        return result;
+    }
+}
+"""
+        from backend.analysis.complexity_analyzer import analyze_java_file
+
+        insights = analyze_java_file("Test.java", code)
+        inefficient_insights = [i for i in insights if i.complexity_type == "inefficient_string_concat"]
+        assert len(inefficient_insights) >= 1
+        assert "StringBuilder" in inefficient_insights[0].description
+        assert inefficient_insights[0].severity == "suggestion"
+
+    def test_concurrent_hashmap_java(self):
+        """Test detection of concurrent collections."""
+        code = """
+public class Test {
+    private Map<String, Integer> cache = new ConcurrentHashMap<>();
+    
+    public void updateCache(String key, int value) {
+        cache.put(key, value);
+    }
+}
+"""
+        from backend.analysis.complexity_analyzer import analyze_java_file
+
+        insights = analyze_java_file("Test.java", code)
+        concurrent_insights = [i for i in insights if i.complexity_type == "concurrent_collection"]
+        assert len(concurrent_insights) >= 1
+        assert "Thread-safe" in concurrent_insights[0].description
+
+    def test_treeset_usage_java(self):
+        """Test detection of TreeSet (sorted set)."""
+        code = """
+public class Test {
+    public void maintainSorted() {
+        Set<Integer> sortedSet = new TreeSet<>();
+        sortedSet.add(5);
+        sortedSet.add(1);
+    }
+}
+"""
+        from backend.analysis.complexity_analyzer import analyze_java_file
+
+        insights = analyze_java_file("Test.java", code)
+        treeset_insights = [i for i in insights if "TreeSet" in i.description]
+        assert len(treeset_insights) >= 1
+        assert "O(log n)" in treeset_insights[0].description
+
+    def test_empty_java_file(self):
+        """Test analysis of empty Java file."""
+        from backend.analysis.complexity_analyzer import analyze_java_file
+
+        insights = analyze_java_file("Empty.java", "")
+        assert insights == []
+
+    def test_java_syntax_error_handling(self):
+        """Test that Java syntax errors don't crash the analyzer."""
+        code = """
+public class Broken {
+    public void broken( {
+        for int i
+"""
+        from backend.analysis.complexity_analyzer import analyze_java_file
+
+        # Should return empty list, not crash
+        insights = analyze_java_file("Broken.java", code)
+        assert isinstance(insights, list)
+
+    def test_triple_nested_loops_java(self):
+        """Test detection of triple nested loops (O(n³))."""
+        code = """
+public class Test {
+    public void processMatrix(int[][][] matrix) {
+        for (int i = 0; i < matrix.length; i++) {
+            for (int j = 0; j < matrix[0].length; j++) {
+                for (int k = 0; k < matrix[0][0].length; k++) {
+                    process(matrix[i][j][k]);
+                }
+            }
+        }
+    }
+}
+"""
+        from backend.analysis.complexity_analyzer import analyze_java_file
+
+        insights = analyze_java_file("Test.java", code)
+        nested_loop_insights = [i for i in insights if i.complexity_type == "nested_loops"]
+        # Should detect multiple levels of nesting
+        assert len(nested_loop_insights) >= 2
+
+
+class TestJavaProjectAnalysis:
+    """Test analyzing Java projects."""
+
+    def test_analyze_java_project(self):
+        """Test analyzing multiple Java files together."""
+        from backend.analysis.complexity_analyzer import analyze_java_project
+
+        files = [
+            (
+                "Main.java",
+                """
+public class Main {
+    public void nestedLoop() {
+        for (int i = 0; i < 10; i++) {
+            for (int j = 0; j < 10; j++) {
+                System.out.println(i * j);
+            }
+        }
+    }
+}
+""",
+            ),
+            (
+                "Utils.java",
+                """
+public class Utils {
+    public Set<String> deduplicate(List<String> items) {
+        return new HashSet<>(items);
+    }
+}
+""",
+            ),
+        ]
+
+        report = analyze_java_project(files)
+
+        assert report.total_files_analyzed == 2
+        assert len(report.insights) >= 2
+        assert report.optimization_score > 0
+
+
+class TestMixedLanguageAnalysis:
+    """Test analyzing projects with both Python and Java."""
+
+    def test_analyze_mixed_project(self):
+        """Test auto-detection and analysis of mixed Python/Java project."""
+        from backend.analysis.complexity_analyzer import analyze_project
+
+        files = [
+            (
+                "utils.py",
+                """
+def find_duplicates(items):
+    seen = set()
+    for item in items:
+        if item in seen:
+            return True
+        seen.add(item)
+    return False
+""",
+            ),
+            (
+                "Helper.java",
+                """
+public class Helper {
+    public Map<String, Integer> count(String[] items) {
+        Map<String, Integer> counts = new HashMap<>();
+        return counts;
+    }
+}
+""",
+            ),
+        ]
+
+        report = analyze_project(files, language="auto")
+
+        assert report.total_files_analyzed == 2
+        # Should have insights from both languages
+        assert len(report.insights) >= 2
+        # Should have both Python and Java patterns
+        assert any("set" in i.complexity_type.lower() for i in report.insights)
+        assert any("efficient_data_structure" in i.complexity_type for i in report.insights)
+
+    def test_analyze_project_python_only(self):
+        """Test analyzing Python-only project with auto-detect."""
+        from backend.analysis.complexity_analyzer import analyze_project
+
+        files = [("test.py", "x = set()")]
+
+        report = analyze_project(files, language="auto")
+        assert report.total_files_analyzed == 1
+
+    def test_analyze_project_java_only(self):
+        """Test analyzing Java-only project with auto-detect."""
+        from backend.analysis.complexity_analyzer import analyze_project
+
+        files = [("Test.java", "Set<String> x = new HashSet<>();")]
+
+        report = analyze_project(files, language="auto")
+        assert report.total_files_analyzed == 1
+
+    def test_analyze_project_explicit_language(self):
+        """Test analyzing with explicit language parameter."""
+        from backend.analysis.complexity_analyzer import analyze_project
+
+        python_files = [("test.py", "x = set()")]
+        java_files = [("Test.java", "Set<String> x = new HashSet<>();")]
+
+        py_report = analyze_project(python_files, language="python")
+        assert py_report.total_files_analyzed == 1
+
+        java_report = analyze_project(java_files, language="java")
+        assert java_report.total_files_analyzed == 1
+
+
+class TestJavaScoreCalculation:
+    """Test score calculation with Java patterns."""
+
+    def test_score_with_java_good_practices(self):
+        """Test score increases with Java good practices."""
+        from backend.analysis.complexity_analyzer import (ComplexityInsight,
+                                                          ComplexityReport)
+
+        report = ComplexityReport(total_files_analyzed=1)
+
+        # Add Java good practices
+        for pattern in [
+            "stream_operations",
+            "efficient_data_structure",
+            "string_builder",
+        ]:
+            report.add_insight(
+                ComplexityInsight(
+                    file_path="Test.java",
+                    line_number=1,
+                    complexity_type=pattern,
+                    severity="good_practice",
+                    description="Good practice",
+                )
+            )
+
+        report.calculate_score()
+        assert report.optimization_score > 60  # Should have good score
+
+    def test_score_with_java_bad_practices(self):
+        """Test score decreases with Java inefficiencies."""
+        from backend.analysis.complexity_analyzer import (ComplexityInsight,
+                                                          ComplexityReport)
+
+        report = ComplexityReport(total_files_analyzed=1)
+
+        # Add Java bad practices
+        report.add_insight(
+            ComplexityInsight(
+                file_path="Test.java",
+                line_number=1,
+                complexity_type="nested_loops",
+                severity="suggestion",
+                description="Nested loops",
+            )
+        )
+        report.add_insight(
+            ComplexityInsight(
+                file_path="Test.java",
+                line_number=5,
+                complexity_type="inefficient_string_concat",
+                severity="suggestion",
+                description="String concat in loop",
+            )
+        )
+
+        report.calculate_score()
+        assert report.optimization_score < 50  # Should have lower score
 
 
 if __name__ == "__main__":

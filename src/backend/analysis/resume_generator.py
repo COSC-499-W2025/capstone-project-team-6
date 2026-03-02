@@ -1,4 +1,75 @@
-from typing import Any, Dict, List, Optional, Set
+import os
+import re
+import subprocess
+import tempfile
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set, Union
+
+# --- LaTeX Template ---
+LATEX_HEADER = r"""
+\documentclass[letterpaper,11pt]{article}
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\input{glyphtounicode}
+
+\pagestyle{fancy}
+\fancyhf{} 
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\addtolength{\oddsidemargin}{-0.5in}
+\addtolength{\evensidemargin}{-0.5in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.5in}
+\addtolength{\textheight}{1.0in}
+
+\urlstyle{same}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+\titleformat{\section}{
+  \vspace{-4pt}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
+
+\pdfgentounicode=1
+
+\newcommand{\resumeItem}[1]{
+  \item\small{{#1 \vspace{-2pt}}}
+}
+
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeProjectHeading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \small#1 & #2 \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+\begin{document}
+"""
 
 
 def generate_resume_items(report: Dict[str, Any]) -> List[str]:
@@ -21,7 +92,18 @@ def _detect_project_type(project: Dict[str, Any]) -> str:
     for deps_list in dependencies.values():
         all_deps.extend([d.lower() for d in deps_list])
 
-    web_frameworks = {"flask", "django", "fastapi", "express", "react", "vue", "angular", "next.js", "spring", "rails"}
+    web_frameworks = {
+        "flask",
+        "django",
+        "fastapi",
+        "express",
+        "react",
+        "vue",
+        "angular",
+        "next.js",
+        "spring",
+        "rails",
+    }
     if any(fw.lower() in web_frameworks for fw in frameworks):
         if any("api" in dep or "rest" in dep or "graphql" in dep for dep in all_deps):
             return "api"
@@ -30,11 +112,28 @@ def _detect_project_type(project: Dict[str, Any]) -> str:
     if "click" in all_deps or "argparse" in all_deps or "typer" in all_deps:
         return "cli_tool"
 
-    ml_deps = {"numpy", "pandas", "scikit-learn", "tensorflow", "pytorch", "keras", "matplotlib", "seaborn"}
+    ml_deps = {
+        "numpy",
+        "pandas",
+        "scikit-learn",
+        "tensorflow",
+        "pytorch",
+        "keras",
+        "matplotlib",
+        "seaborn",
+    }
     if any(dep in ml_deps for dep in all_deps):
         return "data_science"
 
-    db_deps = {"sqlalchemy", "django-orm", "sequelize", "typeorm", "prisma", "mongodb", "redis"}
+    db_deps = {
+        "sqlalchemy",
+        "django-orm",
+        "sequelize",
+        "typeorm",
+        "prisma",
+        "mongodb",
+        "redis",
+    }
     if any(dep in db_deps for dep in all_deps):
         return "backend"
 
@@ -289,7 +388,17 @@ def _generate_tech_items(project: Dict[str, Any], project_name: str, project_typ
         )
 
     # Database integration
-    db_keywords = {"sqlalchemy", "django-orm", "sequelize", "typeorm", "prisma", "mongodb", "redis", "postgresql", "mysql"}
+    db_keywords = {
+        "sqlalchemy",
+        "django-orm",
+        "sequelize",
+        "typeorm",
+        "prisma",
+        "mongodb",
+        "redis",
+        "postgresql",
+        "mysql",
+    }
     db_deps = [d for d in all_deps if any(kw in d.lower() for kw in db_keywords)]
     if db_deps:
         items.append(
@@ -470,31 +579,52 @@ def generate_formatted_resume_entry(project: Dict[str, Any]) -> str:
     # Build tech stack
     tech_stack = languages + frameworks
     notable_deps = [
-        d for d in all_deps if any(kw in d.lower() for kw in ["fastapi", "django", "flask", "react", "vue", "express", "spring"])
+        d
+        for d in all_deps
+        if any(
+            kw in d.lower()
+            for kw in [
+                "fastapi",
+                "django",
+                "flask",
+                "react",
+                "vue",
+                "express",
+                "spring",
+                "postgres",
+                "postgresql",
+                "mysql",
+                "mongodb",
+                "redis",
+                "docker",
+            ]
+        )
     ]
-    tech_stack.extend(notable_deps[:3])
+    tech_stack.extend(notable_deps[:4])
 
-    if project.get("has_docker"):
+    if project.get("has_docker") and "docker" not in [t.lower() for t in tech_stack]:
         tech_stack.append("Docker")
 
-    tech_stack = [t for t in tech_stack if t]
-    tech_line = ""
-    if tech_stack:
-        tech_line = "Technologies: " + ", ".join(sorted(set(tech_stack))[:10])  # Limit to top 10
+    # Format tech stack
+    tech_stack = sorted(set([t for t in tech_stack if t]))[:8]
+    tech_str = ", ".join(tech_stack)
 
-    # Bullet formatting
-    bullet_str = ""
-    for b in bullets:
-        bullet_str += f"  • {b}\n"
+    # Jake's LaTeX style: table-like layout with project name | tech stack on left, timeline on right
+    # Using markdown table-like formatting
+    if timeline:
+        header_line = f"**{project_name}** | *{tech_str}*<span style='float:right'>{timeline}</span>"
+    else:
+        header_line = f"**{project_name}** | *{tech_str}*"
 
-    # Final formatted block
-    block = f"""
-{project_name}
-{tech_line}
-{bullet_str}
-""".rstrip()
+    # Bullet points (limit to 4 like Jake's resume for conciseness)
+    bullet_lines = []
+    for b in bullets[:4]:
+        bullet_lines.append(f"  - {b}")
 
-    return block
+    # Combine into final entry
+    entry = f"\n{header_line}\n" + "\n".join(bullet_lines) + "\n"
+
+    return entry
 
 
 def generate_full_resume(report: Dict[str, Any]) -> str:
@@ -527,3 +657,622 @@ def print_resume_items(report: Dict[str, Any]) -> None:
         print("\nNo resume items could be generated from this analysis.")
 
     print("=" * 70 + "\n")
+
+
+def generate_latex_resume(
+    portfolios: List[Dict[str, Any]],
+    personal_info: Optional[Dict[str, str]] = None,
+    include_skills: bool = True,
+    include_projects: bool = True,
+    max_projects: Optional[int] = None,
+) -> str:
+    """Generates a full LaTeX document based on Resume template."""
+
+    # Collect all projects and skills
+    all_projects = []
+    all_skills = set()
+
+    for portfolio in portfolios:
+        projects = portfolio.get("projects", [])
+        all_projects.extend(projects)
+
+        # Collect skills from portfolio level
+        portfolio_skills = portfolio.get("skills", [])
+        if isinstance(portfolio_skills, list):
+            all_skills.update(portfolio_skills)
+        elif isinstance(portfolio_skills, dict):
+            for skill_list in portfolio_skills.values():
+                if isinstance(skill_list, list):
+                    all_skills.update(skill_list)
+
+        # Collect skills from projects
+        for project in projects:
+            skills_data = project.get("skills", {})
+            if isinstance(skills_data, dict):
+                for skill_list in skills_data.values():
+                    if isinstance(skill_list, list):
+                        all_skills.update(skill_list)
+            elif isinstance(skills_data, list):
+                all_skills.update(skills_data)
+
+    if max_projects and len(all_projects) > max_projects:
+        all_projects = all_projects[:max_projects]
+
+    # 1. Personal Header
+    info = personal_info or {}
+    name = info.get("name", "Your Name").upper()
+    phone = info.get("phone", "123-456-7890")
+    email = info.get("email", "email@address.com")
+    location = info.get("location", "")
+    linkedin = info.get("linkedIn", "linkedin.com/in/username")
+    github = info.get("github", "github.com/username")
+    website = info.get("website", "")
+
+    # Clean URLs for display
+    linkedin_display = linkedin.replace("https://", "").replace("http://", "")
+    github_display = github.replace("https://", "").replace("http://", "")
+    website_display = website.replace("https://", "").replace("http://", "") if website else ""
+
+    contact_parts = [phone]
+    contact_parts.append(rf"\href{{mailto:{email}}}{{\underline{{{email}}}}}")
+    if location:
+        contact_parts.append(location)
+    contact_parts.append(rf"\href{{{linkedin}}}{{\underline{{{linkedin_display}}}}}")
+    contact_parts.append(rf"\href{{{github}}}{{\underline{{{github_display}}}}}")
+    if website:
+        contact_parts.append(rf"\href{{{website}}}{{\underline{{{website_display}}}}}")
+
+    contact_line = " $|$ ".join(contact_parts)
+
+    latex = LATEX_HEADER
+    latex += rf"""
+\begin{{center}}
+    \textbf{{\Huge \scshape {name}}} \\ \vspace{{1pt}}
+    \small {contact_line}
+\end{{center}}
+"""
+
+    # 2. Education Section
+    if info.get("university"):
+        latex += r"\section{Education}" + "\n\\resumeSubHeadingListStart\n"
+        latex += rf"  \resumeSubheading{{{info.get('university', '')}}}{{{info.get('location', '')}}}"
+        latex += rf"{{{info.get('degree', '')}}}{{{info.get('grad_date', '')}}}\n"
+        latex += "\\resumeSubHeadingListEnd\n\n"
+
+    # 3. Projects Section
+    if include_projects and all_projects:
+        latex += r"\section{Projects}" + "\n\\resumeSubHeadingListStart\n"
+        for project in all_projects:
+            project_name = project.get("project_name", "Project")
+            timeline = project.get("timeline", "Present")
+
+            # Extract Tech Stack
+            langs = list(project.get("languages", {}).keys())
+            fws = project.get("frameworks", [])
+            deps = project.get("dependencies", {})
+
+            # Collect notable dependencies
+            all_deps = []
+            for deps_list in deps.values():
+                all_deps.extend(deps_list)
+
+            notable_deps = [
+                d
+                for d in all_deps
+                if any(
+                    kw in d.lower()
+                    for kw in [
+                        "fastapi",
+                        "django",
+                        "flask",
+                        "react",
+                        "vue",
+                        "express",
+                        "spring",
+                        "postgres",
+                        "mysql",
+                        "mongodb",
+                        "redis",
+                        "docker",
+                    ]
+                )
+            ]
+
+            tech_stack = (langs + fws + notable_deps[:3])[:6]  # Limit to 6 items
+            tech_str = ", ".join(tech_stack)
+
+            safe_name = project_name.replace("&", "\\&").replace("%", "\\%").replace("_", "\\_").replace("#", "\\#")
+            safe_tech = tech_str.replace("&", "\\&").replace("%", "\\%").replace("_", "\\_").replace("#", "\\#")
+
+            latex += f"    \\resumeProjectHeading{{\\textbf{{{safe_name}}} $|$ \\emph{{{safe_tech}}}}}{{{timeline}}}\n"
+            latex += "      \\resumeItemListStart\n"
+            # Generate bullet points
+            bullets = _generate_project_items(project)
+            for bullet in bullets[:4]:
+                safe_bullet = (
+                    bullet.replace("\\", "\\textbackslash ")
+                    .replace("%", "\\%")
+                    .replace("$", "\\$")
+                    .replace("&", "\\&")
+                    .replace("_", "\\_")
+                    .replace("#", "\\#")
+                    .replace("{", "\\{")
+                    .replace("}", "\\}")
+                    .replace("~", "\\textasciitilde ")
+                    .replace("^", "\\textasciicircum ")
+                )
+                latex += f"        \\resumeItem{{{safe_bullet}}}\n"
+
+            latex += "      \\resumeItemListEnd\n"
+        latex += "\\resumeSubHeadingListEnd\n\n"
+
+    # 4. Technical Skills
+    if include_skills and all_skills:
+        skills_list = sorted(list(all_skills))
+
+        # Categorize skills
+        lang_keywords = {"python", "java", "javascript", "typescript", "c++", "c#", "c", "sql", "html", "css", "r"}
+        framework_keywords = {"react", "vue", "angular", "django", "flask", "fastapi", "spring", "express", "node.js", "nextjs"}
+        tool_keywords = {
+            "git",
+            "docker",
+            "kubernetes",
+            "aws",
+            "azure",
+            "jenkins",
+            "postgres",
+            "mysql",
+            "mongodb",
+            "redis",
+            "vscode",
+            "intellij",
+        }
+
+        langs = [s for s in skills_list if any(kw in s.lower() for kw in lang_keywords)]
+        fws = [s for s in skills_list if any(kw in s.lower() for kw in framework_keywords) and s not in langs]
+        tools = [s for s in skills_list if s not in langs and s not in fws]
+
+        latex += r"\section{Technical Skills}" + "\n\\begin{itemize}[leftmargin=0.15in, label={}]\n  \\small{\\item{\n"
+        if langs:
+            safe_langs = ", ".join(langs).replace("&", "\\&").replace("%", "\\%").replace("_", "\\_").replace("#", "\\#")
+            latex += f"    \\textbf{{Languages}}{{: {safe_langs}}} \\\\\n"
+        if fws:
+            safe_fws = ", ".join(fws).replace("&", "\\&").replace("%", "\\%").replace("_", "\\_").replace("#", "\\#")
+            latex += f"    \\textbf{{Frameworks}}{{: {safe_fws}}} \\\\\n"
+        if tools:
+            safe_tools = ", ".join(tools[:10]).replace("&", "\\&").replace("%", "\\%").replace("_", "\\_").replace("#", "\\#")
+            latex += f"    \\textbf{{Developer Tools}}{{: {safe_tools}}}\n"
+        latex += "  }}\n\\end{itemize}\n\n"
+
+    latex += r"\end{document}"
+    return latex
+
+
+def _compile_latex_to_pdf(latex_content: str) -> bytes:
+    """Compile LaTeX content to PDF using pdflatex with intelligent path detection."""
+    import shutil
+    import subprocess
+    import tempfile
+    from pathlib import Path
+
+    # 1. Define possible paths for pdflatex
+    # Prioritize the specific macOS path we verified
+    potential_paths = [
+        "/Library/TeX/texbin/pdflatex",
+        "/usr/local/texlive/2025basic/bin/universal-darwin/pdflatex",
+        "/usr/bin/pdflatex",
+    ]
+
+    pdflatex_cmd = None
+    for path in potential_paths:
+        if Path(path).exists():
+            pdflatex_cmd = path
+            break
+
+    # Fallback to system PATH (useful for Linux/Windows teammates)
+    if not pdflatex_cmd:
+        pdflatex_cmd = shutil.which("pdflatex")
+
+    if not pdflatex_cmd:
+        raise FileNotFoundError(
+            "pdflatex not found. To fix this, ensure BasicTeX is installed and " "run: export PATH='/Library/TeX/texbin:$PATH'"
+        )
+
+    # 2. Run compilation in a temporary directory
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+        tex_file = tmpdir_path / "resume.tex"
+        tex_file.write_text(latex_content, encoding="utf-8")
+
+        try:
+            # Run twice to resolve references and layout
+            for _ in range(2):
+                result = subprocess.run(
+                    [pdflatex_cmd, "-interaction=nonstopmode", "-output-directory", str(tmpdir_path), str(tex_file)],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+
+                if result.returncode != 0:
+                    raise RuntimeError(f"LaTeX compilation failed: {result.stdout}")
+
+            pdf_file = tmpdir_path / "resume.pdf"
+            if pdf_file.exists():
+                return pdf_file.read_bytes()
+            raise FileNotFoundError("PDF file was not generated.")
+
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("LaTeX compilation timed out.")
+
+
+def generate_resume(
+    projects: List[Dict[str, Any]],
+    format: str = "markdown",
+    include_skills: bool = True,
+    include_projects: bool = True,
+    max_projects: Optional[int] = None,
+    personal_info: Optional[Dict[str, str]] = None,
+    highlighted_skills: Optional[List[str]] = None,
+) -> Union[str, bytes]:
+    """
+    Generate a resume from database project bundles.
+
+    Args:
+        projects: List of project bundles, each containing:
+            - "project": DB row with project metadata
+            - "resume_items": List of resume bullet rows from DB
+            - "portfolio": Portfolio summary with skills
+        format: Output format ("markdown", "latex", "pdf")
+        include_skills: Include skills section
+        include_projects: Include projects section
+        max_projects: Maximum number of projects to include
+        personal_info: Personal contact information
+        highlighted_skills: Curated highlighted skills from curation settings.
+            If provided, these are used instead of auto-extracted skills.
+
+    Returns:
+        Formatted resume as string (markdown/latex) or bytes (pdf)
+    """
+
+    # Apply project limit
+    selected = projects
+    if max_projects is not None:
+        selected = selected[:max_projects]
+
+    # Build Skills section from curated skills or portfolio data
+    skills_set = set()
+    if include_skills:
+        # Prefer curated highlighted skills if provided
+        if highlighted_skills and len(highlighted_skills) > 0:
+            skills_set = set(highlighted_skills)
+        else:
+            for bundle in selected:
+                portfolio = bundle.get("portfolio") or {}
+                skills = portfolio.get("skills") or portfolio.get("skill_summary") or {}
+
+                if isinstance(skills, list):
+                    for s in skills:
+                        if isinstance(s, str) and s.strip():
+                            skills_set.add(s.strip())
+
+                elif isinstance(skills, dict):
+                    for _, vals in skills.items():
+                        if isinstance(vals, list):
+                            for s in vals:
+                                if isinstance(s, str) and s.strip():
+                                    skills_set.add(s.strip())
+
+    def _extract_bullet_text(row: Dict[str, Any]) -> Optional[str]:
+        """Extract resume bullet text from a resume_items database row."""
+        for key in ("resume_text", "content", "bullet", "text", "description"):
+            val = row.get(key)
+            if isinstance(val, str) and val.strip():
+                return val.strip()
+        return None
+
+    def _format_bundle(bundle: Dict[str, Any]) -> str:
+        """Format a project bundle into markdown with bullets."""
+        project = bundle.get("project") or {}
+        name = project.get("project_name") or project.get("name") or "Project"
+        tech = project.get("primary_language") or project.get("language") or ""
+        if not tech:
+            langs = project.get("languages")
+            if isinstance(langs, dict):
+                tech = ", ".join([k for k in langs.keys() if k])
+
+        # Build header
+        header = f"**{name}**"
+        if tech:
+            header += f" | *{tech}*"
+
+        # Extract resume bullets from DB
+        resume_rows = bundle.get("resume_items") or []
+        bullets: List[str] = []
+        for r in resume_rows:
+            if isinstance(r, dict):
+                t = _extract_bullet_text(r)
+                if t:
+                    bullets.append(t)
+
+        # Fallback bullet if none exist
+        if not bullets:
+            if tech:
+                bullets = [f"Developed {name}, a software project using {tech}."]
+            else:
+                bullets = [f"Developed {name}, a software project."]
+
+        bullets = bullets[:6]
+
+        # Format as markdown
+        lines = [header]
+        for b in bullets:
+            lines.append(f"  - {b}")
+        return "\n".join(lines)
+
+    # Build resume sections
+    md_parts: List[str] = []
+
+    # Personal information header
+    if personal_info:
+        display_name = (personal_info.get("name") or "").strip()
+        if display_name:
+            md_parts.append(f"# {display_name}")
+
+        contact_bits = []
+        for k in ("email", "phone", "location", "linkedIn", "github", "website"):
+            v = (personal_info.get(k) or "").strip()
+            if v:
+                contact_bits.append(v)
+        if contact_bits:
+            md_parts.append(" • ".join(contact_bits))
+
+    # Skills section
+    if include_skills and skills_set:
+        md_parts.append("## Skills")
+        md_parts.append(", ".join(sorted(skills_set)))
+
+    # Projects section
+    if include_projects:
+        md_parts.append("## Projects")
+        for bundle in selected:
+            md_parts.append(_format_bundle(bundle))
+
+    markdown_resume = "\n\n".join([p for p in md_parts if p and str(p).strip()])
+
+    if format == "markdown":
+        return markdown_resume
+    elif format == "latex":
+        return markdown_resume
+    elif format == "pdf":
+        return markdown_resume
+    else:
+        return markdown_resume
+
+
+def _convert_markdown_to_html(markdown_content: str) -> str:
+    """Convert markdown to styled HTML for PDF generation."""
+    html = markdown_content
+
+    # Convert headers
+    html = re.sub(r"^# (.+)$", r"<h1>\1</h1>", html, flags=re.MULTILINE)
+    html = re.sub(r"^## (.+)$", r"<h2>\1</h2>", html, flags=re.MULTILINE)
+    html = re.sub(r"^### (.+)$", r"<h3>\1</h3>", html, flags=re.MULTILINE)
+
+    # Convert bold
+    html = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", html)
+
+    # Convert bullet points
+    html = re.sub(r"^\* (.+)$", r"<li>\1</li>", html, flags=re.MULTILINE)
+    html = re.sub(r"(<li>.*</li>\n?)+", r"<ul>\g<0></ul>", html)
+
+    # Convert line breaks to paragraphs
+    paragraphs = html.split("\n\n")
+    formatted_paragraphs = []
+    for para in paragraphs:
+        para = para.strip()
+        if para and not para.startswith("<"):
+            para = f"<p>{para}</p>"
+        formatted_paragraphs.append(para)
+    html = "\n".join(formatted_paragraphs)
+
+    # Wrap in full HTML document with styling
+    styled_html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Resume</title>
+    <style>
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: #f5f5f5;
+        }}
+        .container {{
+            background: white;
+            padding: 60px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }}
+        h1 {{
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }}
+        h2 {{
+            color: #34495e;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+        }}
+        h3 {{
+            color: #555;
+            margin-top: 25px;
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }}
+        p {{
+            margin: 10px 0;
+            color: #555;
+        }}
+        ul {{
+            margin: 15px 0;
+            padding-left: 0;
+            list-style: none;
+        }}
+        li {{
+            margin: 8px 0;
+            padding-left: 25px;
+            position: relative;
+            color: #666;
+        }}
+        li:before {{
+            content: "▸";
+            position: absolute;
+            left: 0;
+            color: #3498db;
+            font-weight: bold;
+        }}
+        strong {{
+            color: #2c3e50;
+            font-weight: 600;
+        }}
+        @media print {{
+            body {{
+                background: white;
+            }}
+            .container {{
+                box-shadow: none;
+                padding: 20px;
+            }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        {html}
+    </div>
+</body>
+</html>"""
+
+    return styled_html
+
+
+def _convert_markdown_to_pdf(markdown_content: str) -> bytes:
+    """Convert markdown to PDF bytes using reportlab."""
+    from io import BytesIO
+
+    from reportlab.lib.enums import TA_LEFT
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import inch
+    from reportlab.platypus import (ListFlowable, ListItem, Paragraph,
+                                    SimpleDocTemplate, Spacer)
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.75 * inch, bottomMargin=0.75 * inch)
+
+    # Build styles
+    styles = getSampleStyleSheet()
+    styles.add(
+        ParagraphStyle(
+            name="CustomTitle",
+            parent=styles["Heading1"],
+            fontSize=24,
+            textColor="#2c3e50",
+            spaceAfter=20,
+            spaceBefore=10,
+        )
+    )
+    styles.add(
+        ParagraphStyle(
+            name="CustomHeading",
+            parent=styles["Heading2"],
+            fontSize=16,
+            textColor="#34495e",
+            spaceAfter=12,
+            spaceBefore=20,
+            leftIndent=10,
+        )
+    )
+    styles.add(
+        ParagraphStyle(
+            name="CustomSubHeading",
+            parent=styles["Heading3"],
+            fontSize=13,
+            textColor="#555555",
+            spaceAfter=8,
+            spaceBefore=15,
+            fontName="Helvetica-Bold",
+        )
+    )
+    styles.add(
+        ParagraphStyle(
+            name="CustomBody",
+            parent=styles["Normal"],
+            fontSize=10,
+            textColor="#555555",
+            spaceAfter=6,
+            alignment=TA_LEFT,
+        )
+    )
+    styles.add(
+        ParagraphStyle(
+            name="BulletText",
+            parent=styles["Normal"],
+            fontSize=10,
+            textColor="#666666",
+            leftIndent=20,
+            spaceAfter=6,
+        )
+    )
+
+    # Parse markdown and build PDF elements
+    story = []
+    lines = markdown_content.split("\n")
+    i = 0
+
+    while i < len(lines):
+        line = lines[i].strip()
+
+        if line.startswith("# "):
+            # Main title
+            story.append(Paragraph(line[2:], styles["CustomTitle"]))
+        elif line.startswith("## "):
+            # Section heading
+            story.append(Spacer(1, 0.2 * inch))
+            story.append(Paragraph(line[3:], styles["CustomHeading"]))
+        elif line.startswith("### "):
+            # Subsection heading
+            story.append(Paragraph(line[4:], styles["CustomSubHeading"]))
+        elif line.startswith("* ") or line.startswith("  • "):
+            # Bullet point
+            bullet_text = line[2:].strip() if line.startswith("* ") else line[4:].strip()
+            story.append(Paragraph(f"• {bullet_text}", styles["BulletText"]))
+        elif line.startswith("Technologies:"):
+            # Technologies line with special formatting
+            story.append(Paragraph(f"<i>{line}</i>", styles["CustomBody"]))
+        elif line and not line.startswith("#"):
+            # Regular paragraph
+            story.append(Paragraph(line, styles["CustomBody"]))
+        elif not line:
+            # Empty line - add small space
+            story.append(Spacer(1, 0.1 * inch))
+
+        i += 1
+
+    # Build PDF
+    doc.build(story)
+    pdf_bytes = buffer.getvalue()
+    buffer.close()
+
+    return pdf_bytes

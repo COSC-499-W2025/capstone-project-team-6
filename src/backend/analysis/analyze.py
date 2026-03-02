@@ -14,8 +14,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-# Configure stdout/stderr to use UTF-8 encoding on Windows to handle Unicode characters
-if sys.platform.startswith("win"):
+# Configure stdout/stderr to use UTF-8 encoding on Windows to handle Unicode characters.
+# Only when run as script - avoid breaking pytest capture when imported as module.
+if __name__ == "__main__" and sys.platform.startswith("win"):
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
 
@@ -38,8 +39,9 @@ from backend.analysis_database import (count_analyses_by_zip_file,
                                        get_all_analyses_by_zip_file,
                                        get_analysis_by_zip_file,
                                        get_analysis_report, get_connection,
-                                       get_resume_items_for_project, init_db,
-                                       record_analysis, store_resume_item)
+                                       get_resume_items_for_project_id,
+                                       init_db, record_analysis,
+                                       store_resume_item)
 
 
 def print_separator(title=""):
@@ -52,17 +54,382 @@ def print_separator(title=""):
         print("=" * 78)
 
 
-def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
+def calculate_days_since(date_str: str) -> int:
+    """
+    Calculate number of days since a given date string.
+
+    Args:
+        date_str: Date string in ISO format (e.g., "2024-01-15")
+
+    Returns:
+        Number of days since the date, or 999999 if parsing fails
+    """
+    try:
+        date_obj = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+        now = datetime.now()
+        delta = now - date_obj
+        return delta.days
+    except (ValueError, AttributeError):
+        return 999999  # Very old if we can't parse
+
+
+def calculate_duration_days(start_date_str: str, end_date_str: str) -> int:
+    """
+    Calculate duration in days between two dates.
+
+    Args:
+        start_date_str: Start date in ISO format
+        end_date_str: End date in ISO format
+
+    Returns:
+        Number of days between dates, or 0 if parsing fails
+    """
+    try:
+        start = datetime.fromisoformat(start_date_str.replace("Z", "+00:00"))
+        end = datetime.fromisoformat(end_date_str.replace("Z", "+00:00"))
+        delta = end - start
+        return max(delta.days, 0)
+    except (ValueError, AttributeError):
+        return 0
+
+
+def categorize_score(score: float) -> str:
+    """
+    Categorize a project based on its final score.
+
+    Args:
+        score: Final composite score (0-100)
+
+    Returns:
+        Category string
+    """
+    if score >= 80:
+        return "Flagship Project"
+    elif score >= 65:
+        return "Major Project"
+    elif score >= 50:
+        return "Significant Project"
+    elif score >= 35:
+        return "Supporting Project"
+    else:
+        return "Minor Contribution"
+
+
+def calculate_contribution_score(project: Dict[str, Any], user_email: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Calculate individual contribution score (0-30 points).
+
+    For solo projects, user gets full credit (30 points).
+    For collaborative projects, score is weighted by commit percentage:
+    - 70%+ commits: 30 pts (Dominant contributor)
+    - 50-70%: 25 pts (Major contributor)
+    - 30-50%: 20 pts (Moderate contributor)
+    - 15-30%: 10 pts (Supporting contributor)
+    - <15%: 5 pts (Minor contributor)
+
+    Args:
+        project: Project data dictionary
+        user_email: Optional user email to identify contribution percentage
+
+    Returns:
+        Dictionary with score and justification
+    """
+    git_analysis = project.get("git_analysis", {})
+    is_collaborative = git_analysis.get("is_collaborative", False)
+
+    if not is_collaborative:
+        # Solo project - full credit
+        return {
+            "score": 30.0,
+            "level": "Solo Project",
+            "justification": "100% individual contribution",
+        }
+
+    # Collaborative project
+    user_percentage = 0
+    contributors = git_analysis.get("contributors", [])
+
+    if user_email:
+        # Try to find user in target_user_stats first
+        if git_analysis.get("target_user_stats"):
+            user_stats = git_analysis["target_user_stats"]
+            user_percentage = user_stats.get("percentage", 0)
+        # If not found, look in contributors list
+        elif contributors:
+            user_contrib = next((c for c in contributors if c.get("email") == user_email), None)
+            if user_contrib:
+                user_percentage = user_contrib.get("percentage", 0)
+    else:
+        # If no user_email provided, assume they're the top contributor
+        if contributors:
+            user_percentage = max(c.get("percentage", 0) for c in contributors)
+
+    # Score based on contribution percentage
+    if user_percentage >= 70:
+        score = 30.0
+        level = "Dominant Contributor"
+    elif user_percentage >= 50:
+        score = 25.0
+        level = "Major Contributor"
+    elif user_percentage >= 30:
+        score = 20.0
+        level = "Moderate Contributor"
+    elif user_percentage >= 15:
+        score = 10.0
+        level = "Supporting Contributor"
+    elif user_percentage > 0:
+        score = 5.0
+        level = "Minor Contributor"
+    else:
+        # Unknown contribution in collaborative project
+        score = 15.0
+        level = "Collaborative (Unknown %)"
+
+    return {
+        "score": score,
+        "level": level,
+        "justification": (f"{user_percentage:.1f}% of commits" if user_percentage > 0 else "Contribution percentage unknown"),
+    }
+
+
+def calculate_recency_score(project: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Calculate recency bonus (0-15 points).
+
+    Recent projects score higher to reflect current skills:
+    - Last 30 days: 15 pts
+    - Last 90 days: 12 pts
+    - Last 180 days: 9 pts
+    - Last 365 days: 6 pts
+    - Older: 3 pts
+
+    Args:
+        project: Project data dictionary
+
+    Returns:
+        Dictionary with score and justification
+    """
+    git_analysis = project.get("git_analysis", {})
+    last_commit = git_analysis.get("last_commit_date")
+
+    if not last_commit:
+        # Fallback to last_modified_date if no git data
+        last_commit = project.get("last_modified_date")
+
+    if not last_commit:
+        return {
+            "score": 3.0,
+            "period": "Unknown",
+            "justification": "No date information available",
+        }
+
+    days_ago = calculate_days_since(last_commit)
+
+    if days_ago < 30:
+        score = 15.0
+        period = "Last 30 days"
+    elif days_ago < 90:
+        score = 12.0
+        period = "Last 90 days"
+    elif days_ago < 180:
+        score = 9.0
+        period = "Last 180 days"
+    elif days_ago < 365:
+        score = 6.0
+        period = "Last year"
+    else:
+        score = 3.0
+        period = f"{days_ago // 365} year(s) ago"
+
+    return {
+        "score": score,
+        "period": period,
+        "justification": f"Last activity: {period}",
+    }
+
+
+def calculate_scale_score(project: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Calculate project scale score (0-10 points).
+
+    Larger projects demonstrate more experience:
+    - 500+ commits OR 100+ files: 10 pts (Large project)
+    - 100+ commits OR 50+ files: 7 pts (Medium-large project)
+    - 50+ commits OR 20+ files: 5 pts (Medium project)
+    - Smaller: 3 pts (Small project)
+
+    Args:
+        project: Project data dictionary
+
+    Returns:
+        Dictionary with score and justification
+    """
+    total_commits = project.get("total_commits", 0)
+    total_files = project.get("total_files", 0)
+
+    if total_commits >= 500 or total_files >= 100:
+        score = 10.0
+        scale = "Large"
+        details = []
+        if total_commits >= 500:
+            details.append(f"{total_commits} commits")
+        if total_files >= 100:
+            details.append(f"{total_files} files")
+        justification = ", ".join(details)
+    elif total_commits >= 100 or total_files >= 50:
+        score = 7.0
+        scale = "Medium-Large"
+        justification = f"{total_commits} commits, {total_files} files"
+    elif total_commits >= 50 or total_files >= 20:
+        score = 5.0
+        scale = "Medium"
+        justification = f"{total_commits} commits, {total_files} files"
+    else:
+        score = 3.0
+        scale = "Small"
+        justification = f"{total_commits} commits, {total_files} files"
+
+    return {"score": score, "scale": scale, "justification": justification}
+
+
+def calculate_collaboration_score(project: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Calculate collaboration diversity score (0-10 points).
+
+    Team experience is valuable:
+    - 5+ contributors: 10 pts (Large team)
+    - 3-4 contributors: 7 pts (Small team)
+    - 2 contributors: 4 pts (Pair)
+    - Solo: 0 pts (already rewarded in contribution_score)
+
+    Args:
+        project: Project data dictionary
+
+    Returns:
+        Dictionary with score and justification
+    """
+    git_analysis = project.get("git_analysis", {})
+    total_contributors = git_analysis.get("total_contributors", 1)
+
+    if total_contributors >= 5:
+        score = 10.0
+        level = "Large Team"
+        justification = f"{total_contributors} contributors"
+    elif total_contributors >= 3:
+        score = 7.0
+        level = "Small Team"
+        justification = f"{total_contributors} contributors"
+    elif total_contributors >= 2:
+        score = 4.0
+        level = "Pair"
+        justification = f"{total_contributors} contributors"
+    else:
+        score = 0.0
+        level = "Solo"
+        justification = "Solo project"
+
+    return {"score": score, "level": level, "justification": justification}
+
+
+def calculate_duration_score(project: Dict[str, Any], user_email: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Calculate activity duration score (0-10 points).
+
+    Long-term commitment demonstrates dedication:
+    - 180+ days: 10 pts (Long-term)
+    - 90-180 days: 8 pts (Extended)
+    - 30-90 days: 6 pts (Moderate)
+    - 7-30 days: 4 pts (Short)
+    - <7 days: 2 pts (Sprint/Hackathon)
+
+    Args:
+        project: Project data dictionary
+        user_email: Optional user email to find their specific contribution period
+
+    Returns:
+        Dictionary with score and justification
+    """
+    git_analysis = project.get("git_analysis", {})
+    contributors = git_analysis.get("contributors", [])
+
+    # Try to find user's specific duration
+    duration_days = 0
+    if user_email and contributors:
+        user_contrib = next((c for c in contributors if c.get("email") == user_email), None)
+        if user_contrib:
+            first = user_contrib.get("first_commit_date")
+            last = user_contrib.get("last_commit_date")
+            if first and last:
+                duration_days = calculate_duration_days(first, last)
+
+    # Fallback to overall project duration if user not found
+    if duration_days == 0 and contributors:
+        # Use the primary/top contributor's duration
+        top_contrib = max(contributors, key=lambda c: c.get("commits", 0), default=None)
+        if top_contrib:
+            first = top_contrib.get("first_commit_date")
+            last = top_contrib.get("last_commit_date")
+            if first and last:
+                duration_days = calculate_duration_days(first, last)
+
+    if duration_days >= 180:
+        score = 10.0
+        period = "Long-term"
+        months = duration_days // 30
+        justification = f"{months} months active"
+    elif duration_days >= 90:
+        score = 8.0
+        period = "Extended"
+        months = duration_days // 30
+        justification = f"{months} months active"
+    elif duration_days >= 30:
+        score = 6.0
+        period = "Moderate"
+        justification = f"{duration_days} days active"
+    elif duration_days >= 7:
+        score = 4.0
+        period = "Short"
+        justification = f"{duration_days} days active"
+    elif duration_days > 0:
+        score = 2.0
+        period = "Sprint/Hackathon"
+        justification = f"{duration_days} days active"
+    else:
+        score = 2.0
+        period = "Unknown"
+        justification = "Duration unknown"
+
+    return {"score": score, "period": period, "justification": justification}
+
+
+def calculate_composite_score(
+    project: Dict[str, Any],
+    user_email: Optional[str] = None,
+    use_enhanced_ranking: bool = True,
+) -> Dict[str, Any]:
     """
     Calculate a comprehensive composite score for a project using a balanced multi-factor approach.
 
-    New Scoring System (total: 100 points):
+    Base Scoring System (45% of total when enhanced ranking enabled):
     - Code Architecture (30 points): OOP principles, SOLID design, design patterns
     - Code Quality (25 points): Test coverage, code organization, documentation
     - Project Maturity (25 points): CI/CD, Docker, Git activity, project structure
     - Algorithmic Quality (20 points): Complexity awareness, optimization patterns
 
-    This system balances theoretical code quality with practical project health indicators.
+    Enhanced Ranking Factors (55% of total when enabled):
+    - Individual Contribution (30 points): Solo vs collaborative contribution weight
+    - Recency (15 points): Recent activity bonus
+    - Project Scale (10 points): Size and complexity
+    - Collaboration (10 points): Team diversity experience
+    - Activity Duration (10 points): Long-term commitment
+
+    Args:
+        project: Project data dictionary
+        user_email: Optional email to identify user's specific contribution
+        use_enhanced_ranking: Whether to use enhanced ranking (default: True)
+
+    Returns:
+        Dictionary with composite_score, breakdown, justification, and category
     """
     score_breakdown = {
         "code_architecture": 0.0,
@@ -330,9 +697,8 @@ def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
     score_breakdown["project_maturity"] = min(maturity_score, 25) * 0.25
 
     # algorithmic quality, 20 points total. metrics: Complexity, Optimization
-    # currently only python is supported for this metric.
+    # Supports Python and Java complexity analysis.
     # the score is calculated based on the optimization score from the complexity analysis.
-    # we will add support for other languages in the future probably during the winter break
     algorithmic_score = 0.0
     algorithmic_details = []
 
@@ -356,8 +722,67 @@ def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
 
     score_breakdown["algorithmic_quality"] = algorithmic_score * 0.20
 
-    # total
-    total_score = sum(score_breakdown.values())
+    # total base score (out of 100)
+    base_score = sum(score_breakdown.values())
+
+    # Target-user contribution signal (hybrid: lines/ownership, commits, recency)
+    user_contribution_score = 0.0
+    user_justification = []
+    target_user_stats = project.get("target_user_stats") or {}
+    target_user_email = project.get("target_user_email")
+
+    if target_user_email or target_user_stats:
+        contribution_volume = project.get("contribution_volume") or {}
+        blame_summary = project.get("blame_summary") or {}
+
+        # Ownership / lines changed
+        total_lines_changed = sum(v for v in contribution_volume.values() if isinstance(v, (int, float)))
+        user_lines_changed = contribution_volume.get(target_user_email) if target_user_email else None
+        lines_component = 0.0
+        if total_lines_changed and user_lines_changed is not None:
+            lines_component = max(0.0, min(1.0, user_lines_changed / total_lines_changed))
+            user_justification.append(f"{lines_component * 100:.1f}% of changed lines")
+        else:
+            total_surviving = sum(v for v in blame_summary.values() if isinstance(v, (int, float)))
+            if total_surviving and target_user_email in blame_summary:
+                lines_component = max(0.0, min(1.0, blame_summary[target_user_email] / total_surviving))
+                user_justification.append(f"{lines_component * 100:.1f}% of surviving lines")
+            else:
+                user_justification.append("No matching contributions found for target user")
+
+        # Commit share
+        commit_percentage = target_user_stats.get("percentage")
+        commit_component = 0.0
+        if commit_percentage is not None:
+            commit_component = max(0.0, min(1.0, commit_percentage / 100.0))
+            user_justification.append(f"{commit_percentage:.1f}% of commits")
+
+        # Recency (favor recent activity)
+        recency_component = 0.0
+        last_commit_str = target_user_stats.get("last_commit_date") or project.get("last_commit_date")
+        if last_commit_str:
+            try:
+                last_commit_dt = datetime.fromisoformat(last_commit_str)
+                days_ago = (datetime.now() - last_commit_dt).days
+                if days_ago <= 30:
+                    recency_component = 1.0
+                elif days_ago <= 90:
+                    recency_component = 0.66
+                elif days_ago <= 180:
+                    recency_component = 0.33
+                user_justification.append(f"Last commit {days_ago} days ago")
+            except Exception:
+                pass
+
+        # Weighted blend (default weights: 50% lines, 30% commits, 20% recency)
+        lines_weight = 0.5
+        commits_weight = 0.3
+        recency_weight = 0.2
+        max_user_points = 20.0
+        blended = (lines_component * lines_weight) + (commit_component * commits_weight) + (recency_component * recency_weight)
+        user_contribution_score = max_user_points * blended
+    else:
+        user_justification.append("No target user email provided")
 
     # justifications for the architecture score
     arch_justification = []
@@ -370,34 +795,119 @@ def calculate_composite_score(project: Dict[str, Any]) -> Dict[str, Any]:
     if not arch_justification:
         arch_justification.append("No architecture analysis")
 
-    return {
-        "composite_score": total_score,
-        "breakdown": score_breakdown,
-        "justification": {
+    # Enhanced ranking system (if enabled)
+    if use_enhanced_ranking:
+        # Calculate the 5 new factors
+        contribution_data = calculate_contribution_score(project, user_email)
+        recency_data = calculate_recency_score(project)
+        scale_data = calculate_scale_score(project)
+        collaboration_data = calculate_collaboration_score(project)
+        duration_data = calculate_duration_score(project, user_email)
+
+        # Default weights (can be customized via config in future)
+        weights = {
+            "base_score": 0.45,
+            "contribution": 0.25,
+            "recency": 0.10,
+            "scale": 0.08,
+            "collaboration": 0.07,
+            "duration": 0.05,
+        }
+
+        # Calculate weighted final score
+        final_score = (
+            base_score * weights["base_score"]
+            + contribution_data["score"] * weights["contribution"]
+            + recency_data["score"] * weights["recency"]
+            + scale_data["score"] * weights["scale"]
+            + collaboration_data["score"] * weights["collaboration"]
+            + duration_data["score"] * weights["duration"]
+        )
+
+        # Ensure score is within 0-100
+        final_score = min(max(final_score, 0), 100)
+
+        # Enhanced breakdown includes all factors
+        enhanced_breakdown = {
+            **score_breakdown,
+            "individual_contribution": contribution_data["score"],
+            "recency": recency_data["score"],
+            "project_scale": scale_data["score"],
+            "collaboration_diversity": collaboration_data["score"],
+            "activity_duration": duration_data["score"],
+        }
+
+        # Enhanced justification
+        enhanced_justification = {
             "code_architecture": "; ".join(arch_justification)
             + (" | " + "; ".join(architecture_details) if architecture_details else ""),
-            "code_quality": "; ".join(quality_details) if quality_details else "No quality metrics",
-            "project_maturity": "; ".join(maturity_details) if maturity_details else "No maturity indicators",
-            "algorithmic_quality": "; ".join(algorithmic_details) if algorithmic_details else "No algorithmic analysis",
-        },
-    }
+            "code_quality": ("; ".join(quality_details) if quality_details else "No quality metrics"),
+            "project_maturity": ("; ".join(maturity_details) if maturity_details else "No maturity indicators"),
+            "algorithmic_quality": ("; ".join(algorithmic_details) if algorithmic_details else "No algorithmic analysis"),
+            "individual_contribution": f"{contribution_data['level']} - {contribution_data['justification']}",
+            "recency": recency_data["justification"],
+            "project_scale": f"{scale_data['scale']} - {scale_data['justification']}",
+            "collaboration_diversity": f"{collaboration_data['level']} - {collaboration_data['justification']}",
+            "activity_duration": f"{duration_data['period']} - {duration_data['justification']}",
+        }
+        if user_justification:
+            enhanced_justification["target_user"] = "; ".join(user_justification)
+
+        return {
+            "composite_score": final_score,
+            "base_score": base_score,
+            "breakdown": enhanced_breakdown,
+            "justification": enhanced_justification,
+            "category": categorize_score(final_score),
+            "weights": weights,
+            "user_contribution_score": user_contribution_score,
+            "adjusted_score": final_score + user_contribution_score,
+        }
+    else:
+        # Legacy mode - just return base score
+        legacy_justification = {
+            "code_architecture": "; ".join(arch_justification)
+            + (" | " + "; ".join(architecture_details) if architecture_details else ""),
+            "code_quality": ("; ".join(quality_details) if quality_details else "No quality metrics"),
+            "project_maturity": ("; ".join(maturity_details) if maturity_details else "No maturity indicators"),
+            "algorithmic_quality": ("; ".join(algorithmic_details) if algorithmic_details else "No algorithmic analysis"),
+        }
+        if user_justification:
+            legacy_justification["target_user"] = "; ".join(user_justification)
+
+        return {
+            "composite_score": base_score,
+            "breakdown": score_breakdown,
+            "justification": legacy_justification,
+            "user_contribution_score": user_contribution_score,
+            "adjusted_score": base_score + user_contribution_score,
+        }
 
 
-def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] = None) -> None:
+def summarize_top_ranked_projects(
+    limit: int = 10,
+    zip_file_path: Optional[str] = None,
+    user_email: Optional[str] = None,
+    username: Optional[str] = None,
+) -> None:
     """
-    Retrieve projects from the database, calculate composite scores,
+    Retrieve projects from the database, calculate composite scores, and display top-ranked projects.
+
+    Args:
+        limit: Maximum number of projects to display (default: 10)
+        zip_file_path: Optional path to filter by specific ZIP file
+        user_email: Optional email to personalize ranking based on individual contributions
     """
     if zip_file_path:
         print_separator(f"TOP RANKED PROJECTS SUMMARY - {Path(zip_file_path).name}")
     else:
         print_separator("TOP RANKED PROJECTS SUMMARY (ALL ZIP FILES)")
 
-    # Get analyses - filter by zip_file_path if provided
+    # Get analyses - filter by zip_file_path if provided (scoped by username)
     if zip_file_path:
-        all_analyses = get_all_analyses_by_zip_file(zip_file_path)
+        all_analyses = get_all_analyses_by_zip_file(zip_file_path, username=username) if username else []
     else:
-        # Get all analyses
-        all_analyses = get_all_analyses()
+        all_analyses = get_all_analyses(username) if username else []
 
     if not all_analyses:
         if zip_file_path:
@@ -414,7 +924,7 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
             projects = report.get("projects", [])
 
             for project in projects:
-                score_data = calculate_composite_score(project)
+                score_data = calculate_composite_score(project, user_email=user_email)
 
                 try:
                     analysis_timestamp = analysis["analysis_timestamp"]
@@ -458,8 +968,8 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
             unique_projects[unique_key] = item
         else:
             existing = unique_projects[unique_key]
-            existing_score = existing["score_data"]["composite_score"]
-            new_score = item["score_data"]["composite_score"]
+            existing_score = existing["score_data"].get("adjusted_score", existing["score_data"]["composite_score"])
+            new_score = item["score_data"].get("adjusted_score", item["score_data"]["composite_score"])
 
             if new_score > existing_score:
                 unique_projects[unique_key] = item
@@ -469,7 +979,10 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
 
     # Convert back to list and sort by composite score (descending)
     projects_with_scores = list(unique_projects.values())
-    projects_with_scores.sort(key=lambda x: x["score_data"]["composite_score"], reverse=True)
+    projects_with_scores.sort(
+        key=lambda x: x["score_data"].get("adjusted_score", x["score_data"]["composite_score"]),
+        reverse=True,
+    )
 
     # Display top projects
     top_projects = projects_with_scores[:limit]
@@ -480,13 +993,69 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
     for rank, item in enumerate(top_projects, 1):
         project = item["project"]
         score_data = item["score_data"]
+        adjusted_score = score_data.get("adjusted_score", score_data["composite_score"])
+        user_score = score_data.get("user_contribution_score", 0.0)
 
         print(f"{'=' * 78}")
         print(f"RANK #{rank}: {project.get('project_name', 'Unknown Project')}")
         print(f"{'=' * 78}")
 
         print(f"Analysis Date: {item['analysis_timestamp']}")
+        if project.get("target_user_email"):
+            print(f"Target User Email: {project.get('target_user_email')}")
         print(f"\nCOMPOSITE SCORE: {score_data['composite_score']:.2f}/100.0")
+
+        # Show category if available (enhanced ranking)
+        if "category" in score_data:
+            print(f"Category: {score_data['category']}")
+
+        # Check if enhanced ranking is being used
+        has_enhanced = "individual_contribution" in score_data["breakdown"]
+
+        if has_enhanced:
+            # Enhanced ranking output
+            print(f"\n📊 ENHANCED RANKING BREAKDOWN:")
+            print(f"\nBase Technical Score: {score_data.get('base_score', 0):.2f}/100.0 (Weight: 45%)")
+            print(f"  • Code Architecture:   {score_data['breakdown']['code_architecture']:.2f}/30.0")
+            print(f"  • Code Quality:        {score_data['breakdown']['code_quality']:.2f}/25.0")
+            print(f"  • Project Maturity:    {score_data['breakdown']['project_maturity']:.2f}/25.0")
+            print(f"  • Algorithmic Quality: {score_data['breakdown']['algorithmic_quality']:.2f}/20.0")
+
+            print(f"\nContribution & Context Factors:")
+            print(f"  • Individual Contribution: {score_data['breakdown']['individual_contribution']:.2f}/30.0 (Weight: 25%)")
+            print(f"    └─ {score_data['justification']['individual_contribution']}")
+            print(f"  • Recency:                 {score_data['breakdown']['recency']:.2f}/15.0 (Weight: 10%)")
+            print(f"    └─ {score_data['justification']['recency']}")
+            print(f"  • Project Scale:           {score_data['breakdown']['project_scale']:.2f}/10.0 (Weight: 8%)")
+            print(f"    └─ {score_data['justification']['project_scale']}")
+            print(f"  • Collaboration:           {score_data['breakdown']['collaboration_diversity']:.2f}/10.0 (Weight: 7%)")
+            print(f"    └─ {score_data['justification']['collaboration_diversity']}")
+            print(f"  • Activity Duration:       {score_data['breakdown']['activity_duration']:.2f}/10.0 (Weight: 5%)")
+            print(f"    └─ {score_data['justification']['activity_duration']}")
+
+            print(f"\nDetailed Justifications:")
+            print(f"  Architecture: {score_data['justification']['code_architecture']}")
+            print(f"  Quality:      {score_data['justification']['code_quality']}")
+            print(f"  Maturity:     {score_data['justification']['project_maturity']}")
+            print(f"  Algorithms:   {score_data['justification']['algorithmic_quality']}")
+        else:
+            # Legacy output (base score only)
+            print(f"\nScore Breakdown:")
+            print(
+                f"  • Code Architecture:  {score_data['breakdown']['code_architecture']:.2f}/30.0  ({score_data['justification']['code_architecture']})"
+            )
+            print(
+                f"  • Code Quality:       {score_data['breakdown']['code_quality']:.2f}/25.0  ({score_data['justification']['code_quality']})"
+            )
+            print(
+                f"  • Project Maturity:  {score_data['breakdown']['project_maturity']:.2f}/25.0  ({score_data['justification']['project_maturity']})"
+            )
+            print(
+                f"  • Algorithmic Quality: {score_data['breakdown']['algorithmic_quality']:.2f}/20.0  ({score_data['justification']['algorithmic_quality']})"
+            )
+        if user_score:
+            print(f"USER CONTRIBUTION BOOST: {user_score:.2f}/20.0")
+        print(f"ADJUSTED RANK SCORE: {adjusted_score:.2f}")
         print(f"\nScore Breakdown:")
         print(
             f"  • Code Architecture:  {score_data['breakdown']['code_architecture']:.2f}/30.0  ({score_data['justification']['code_architecture']})"
@@ -558,13 +1127,62 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
             complexity = project["complexity_analysis"]
             opt_score = complexity.get("optimization_score", 0.0)
             print(f"\n⚡ Complexity/Optimization Score: {opt_score:.1f}/100")
-            print(f"\n Currently, only python is supported for this metric.")
+            print(f"   Supported languages: Python, Java")
             if opt_score >= 75:
                 print(f"   Assessment: Strong algorithmic optimization awareness")
             elif opt_score >= 50:
                 print(f"   Assessment: Moderate optimization awareness")
             else:
                 print(f"   Assessment: Limited optimization awareness")
+
+            # Show breakdown of patterns detected
+            summary = complexity.get("summary", {})
+            if summary:
+                print(f"\n   Pattern Breakdown:")
+
+                # Good practices
+                good_patterns = {
+                    "efficient_data_structure": "Efficient data structures",
+                    "sorting_with_key": "Sorting with key functions",
+                    "set_operations": "Set operations",
+                    "dict_lookup": "Dict lookups",
+                    "list_comprehension": "List comprehensions",
+                    "generator_expression": "Generator expressions",
+                    "binary_search": "Binary search",
+                    "memoization": "Memoization",
+                    "stream_operations": "Stream operations (Java)",
+                    "sorting_with_comparator": "Sorting with comparators (Java)",
+                    "concurrent_collection": "Concurrent collections (Java)",
+                    "string_builder": "StringBuilder usage (Java)",
+                }
+
+                good_found = []
+                for key, label in good_patterns.items():
+                    if key in summary and summary[key] > 0:
+                        good_found.append(f"{label}: {summary[key]}")
+
+                if good_found:
+                    print(f"     [+] Good practices: {', '.join(good_found)}")
+
+                # Issues
+                issue_patterns = {
+                    "nested_loops": "Nested loops",
+                    "inefficient_lookup": "Inefficient lookups",
+                    "inefficient_membership_test": "Inefficient membership tests",
+                    "inefficient_string_concat": "String concat in loops",
+                }
+
+                issues_found = []
+                for key, label in issue_patterns.items():
+                    if key in summary and summary[key] > 0:
+                        issues_found.append(f"{label}: {summary[key]}")
+
+                if issues_found:
+                    print(f"     [!] Optimization opportunities: {', '.join(issues_found)}")
+
+                if not good_found and not issues_found:
+                    print(f"     No significant patterns detected")
+
         print(f"\nProject Health Indicators:")
         health_items = []
         if project.get("has_tests"):
@@ -585,6 +1203,99 @@ def summarize_top_ranked_projects(limit: int = 10, zip_file_path: Optional[str] 
 
         if project.get("test_coverage_estimate"):
             print(f"   Test Coverage: {project['test_coverage_estimate']}")
+
+        # Detailed Git Contribution Information
+        semantic_summary = project.get("semantic_summary", {})
+        activity_breakdown = project.get("activity_breakdown", {})
+        contribution_volume = project.get("contribution_volume", {})
+        blame_summary = project.get("blame_summary", {})
+        target_user_email = project.get("target_user_email")
+
+        if semantic_summary or activity_breakdown or contribution_volume or blame_summary:
+            print(f"\nGit Contribution Details:")
+
+            # Target user contribution details
+            if target_user_email:
+                user_semantic = semantic_summary.get(target_user_email, {})
+                user_activity = activity_breakdown.get(target_user_email, {})
+                user_lines_changed = contribution_volume.get(target_user_email)
+                user_surviving_lines = blame_summary.get(target_user_email)
+
+                if user_semantic or user_activity or user_lines_changed is not None or user_surviving_lines is not None:
+                    print(f"   Target User ({target_user_email}):")
+
+                    if user_semantic:
+                        trivial = user_semantic.get("trivial_commits", 0)
+                        substantial = user_semantic.get("substantial_commits", 0)
+                        total_lines_semantic = user_semantic.get("total_lines_changed", 0)
+                        if trivial > 0 or substantial > 0:
+                            print(f"      Commits: {substantial} substantial, {trivial} trivial")
+                        if total_lines_semantic > 0:
+                            print(f"      Total lines changed: {total_lines_semantic}")
+
+                    if user_activity:
+                        activity_parts = []
+                        if user_activity.get("code", 0) > 0:
+                            activity_parts.append(f"code: {user_activity['code']}")
+                        if user_activity.get("test", 0) > 0:
+                            activity_parts.append(f"tests: {user_activity['test']}")
+                        if user_activity.get("docs", 0) > 0:
+                            activity_parts.append(f"docs: {user_activity['docs']}")
+                        if user_activity.get("design", 0) > 0:
+                            activity_parts.append(f"design: {user_activity['design']}")
+                        if activity_parts:
+                            print(f"      Activity: {', '.join(activity_parts)} lines")
+
+                    if user_lines_changed is not None:
+                        print(f"      Lines changed: {user_lines_changed}")
+
+                    if user_surviving_lines is not None:
+                        total_surviving = sum(v for v in blame_summary.values() if isinstance(v, (int, float)))
+                        if total_surviving > 0:
+                            percentage = (user_surviving_lines / total_surviving) * 100
+                            print(f"      Surviving lines: {user_surviving_lines} ({percentage:.1f}% of codebase)")
+                        else:
+                            print(f"      Surviving lines: {user_surviving_lines}")
+
+            # Overall project contribution statistics
+            if contribution_volume:
+                total_lines = sum(v for v in contribution_volume.values() if isinstance(v, (int, float)))
+                if total_lines > 0:
+                    print(f"   Total project lines changed: {total_lines}")
+
+            if semantic_summary:
+                total_substantial = sum(
+                    stats.get("substantial_commits", 0) for stats in semantic_summary.values() if isinstance(stats, dict)
+                )
+                total_trivial = sum(
+                    stats.get("trivial_commits", 0) for stats in semantic_summary.values() if isinstance(stats, dict)
+                )
+                if total_substantial > 0 or total_trivial > 0:
+                    print(f"   Project commit quality: {total_substantial} substantial, {total_trivial} trivial")
+
+            if activity_breakdown:
+                total_code = sum(act.get("code", 0) for act in activity_breakdown.values() if isinstance(act, dict))
+                total_test = sum(act.get("test", 0) for act in activity_breakdown.values() if isinstance(act, dict))
+                total_docs = sum(act.get("docs", 0) for act in activity_breakdown.values() if isinstance(act, dict))
+                total_design = sum(act.get("design", 0) for act in activity_breakdown.values() if isinstance(act, dict))
+
+                activity_parts = []
+                if total_code > 0:
+                    activity_parts.append(f"code: {total_code}")
+                if total_test > 0:
+                    activity_parts.append(f"tests: {total_test}")
+                if total_docs > 0:
+                    activity_parts.append(f"docs: {total_docs}")
+                if total_design > 0:
+                    activity_parts.append(f"design: {total_design}")
+
+                if activity_parts:
+                    print(f"   Project activity breakdown: {', '.join(activity_parts)} lines")
+
+            if blame_summary:
+                total_surviving = sum(v for v in blame_summary.values() if isinstance(v, (int, float)))
+                if total_surviving > 0:
+                    print(f"   Total surviving lines in codebase: {total_surviving}")
 
         print()
 
@@ -819,7 +1530,10 @@ def main():
                         "total_classes": 0,
                     }
                 except Exception as e:
-                    report["projects"][i]["cpp_oop_analysis"] = {"error": str(e), "total_classes": 0}
+                    report["projects"][i]["cpp_oop_analysis"] = {
+                        "error": str(e),
+                        "total_classes": 0,
+                    }
 
             # C Analysis (note: .c files are classified as cpp in project_analyzer)
             # So we check for cpp language and run C analyzer too
@@ -874,7 +1588,10 @@ def main():
                             "total_classes": 0,
                         }
                     except Exception as e:
-                        report["projects"][i]["cpp_oop_analysis"] = {"error": str(e), "total_classes": 0}
+                        report["projects"][i]["cpp_oop_analysis"] = {
+                            "error": str(e),
+                            "total_classes": 0,
+                        }
 
                 # C Analysis (note: .c files are classified as cpp in project_analyzer)
                 # So we check for cpp language and run C analyzer too
@@ -1099,7 +1816,11 @@ def main():
 
                 if java_oop.get("annotations"):
                     print(f"\nAnnotations (top 5):")
-                    for anno, count in sorted(java_oop["annotations"].items(), key=lambda x: x[1], reverse=True)[:5]:
+                    for anno, count in sorted(
+                        java_oop["annotations"].items(),
+                        key=lambda x: x[1],
+                        reverse=True,
+                    )[:5]:
                         print(f"  @{anno}: {count}")
 
                 if java_oop.get("design_patterns"):
@@ -1326,7 +2047,10 @@ def main():
                 existing_resume_items = get_resume_items_for_project(project_name)
 
                 if existing_resume_items and not regenerate_all:
-                    resume_items_by_project[project_name] = {"text": existing_resume_items[0]["resume_text"], "cached": True}
+                    resume_items_by_project[project_name] = {
+                        "text": existing_resume_items[0]["resume_text"],
+                        "cached": True,
+                    }
                 else:
                     projects_needing_resume.append(project)
 
@@ -1374,7 +2098,10 @@ def main():
                         # Delete old resume item if regenerating
                         if regenerate_all:
                             with get_connection() as conn:
-                                conn.execute("DELETE FROM resume_items WHERE project_name = ?", (project_name,))
+                                conn.execute(
+                                    "DELETE FROM resume_items WHERE project_name = ?",
+                                    (project_name,),
+                                )
                                 conn.commit()
 
                         store_resume_item(project_name, resume_entry)

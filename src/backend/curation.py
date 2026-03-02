@@ -1,0 +1,743 @@
+"""
+Project curation functionality for MDA CLI.
+
+This module provides functionality for users to curate their analyzed projects by:
+- Correcting project chronology (dates)
+- Selecting comparison attributes 
+- Choosing showcase projects
+
+User curation preferences are stored in the database and used to customize
+project displays and comparisons.
+"""
+
+from __future__ import annotations
+
+import sqlite3
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Set
+
+try:
+    from .. import analysis_database as db
+except ImportError:
+    # Handle direct execution or testing
+    import sys
+    from pathlib import Path
+
+    current_dir = Path(__file__).parent
+    src_dir = current_dir.parent
+    sys.path.insert(0, str(src_dir))
+    from backend import analysis_database as db
+
+
+@dataclass
+class ProjectCurationSettings:
+    """User's curation settings for their projects."""
+
+    user_id: str
+    comparison_attributes: List[str]
+    showcase_project_ids: List[int]
+    custom_project_order: List[int]
+    highlighted_skills: List[str]
+
+
+@dataclass
+class ProjectChronologyCorrection:
+    """A user's correction to a project's chronological information."""
+
+    project_id: int
+    user_id: str
+    last_commit_date: Optional[str] = None
+    last_modified_date: Optional[str] = None
+    project_start_date: Optional[str] = None
+    project_end_date: Optional[str] = None
+    correction_timestamp: Optional[str] = None
+
+
+# Default attributes available for project comparison
+DEFAULT_COMPARISON_ATTRIBUTES = [
+    "total_files",
+    "code_files",
+    "test_files",
+    "has_tests",
+    "has_readme",
+    "has_ci_cd",
+    "has_docker",
+    "primary_language",
+    "total_commits",
+    "project_active_days",
+    "test_coverage_estimate",
+]
+
+# Human-readable descriptions for attributes
+ATTRIBUTE_DESCRIPTIONS = {
+    "total_files": "Total files count",
+    "code_files": "Source code files",
+    "test_files": "Test files count",
+    "has_tests": "Has test suite",
+    "has_readme": "Has README documentation",
+    "has_ci_cd": "Has CI/CD setup",
+    "has_docker": "Has Docker configuration",
+    "primary_language": "Primary programming language",
+    "total_commits": "Total git commits",
+    "project_active_days": "Project duration (days)",
+    "test_coverage_estimate": "Test coverage level",
+    "target_user_commits": "Your commits count",
+    "target_user_commit_pct": "Your contribution percentage",
+    "directory_depth": "Project complexity (depth)",
+    "total_size": "Project size (bytes)",
+    "has_remote": "Has remote repository",
+}
+
+
+def init_curation_tables() -> None:
+    """Initialize database tables for curation functionality."""
+    with db.get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+
+        # Table for user curation settings
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_curation_settings (
+                user_id TEXT NOT NULL,
+                comparison_attributes TEXT NOT NULL, -- JSON array of attribute names
+                showcase_project_ids TEXT NOT NULL, -- JSON array of project IDs
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (user_id)
+            );
+        """
+        )
+
+        # Check existing columns and add missing ones
+        cols = conn.execute("PRAGMA table_info(user_curation_settings);").fetchall()
+        col_names = {c["name"] for c in cols}  # rows are sqlite3.Row
+
+        if "custom_project_order" not in col_names:
+            conn.execute(
+                """
+                ALTER TABLE user_curation_settings
+                ADD COLUMN custom_project_order TEXT NOT NULL DEFAULT '[]';
+            """
+            )
+
+        if "highlighted_skills" not in col_names:
+            conn.execute(
+                """
+                ALTER TABLE user_curation_settings
+                ADD COLUMN highlighted_skills TEXT NOT NULL DEFAULT '[]';
+            """
+            )
+
+        # Table for chronology corrections
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS project_chronology_corrections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                user_id TEXT NOT NULL,
+                last_commit_date TEXT,
+                last_modified_date TEXT,
+                project_start_date TEXT,
+                project_end_date TEXT,
+                correction_timestamp TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (project_id, user_id)
+            );
+        """
+        )
+
+        conn.commit()
+
+
+def get_user_projects(user_id: str) -> List[Dict[str, Any]]:
+    """Get all projects analyzed by the user with their current chronology."""
+    settings = get_user_curation_settings(user_id)
+    custom_order = settings.custom_project_order  #  list of IDs
+
+    with db.get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+
+        query = """
+            SELECT p.*,
+                   a.analysis_timestamp,
+                   a.zip_file,
+                   a.analysis_uuid AS analysis_uuid,
+                   -- Use corrections if available, otherwise original values
+                   COALESCE(pcc.last_commit_date, p.last_commit_date) as effective_last_commit_date,
+                   COALESCE(pcc.last_modified_date, p.last_modified_date) as effective_last_modified_date,
+                   COALESCE(pcc.project_start_date, p.project_start_date) as effective_project_start_date,
+                   COALESCE(pcc.project_end_date, p.project_end_date) as effective_project_end_date,
+                   pcc.correction_timestamp
+            FROM projects p
+            JOIN analyses a ON a.id = p.analysis_id
+            LEFT JOIN project_chronology_corrections pcc ON pcc.project_id = p.id AND pcc.user_id = ?
+            WHERE a.username = ?
+        """
+
+        rows = conn.execute(query, (user_id, user_id)).fetchall()
+
+        projects = []
+        for row in rows:
+            project = dict(row)
+
+            # Add composite ID for thumbnail API (format: {analysis_uuid}:{project_path})
+            # Note: project_path can be empty string "" or None for projects at root level
+            analysis_uuid = project.get("analysis_uuid")
+            project_path = project.get("project_path") or ""
+
+            if analysis_uuid:
+                project["composite_id"] = f"{analysis_uuid}:{project_path}"
+
+            # Add language and framework info
+            languages = conn.execute(
+                """
+                SELECT language, file_count FROM project_languages 
+                WHERE project_id = ? ORDER BY file_count DESC
+            """,
+                (project["id"],),
+            ).fetchall()
+
+            frameworks = conn.execute(
+                """
+                SELECT framework FROM project_frameworks 
+                WHERE project_id = ? ORDER BY framework
+            """,
+                (project["id"],),
+            ).fetchall()
+
+            project["languages"] = {lang["language"]: lang["file_count"] for lang in languages}
+            project["frameworks"] = [fw["framework"] for fw in frameworks]
+
+            projects.append(project)
+
+        if custom_order:
+            # Sort by the user's hand-picked order
+            order_map = {pid: i for i, pid in enumerate(custom_order)}
+            projects.sort(key=lambda x: order_map.get(x["id"], len(projects)))
+        else:
+            # Sort by date , moved order section from database query to here
+            projects.sort(
+                key=lambda x: (
+                    x["effective_last_commit_date"] or x["effective_last_modified_date"] or x["analysis_timestamp"] or ""
+                )
+            )
+
+        return projects
+
+
+def save_chronology_correction(
+    project_id: int,
+    user_id: str,
+    last_commit_date: Optional[str] = None,
+    last_modified_date: Optional[str] = None,
+    project_start_date: Optional[str] = None,
+    project_end_date: Optional[str] = None,
+) -> bool:
+    """Save user's corrections to project chronology."""
+    try:
+        with db.get_connection() as conn:
+            conn.execute("PRAGMA foreign_keys = ON;")
+
+            # Validate project exists
+            project = conn.execute("SELECT id FROM projects WHERE id = ?", (project_id,)).fetchone()
+            if not project:
+                return False
+
+            # Insert or update correction
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO project_chronology_corrections 
+                (project_id, user_id, last_commit_date, last_modified_date, 
+                 project_start_date, project_end_date, correction_timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    project_id,
+                    user_id,
+                    last_commit_date,
+                    last_modified_date,
+                    project_start_date,
+                    project_end_date,
+                    datetime.now().isoformat(),
+                ),
+            )
+
+            conn.commit()
+            return True
+
+    except Exception:
+        return False
+
+
+def get_chronology_corrections(user_id: str) -> List[ProjectChronologyCorrection]:
+    """Get all chronology corrections made by the user."""
+    with db.get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+
+        rows = conn.execute(
+            """
+            SELECT * FROM project_chronology_corrections 
+            WHERE user_id = ? ORDER BY correction_timestamp DESC
+        """,
+            (user_id,),
+        ).fetchall()
+
+        return [
+            ProjectChronologyCorrection(
+                project_id=row["project_id"],
+                user_id=row["user_id"],
+                last_commit_date=row["last_commit_date"],
+                last_modified_date=row["last_modified_date"],
+                project_start_date=row["project_start_date"],
+                project_end_date=row["project_end_date"],
+                correction_timestamp=row["correction_timestamp"],
+            )
+            for row in rows
+        ]
+
+
+def save_project_order(user_id: str, project_ids: List[int]) -> bool:
+    """Save user's preferred project display order."""
+    try:
+        import json
+
+        with db.get_connection() as conn:
+            conn.execute("PRAGMA foreign_keys = ON;")
+
+            # Use COALESCE to keep existing values for other columns
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO user_curation_settings
+                (user_id, comparison_attributes, showcase_project_ids, custom_project_order, highlighted_skills, updated_at)
+                VALUES (
+                    ?, 
+                    COALESCE((SELECT comparison_attributes FROM user_curation_settings WHERE user_id = ?), ?),
+                    COALESCE((SELECT showcase_project_ids FROM user_curation_settings WHERE user_id = ?), '[]'),
+                    ?,
+                    COALESCE((SELECT highlighted_skills FROM user_curation_settings WHERE user_id = ?), '[]'),
+                    ?
+                )
+            """,
+                (
+                    user_id,
+                    user_id,
+                    json.dumps(DEFAULT_COMPARISON_ATTRIBUTES),
+                    user_id,
+                    json.dumps(project_ids),
+                    user_id,
+                    datetime.now().isoformat(),
+                ),
+            )
+
+            conn.commit()
+            return True
+    except Exception:
+        return False
+
+
+def save_comparison_attributes(user_id: str, attributes: List[str]) -> bool:
+    """Save user's preferred comparison attributes."""
+    try:
+        # Validate attributes
+        valid_attributes = set(DEFAULT_COMPARISON_ATTRIBUTES + list(ATTRIBUTE_DESCRIPTIONS.keys()))
+        invalid = set(attributes) - valid_attributes
+        if invalid:
+            raise ValueError(f"Invalid attributes: {invalid}")
+
+        import json
+
+        with db.get_connection() as conn:
+            conn.execute("PRAGMA foreign_keys = ON;")
+
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO user_curation_settings
+                (user_id, comparison_attributes, showcase_project_ids, custom_project_order, highlighted_skills, updated_at)
+                VALUES (
+                    ?, 
+                    ?, 
+                    COALESCE((SELECT showcase_project_ids FROM user_curation_settings WHERE user_id = ?), '[]'),
+                    COALESCE((SELECT custom_project_order FROM user_curation_settings WHERE user_id = ?), '[]'),
+                    COALESCE((SELECT highlighted_skills FROM user_curation_settings WHERE user_id = ?), '[]'),
+                    ?
+                )
+            """,
+                (
+                    user_id,
+                    json.dumps(attributes),
+                    user_id,
+                    user_id,
+                    user_id,
+                    datetime.now().isoformat(),
+                ),
+            )
+
+            conn.commit()
+            return True
+
+    except Exception:
+        return False
+
+
+def save_showcase_projects(user_id: str, project_ids: List[int]) -> bool:
+    """Save user's showcase project selection (max 3)."""
+    try:
+        if len(project_ids) > 3:
+            raise ValueError("Maximum 3 showcase projects allowed")
+
+        # Validate projects exist
+        with db.get_connection() as conn:
+            conn.execute("PRAGMA foreign_keys = ON;")
+
+            for pid in project_ids:
+                project = conn.execute("SELECT id FROM projects WHERE id = ?", (pid,)).fetchone()
+                if not project:
+                    raise ValueError(f"Project {pid} not found")
+
+            import json
+
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO user_curation_settings
+                (user_id, comparison_attributes, showcase_project_ids, custom_project_order, highlighted_skills, updated_at)
+                VALUES (
+                    ?,
+                    COALESCE((SELECT comparison_attributes FROM user_curation_settings WHERE user_id = ?), ?),
+                    ?,
+                    COALESCE((SELECT custom_project_order FROM user_curation_settings WHERE user_id = ?), '[]'),
+                    COALESCE((SELECT highlighted_skills FROM user_curation_settings WHERE user_id = ?), '[]'),
+                    ?
+                )
+            """,
+                (
+                    user_id,
+                    user_id,
+                    json.dumps(DEFAULT_COMPARISON_ATTRIBUTES),
+                    json.dumps(project_ids),
+                    user_id,
+                    user_id,
+                    datetime.now().isoformat(),
+                ),
+            )
+
+            conn.commit()
+            return True
+
+    except Exception:
+        return False
+
+
+def save_highlighted_skills(user_id: str, skills: List[str]) -> bool:
+    """Save user's highlighted skills selection (max 10)."""
+    try:
+        if len(skills) > 10:
+            raise ValueError("Maximum 10 highlighted skills allowed")
+
+        import json
+
+        with db.get_connection() as conn:
+            conn.execute("PRAGMA foreign_keys = ON;")
+
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO user_curation_settings
+                (user_id, comparison_attributes, showcase_project_ids, custom_project_order, highlighted_skills, updated_at)
+                VALUES (
+                    ?,
+                    COALESCE((SELECT comparison_attributes FROM user_curation_settings WHERE user_id = ?), ?),
+                    COALESCE((SELECT showcase_project_ids FROM user_curation_settings WHERE user_id = ?), '[]'),
+                    COALESCE((SELECT custom_project_order FROM user_curation_settings WHERE user_id = ?), '[]'),
+                    ?,
+                    ?
+                )
+            """,
+                (
+                    user_id,
+                    user_id,
+                    json.dumps(DEFAULT_COMPARISON_ATTRIBUTES),
+                    user_id,
+                    user_id,
+                    json.dumps(skills),
+                    datetime.now().isoformat(),
+                ),
+            )
+
+            conn.commit()
+            return True
+
+    except Exception:
+        return False
+
+
+def get_user_curation_settings(user_id: str) -> ProjectCurationSettings:
+    """Get user's current curation settings."""
+    with db.get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+
+        row = conn.execute(
+            """
+            SELECT comparison_attributes, showcase_project_ids, custom_project_order, highlighted_skills 
+            FROM user_curation_settings WHERE user_id = ?
+        """,
+            (user_id,),
+        ).fetchone()
+
+        if row:
+            import json
+
+            return ProjectCurationSettings(
+                user_id=user_id,
+                comparison_attributes=json.loads(row["comparison_attributes"]),
+                showcase_project_ids=json.loads(row["showcase_project_ids"]),
+                custom_project_order=json.loads(row["custom_project_order"] or "[]"),
+                highlighted_skills=json.loads(row["highlighted_skills"] or "[]"),
+            )
+        else:
+            # Return defaults
+            return ProjectCurationSettings(
+                user_id=user_id,
+                comparison_attributes=DEFAULT_COMPARISON_ATTRIBUTES.copy(),
+                showcase_project_ids=[],
+                custom_project_order=[],
+                highlighted_skills=[],
+            )
+
+
+def get_showcase_projects(user_id: str) -> List[Dict[str, Any]]:
+    """Get user's showcase projects with full details."""
+    settings = get_user_curation_settings(user_id)
+    if not settings.showcase_project_ids:
+        return []
+
+    with db.get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+
+        # Build query for showcase projects
+        placeholders = ",".join("?" * len(settings.showcase_project_ids))
+        query = f"""
+            SELECT p.*,
+                   a.analysis_timestamp,
+                   a.zip_file,
+                   a.analysis_uuid AS analysis_uuid,
+                   COALESCE(pcc.last_commit_date, p.last_commit_date) as effective_last_commit_date,
+                   COALESCE(pcc.last_modified_date, p.last_modified_date) as effective_last_modified_date,
+                   COALESCE(pcc.project_start_date, p.project_start_date) as effective_project_start_date,
+                   COALESCE(pcc.project_end_date, p.project_end_date) as effective_project_end_date
+            FROM projects p
+            JOIN analyses a ON a.id = p.analysis_id
+            LEFT JOIN project_chronology_corrections pcc ON pcc.project_id = p.id AND pcc.user_id = ?
+            WHERE p.id IN ({placeholders})
+            ORDER BY
+                CASE p.id {" ".join(f"WHEN {pid} THEN {i}" for i, pid in enumerate(settings.showcase_project_ids))} END
+        """
+
+        rows = conn.execute(query, [user_id] + settings.showcase_project_ids).fetchall()
+
+        projects = []
+        for row in rows:
+            project = dict(row)
+
+            # Add language and framework info
+            languages = conn.execute(
+                """
+                SELECT language, file_count FROM project_languages 
+                WHERE project_id = ? ORDER BY file_count DESC
+            """,
+                (project["id"],),
+            ).fetchall()
+
+            frameworks = conn.execute(
+                """
+                SELECT framework FROM project_frameworks
+                WHERE project_id = ? ORDER BY framework
+            """,
+                (project["id"],),
+            ).fetchall()
+
+            project["languages"] = {lang["language"]: lang["file_count"] for lang in languages}
+            project["frameworks"] = [fw["framework"] for fw in frameworks]
+
+            # Add composite ID for thumbnail API (format: {analysis_uuid}:{project_path})
+            analysis_uuid = project.get("analysis_uuid")
+            project_path = project.get("project_path") or ""
+            if analysis_uuid:
+                project["composite_id"] = f"{analysis_uuid}:{project_path}"
+
+            projects.append(project)
+
+        return projects
+
+
+def get_available_skills_alphabetical() -> List[str]:
+    """
+    Return all unique skills (languages/frameworks/detailed skills) sorted alphabetically.
+    """
+    # Import here to avoid circular imports / heavy imports at module load time
+    from .analysis.chronology import get_all_skills_chronological
+
+    all_skill_entries = get_all_skills_chronological()
+
+    # Each entry is expected to have a `.skill` attribute (based on existing usage patterns)
+    skills = sorted({entry.skill for entry in all_skill_entries if getattr(entry, "skill", None)})
+
+    return skills
+
+
+def validate_date_format(date_str: str) -> bool:
+    """Validate date string is in ISO format."""
+    try:
+        datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+        return True
+    except (ValueError, AttributeError):
+        return False
+
+
+def format_project_comparison(projects: List[Dict[str, Any]], user_id: str) -> str:
+    """Format projects for comparison using user's selected attributes."""
+    if not projects:
+        return "No projects to compare."
+
+    settings = get_user_curation_settings(user_id)
+    attributes = settings.comparison_attributes
+
+    # Build comparison table
+    lines = []
+
+    # Header
+    header = f"{'Project':<25}"
+    for attr in attributes[:6]:  # Limit to prevent overflow
+        desc = ATTRIBUTE_DESCRIPTIONS.get(attr, attr)
+        header += f" {desc:<15}"
+    lines.append(header)
+    lines.append("-" * len(header))
+
+    # Project rows
+    for project in projects:
+        name = project["project_name"][:23]
+        row = f"{name:<25}"
+
+        for attr in attributes[:6]:
+            value = project.get(attr)
+            if value is None:
+                value = "N/A"
+            elif isinstance(value, bool):
+                value = "Yes" if value else "No"
+            elif isinstance(value, (int, float)) and attr == "target_user_commit_pct":
+                value = f"{value:.1f}%" if value else "N/A"
+            else:
+                value = str(value)[:13]
+
+            row += f" {value:<15}"
+
+        lines.append(row)
+
+    return "\n".join(lines)
+
+
+def save_curated_role(user_id: str, project_id: int, curated_role: str) -> bool:
+    """
+    Save user's curated role for a specific project.
+
+    Args:
+        user_id: User identifier
+        project_id: Project identifier
+        curated_role: The user-curated role name
+
+    Returns:
+        bool: True if saved successfully
+    """
+    try:
+        with db.get_connection() as conn:
+            conn.execute("PRAGMA foreign_keys = ON;")
+
+            # Update the curated_role in the projects table
+            # First verify the user owns this project
+            result = conn.execute(
+                """SELECT p.id FROM projects p 
+                   JOIN analyses a ON p.analysis_id = a.id 
+                   WHERE p.id = ? AND a.username = ?""",
+                (project_id, user_id),
+            ).fetchone()
+
+            if not result:
+                print(f"Project {project_id} not found or not owned by user {user_id}")
+                return False
+
+            # Update curated role
+            conn.execute("UPDATE projects SET curated_role = ? WHERE id = ?", (curated_role, project_id))
+
+            conn.commit()
+            return True
+
+    except Exception as e:
+        print(f"Error saving curated role: {e}")
+        return False
+
+
+def get_curated_role(user_id: str, project_id: int) -> Optional[str]:
+    """
+    Get user's curated role for a specific project.
+
+    Args:
+        user_id: User identifier
+        project_id: Project identifier
+
+    Returns:
+        The curated role string, or None if not set
+    """
+    try:
+        with db.get_connection() as conn:
+            result = conn.execute(
+                """SELECT p.curated_role FROM projects p 
+                   JOIN analyses a ON p.analysis_id = a.id 
+                   WHERE p.id = ? AND a.username = ?""",
+                (project_id, user_id),
+            ).fetchone()
+
+            return result[0] if result and result[0] else None
+
+    except Exception as e:
+        print(f"Error getting curated role: {e}")
+        return None
+
+
+def get_user_projects_with_roles(user_id: str) -> List[Dict[str, Any]]:
+    """
+    Get user's projects with both predicted and curated roles.
+
+    Args:
+        user_id: User identifier
+
+    Returns:
+        List of project dictionaries with role information
+    """
+    try:
+        with db.get_connection() as conn:
+            rows = conn.execute(
+                """SELECT p.id, p.project_name, p.predicted_role, p.predicted_role_confidence, 
+                          p.curated_role, p.role_prediction_data
+                   FROM projects p 
+                   JOIN analyses a ON p.analysis_id = a.id 
+                   WHERE a.username = ?
+                   ORDER BY p.project_name""",
+                (user_id,),
+            ).fetchall()
+
+            projects = []
+            for row in rows:
+                projects.append(
+                    {
+                        "id": row["id"],
+                        "project_name": row["project_name"],
+                        "predicted_role": row["predicted_role"],
+                        "predicted_role_confidence": row["predicted_role_confidence"],
+                        "curated_role": row["curated_role"],
+                        "role_prediction_data": row["role_prediction_data"],
+                    }
+                )
+
+            return projects
+
+    except Exception as e:
+        print(f"Error getting user projects with roles: {e}")
+        return []

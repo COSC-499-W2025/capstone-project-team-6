@@ -12,10 +12,16 @@ from typing import Optional
 
 from . import (Folder_traversal_fs, MDAShell, UserAlreadyExistsError,
                authenticate_user, create_user, initialize)
+from .analysis.analyze import calculate_composite_score
 from .analysis.deep_code_analyzer import generate_comprehensive_report
 from .analysis.document_analyzer import DocumentAnalysis, analyze_document
+from .analysis.role_predictor import (format_role_prediction,
+                                      predict_developer_role)
 from .analysis_database import init_db
 from .consent import ask_for_consent
+from .curation_cli import (curate_project_rank_interactive,
+                           curate_roles_interactive,
+                           curate_skills_highlight_interactive)
 
 # Avoid importing heavy optional dependencies at module import time
 
@@ -123,11 +129,13 @@ def create_temp_zip(directory: Path) -> Path:
     return temp_zip
 
 
-def analyze_folder(path: Path) -> dict:
+def analyze_folder(path: Path, target_user_email: Optional[str] = None, quick_mode: bool = False) -> dict:
     """Analyze a folder or ZIP file using the comprehensive analysis pipeline.
 
     Args:
         path: Path to the folder or ZIP file to analyze
+        target_user_email: Optional email to focus git analysis on specific user
+        quick_mode: If True, skip heavy operations like deep git blame analysis
 
     Returns:
         dict: Comprehensive analysis results from the pipeline
@@ -146,7 +154,8 @@ def analyze_folder(path: Path) -> dict:
     try:
         # Determine if we need to create a ZIP
         if path.is_dir():
-            print(f"Creating temporary archive...")
+            if not quick_mode:
+                print(f"Creating temporary archive...")
             temp_zip = create_temp_zip(path)
             zip_path = temp_zip
             # For directories, we can analyze git directly
@@ -159,8 +168,12 @@ def analyze_folder(path: Path) -> dict:
             raise ValueError(f"Path must be a directory or ZIP file: {path}")
 
         # Run comprehensive analysis (Python/Java)
-        print(f"Running analysis pipeline...")
-        report = generate_comprehensive_report(zip_path)
+        if not quick_mode:
+            print(f"Running analysis pipeline...")
+        else:
+            print(f"Running quick analysis (skipping heavy git operations)...")
+
+        report = generate_comprehensive_report(zip_path, target_user_email=target_user_email, quick_mode=quick_mode)
 
         # Add C++ and C analysis to the report
         for i, project in enumerate(report["projects"]):
@@ -179,7 +192,10 @@ def analyze_folder(path: Path) -> dict:
                         "total_classes": 0,
                     }
                 except Exception as e:
-                    report["projects"][i]["cpp_oop_analysis"] = {"error": str(e), "total_classes": 0}
+                    report["projects"][i]["cpp_oop_analysis"] = {
+                        "error": str(e),
+                        "total_classes": 0,
+                    }
 
             # C Analysis (note: .c files are classified as cpp in project_analyzer)
             # So we check for cpp language and run C analyzer too
@@ -203,7 +219,11 @@ def analyze_folder(path: Path) -> dict:
             try:
                 from .analysis.git_analysis import analyze_project
 
-                git_result = analyze_project(analysis_dir, export_to_file=False)
+                git_result = analyze_project(
+                    analysis_dir,
+                    target_user_email=target_user_email,
+                    export_to_file=False,
+                )
                 # Add git analysis to first project (assuming single project)
                 if report["projects"]:
                     report["projects"][0]["git_analysis"] = git_result.to_dict()
@@ -229,11 +249,45 @@ def analyze_folder(path: Path) -> dict:
                         # Run git analysis
                         from .analysis.git_analysis import analyze_project
 
-                        git_result = analyze_project(git_root, export_to_file=False)
+                        git_result = analyze_project(
+                            git_root,
+                            target_user_email=target_user_email,
+                            export_to_file=False,
+                        )
                         if report["projects"]:
                             report["projects"][0]["git_analysis"] = git_result.to_dict()
             except Exception as e:
                 print(f"Warning: Git analysis failed: {e}")
+
+        # Add role prediction to each project
+        for i, project in enumerate(report["projects"]):
+            try:
+                # Calculate composite score for role prediction
+                score_data = calculate_composite_score(project, user_email=target_user_email)
+                project_with_score = project.copy()
+                project_with_score["score_data"] = score_data
+
+                # Predict developer role
+                role_prediction = predict_developer_role(project_with_score)
+
+                # Store role prediction data in project
+                report["projects"][i]["role_prediction"] = {
+                    "predicted_role": role_prediction.predicted_role.value,
+                    "confidence_score": role_prediction.confidence_score,
+                    "alternative_roles": [(role.value, score) for role, score in role_prediction.alternative_roles],
+                    "reasoning": role_prediction.reasoning,
+                    "key_indicators": role_prediction.key_indicators,
+                }
+            except Exception as e:
+                print(f"Warning: Role prediction failed for {project.get('project_name', 'Unknown')}: {e}")
+                # Add minimal role data to prevent issues
+                report["projects"][i]["role_prediction"] = {
+                    "predicted_role": "Junior Developer",
+                    "confidence_score": 0.1,
+                    "alternative_roles": [],
+                    "reasoning": ["Role prediction failed"],
+                    "key_indicators": {},
+                }
 
         # Add analysis metadata - use original path, not temp zip path
         report["analysis_metadata"] = {
@@ -351,6 +405,102 @@ def display_analysis(results: dict) -> None:
         if project.get("is_git_repo"):
             total_commits = project.get("total_commits", 0)
             print(f"   [x] Git repository ({total_commits} commits)")
+
+        target_user_stats = project.get("target_user_stats") or {}
+        target_user_email = project.get("target_user_email")
+        if target_user_stats:
+            contribution_volume = project.get("contribution_volume") or {}
+            blame_summary = project.get("blame_summary") or {}
+            semantic_summary = project.get("semantic_summary", {})
+            activity_breakdown = project.get("activity_breakdown", {})
+            lines_changed = contribution_volume.get(target_user_email)
+            surviving_lines = blame_summary.get(target_user_email)
+            commit_count = target_user_stats.get("commit_count") or target_user_stats.get("commits") or 0
+            commit_share = target_user_stats.get("percentage") or 0
+
+            print("\nTarget User Contribution:")
+            print(f"   Email: {target_user_stats.get('email', target_user_email)}")
+            print(f"   Commits: {commit_count} ({commit_share:.1f}% share)")
+            if lines_changed is not None:
+                print(f"   Lines changed: {lines_changed}")
+            if surviving_lines is not None:
+                total_surviving = sum(v for v in blame_summary.values() if isinstance(v, (int, float)))
+                if total_surviving > 0:
+                    percentage = (surviving_lines / total_surviving) * 100
+                    print(f"   Surviving lines: {surviving_lines} ({percentage:.1f}% of codebase)")
+                else:
+                    print(f"   Surviving lines: {surviving_lines}")
+
+            # Semantic summary (trivial vs substantial commits)
+            user_semantic = semantic_summary.get(target_user_email, {})
+            if user_semantic:
+                trivial = user_semantic.get("trivial_commits", 0)
+                substantial = user_semantic.get("substantial_commits", 0)
+                total_lines_semantic = user_semantic.get("total_lines_changed", 0)
+                if trivial > 0 or substantial > 0:
+                    print(f"   Commit breakdown: {substantial} substantial, {trivial} trivial commits")
+                if total_lines_semantic > 0:
+                    print(f"   Total lines changed (semantic): {total_lines_semantic}")
+
+            # Activity breakdown (code/test/docs/design)
+            user_activity = activity_breakdown.get(target_user_email, {})
+            if user_activity:
+                activity_parts = []
+                if user_activity.get("code", 0) > 0:
+                    activity_parts.append(f"code: {user_activity['code']} lines")
+                if user_activity.get("test", 0) > 0:
+                    activity_parts.append(f"tests: {user_activity['test']} lines")
+                if user_activity.get("docs", 0) > 0:
+                    activity_parts.append(f"docs: {user_activity['docs']} lines")
+                if user_activity.get("design", 0) > 0:
+                    activity_parts.append(f"design: {user_activity['design']} lines")
+
+                if activity_parts:
+                    print(f"   Activity breakdown: {', '.join(activity_parts)}")
+
+        # Developer Role Prediction
+        try:
+            # Check if role prediction data already exists in the project
+            existing_role_data = project.get("role_prediction")
+            if existing_role_data:
+                # Display stored role prediction
+                print(f"\n{'-' * 40}")
+                print(f"   PREDICTED ROLE: {existing_role_data.get('predicted_role', 'Unknown')}")
+                confidence = existing_role_data.get("confidence_score", 0)
+                print(f"   Confidence: {confidence:.1%}")
+
+                alternative_roles = existing_role_data.get("alternative_roles", [])
+                if alternative_roles:
+                    print(f"   Alternative roles:")
+                    for role_info in alternative_roles[:3]:  # Show top 3 alternatives
+                        if isinstance(role_info, (list, tuple)) and len(role_info) >= 2:
+                            role_name, score = role_info[0], role_info[1]
+                            print(f"      • {role_name} ({score:.1%})")
+
+                reasoning = existing_role_data.get("reasoning", [])
+                if reasoning:
+                    print(f"   Key indicators:")
+                    for reason in reasoning[:5]:  # Show top 5 reasons
+                        print(f"      • {reason}")
+                print(f"{'-' * 40}")
+            else:
+                # Generate new role prediction
+                from .analysis.analyze import calculate_composite_score
+
+                # Calculate score data for role prediction
+                score_data = calculate_composite_score(project, user_email=target_user_email)
+                project_with_score = project.copy()
+                project_with_score["score_data"] = score_data
+
+                # Predict developer role
+                role_prediction = predict_developer_role(project_with_score)
+
+                print(f"\n{'-' * 40}")
+                role_display = format_role_prediction(role_prediction)
+                print(role_display)
+                print(f"{'-' * 40}")
+        except Exception as e:
+            print(f"\n🎯 ROLE PREDICTION: Unable to predict role (Error: {e})")
 
         # OOP Analysis (for Python projects)
         oop = project.get("oop_analysis", {})
@@ -478,6 +628,141 @@ def display_analysis(results: dict) -> None:
                     percentage = contrib.get("percentage", 0)
                     print(f"      • {name}: {commits} commits ({percentage:.1f}%)")
 
+        # Additional Git Contribution Details (if available)
+        semantic_summary = project.get("semantic_summary", {})
+        activity_breakdown = project.get("activity_breakdown", {})
+        contribution_volume = project.get("contribution_volume", {})
+        blame_summary = project.get("blame_summary", {})
+
+        if semantic_summary or activity_breakdown or contribution_volume or blame_summary:
+            print(f"\nDetailed Contribution Analysis:")
+
+            # Show overall contribution volume
+            if contribution_volume:
+                total_lines = sum(v for v in contribution_volume.values() if isinstance(v, (int, float)))
+                print(f"   Total lines changed: {total_lines}")
+                if len(contribution_volume) > 1:
+                    print(f"   Contributors with changes: {len(contribution_volume)}")
+                    # Show top contributors by lines changed
+                    sorted_contributors = sorted(
+                        contribution_volume.items(),
+                        key=lambda x: x[1] if isinstance(x[1], (int, float)) else 0,
+                        reverse=True,
+                    )[:3]
+                    print(f"   Top contributors by lines:")
+                    for email, lines in sorted_contributors:
+                        if isinstance(lines, (int, float)) and lines > 0:
+                            percentage = (lines / total_lines * 100) if total_lines > 0 else 0
+                            print(f"      • {email}: {lines} lines ({percentage:.1f}%)")
+
+            # Show semantic summary (trivial vs substantial)
+            if semantic_summary:
+                total_substantial = sum(
+                    stats.get("substantial_commits", 0) for stats in semantic_summary.values() if isinstance(stats, dict)
+                )
+                total_trivial = sum(
+                    stats.get("trivial_commits", 0) for stats in semantic_summary.values() if isinstance(stats, dict)
+                )
+                if total_substantial > 0 or total_trivial > 0:
+                    print(f"   Commit quality: {total_substantial} substantial, {total_trivial} trivial commits")
+
+            # Show activity breakdown summary
+            if activity_breakdown:
+                total_code = sum(act.get("code", 0) for act in activity_breakdown.values() if isinstance(act, dict))
+                total_test = sum(act.get("test", 0) for act in activity_breakdown.values() if isinstance(act, dict))
+                total_docs = sum(act.get("docs", 0) for act in activity_breakdown.values() if isinstance(act, dict))
+                total_design = sum(act.get("design", 0) for act in activity_breakdown.values() if isinstance(act, dict))
+
+                activity_parts = []
+                if total_code > 0:
+                    activity_parts.append(f"code: {total_code}")
+                if total_test > 0:
+                    activity_parts.append(f"tests: {total_test}")
+                if total_docs > 0:
+                    activity_parts.append(f"docs: {total_docs}")
+                if total_design > 0:
+                    activity_parts.append(f"design: {total_design}")
+
+                if activity_parts:
+                    print(f"   Activity breakdown: {', '.join(activity_parts)} lines")
+
+            # Show blame summary (surviving lines)
+            if blame_summary:
+                total_surviving = sum(v for v in blame_summary.values() if isinstance(v, (int, float)))
+                if total_surviving > 0:
+                    print(f"   Total surviving lines: {total_surviving}")
+                    if len(blame_summary) > 1:
+                        sorted_blame = sorted(
+                            blame_summary.items(),
+                            key=lambda x: x[1] if isinstance(x[1], (int, float)) else 0,
+                            reverse=True,
+                        )[:3]
+                        print(f"   Top code owners:")
+                        for email, lines in sorted_blame:
+                            if isinstance(lines, (int, float)) and lines > 0:
+                                percentage = (lines / total_surviving * 100) if total_surviving > 0 else 0
+                                print(f"      • {email}: {lines} lines ({percentage:.1f}%)")
+
+        # Enhanced Contribution Ranking Scores
+        try:
+            from analysis.analyze import calculate_composite_score
+
+            user_email = project.get("target_user_email")
+            score_data = calculate_composite_score(project, user_email=user_email)
+
+            if score_data:
+                print(f"\n{'=' * 60}")
+                print(f"  ENHANCED CONTRIBUTION RANKING")
+                print(f"{'=' * 60}")
+
+                # Overall scores
+                composite_score = score_data.get("composite_score", 0)
+                category = score_data.get("category", "N/A")
+                print(f"\nFinal Score: {composite_score:.2f}/100.0 ({category})")
+
+                user_score = score_data.get("user_contribution_score", 0.0)
+                if user_score > 0:
+                    print(f"User Contribution Boost: +{user_score:.2f}/20.0")
+                    print(f"Adjusted Score: {score_data.get('adjusted_score', 0):.2f}/100.0")
+
+                # Breakdown by factor
+                breakdown = score_data.get("breakdown", {})
+                justification = score_data.get("justification", {})
+
+                if breakdown:
+                    print(f"\nScore Breakdown:")
+                    print(f"\n  Base Factors (45% weight):")
+                    print(f"    • Code Architecture:     {breakdown.get('code_architecture', 0):>6.2f}/30.0")
+                    print(f"    • Code Quality:          {breakdown.get('code_quality', 0):>6.2f}/25.0")
+                    print(f"    • Project Maturity:      {breakdown.get('project_maturity', 0):>6.2f}/25.0")
+                    print(f"    • Algorithmic Quality:   {breakdown.get('algorithmic_quality', 0):>6.2f}/20.0")
+
+                    # Enhanced factors
+                    if "individual_contribution" in breakdown:
+                        print(f"\n  Enhanced Factors (55% weight):")
+                        print(f"    • Individual Contribution: {breakdown.get('individual_contribution', 0):>6.2f}/30.0")
+                        print(f"    • Recency:                 {breakdown.get('recency', 0):>6.2f}/15.0")
+                        print(f"    • Project Scale:           {breakdown.get('project_scale', 0):>6.2f}/10.0")
+                        print(f"    • Collaboration Diversity: {breakdown.get('collaboration_diversity', 0):>6.2f}/10.0")
+                        print(f"    • Activity Duration:       {breakdown.get('activity_duration', 0):>6.2f}/10.0")
+
+                # Show justifications for enhanced factors
+                if justification and "individual_contribution" in justification:
+                    print(f"\nEnhanced Ranking Details:")
+                    print(f"  • Contribution: {justification.get('individual_contribution', 'N/A')}")
+                    print(f"  • Recency: {justification.get('recency', 'N/A')}")
+                    print(f"  • Scale: {justification.get('project_scale', 'N/A')}")
+                    print(f"  • Collaboration: {justification.get('collaboration_diversity', 'N/A')}")
+                    print(f"  • Duration: {justification.get('activity_duration', 'N/A')}")
+
+                if user_email and justification.get("target_user"):
+                    print(f"\n  Target User Analysis:")
+                    print(f"    {justification['target_user']}")
+
+                print(f"{'=' * 60}\n")
+        except Exception as e:
+            print(f"\nWarning: Could not calculate enhanced ranking: {e}")
+
         # Complexity Analysis (Python)
         complexity_analysis = project.get("complexity_analysis", {})
         if complexity_analysis and "error" not in complexity_analysis:
@@ -516,7 +801,11 @@ def display_analysis(results: dict) -> None:
                         good_practices.append(f"{key.replace('_', ' ').title()}: {summary[key]}")
 
                 # Issues
-                for key in ["nested_loops", "inefficient_lookup", "inefficient_membership_test"]:
+                for key in [
+                    "nested_loops",
+                    "inefficient_lookup",
+                    "inefficient_membership_test",
+                ]:
                     if summary.get(key, 0) > 0:
                         issues.append(f"{key.replace('_', ' ').title()}: {summary[key]}")
 
@@ -761,15 +1050,36 @@ def main() -> int:
         action="store_true",
         help="Analyze Python code for time complexity patterns (requires ZIP file)",
     )
+    analyze_parser.add_argument(
+        "--user-email",
+        dest="user_email",
+        help="Git email used to attribute and rank contributions for the requesting user",
+    )
     analyze_parser.add_argument("--verbose", "-v", action="store_true", help="Show detailed complexity findings")
 
     # LLM arguments merged into analyze
     analyze_parser.add_argument("--prompt", help="Custom analysis prompt for AI (requires consent)")
-    analyze_parser.add_argument("--architecture", action="store_true", help="AI: Deep analysis of patterns and anti-patterns")
-    analyze_parser.add_argument("--security", action="store_true", help="AI: Logic-based security and defensive coding")
-    analyze_parser.add_argument("--skills", action="store_true", help="AI: Infer soft skills and testing maturity")
+    analyze_parser.add_argument(
+        "--architecture",
+        action="store_true",
+        help="AI: Deep analysis of patterns and anti-patterns",
+    )
+    analyze_parser.add_argument(
+        "--security",
+        action="store_true",
+        help="AI: Logic-based security and defensive coding",
+    )
+    analyze_parser.add_argument(
+        "--skills",
+        action="store_true",
+        help="AI: Infer soft skills and testing maturity",
+    )
     analyze_parser.add_argument("--domain", action="store_true", help="AI: Domain-specific best practices")
-    analyze_parser.add_argument("--resume", action="store_true", help="AI: Generate resume and portfolio artifacts")
+    analyze_parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="AI: Generate resume and portfolio artifacts",
+    )
     analyze_parser.add_argument("--all", action="store_true", help="AI: Enable all deep analysis features")
 
     # Analyze-essay command
@@ -778,7 +1088,35 @@ def main() -> int:
 
     # Timeline command
     timeline_parser = subparsers.add_parser("timeline", help="Show chronological timelines from stored analyses")
-    timeline_parser.add_argument("type", choices=["projects", "skills"], help="Timeline type to display")
+    timeline_parser.add_argument(
+        "type",
+        choices=["projects", "skills", "all-skills"],
+        help="Timeline type to display",
+    )
+
+    # Curation command
+    curate_parser = subparsers.add_parser("curate", help="Curate project information and presentation")
+    curate_subparsers = curate_parser.add_subparsers(dest="curate_type", help="Curation options")
+
+    # Chronology correction
+    chrono_parser = curate_subparsers.add_parser("chronology", help="Correct project dates and chronology")
+
+    # Comparison attributes
+    comparison_parser = curate_subparsers.add_parser("comparison", help="Select attributes for project comparison")
+
+    # Project re-ranking
+    rerank_parser = curate_subparsers.add_parser("rerank", help="Allows the rer-ranking of projects based on your preference")
+
+    skills_parser = curate_subparsers.add_parser("skills-highlight", help="Select up to 10 skills to highlight")
+
+    # Showcase projects
+    showcase_parser = curate_subparsers.add_parser("showcase", help="Select top 3 projects to showcase")
+
+    # Role curation
+    roles_parser = curate_subparsers.add_parser("roles", help="Curate predicted developer roles for your projects")
+
+    # Status overview
+    status_parser = curate_subparsers.add_parser("status", help="Show current curation settings")
 
     # Consent command
     consent_parser = subparsers.add_parser("consent", help="View or update consent status")
@@ -816,11 +1154,11 @@ def main() -> int:
                 return 1
 
             # Handle consent for first-time users
-            # if not handle_first_time_consent(args.username):
-            #    # User is authenticated but denied consent
-            #    print("\nDenied Consent.")
-            #    print("You can update your consent later using 'mda consent --update'")
-            #    return 1
+            if not handle_first_time_consent(args.username):
+                # User is authenticated but denied consent
+                print("\nDenied Consent.")
+                print("You can update your consent later using 'mda consent --update'")
+                return 1
 
             # Save session for future commands
             save_session(args.username)
@@ -850,13 +1188,19 @@ def main() -> int:
                 return 0
 
             if args.update:
+                print("\nConsent Update")
+                print("------------------")
+
                 if has_consented:
-                    print("\nYou have already provided consent.")
-                    print("To revoke consent, contact support.")
+                    choice = input("You have already provided consent. Do you want to revoke consent? (y/n): ").strip().lower()
+                    if choice in ("y", "yes"):
+                        save_user_consent(username, False)
+                        print("\nConsent revoked. AI-powered features have been disabled.")
+                    else:
+                        print("\nConsent remains active. No changes made.")
                     return 0
 
-                print("\nConsent Required")
-                print("------------------")
+                print("Consent Required")
                 if ask_for_consent():
                     save_user_consent(username, True)
                     print("\nThank you for providing consent!")
@@ -873,16 +1217,16 @@ def main() -> int:
                 return 1
 
             username = session["username"]
-            # if not check_user_consent(username):
-            #    print("\nPlease provide consent before analyzing files")
-            #    print("Run 'mda consent --update' to view and accept the consent form")
-            #    return 1
-
             has_consented = check_user_consent(username)
 
             llm_features_requested = (
                 args.all or args.prompt or args.architecture or args.security or args.skills or args.domain or args.resume
             )
+
+            if not has_consented and llm_features_requested:
+                print("\nPlease provide consent before using AI-powered analysis features")
+                print("Run 'mda consent --update' to view and accept the consent form")
+                return 1
 
             path = Path(args.path)
             if not path.exists():
@@ -904,21 +1248,192 @@ def main() -> int:
                 print(f"\nPath must be a directory or ZIP file: {path}")
                 return 1
 
+            # Build targets: if directory contains zip children, analyze each zip; otherwise analyze the path itself
+            targets: list[Path] = []
+            if path.is_dir():
+                # Only consider top-level zips (no recursion) to avoid treating nested archives as projects
+                zip_children = sorted(path.glob("*.zip"))
+                if zip_children:
+                    targets.extend(zip_children)
+                else:
+                    targets.append(path)
+            else:
+                targets.append(path)
+
+            batch_results = []
+
             # Run analysis with error handling
             try:
-                print(f"\n[*] Analyzing: {path}")
-                results = analyze_folder(path)
-                display_analysis(results)
+                for target_path in targets:
+                    print(f"\n[*] Analyzing: {target_path}")
+                    results = analyze_folder(target_path, target_user_email=args.user_email)
+                    display_analysis(results)
+                    batch_results.append(results)
 
-                # Store analysis in database
-                try:
-                    from .analysis_database import record_analysis
+                    # Store analysis in database
+                    try:
+                        import json
 
-                    analysis_id = record_analysis("non_llm", results)
-                    analysis_uuid = results.get("analysis_metadata", {}).get("analysis_uuid", "unknown")
-                    print(f"\n📊 Analysis saved to database (ID: {analysis_id}, UUID: {analysis_uuid})")
-                except Exception as db_error:
-                    print(f"\n⚠️  Warning: Could not save to database: {db_error}")
+                        from .analysis_database import (get_analysis,
+                                                        get_connection,
+                                                        record_analysis)
+
+                        analysis_id = None
+                        analysis_uuid = None
+
+                        if not has_consented:
+                            analysis_id = record_analysis("non_llm", results, username=username)
+                            row = get_analysis(analysis_id)
+                            if row:
+                                analysis_uuid = row["analysis_uuid"]
+                                # Stored UUID in results metadata for consistency
+                                results.setdefault("analysis_metadata", {})["analysis_uuid"] = analysis_uuid
+                                print(f"\nAnalysis saved to database (ID: {analysis_id}, UUID: {analysis_uuid})")
+                            else:
+                                print(f"\nAnalysis saved to database (ID: {analysis_id})")
+
+                        else:
+                            print("\n[i] Standard analysis complete. Proceeding with AI analysis...")
+
+                            # temporary UUID for tracking (NOT written to DB)
+                            import uuid
+
+                        analysis_id = record_analysis("non_llm", results, username=username)
+                        analysis_uuid = results.get("analysis_metadata", {}).get("analysis_uuid", "unknown")
+                        print(f"\nAnalysis saved to database (ID: {analysis_id}, UUID: {analysis_uuid})")
+
+                        # Ask if user wants to add more projects incrementally
+                        while True:
+                            try:
+                                response = (
+                                    input("\n" + "=" * 70 + "\nWould you like to add more projects to this portfolio? (y/N): ")
+                                    .strip()
+                                    .lower()
+                                )
+                                if response in ["y", "yes"]:
+                                    additional_path = input("Enter path to additional ZIP file or folder: ").strip()
+                                    if not additional_path:
+                                        print("No path provided, skipping...")
+                                        break
+
+                                    additional_path = Path(additional_path).expanduser()
+                                    if not additional_path.exists():
+                                        print(f"Error: Path does not exist: {additional_path}")
+                                        continue
+
+                                    print(f"\n[*] Analyzing additional projects from: {additional_path}")
+                                    new_results = analyze_folder(
+                                        additional_path,
+                                        target_user_email=args.user_email,
+                                        quick_mode=True,
+                                    )
+
+                                    # Merge with existing results using smart comparison
+                                    from .project_comparison import \
+                                        process_incremental_projects
+
+                                    existing_projects = results.get("projects", [])
+                                    new_projects = new_results.get("projects", [])
+
+                                    # Process projects with 50% change threshold
+                                    merge_result = process_incremental_projects(
+                                        existing_projects=existing_projects, new_projects=new_projects, change_threshold=50.0
+                                    )
+
+                                    merged_projects = merge_result["merged_projects"]
+                                    added_count = len(merge_result["added_projects"])
+                                    updated_count = len(merge_result["updated_projects"])
+                                    skipped_count = len(merge_result["skipped_projects"])
+
+                                    results["projects"] = merged_projects
+                                    results["analysis_metadata"]["total_projects"] = len(merged_projects)
+
+                                    # Update database
+                                    import json
+
+                                    from .analysis_database import \
+                                        get_connection
+
+                                    with get_connection() as conn:
+                                        conn.execute(
+                                            """UPDATE analyses 
+                                               SET raw_json = ?, 
+                                                   total_projects = ?,
+                                                   analysis_timestamp = datetime('now')
+                                               WHERE analysis_uuid = ?""",
+                                            (
+                                                json.dumps(results),
+                                                len(existing_projects),
+                                                analysis_uuid,
+                                            ),
+                                        )
+                                        conn.commit()
+
+                                    print(f"\n✓ Portfolio updated successfully!")
+                                    print(f"  • Added: {added_count} new project(s)")
+                                    print(f"  • Updated: {updated_count} project(s) with >50% changes")
+                                    print(f"  • Skipped: {skipped_count} project(s) with <50% changes")
+                                    print(f"  • Total projects now: {len(merged_projects)}")
+                                    print(f"  • Portfolio UUID: {analysis_uuid}")
+
+                                    # Show details of updated and skipped projects
+                                    if merge_result["updated_projects"]:
+                                        print(f"\n  Updated projects:")
+                                        for update in merge_result["updated_projects"]:
+                                            print(f"    - {update['project_path']} ({update['change_percentage']}% changed)")
+
+                                    if merge_result["skipped_projects"]:
+                                        print(f"\n  Skipped projects (insufficient changes):")
+                                        for skip in merge_result["skipped_projects"]:
+                                            print(f"    - {skip['project_path']} ({skip['change_percentage']}% changed)")
+                                else:
+                                    break
+                            except KeyboardInterrupt:
+                                print("\n\nIncremental upload cancelled.")
+                                break
+                            except Exception as e:
+                                print(f"\nError adding projects: {e}")
+                                break
+
+                    except Exception as db_error:
+                        print(f"\nWarning: Could not save to database: {db_error}")
+
+                # Contribution-aware ranking across all processed projects
+                if args.user_email and batch_results:
+                    aggregated_projects = []
+                    for report in batch_results:
+                        meta = report.get("analysis_metadata", {}) or {}
+                        ts = meta.get("analysis_timestamp", "Unknown")
+                        zip_file = meta.get("zip_file", "Unknown")
+                        for proj in report.get("projects", []):
+                            score_data = calculate_composite_score(proj)
+                            aggregated_projects.append(
+                                {
+                                    "project": proj,
+                                    "score_data": score_data,
+                                    "analysis_timestamp": ts,
+                                    "zip_file": zip_file,
+                                }
+                            )
+                    if aggregated_projects:
+                        aggregated_projects.sort(
+                            key=lambda x: x["score_data"].get("adjusted_score", x["score_data"]["composite_score"]),
+                            reverse=True,
+                        )
+                        print("\n" + "=" * 78)
+                        print(f"  CONTRIBUTION-AWARE RANKING (target: {args.user_email})")
+                        print("=" * 78)
+                        for idx, item in enumerate(aggregated_projects, 1):
+                            proj = item["project"]
+                            score = item["score_data"]
+                            adjusted = score.get("adjusted_score", score["composite_score"])
+                            user_score = score.get("user_contribution_score", 0.0)
+                            print(f"\nRANK #{idx}: {proj.get('project_name', 'Unknown Project')}")
+                            print(f"  Source: {item['zip_file']}")
+                            print(f"  Adjusted Score: {adjusted:.2f} (User boost: {user_score:.2f})")
+                            print(f"  Composite Score: {score['composite_score']:.2f}")
+                            if user_score == 0.0:
+                                print("  Target user contribution: none detected for this project")
 
                 # 2. Check Consent for LLM Analysis
                 if has_consented:
@@ -934,14 +1449,21 @@ def main() -> int:
                             temp_llm_zip = create_temp_zip(path)
                             llm_target_path = temp_llm_zip
                         except Exception as e:
-                            print(f"❌ Failed to create zip for AI analysis: {e}")
+                            print(f" Failed to create zip for AI analysis: {e}")
                             has_consented = False  # Abort LLM part
 
                     if has_consented:
                         # Collect active features
                         active_features = []
                         if args.all:
-                            active_features = ["architecture", "complexity", "security", "skills", "domain", "resume"]
+                            active_features = [
+                                "architecture",
+                                "complexity",
+                                "security",
+                                "skills",
+                                "domain",
+                                "resume",
+                            ]
                         else:
                             if args.architecture:
                                 active_features.append("architecture")
@@ -996,30 +1518,46 @@ def main() -> int:
 
                             console = Console()
                             console.print()
-                            console.print(Panel.fit("[bold white]Gemini Deep Code Analysis[/bold white]", style="blue"))
+                            console.print(
+                                Panel.fit(
+                                    "[bold white]Gemini Deep Code Analysis[/bold white]",
+                                    style="blue",
+                                )
+                            )
 
                             llm_summary = llm_results.get("llm_summary")
                             llm_error = llm_results.get("llm_error")
 
                             if llm_error:
-                                console.print(Panel(f"[bold red]Error:[/bold red]\n{llm_error}", style="red"))
+                                console.print(
+                                    Panel(
+                                        f"[bold red]Error:[/bold red]\n{llm_error}",
+                                        style="red",
+                                    )
+                                )
                             elif llm_summary:
                                 md = Markdown(llm_summary)
                                 console.print(
-                                    Panel(md, title="[bold green]AI-Powered Insights[/bold green]", border_style="green")
+                                    Panel(
+                                        md,
+                                        title="[bold green]AI-Powered Insights[/bold green]",
+                                        border_style="green",
+                                    )
                                 )
 
                             # Store LLM analysis in database
                             try:
                                 from .analysis_database import record_analysis
 
-                                llm_analysis_id = record_analysis("llm", llm_results)
-                                print(f"\n📊 AI analysis saved to database (ID: {llm_analysis_id})")
+                                llm_results["non_llm_results"] = results
+                                llm_id = record_analysis("llm", llm_results, username=username)
+                                print(f"\n AI analysis saved to database (ID: {llm_id})")
+
                             except Exception as db_error:
-                                print(f"\n⚠️  Warning: Could not save AI results: {db_error}")
+                                print(f"\n Warning: Could not save AI results: {db_error}")
 
                         except Exception as e:
-                            print(f"\n❌ AI analysis failed: {e}")
+                            print(f"\nAI analysis failed: {e}")
                             # Don't fail the whole command, standard analysis succeeded
 
                         finally:
@@ -1033,7 +1571,10 @@ def main() -> int:
 
                 # Prompt to save JSON output
                 print("\n" + "=" * 70)
-                response = input("Would you like to save the full analysis as JSON? (y/N): ").strip().lower()
+                try:
+                    response = input("Would you like to save the full analysis as JSON? (y/N): ").strip().lower()
+                except (EOFError, OSError):
+                    response = "n"
                 if response in ["y", "yes"]:
                     import json
                     from datetime import datetime
@@ -1058,9 +1599,9 @@ def main() -> int:
                         output_path = Path(filename)
                         with open(output_path, "w", encoding="utf-8") as f:
                             json.dump(final_results, f, indent=2, ensure_ascii=False)
-                        print(f"✅ Analysis saved to: {output_path.absolute()}")
+                        print(f"Analysis saved to: {output_path.absolute()}")
                     except Exception as e:
-                        print(f"❌ Error saving JSON file: {e}")
+                        print(f"Error saving JSON file: {e}")
 
                 try:
                     # Generate resume highlights
@@ -1196,7 +1737,8 @@ def main() -> int:
 
         elif args.command == "timeline":
             # No login/consent required to view previously stored aggregate timelines
-            from .analysis.chronology import (get_projects_timeline,
+            from .analysis.chronology import (get_all_skills_chronological,
+                                              get_projects_timeline,
                                               get_skills_timeline)
 
             try:
@@ -1244,10 +1786,114 @@ def main() -> int:
                 for i, e in enumerate(entries, 1):
                     langs = ", ".join(e.skills.get("languages", [])) or "-"
                     fws = ", ".join(e.skills.get("frameworks", [])) or "-"
+                    detailed_skills = e.skills.get("detailed_skills", [])
                     print(f"  {i}. {e.date}")
                     print(f"     Languages: {langs}")
                     print(f"     Frameworks: {fws}")
+                    if detailed_skills:
+                        print(f"     Detailed Skills ({len(detailed_skills)}):")
+                        # Display skills in a wrapped format
+                        skills_text = ", ".join(detailed_skills)
+                        words = skills_text.split(", ")
+                        line = "        "
+                        for word in words:
+                            if len(line) + len(word) + 2 > 73:
+                                print(line.rstrip())
+                                line = "        " + word
+                            else:
+                                line += (", " if line != "        " else "") + word
+                        if line.strip():
+                            print(line.rstrip())
                 return 0
+
+            elif args.type == "all-skills":
+                skills = get_all_skills_chronological()
+                if not skills:
+                    print("\nNo skills found in the analysis database.")
+                    return 0
+                print("\nChronological List of All Skills Exercised:")
+                print("=" * 70)
+
+                # Group by date for better display
+                current_date = None
+                for i, skill_entry in enumerate(skills, 1):
+                    if current_date != skill_entry.first_exercised_date:
+                        if current_date is not None:
+                            print()  # Blank line between dates
+                        current_date = skill_entry.first_exercised_date
+                        print(f"\n{current_date}:")
+
+                    skill_type_label = {
+                        "language": "Language",
+                        "framework": "Framework",
+                        "detailed_skill": "Skill",
+                    }.get(skill_entry.skill_type, "Skill")
+
+                    print(f"  {i}. [{skill_type_label}] {skill_entry.skill}")
+                    print(f"     First used in: {skill_entry.project_name}")
+
+                print(f"\n{'=' * 70}")
+                print(f"Total unique skills: {len(skills)}")
+                return 0
+
+        elif args.command == "curate":
+            session = get_session()
+            if not session["logged_in"]:
+                print("\nPlease login first")
+                return 1
+
+            username = session["username"]
+
+            # Initialize curation tables
+            try:
+                from .curation import init_curation_tables
+                from .curation_cli import (
+                    curate_chronology_interactive,
+                    curate_comparison_attributes_interactive,
+                    curate_project_rank_interactive, curate_roles_interactive,
+                    curate_showcase_projects_interactive,
+                    curate_skills_highlight_interactive,
+                    display_curation_status, display_showcase_summary)
+
+                init_db()
+                init_curation_tables()
+            except Exception as e:
+                print(f"\nError initializing curation: {e}")
+                return 1
+
+            if args.curate_type == "chronology":
+                curate_chronology_interactive(username)
+                return 0
+            elif args.curate_type == "comparison":
+                curate_comparison_attributes_interactive(username)
+                return 0
+            elif args.curate_type == "showcase":
+                curate_showcase_projects_interactive(username)
+                return 0
+            elif args.curate_type == "status":
+                display_curation_status(username)
+                display_showcase_summary(username)
+                return 0
+            elif args.curate_type == "rerank":
+                curate_project_rank_interactive(username)
+                return 0
+            elif args.curate_type == "skills-highlight":
+                curate_skills_highlight_interactive(username)
+                return 0
+            elif args.curate_type == "roles":
+                curate_roles_interactive(username)
+                return 0
+            else:
+                print("\nAvailable curation commands:")
+                print("  mda curate chronology  - Correct project dates")
+                print("  mda curate comparison  - Select comparison attributes")
+                print("  mda curate showcase    - Choose top 3 projects")
+                print("  mda curate status      - Show current settings")
+                print("  mda curate rerank      - Re-rank projects")
+                print("  mda curate skills-highlight - Choose up to 10 skills to display")
+                print("  mda curate roles       - Curate predicted developer roles")
+
+                return 1
 
     except KeyboardInterrupt:
         print("\n\nInterrupted by user. Exiting.")

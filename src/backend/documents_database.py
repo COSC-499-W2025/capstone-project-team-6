@@ -6,9 +6,15 @@ import os
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
-CATEGORY_COLUMNS = ("code_files", "doc_files", "test_files", "config_files", "other_files")
+CATEGORY_COLUMNS = (
+    "code_files",
+    "doc_files",
+    "test_files",
+    "config_files",
+    "other_files",
+)
 CATEGORY_ALIASES = {
     "code": "code_files",
     "docs": "doc_files",
@@ -36,7 +42,7 @@ def get_db_path() -> Path:
     return _DB_PATH
 
 
-def set_db_path(path: Path | str) -> Path:
+def set_db_path(path: Union[Path, str]) -> Path:
     global _DB_PATH
     previous = _DB_PATH
     _DB_PATH = Path(path).expanduser().resolve()

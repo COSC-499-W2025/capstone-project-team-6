@@ -98,8 +98,16 @@ class TestGeminiClient:
         mock_client_instance = mock_genai.Client.return_value
 
         # Mock File Objects (PROCESSING -> ACTIVE)
-        file_processing = SimpleNamespace(name="files/123", state=SimpleNamespace(name="PROCESSING"), display_name="test.py")
-        file_active = SimpleNamespace(name="files/123", state=SimpleNamespace(name="ACTIVE"), display_name="test.py")
+        file_processing = SimpleNamespace(
+            name="files/123",
+            state=SimpleNamespace(name="PROCESSING"),
+            display_name="test.py",
+        )
+        file_active = SimpleNamespace(
+            name="files/123",
+            state=SimpleNamespace(name="ACTIVE"),
+            display_name="test.py",
+        )
 
         mock_client_instance.files.upload.return_value = file_processing
         # Simulate Polling: First call returns Processing, Second returns Active
@@ -170,12 +178,21 @@ class TestLLMPipeline:
         fake_zip.touch()
 
         # Mock Offline Report
-        mock_deps.report_gen.return_value = {"summary": {"total_files": 10}, "projects": [{"project_name": "TestProj"}]}
+        mock_deps.report_gen.return_value = {
+            "summary": {"total_files": 10},
+            "projects": [{"project_name": "TestProj"}],
+        }
 
         # Mock Classifier (Context Manager and File Reading)
         mock_classifier_instance = mock_deps.classifier.return_value.__enter__.return_value
         mock_classifier_instance.classify_project.return_value = {
-            "files": {"code": {"python": [{"path": "app.py"}]}, "configs": [], "docs": [], "tests": [], "other": []}
+            "files": {
+                "code": {"python": [{"path": "app.py"}]},
+                "configs": [],
+                "docs": [],
+                "tests": [],
+                "other": [],
+            }
         }
 
         # Mock ZIP reading
@@ -186,7 +203,10 @@ class TestLLMPipeline:
 
         # Mock Gemini Client
         mock_client_instance = mock_deps.gemini_client.return_value
-        mock_client_instance.upload_batch.return_value = ["file_ref_1", "file_ref_2"]  # 1 code file + 1 offline report
+        mock_client_instance.upload_batch.return_value = [
+            "file_ref_1",
+            "file_ref_2",
+        ]  # 1 code file + 1 offline report
         mock_client_instance.generate_content.return_value = "## Gemini Analysis Result"
 
         # 2. Run Pipeline

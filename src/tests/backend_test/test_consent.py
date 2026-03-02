@@ -85,7 +85,10 @@ def test_database_consent_storage(temp_db, test_user):
 
     # Check consent was saved
     with get_connection() as conn:
-        record = conn.execute("SELECT has_consented, consent_date FROM user_consent WHERE username = ?", (username,)).fetchone()
+        record = conn.execute(
+            "SELECT has_consented, consent_date FROM user_consent WHERE username = ?",
+            (username,),
+        ).fetchone()
 
     assert record is not None
     assert record["has_consented"] == 1
@@ -140,6 +143,42 @@ def test_consent_with_session(temp_db, test_user):
 #         assert "Please provide consent" not in fake_out.getvalue()
 
 
+def test_migrate_user_consent_adds_missing_columns(temp_db):
+    """Test that _migrate_user_consent adds has_consented/consent_date to old schema."""
+    from backend.database import _migrate_user_consent, get_connection
+
+    # Simulate old schema: create user_consent without has_consented/consent_date
+    with get_connection() as conn:
+        conn.execute("DROP TABLE IF EXISTS user_consent")
+        conn.execute(
+            """
+            CREATE TABLE user_consent (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                FOREIGN KEY (username) REFERENCES users(username)
+            )
+            """
+        )
+        conn.commit()
+
+    # Run migration (init_db calls it, but table already exists with old schema)
+    with get_connection() as conn:
+        _migrate_user_consent(conn)
+        conn.commit()
+
+    # Verify columns were added
+    with get_connection() as conn:
+        cursor = conn.execute("PRAGMA table_info(user_consent)")
+        columns = {row[1] for row in cursor.fetchall()}
+    assert "has_consented" in columns
+    assert "consent_date" in columns
+
+    # Verify save_user_consent and check_user_consent work
+    create_user("migrate_user", "pass123")
+    save_user_consent("migrate_user", True)
+    assert check_user_consent("migrate_user")
+
+
 def test_consent_foreign_key_constraint(temp_db):
     """Test that consent records require valid users."""
     username = "johndoe"
@@ -148,7 +187,10 @@ def test_consent_foreign_key_constraint(temp_db):
     with pytest.raises(Exception) as exc_info:
         with get_connection() as conn:
             conn.execute("PRAGMA foreign_keys = ON;")
-            conn.execute("INSERT INTO user_consent (username, has_consented) VALUES (?, ?)", (username, True))
+            conn.execute(
+                "INSERT INTO user_consent (username, has_consented) VALUES (?, ?)",
+                (username, True),
+            )
             conn.commit()
 
     assert "FOREIGN KEY constraint failed" in str(exc_info.value)

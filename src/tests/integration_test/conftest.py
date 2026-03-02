@@ -2,6 +2,7 @@
 
 import os
 # Add src to path so we can import backend modules
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -129,10 +130,18 @@ def test_directory(tmp_path: Path) -> Path:
     test_dir = tmp_path / "test_project"
     test_dir.mkdir()
 
+    # Initialize as a proper git repository
+    subprocess.run(["git", "init"], cwd=test_dir, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=test_dir, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=test_dir, check=True, capture_output=True)
+
     # Add some project indicators
-    (test_dir / ".git").mkdir()
     (test_dir / "README.md").write_text("# Test Project\n")
     (test_dir / "src").mkdir()
     (test_dir / "src" / "main.py").write_text("print('Hello')")
+
+    # Make an initial commit so git history exists
+    subprocess.run(["git", "add", "."], cwd=test_dir, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "Initial commit"], cwd=test_dir, check=True, capture_output=True)
 
     return test_dir

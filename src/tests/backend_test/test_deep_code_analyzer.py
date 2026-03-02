@@ -173,7 +173,13 @@ def test_solid_score_ranges():
     from src.backend.analysis.deep_code_analyzer import \
         calculate_python_solid_score
 
-    analysis = OOPAnalysis(total_classes=5, private_methods=2, public_methods=3, abstract_classes=["A"], properties_count=1)
+    analysis = OOPAnalysis(
+        total_classes=5,
+        private_methods=2,
+        public_methods=3,
+        abstract_classes=["A"],
+        properties_count=1,
+    )
     score = calculate_python_solid_score(analysis)
     assert 0 <= score <= 5.0
 

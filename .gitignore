@@ -10,13 +10,10 @@ dist/
 *.egg-info/
 build/
 .vscode/
-src/myapp.db
-__pycache__/
+*.db
 pgvector/
-*.db
 sample_*.txt
-myapp.db
-src/myapp.db
 analysis_report.json
-*.db
-src/myapp.db
+
+__pycache__/
+*.pyc
