@@ -1780,6 +1780,25 @@ def get_portfolio_items_for_analysis(analysis_uuid: str, username: Optional[str]
 
     return items
 
+def delete_user_personal_info(username: str) -> bool:
+    """
+    Remove a user's stored personal info entirely.
+    Returns True if something was deleted, False if there was nothing to delete.
+    """
+    if not username:
+        raise ValueError("username is required")
+
+    with get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+        cur = conn.execute(
+            """
+            DELETE FROM user_profile
+            WHERE username = ?
+            """,
+            (username,),
+        )
+        conn.commit()
+        return (cur.rowcount or 0) > 0
 
 def delete_resume_item(item_id: int) -> None:
     with get_connection() as conn:
