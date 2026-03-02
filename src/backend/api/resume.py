@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from backend.analysis_database import (add_items_to_user_resume,
                                        create_user_resume,
+                                       delete_user_personal_info,
                                        get_all_analyses_for_user,
                                        get_analysis_by_uuid, get_connection,
                                        get_portfolio_item_for_project,
@@ -35,6 +36,10 @@ class ResumeRequest(BaseModel):
         description="Personal information (name, email, phone, location, linkedIn, github, website)",
     )
     stored_resume_id: Optional[int] = Field(None, description="Optional stored resume to use as the base")
+    highlighted_skills: Optional[List[str]] = Field(
+        None,
+        description="Curated highlighted skills to use in the skills section (from curation settings)",
+    )
 
 
 class ResumeResponse(BaseModel):
@@ -187,6 +192,16 @@ async def save_personal_info(request: PersonalInfoSaveRequest, username: str = D
     return {"ok": True}
 
 
+@router.delete("/resume/personal-info")
+async def delete_personal_info(username: str = Depends(verify_token)):
+    deleted = delete_user_personal_info(username)
+    return {
+        "ok": True,
+        "deleted": deleted,
+        "message": "Personal info removed" if deleted else "No personal info to remove",
+    }
+
+
 @router.post("/resume/generate", response_model=ResumeResponse)
 async def generate_resume(
     request: ResumeRequest,
@@ -248,6 +263,7 @@ async def generate_resume(
             include_projects=request.include_projects,
             max_projects=request.max_projects,
             personal_info=request.personal_info,
+            highlighted_skills=request.highlighted_skills,
         )
 
         # Encode binary formats (pdf / latex) as base64 for JSON transport

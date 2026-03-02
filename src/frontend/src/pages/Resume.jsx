@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import Navigation from '../components/Navigation';
-import { projectsAPI, resumeAPI } from '../services/api';
+import { projectsAPI, resumeAPI, curationAPI } from '../services/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -39,10 +39,15 @@ const Resume = () => {
   const [editableContent, setEditableContent] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
 
+  // Curation settings
+  const [curationSettings, setCurationSettings] = useState(null);
+  const [chronologyCorrections, setChronologyCorrections] = useState({});
+
   useEffect(() => {
     loadProjects();
     loadStoredResumes();
     loadPersonalInfo();
+    loadCurationSettings();
   }, []);
 
   const loadProjects = async () => {
@@ -51,13 +56,52 @@ const Resume = () => {
       const data = await projectsAPI.getProjects();
 
       // data should already be a list of projects
-      setProjects(Array.isArray(data) ? data : []);
+      const projectList = Array.isArray(data) ? data : [];
+      setProjects(projectList);
       setError('');
     } catch (err) {
       console.error('Error loading projects:', err);
       setError(err.response?.data?.detail || 'Failed to load projects');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCurationSettings = async () => {
+    try {
+      const [settings, curationProjects] = await Promise.all([
+        curationAPI.getSettings(),
+        curationAPI.getProjects(),
+      ]);
+      setCurationSettings(settings);
+
+      // Build chronology corrections map from curation projects
+      const corrections = {};
+      if (Array.isArray(curationProjects)) {
+        curationProjects.forEach((p) => {
+          if (p.correction_timestamp) {
+            corrections[p.id] = {
+              last_commit_date: p.effective_last_commit_date,
+              last_modified_date: p.effective_last_modified_date,
+              project_start_date: p.effective_project_start_date,
+              project_end_date: p.effective_project_end_date,
+            };
+          }
+        });
+      }
+      setChronologyCorrections(corrections);
+
+      // Pre-select showcase projects if no projects are selected yet
+      if (settings?.showcase_project_ids?.length > 0) {
+        setSelectedProjectIds((prev) => {
+          if (prev.length === 0) {
+            return settings.showcase_project_ids;
+          }
+          return prev;
+        });
+      }
+    } catch (err) {
+      console.error('Error loading curation settings:', err);
     }
   };
 
@@ -186,6 +230,9 @@ const Resume = () => {
         include_projects: includeProjects,
         personal_info: personalInfo,
         stored_resume_id: resumeFormat === 'markdown' ? (storedResumeId || null) : null,
+        highlighted_skills: curationSettings?.highlighted_skills?.length > 0
+          ? curationSettings.highlighted_skills
+          : undefined,
       });
 
       setGeneratedResume(resume);
@@ -659,53 +706,100 @@ const Resume = () => {
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {projects.map((project) => (
-                    <label
-                      key={project.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        padding: '12px',
-                        backgroundColor: selectedProjectIds.includes(project.id) ? '#eff6ff' : '#f9fafb',
-                        border: `2px solid ${
-                          selectedProjectIds.includes(project.id) ? '#2563eb' : '#e5e7eb'
-                        }`,
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedProjectIds.includes(project.id)}
-                        onChange={() => toggleProject(project.id)}
-                        style={{
-                          width: '18px',
-                          height: '18px',
-                          marginRight: '12px',
-                          cursor: 'pointer',
-                        }}
-                      />
-                      <div style={{ flex: 1 }}>
-                        <div
+                  {(() => {
+                    // Sort projects by curation order if available
+                    const orderIds = curationSettings?.custom_project_order;
+                    const showcaseIdsList = curationSettings?.showcase_project_ids ?? [];
+                    const showcaseRanks = new Map();
+                    showcaseIdsList.forEach((id, i) => showcaseRanks.set(id, i + 1));
+                    let sortedProjects = [...projects];
+                    if (Array.isArray(orderIds) && orderIds.length > 0) {
+                      sortedProjects.sort((a, b) => {
+                        const aIdx = orderIds.indexOf(a.id);
+                        const bIdx = orderIds.indexOf(b.id);
+                        if (aIdx === -1 && bIdx === -1) return 0;
+                        if (aIdx === -1) return 1;
+                        if (bIdx === -1) return -1;
+                        return aIdx - bIdx;
+                      });
+                    }
+                    return sortedProjects.map((project) => {
+                      const showcaseRank = showcaseRanks.get(project.id);
+                      const isShowcase = !!showcaseRank;
+                      const correction = chronologyCorrections[project.id];
+                      return (
+                        <label
+                          key={project.id}
                           style={{
-                            fontSize: '14px',
-                            fontWeight: '600',
-                            color: '#1a1a1a',
-                            marginBottom: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '12px',
+                            backgroundColor: selectedProjectIds.includes(project.id)
+                              ? isShowcase ? '#fefce8' : '#eff6ff'
+                              : isShowcase ? '#fffbeb' : '#f9fafb',
+                            border: `2px solid ${
+                              selectedProjectIds.includes(project.id)
+                                ? isShowcase ? '#f59e0b' : '#2563eb'
+                                : isShowcase ? '#fcd34d' : '#e5e7eb'
+                            }`,
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
                           }}
                         >
-                          {project.project_name || 'Unnamed Project'}
-                        </div>
+                          <input
+                            type="checkbox"
+                            checked={selectedProjectIds.includes(project.id)}
+                            onChange={() => toggleProject(project.id)}
+                            style={{
+                              width: '18px',
+                              height: '18px',
+                              marginRight: '12px',
+                              cursor: 'pointer',
+                            }}
+                          />
+                          <div style={{ flex: 1 }}>
+                            <div
+                              style={{
+                                fontSize: '14px',
+                                fontWeight: '600',
+                                color: '#1a1a1a',
+                                marginBottom: '4px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                              }}
+                            >
+                              {project.project_name || 'Unnamed Project'}
+                              {isShowcase && (
+                                <span style={{
+                                  padding: '1px 6px',
+                                  borderRadius: '999px',
+                                  backgroundColor: '#fef3c7',
+                                  color: '#b45309',
+                                  fontSize: '10px',
+                                  fontWeight: '700',
+                                }}>⭐ Top {showcaseRank}</span>
+                              )}
+                            </div>
 
                         <div style={{ fontSize: '12px', color: '#737373' }}>
                           Project ID: <span style={{ fontFamily: 'monospace' }}>{project.id}</span>
                           {project.primary_language ? ` • ${project.primary_language}` : ''}
                           {typeof project.total_files === 'number' ? ` • ${project.total_files} files` : ''}
+                          {correction && correction.project_start_date ? (
+                            <span style={{ color: '#16a34a' }}>
+                              {' '}• {correction.project_start_date}
+                              {correction.project_end_date ? ` – ${correction.project_end_date}` : ''}
+                              {' '}(corrected)
+                            </span>
+                          ) : null}
                         </div>
                       </div>
                     </label>
-                  ))}
+                  );
+                    });
+                  })()}
                 </div>
               )}
 

@@ -63,6 +63,8 @@ class TaskInfo(BaseModel):
     error: Optional[str] = None
     analysis_type: Optional[str] = None
     portfolio_id: Optional[str] = None  # For incremental uploads
+    project_name: Optional[str] = None  # User-provided project name override
+    analysis_phase: Optional[str] = None  # "non_llm" or "llm" for display during processing
 
 
 class FileManager:
@@ -219,6 +221,7 @@ class TaskManager:
         file_path: Path,
         analysis_type: str = None,
         portfolio_id: str = None,
+        project_name: str = None,
     ) -> str:
         """Create a new task and return task ID."""
         task_id = str(uuid.uuid4())
@@ -236,6 +239,7 @@ class TaskManager:
             file_hash=file_hash,
             analysis_type=analysis_type,
             portfolio_id=portfolio_id,
+            project_name=project_name,
         )
 
         self.tasks[task_id] = task
@@ -346,12 +350,30 @@ class TaskManager:
         """
         from backend.database import check_user_consent
 
-        from .analysis.llm_pipeline import run_gemini_analysis
-        from .analysis_database import get_analysis, record_analysis
+        from .analysis_database import (get_analysis,
+                                        get_analysis_by_file_hash,
+                                        record_analysis)
         from .cli import analyze_folder
 
         await asyncio.sleep(1)
         task.progress = 50
+
+        # Duplicate check: if this ZIP was already analysed for this user, reuse the result
+        if task.file_hash:
+            existing = get_analysis_by_file_hash(task.file_hash, task.username)
+            if existing:
+                logger.info(f"Task {task.task_id}: duplicate ZIP hash, reusing analysis {existing['analysis_uuid']}")
+                task.progress = 100
+                return {
+                    "analysis_id": existing["id"],
+                    "analysis_uuid": existing["analysis_uuid"],
+                    "total_projects": existing["total_projects"],
+                    "file_hash": task.file_hash,
+                    "duplicate": True,
+                    "llm_ran": False,
+                    "llm_analysis_id": None,
+                    "llm_error": None,
+                }
 
         if not task.file_path:
             raise ValueError("Task file_path is missing")
@@ -359,10 +381,24 @@ class TaskManager:
         loop = asyncio.get_event_loop()
 
         # 1) NON-LLM ANALYSIS (always)
+        task.analysis_phase = "non_llm"
         analysis_result = await loop.run_in_executor(_executor, analyze_folder, file_path)
         task.progress = 80
 
-        analysis_id = record_analysis(task.analysis_type or "non_llm", analysis_result, username=task.username)
+        # Override project name with user-provided value if set
+        if task.project_name and task.project_name.strip():
+            projects = analysis_result.get("projects", [])
+            if len(projects) == 1:
+                projects[0]["project_name"] = task.project_name.strip()
+            elif len(projects) > 1:
+                for p in projects:
+                    if (p.get("project_path") or "") == "" or p.get("project_name") == "root_project":
+                        p["project_name"] = task.project_name.strip()
+                        break
+
+        analysis_id = record_analysis(
+            task.analysis_type or "non_llm", analysis_result, username=task.username, zip_file_hash=task.file_hash
+        )
         row = get_analysis(analysis_id)
         analysis_uuid = row["analysis_uuid"] if row and "analysis_uuid" in row else None
 
@@ -385,9 +421,12 @@ class TaskManager:
             has_consented = False
             result_payload["llm_error"] = f"Consent check failed: {e}"
 
-        if has_consented:
+        if has_consented and (task.analysis_type or "non_llm") == "llm":
+            task.analysis_phase = "llm"
             task.progress = 92
             try:
+                from .analysis.llm_pipeline import run_gemini_analysis
+
                 # Choose active features
                 active_features = ["architecture", "complexity", "security", "skills", "domain", "resume"]
 
@@ -403,9 +442,11 @@ class TaskManager:
 
                 task.progress = 97
 
-                # Store LLM under same user
+                # Store LLM under same user. Use empty projects to avoid duplicate project rows
+                # (non_llm analysis already stored the projects; LLM only adds enhancements)
                 llm_results["non_llm_results"] = analysis_result
-                llm_analysis_id = record_analysis("llm", llm_results, username=task.username)
+                llm_payload = {**llm_results, "projects": []}
+                llm_analysis_id = record_analysis("llm", llm_payload, username=task.username, zip_file_hash=task.file_hash)
 
                 result_payload["llm_ran"] = True
                 result_payload["llm_analysis_id"] = llm_analysis_id
@@ -553,7 +594,7 @@ class TaskManager:
                     predicted_role_confidence = role_prediction_data.get("confidence_score")
                     role_prediction_json = json.dumps(role_prediction_data)
 
-                conn.execute(
+                cursor = conn.execute(
                     """
                     INSERT INTO projects (
                         analysis_id,
@@ -635,6 +676,127 @@ class TaskManager:
                         role_prediction_json,
                     ),
                 )
+                project_id = cursor.lastrowid
+
+                try:
+                    from .analysis.portfolio_item_generator import \
+                        generate_portfolio_item
+
+                    portfolio_item = generate_portfolio_item(project)
+                    skills_exercised = portfolio_item.get("skills_exercised", []) or []
+
+                    for skill in skills_exercised:
+                        conn.execute(
+                            """
+                            INSERT OR IGNORE INTO project_skills (project_id, skill)
+                            VALUES (?, ?)
+                            """,
+                            (project_id, skill),
+                        )
+
+                    stats = portfolio_item.get("project_statistics") or {}
+                    conn.execute(
+                        """
+                        INSERT INTO portfolio_items (
+                            project_id,
+                            project_name,
+                            text_summary,
+                            tech_stack,
+                            skills_exercised,
+                            quality_score,
+                            sophistication_level,
+                            project_statistics
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            project_id,
+                            project.get("project_name"),
+                            portfolio_item.get("text_summary"),
+                            json.dumps(portfolio_item.get("tech_stack", [])),
+                            json.dumps(portfolio_item.get("skills_exercised", [])),
+                            stats.get("quality_score"),
+                            stats.get("sophistication_level"),
+                            json.dumps(stats),
+                        ),
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to generate portfolio item for project {project_path}: {e}")
+
+                try:
+                    from .analysis.resume_generator import \
+                        _generate_project_items
+
+                    bullets = _generate_project_items(project)
+                    for idx, bullet in enumerate(bullets):
+                        if not bullet or not bullet.strip():
+                            continue
+
+                        conn.execute(
+                            """
+                            INSERT INTO resume_items (analysis_id, project_id, project_name, resume_text, bullet_order)
+                            VALUES (?, ?, ?, ?, ?)
+                            """,
+                            (analysis_id, project_id, project.get("project_name", "Project"), bullet.strip(), idx),
+                        )
+                except Exception as e:
+                    # If resume item generation fails, continue without breaking
+                    logger.warning(f"Failed to generate resume items for project {project_path}: {e}")
+
+                languages = project.get("languages") or {}
+                for language, file_count in languages.items():
+                    conn.execute(
+                        """
+                        INSERT INTO project_languages (project_id, language, file_count)
+                        VALUES (?, ?, ?)
+                        """,
+                        (project_id, language, file_count),
+                    )
+
+                frameworks = project.get("frameworks") or []
+                for framework in frameworks:
+                    conn.execute(
+                        """
+                        INSERT INTO project_frameworks (project_id, framework)
+                        VALUES (?, ?)
+                        """,
+                        (project_id, framework),
+                    )
+
+                dependencies = project.get("dependencies") or {}
+                for ecosystem, deps in dependencies.items():
+                    seen_deps = set()
+                    for dependency in deps or []:
+                        if dependency in seen_deps:
+                            continue
+                        seen_deps.add(dependency)
+                        conn.execute(
+                            """
+                            INSERT INTO project_dependencies (project_id, ecosystem, dependency)
+                            VALUES (?, ?, ?)
+                            """,
+                            (project_id, ecosystem, dependency),
+                        )
+
+                contributors = project.get("contributors") or []
+                for contributor in contributors:
+                    conn.execute(
+                        """
+                        INSERT INTO project_contributors (
+                            project_id,
+                            name,
+                            email,
+                            commits,
+                            files_touched
+                        ) VALUES (?, ?, ?, ?, ?)
+                        """,
+                        (
+                            project_id,
+                            contributor.get("name"),
+                            contributor.get("email"),
+                            contributor.get("commits"),
+                            contributor.get("files_touched"),
+                        ),
+                    )
 
             conn.commit()
 
