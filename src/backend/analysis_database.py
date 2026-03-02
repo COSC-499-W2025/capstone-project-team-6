@@ -1662,9 +1662,7 @@ def get_portfolio_item_for_project(project_id: int) -> Optional[dict]:
         return dict(row) if row else None
 
 
-def get_portfolio_items_for_analysis(
-    analysis_uuid: str, username: Optional[str] = None
-) -> List[Dict[str, Any]]:
+def get_portfolio_items_for_analysis(analysis_uuid: str, username: Optional[str] = None) -> List[Dict[str, Any]]:
     """Fetch all portfolio items for one analysis, with JSON fields deserialized."""
     with get_connection() as conn:
         if username:

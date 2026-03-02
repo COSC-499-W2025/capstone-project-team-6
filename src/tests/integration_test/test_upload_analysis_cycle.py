@@ -224,9 +224,7 @@ class TestUploadAnalysisCycle:
         assert "consent" in r.json()["detail"].lower()
 
     @pytest.mark.asyncio
-    async def test_multi_project_zip_analyzed_correctly(
-        self, client, async_client, auth_headers, multi_project_zip
-    ):
+    async def test_multi_project_zip_analyzed_correctly(self, client, async_client, auth_headers, multi_project_zip):
         """Single ZIP with multiple projects is analyzed and all projects appear.
 
         Uses AsyncClient so asyncio.create_task in the upload handler runs on the same

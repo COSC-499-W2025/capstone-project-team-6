@@ -94,6 +94,4 @@ def test_llm_analysis_passes_empty_projects_to_record_analysis(
             break
     assert llm_call is not None, "Expected record_analysis call with non_llm_results"
     llm_payload = llm_call[0][1]
-    assert llm_payload.get("projects") == [], (
-        "LLM record_analysis must receive projects=[] to avoid duplicate project rows"
-    )
+    assert llm_payload.get("projects") == [], "LLM record_analysis must receive projects=[] to avoid duplicate project rows"
