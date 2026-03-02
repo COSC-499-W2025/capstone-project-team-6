@@ -163,6 +163,7 @@ async def upload_new_portfolio(
     from backend.task_manager import FileManager
     _file_hash = FileManager().calculate_file_hash(zip_path)
     existing = get_analysis_by_file_hash(_file_hash, username)
+    print(f"[DUPLICATE CHECK] user={username!r} hash={_file_hash!r} existing={existing is not None}")
     if existing:
         shutil.rmtree(temp_dir, ignore_errors=True)
         return MessageResponse(

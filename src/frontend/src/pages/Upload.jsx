@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Navigation from '../components/Navigation';
 import api from '../services/api';
 import { consentAPI, portfoliosAPI } from '../services/api';
@@ -10,6 +10,7 @@ const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 const Upload = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const fileInputRef = useRef(null);
   const dragCounter = useRef(0);
 
@@ -34,7 +35,7 @@ const Upload = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState('');
-  const [duplicateMessage, setDuplicateMessage] = useState('');
+  const [duplicateMessage, setDuplicateMessage] = useState(location.state?.duplicateMessage || '');
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [incrementalResults, setIncrementalResults] = useState(null);
 
@@ -218,6 +219,7 @@ const Upload = () => {
 
     setIsUploading(true);
     setError('');
+    setDuplicateMessage('');
 
     let taskIdForAnalyze = null;
     try {
@@ -231,11 +233,12 @@ const Upload = () => {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
 
+        console.log('Upload response:', res.data);
+        console.log('Duplicate flag:', res?.data?.details?.duplicate);
+
         // Duplicate: this ZIP was already analysed — skip re-analysis
-        if (res?.data?.details?.duplicate) {
-          setIsUploading(false);
-          setDuplicateMessage('This project has already been analyzed. Redirecting to your projects...');
-          setTimeout(() => navigate('/projects'), 2500);
+        if (res?.data?.details?.duplicate === true) {
+          setDuplicateMessage('This project has already been analyzed. You can view it in your projects.');
           return;
         }
 
@@ -504,6 +507,21 @@ const Upload = () => {
             Incremental Upload
           </button>
         </div>
+
+        {/* Duplicate Message — shown above the card so it is always visible */}
+        {duplicateMessage && (
+          <div style={{
+            padding: '16px 20px',
+            backgroundColor: '#eff6ff',
+            border: '1px solid #93c5fd',
+            borderRadius: '10px',
+            marginBottom: '24px',
+          }}>
+            <p style={{ fontSize: '15px', fontWeight: '500', color: '#1d4ed8', margin: 0 }}>
+              {duplicateMessage}
+            </p>
+          </div>
+        )}
 
         {/* Upload Card */}
         <div style={{
@@ -964,21 +982,6 @@ const Upload = () => {
                   <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </button>
-            </div>
-          )}
-
-          {/* Duplicate Message */}
-          {duplicateMessage && (
-            <div style={{
-              padding: '12px 16px',
-              backgroundColor: '#eff6ff',
-              border: '1px solid #bfdbfe',
-              borderRadius: '8px',
-              marginBottom: '24px',
-            }}>
-              <p style={{ fontSize: '14px', color: '#1d4ed8', margin: 0 }}>
-                {duplicateMessage}
-              </p>
             </div>
           )}
 
