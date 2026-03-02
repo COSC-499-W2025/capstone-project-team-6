@@ -350,7 +350,6 @@ class TaskManager:
         """
         from backend.database import check_user_consent
 
-        from .analysis.llm_pipeline import run_gemini_analysis
         from .analysis_database import get_analysis, get_analysis_by_file_hash, record_analysis
         from .cli import analyze_folder
 
@@ -424,6 +423,8 @@ class TaskManager:
             task.analysis_phase = "llm"
             task.progress = 92
             try:
+                from .analysis.llm_pipeline import run_gemini_analysis
+
                 # Choose active features
                 active_features = ["architecture", "complexity", "security", "skills", "domain", "resume"]
 
