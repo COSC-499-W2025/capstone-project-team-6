@@ -40,6 +40,10 @@ const Settings = () => {
   const [personalStatusMsg, setPersonalStatusMsg] = useState('');
   const [personalErrorMsg, setPersonalErrorMsg] = useState('');
 
+  // New state for remove personal info flow
+  const [removingPersonalInfo, setRemovingPersonalInfo] = useState(false);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+
   const normalize = (v) => (v || '').trim();
 
   const infosEqual = (a, b) => {
@@ -198,6 +202,41 @@ const Settings = () => {
       );
     } finally {
       setSavingPersonalInfo(false);
+    }
+  };
+
+  // --- Remove Personal Info Handlers ---
+  const onClickRemovePersonalInfo = () => {
+    setPersonalErrorMsg('');
+    setPersonalStatusMsg('');
+    setShowRemoveConfirm(true);
+  };
+
+  const onCancelRemovePersonalInfo = () => {
+    setShowRemoveConfirm(false);
+  };
+
+  const onConfirmRemovePersonalInfo = async () => {
+    setPersonalErrorMsg('');
+    setPersonalStatusMsg('');
+    setRemovingPersonalInfo(true);
+
+    try {
+      await resumeAPI.deletePersonalInfo();
+
+      // clear UI + mark clean
+      setPersonalInfo(emptyPersonal);
+      setOriginalPersonalInfo(emptyPersonal);
+
+      setPersonalStatusMsg('Personal info removed.');
+    } catch (err) {
+      setPersonalErrorMsg(
+        err?.response?.data?.detail ||
+          'Failed to remove personal info. Please try again.'
+      );
+    } finally {
+      setRemovingPersonalInfo(false);
+      setShowRemoveConfirm(false);
     }
   };
 
@@ -508,12 +547,46 @@ const Settings = () => {
               </div>
             </div>
 
-            {/* Action Button */}
+            {/* Action Buttons */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <button
                 type="button"
+                onClick={onClickRemovePersonalInfo}
+                disabled={
+                  loadingPersonalInfo ||
+                  savingPersonalInfo ||
+                  removingPersonalInfo ||
+                  !hasAnyPersonalInfoSaved()
+                }
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '12px',
+                  border: '1px solid #e5e5e5',
+                  backgroundColor: '#ffffff',
+                  color: '#991b1b',
+                  fontWeight: 700,
+                  cursor:
+                    loadingPersonalInfo ||
+                    savingPersonalInfo ||
+                    removingPersonalInfo ||
+                    !hasAnyPersonalInfoSaved()
+                      ? 'not-allowed'
+                      : 'pointer',
+                  minWidth: '160px',
+                }}
+              >
+                {removingPersonalInfo ? 'Removing…' : 'Remove Info'}
+              </button>
+
+              <button
+                type="button"
                 onClick={onSavePersonalInfo}
-                disabled={loadingPersonalInfo || savingPersonalInfo || !hasPersonalChanges}
+                disabled={
+                  loadingPersonalInfo ||
+                  savingPersonalInfo ||
+                  removingPersonalInfo ||
+                  !hasPersonalChanges
+                }
                 style={{
                   padding: '10px 14px',
                   borderRadius: '12px',
@@ -522,7 +595,10 @@ const Settings = () => {
                   color: '#ffffff',
                   fontWeight: 700,
                   cursor:
-                    loadingPersonalInfo || savingPersonalInfo || !hasPersonalChanges
+                    loadingPersonalInfo ||
+                    savingPersonalInfo ||
+                    removingPersonalInfo ||
+                    !hasPersonalChanges
                       ? 'not-allowed'
                       : 'pointer',
                   minWidth: '190px',
@@ -562,7 +638,7 @@ const Settings = () => {
                 value={personalInfo.name}
                 onChange={(e) => onChangePersonalField('name', e.target.value)}
                 placeholder="Full Name"
-                disabled={loadingPersonalInfo || savingPersonalInfo}
+                disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
               />
             </div>
 
@@ -573,7 +649,7 @@ const Settings = () => {
                 value={personalInfo.email}
                 onChange={(e) => onChangePersonalField('email', e.target.value)}
                 placeholder="Email Address"
-                disabled={loadingPersonalInfo || savingPersonalInfo}
+                disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
               />
             </div>
 
@@ -584,7 +660,7 @@ const Settings = () => {
                 value={personalInfo.phone}
                 onChange={(e) => onChangePersonalField('phone', e.target.value)}
                 placeholder="Phone Number"
-                disabled={loadingPersonalInfo || savingPersonalInfo}
+                disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
               />
             </div>
 
@@ -596,7 +672,7 @@ const Settings = () => {
                 value={personalInfo.location}
                 onChange={(e) => onChangePersonalField('location', e.target.value)}
                 placeholder="Location (e.g., City, State)"
-                disabled={loadingPersonalInfo || savingPersonalInfo}
+                disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
               />
             </div>
 
@@ -607,7 +683,7 @@ const Settings = () => {
                 value={personalInfo.linkedIn}
                 onChange={(e) => onChangePersonalField('linkedIn', e.target.value)}
                 placeholder="LinkedIn URL"
-                disabled={loadingPersonalInfo || savingPersonalInfo}
+                disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
               />
             </div>
 
@@ -618,7 +694,7 @@ const Settings = () => {
                 value={personalInfo.github}
                 onChange={(e) => onChangePersonalField('github', e.target.value)}
                 placeholder="GitHub URL"
-                disabled={loadingPersonalInfo || savingPersonalInfo}
+                disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
               />
             </div>
 
@@ -630,7 +706,7 @@ const Settings = () => {
                 value={personalInfo.website}
                 onChange={(e) => onChangePersonalField('website', e.target.value)}
                 placeholder="Personal Website"
-                disabled={loadingPersonalInfo || savingPersonalInfo}
+                disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
               />
             </div>
           </div>
@@ -746,6 +822,97 @@ const Settings = () => {
         </div>
       )}
       {/* End Confirmation Modal */}
+
+      {/* Remove Personal Info Confirmation Modal */}
+      {showRemoveConfirm && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px',
+            zIndex: 9999,
+          }}
+          onClick={onCancelRemovePersonalInfo}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '520px',
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              border: '1px solid #e5e5e5',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+              padding: '18px',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ marginBottom: '12px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#111827' }}>
+                Remove personal info?
+              </h3>
+              <p
+                style={{
+                  margin: '8px 0 0 0',
+                  fontSize: '14px',
+                  color: '#4b5563',
+                  lineHeight: 1.5,
+                }}
+              >
+                This will permanently remove your saved personal info from the database. You can
+                add it again anytime.
+              </p>
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '10px',
+                marginTop: '16px',
+              }}
+            >
+              <button
+                type="button"
+                onClick={onCancelRemovePersonalInfo}
+                disabled={removingPersonalInfo}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  border: '1px solid #e5e5e5',
+                  backgroundColor: '#ffffff',
+                  color: '#111827',
+                  fontWeight: 600,
+                  cursor: removingPersonalInfo ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={onConfirmRemovePersonalInfo}
+                disabled={removingPersonalInfo}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  border: '1px solid #e5e5e5',
+                  backgroundColor: '#991b1b',
+                  color: '#ffffff',
+                  fontWeight: 600,
+                  cursor: removingPersonalInfo ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {removingPersonalInfo ? 'Removing…' : 'Yes, remove'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* End Remove Personal Info Confirmation Modal */}
     </div>
   );
 };

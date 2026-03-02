@@ -194,6 +194,64 @@ class TestPortfolioEndpoints:
         assert response.status_code == 401
 
 
+class TestAnalysisEndpoints:
+    def give_consent(self, client, token):
+        resp = client.post(
+            "/api/user/consent",
+            json={"has_consented": True},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+
+    def test_quick_analysis_requires_file(self, client):
+        import uuid
+
+        username = f"testuser_{uuid.uuid4().hex[:8]}"
+        password = "testpass123"
+        signup = client.post("/api/auth/signup", json={"username": username, "password": password})
+        token = signup.json()["access_token"]
+        self.give_consent(client, token)
+        resp = client.post("/api/analysis/quick", headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 422
+
+    def test_reanalyze_portfolio_not_found(self, client):
+        import uuid
+
+        username = f"testuser_{uuid.uuid4().hex[:8]}"
+        password = "testpass123"
+        signup = client.post("/api/auth/signup", json={"username": username, "password": password})
+        token = signup.json()["access_token"]
+        self.give_consent(client, token)
+        resp = client.post(
+            "/api/analysis/portfolios/doesnotexist/reanalyze",
+            data={"analysis_type": "llm"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code in (404, 501)
+
+
+class TestCurationEndpoints:
+    def test_get_curation_settings_unauth(self, client):
+        resp = client.get("/api/curation/settings")
+        assert resp.status_code in (401, 403)
+
+
+class TestResumeEndpoints:
+    def test_resume_unauthenticated(self, client):
+        resp = client.get("/api/resume/1")
+        assert resp.status_code in (401, 403)
+
+
+class TestTasksEndpoints:
+    def test_get_task_status_unauth(self, client):
+        resp = client.get("/api/tasks/123/status")
+        assert resp.status_code in (401, 403)
+
+    def test_list_tasks_unauth(self, client):
+        resp = client.get("/api/tasks")
+        assert resp.status_code in (401, 403)
+
+
 def test_api_documentation():
     """Test that API documentation is accessible."""
     client = TestClient(app)

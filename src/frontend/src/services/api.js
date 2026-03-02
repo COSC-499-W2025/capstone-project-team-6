@@ -89,8 +89,13 @@ export const projectsAPI = {
     return response.data;
   },
 
-  deleteProject: async (portfolioId) => {
-    const response = await api.delete(`/portfolios/${portfolioId}`);
+  deleteProject: async (projectId) => {
+    const response = await api.delete(`/projects/${projectId}`);
+    return response.data;
+  },
+
+  deleteAllProjects: async () => {
+    const response = await api.delete('/projects');
     return response.data;
   },
 
@@ -124,7 +129,9 @@ export const projectsAPI = {
     const encodedId = encodeURIComponent(projectId);
     const response = await api.get(`/projects/${encodedId}/thumbnail`, {
       responseType: 'blob',
+      validateStatus: (status) => status === 200 || status === 204,
     });
+    if (response.status === 204) return null;
     return URL.createObjectURL(response.data);
   },
 
@@ -164,9 +171,10 @@ export const portfoliosAPI = {
 };
 
 // Resume API calls
+// Resume API calls
 export const resumeAPI = {
   generateResume: async (projectIds, options = {}) => {
-    const response = await api.post('/resume/generate', {
+    const payload = {
       project_ids: projectIds,
       format: options.format || 'markdown',
       include_skills: options.include_skills !== false,
@@ -174,7 +182,11 @@ export const resumeAPI = {
       max_projects: options.max_projects || null,
       personal_info: options.personal_info || null,
       stored_resume_id: options.stored_resume_id || null,
-    });
+    };
+    if (options.highlighted_skills && options.highlighted_skills.length > 0) {
+      payload.highlighted_skills = options.highlighted_skills;
+    }
+    const response = await api.post('/resume/generate', payload);
     return response.data;
   },
 
@@ -211,19 +223,14 @@ export const resumeAPI = {
   },
 
   savePersonalInfo: async (personalInfo) => {
-    const response = await api.put('/resume/personal-info', { personal_info: personalInfo });
-    return response.data;
-  },
-
-  getPersonalInfo: async () => {
-    const response = await api.get('/resume/personal-info');
-    return response.data;
-  },
-
-  savePersonalInfo: async (personalInfo) => {
     const response = await api.put('/resume/personal-info', {
       personal_info: personalInfo,
     });
+    return response.data;
+  },
+
+  deletePersonalInfo: async () => {
+    const response = await api.delete('/resume/personal-info');
     return response.data;
   },
 };

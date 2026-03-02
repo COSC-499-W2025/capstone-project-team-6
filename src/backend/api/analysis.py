@@ -7,13 +7,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from fastapi import (APIRouter, Depends, File, Form, HTTPException, UploadFile,
-                     status)
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel
 
-from backend.analysis_database import (clear_upload_zip_path, create_upload,
-                                       get_analysis_by_uuid, get_upload,
-                                       update_upload_status)
+from backend.analysis_database import clear_upload_zip_path, create_upload, get_analysis_by_uuid, get_upload, update_upload_status
 from backend.api.auth import verify_token
 from backend.database import check_user_consent
 from backend.task_manager import TaskType, get_task_manager

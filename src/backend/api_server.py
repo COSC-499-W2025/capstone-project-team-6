@@ -8,22 +8,24 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import bcrypt
-from fastapi import (Depends, FastAPI, File, Form, HTTPException, Security,
-                     UploadFile, status)
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Security, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
-from backend.analysis_database import (delete_all_projects_for_user,
-                                       delete_analysis,
-                                       delete_project_for_user,
-                                       get_all_analyses_for_user,
-                                       get_analysis_by_uuid,
-                                       get_portfolio_item_for_project,
-                                       get_projects_for_user,
-                                       get_resume_items_for_project_id)
+from backend.analysis_database import (
+    delete_all_projects_for_user,
+    delete_analysis,
+    delete_project_for_user,
+    get_all_analyses_for_user,
+    get_analysis_by_uuid,
+    get_portfolio_item_for_project,
+    get_projects_for_user,
+    get_resume_items_for_project_id,
+)
 from backend.analysis_database import init_db as init_analysis_db
 from backend.analysis_database import record_analysis
+
 # Import routers from modular API structure
 from backend.api.analysis import router as analysis_router
 from backend.api.auth import router as auth_router
@@ -37,8 +39,7 @@ from backend.curation import init_curation_tables
 from backend.database import authenticate_user, check_user_consent, create_user
 from backend.database import init_db as init_user_db
 from backend.database import save_user_consent
-from backend.task_manager import (TaskType, cleanup_background_tasks,
-                                  get_task_manager)
+from backend.task_manager import TaskType, cleanup_background_tasks, get_task_manager
 from backend.token_storage import active_tokens
 
 # Initialize databases
@@ -81,6 +82,7 @@ class PortfolioListItem(BaseModel):
     analysis_timestamp: str
     total_projects: int
     analysis_type: str
+    project_names: List[str] = Field(default_factory=list)
 
 
 class PortfolioDetail(BaseModel):
@@ -92,6 +94,8 @@ class PortfolioDetail(BaseModel):
     projects: List[Dict[str, Any]]
     skills: List[Dict[str, Any]]
     summary: Optional[Dict[str, Any]] = None
+    items: List[Dict[str, Any]] = Field(default_factory=list)
+    portfolio_items: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class IncrementalUploadRequest(BaseModel):
@@ -110,18 +114,6 @@ class ConsentRequest(BaseModel):
 class ConsentResponse(BaseModel):
     has_consented: bool
     message: str
-
-
-class TaskStatusResponse(BaseModel):
-    task_id: str
-    status: str
-    progress: int
-    created_at: str
-    updated_at: str
-    filename: str
-    task_type: str
-    result: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
 
 
 def create_access_token(username: str) -> str:
@@ -245,6 +237,7 @@ async def list_portfolios(username: str = Depends(verify_token)):
             analysis_timestamp=a["analysis_timestamp"],
             total_projects=a["total_projects"],
             analysis_type=a["analysis_type"],
+            project_names=a.get("project_names", []),
         )
         for a in analyses
     ]
@@ -261,6 +254,10 @@ async def get_portfolio(portfolio_id: str, username: str = Depends(verify_token)
             detail=f"Portfolio {portfolio_id} not found",
         )
 
+    portfolio_items = analysis.get("portfolio_items")
+    if not isinstance(portfolio_items, list):
+        portfolio_items = []
+
     return PortfolioDetail(
         analysis_uuid=analysis["analysis_uuid"],
         analysis_type=analysis["analysis_type"],
@@ -270,6 +267,8 @@ async def get_portfolio(portfolio_id: str, username: str = Depends(verify_token)
         projects=analysis.get("projects", []),
         skills=analysis.get("skills", []),
         summary=analysis.get("summary"),
+        items=portfolio_items,
+        portfolio_items=portfolio_items,
     )
 
 
@@ -277,16 +276,17 @@ async def get_portfolio(portfolio_id: str, username: str = Depends(verify_token)
 async def upload_new_portfolio(
     file: UploadFile = File(..., description="ZIP file containing project"),
     analysis_type: str = Form("llm", description="Analysis type: llm or non_llm"),
+    project_name: Optional[str] = Form(None, description="User-provided project name (for single project)"),
     username: str = Depends(verify_token),
 ):
     """Upload a new portfolio (create new analysis).
     Returns immediately with task ID.
     """
-    # Verify user consent
-    if not check_user_consent(username):
+    # Require consent only for LLM analysis; non_llm works without consent
+    if analysis_type == "llm" and not check_user_consent(username):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User consent required. Please provide consent before uploading.",
+            detail="Consent required for LLM analysis. Use non_llm or provide consent in Settings.",
         )
 
     # Validate file type
@@ -327,6 +327,7 @@ async def upload_new_portfolio(
         filename=file.filename,
         file_path=zip_path,
         analysis_type=analysis_type,
+        project_name=project_name.strip() if project_name and project_name.strip() else None,
     )
 
     return MessageResponse(
@@ -345,6 +346,7 @@ async def upload_new_portfolio(
 async def add_to_existing_portfolio(
     portfolio_id: str,
     file: UploadFile = File(..., description="ZIP file with additional projects"),
+    analysis_type: str = Form("non_llm", description="Analysis type: llm or non_llm"),
     username: str = Depends(verify_token),
 ):
     """Add incremental data to an existing portfolio"""
@@ -356,11 +358,11 @@ async def add_to_existing_portfolio(
             detail=f"Portfolio {portfolio_id} not found or access denied",
         )
 
-    # Verify user consent
-    if not check_user_consent(username):
+    # Require consent only for LLM analysis
+    if analysis_type == "llm" and not check_user_consent(username):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User consent required",
+            detail="Consent required for LLM analysis. Use non_llm or provide consent in Settings.",
         )
 
     # Validate file type
@@ -430,60 +432,6 @@ async def delete_portfolio(portfolio_id: str, username: str = Depends(verify_tok
     return MessageResponse(
         message=f"Portfolio {portfolio_id} deleted successfully",
     )
-
-
-@app.get("/api/tasks/{task_id}", response_model=TaskStatusResponse)
-async def get_task_status(task_id: str, username: str = Depends(verify_token)):
-    """Get status of a background task."""
-    task_manager = get_task_manager()
-    task = task_manager.get_task_status(task_id)
-
-    if not task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Task {task_id} not found",
-        )
-
-    # Verify task belongs to user
-    if task.username != username:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to this task",
-        )
-
-    return TaskStatusResponse(
-        task_id=task.task_id,
-        status=task.status.value,
-        progress=task.progress,
-        created_at=task.created_at.isoformat(),
-        updated_at=task.updated_at.isoformat(),
-        filename=task.filename,
-        task_type=task.task_type.value,
-        result=task.result,
-        error=task.error,
-    )
-
-
-@app.get("/api/tasks", response_model=List[TaskStatusResponse])
-async def get_user_tasks(username: str = Depends(verify_token), limit: int = 20):
-    """Get all tasks for the current user."""
-    task_manager = get_task_manager()
-    tasks = task_manager.get_user_tasks(username, limit)
-
-    return [
-        TaskStatusResponse(
-            task_id=task.task_id,
-            status=task.status.value,
-            progress=task.progress,
-            created_at=task.created_at.isoformat(),
-            updated_at=task.updated_at.isoformat(),
-            filename=task.filename,
-            task_type=task.task_type.value,
-            result=task.result,
-            error=task.error,
-        )
-        for task in tasks
-    ]
 
 
 @app.post("/api/admin/cleanup")

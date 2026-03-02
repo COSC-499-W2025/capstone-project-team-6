@@ -913,6 +913,7 @@ def generate_resume(
     include_projects: bool = True,
     max_projects: Optional[int] = None,
     personal_info: Optional[Dict[str, str]] = None,
+    highlighted_skills: Optional[List[str]] = None,
 ) -> Union[str, bytes]:
     """
     Generate a resume from database project bundles.
@@ -927,6 +928,8 @@ def generate_resume(
         include_projects: Include projects section
         max_projects: Maximum number of projects to include
         personal_info: Personal contact information
+        highlighted_skills: Curated highlighted skills from curation settings.
+            If provided, these are used instead of auto-extracted skills.
 
     Returns:
         Formatted resume as string (markdown/latex) or bytes (pdf)
@@ -937,24 +940,28 @@ def generate_resume(
     if max_projects is not None:
         selected = selected[:max_projects]
 
-    # Build Skills section from portfolio data
+    # Build Skills section from curated skills or portfolio data
     skills_set = set()
     if include_skills:
-        for bundle in selected:
-            portfolio = bundle.get("portfolio") or {}
-            skills = portfolio.get("skills") or portfolio.get("skill_summary") or {}
+        # Prefer curated highlighted skills if provided
+        if highlighted_skills and len(highlighted_skills) > 0:
+            skills_set = set(highlighted_skills)
+        else:
+            for bundle in selected:
+                portfolio = bundle.get("portfolio") or {}
+                skills = portfolio.get("skills") or portfolio.get("skill_summary") or {}
 
-            if isinstance(skills, list):
-                for s in skills:
-                    if isinstance(s, str) and s.strip():
-                        skills_set.add(s.strip())
+                if isinstance(skills, list):
+                    for s in skills:
+                        if isinstance(s, str) and s.strip():
+                            skills_set.add(s.strip())
 
-            elif isinstance(skills, dict):
-                for _, vals in skills.items():
-                    if isinstance(vals, list):
-                        for s in vals:
-                            if isinstance(s, str) and s.strip():
-                                skills_set.add(s.strip())
+                elif isinstance(skills, dict):
+                    for _, vals in skills.items():
+                        if isinstance(vals, list):
+                            for s in vals:
+                                if isinstance(s, str) and s.strip():
+                                    skills_set.add(s.strip())
 
     def _extract_bullet_text(row: Dict[str, Any]) -> Optional[str]:
         """Extract resume bullet text from a resume_items database row."""
@@ -1168,8 +1175,7 @@ def _convert_markdown_to_pdf(markdown_content: str) -> bytes:
     from reportlab.lib.pagesizes import letter
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import inch
-    from reportlab.platypus import (ListFlowable, ListItem, Paragraph,
-                                    SimpleDocTemplate, Spacer)
+    from reportlab.platypus import ListFlowable, ListItem, Paragraph, SimpleDocTemplate, Spacer
 
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.75 * inch, bottomMargin=0.75 * inch)

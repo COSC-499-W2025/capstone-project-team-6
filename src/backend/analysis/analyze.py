@@ -29,19 +29,22 @@ sys.path.insert(0, str(src_dir))
 sys.path.insert(0, str(backend_dir))
 
 from analysis.deep_code_analyzer import generate_comprehensive_report
-from analysis.resume_generator import (generate_formatted_resume_entry,
-                                       print_resume_items)
+from analysis.resume_generator import generate_formatted_resume_entry, print_resume_items
 
 from backend.analysis.portfolio_item_generator import generate_portfolio_item
-from backend.analysis_database import (count_analyses_by_zip_file,
-                                       delete_analyses_by_zip_file,
-                                       get_all_analyses,
-                                       get_all_analyses_by_zip_file,
-                                       get_analysis_by_zip_file,
-                                       get_analysis_report, get_connection,
-                                       get_resume_items_for_project_id,
-                                       init_db, record_analysis,
-                                       store_resume_item)
+from backend.analysis_database import (
+    count_analyses_by_zip_file,
+    delete_analyses_by_zip_file,
+    get_all_analyses,
+    get_all_analyses_by_zip_file,
+    get_analysis_by_zip_file,
+    get_analysis_report,
+    get_connection,
+    get_resume_items_for_project_id,
+    init_db,
+    record_analysis,
+    store_resume_item,
+)
 
 
 def print_separator(title=""):
@@ -469,8 +472,7 @@ def calculate_composite_score(
         if "error" not in java_oop:
             oop_score = java_oop.get("oop_score", 0)
             if oop_score == 0:
-                from analysis.java_oop_analyzer import (JavaOOPAnalysis,
-                                                        calculate_oop_score)
+                from analysis.java_oop_analyzer import JavaOOPAnalysis, calculate_oop_score
 
                 try:
                     analysis_obj = JavaOOPAnalysis(**java_oop)
@@ -503,9 +505,7 @@ def calculate_composite_score(
     if "cpp_oop_analysis" in project:
         cpp_oop = project["cpp_oop_analysis"]
         if "error" not in cpp_oop:
-            from analysis.cpp_oop_analyzer import (CppOOPAnalysis,
-                                                   calculate_oop_score,
-                                                   calculate_solid_score)
+            from analysis.cpp_oop_analyzer import CppOOPAnalysis, calculate_oop_score, calculate_solid_score
 
             try:
                 analysis_obj = CppOOPAnalysis(**cpp_oop)
@@ -1582,8 +1582,7 @@ def main():
                 # C++ Analysis
                 if "cpp" in project.get("languages", {}):
                     try:
-                        from analysis.cpp_oop_analyzer import \
-                            analyze_cpp_project
+                        from analysis.cpp_oop_analyzer import analyze_cpp_project
 
                         cpp_analysis = analyze_cpp_project(zip_path, project_path)
                         report["projects"][i]["cpp_oop_analysis"] = cpp_analysis["cpp_oop_analysis"]
@@ -1837,10 +1836,12 @@ def main():
                 from dataclasses import dataclass, field
                 from typing import Dict, List
 
-                from analysis.java_oop_analyzer import (JavaOOPAnalysis,
-                                                        calculate_oop_score,
-                                                        calculate_solid_score,
-                                                        get_coding_style)
+                from analysis.java_oop_analyzer import (
+                    JavaOOPAnalysis,
+                    calculate_oop_score,
+                    calculate_solid_score,
+                    get_coding_style,
+                )
 
                 analysis_obj = JavaOOPAnalysis(**java_oop)
                 oop_score = calculate_oop_score(analysis_obj)
@@ -2040,8 +2041,7 @@ def main():
             print("\n" + "=" * 78)
             print("  FULL RESUME")
             print("=" * 78 + "\n")
-            from analysis.resume_generator import \
-                generate_formatted_resume_entry
+            from analysis.resume_generator import generate_formatted_resume_entry
 
             # Check if resume items already exist
             resume_items_by_project = {}

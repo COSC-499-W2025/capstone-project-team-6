@@ -25,9 +25,7 @@ dotenv_mock = MagicMock()
 sys.modules["dotenv"] = dotenv_mock
 
 # Now safe to import backend modules
-from backend.analysis.llm_pipeline import (_should_ignore_path,
-                                           _summarize_offline_report,
-                                           run_gemini_analysis)
+from backend.analysis.llm_pipeline import _should_ignore_path, _summarize_offline_report, run_gemini_analysis
 from backend.gemini_file_search import GeminiFileSearchClient
 
 # ==========================================

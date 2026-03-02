@@ -194,4 +194,66 @@ class TestPortfoliosEndpoints:
     def test_get_consent_unauthorized(self):
         """Test getting consent without auth fails."""
         response = client.get("/api/user/consent")
-        assert response.status_code in (401, 403)  # 401 Unauthorized or 403 Forbidden (platform-dependent)
+        assert response.status_code == 403
+
+    @patch("backend.api_server.check_user_consent", return_value=True)
+    @patch("backend.api_server.get_task_manager")
+    def test_upload_new_portfolio_success(self, mock_get_task_manager, mock_check_consent, auth_token):
+        """Test uploading a new portfolio (happy path)."""
+        token, username = auth_token
+        mock_task_manager = mock_get_task_manager.return_value
+        mock_task_manager.create_task.return_value = "task-uuid"
+
+        file_content = b"fake zip content"
+        response = client.post(
+            "/api/portfolios/upload",
+            headers={"Authorization": f"Bearer {token}"},
+            files={"file": ("test.zip", file_content, "application/zip")},
+            data={"analysis_type": "llm"},
+        )
+        assert response.status_code == 202
+        data = response.json()
+        assert data["details"]["task_id"] == "task-uuid"
+        assert data["details"]["status"] == "processing"
+
+    @patch("backend.api_server.get_analysis_by_uuid")
+    @patch("backend.api_server.check_user_consent", return_value=True)
+    @patch("backend.api_server.get_task_manager")
+    def test_add_to_existing_portfolio_success(self, mock_get_task_manager, mock_check_consent, mock_get_analysis, auth_token):
+        """Test adding to an existing portfolio (happy path)."""
+        token, username = auth_token
+        portfolio_id = str(uuid.uuid4())
+        mock_get_analysis.return_value = {"analysis_uuid": portfolio_id}
+        mock_task_manager = mock_get_task_manager.return_value
+        mock_task_manager.create_task.return_value = "task-uuid"
+
+        file_content = b"more zip content"
+        response = client.post(
+            f"/api/portfolios/{portfolio_id}/add",
+            headers={"Authorization": f"Bearer {token}"},
+            files={"file": ("add.zip", file_content, "application/zip")},
+        )
+        assert response.status_code == 202
+        data = response.json()
+        assert data["details"]["task_id"] == "task-uuid"
+        assert data["details"]["portfolio_id"] == portfolio_id
+        assert data["details"]["status"] == "processing"
+
+    @patch("backend.api_server.get_analysis_by_uuid")
+    @patch("backend.api_server.delete_analysis")
+    def test_delete_portfolio_success(self, mock_delete_analysis, mock_get_analysis, auth_token):
+        """Test deleting a portfolio (happy path)."""
+        token, username = auth_token
+        portfolio_id = str(uuid.uuid4())
+        mock_get_analysis.return_value = {"analysis_uuid": portfolio_id}
+        mock_delete_analysis.return_value = True
+
+        response = client.delete(
+            f"/api/portfolios/{portfolio_id}",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "deleted successfully" in data["message"].lower()
+        mock_get_analysis.assert_called_once_with(portfolio_id, username)
+        mock_delete_analysis.assert_called_once_with(portfolio_id, username)

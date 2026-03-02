@@ -1,17 +1,15 @@
 """Portfolio management API endpoints."""
 
+import shutil
 import tempfile
 import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fastapi import (APIRouter, Depends, File, Form, HTTPException, UploadFile,
-                     status)
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 
-from backend.analysis_database import (delete_analysis,
-                                       get_all_analyses_for_user,
-                                       get_analysis_by_uuid)
+from backend.analysis_database import delete_analysis, get_all_analyses_for_user, get_analysis_by_file_hash, get_analysis_by_uuid
 from backend.api.auth import verify_token
 from backend.database import check_user_consent
 from backend.task_manager import TaskType, get_task_manager
@@ -25,6 +23,7 @@ class PortfolioListItem(BaseModel):
     analysis_timestamp: str
     total_projects: int
     analysis_type: str
+    project_names: List[str] = Field(default_factory=list)
 
 
 class PortfolioDetail(BaseModel):
@@ -36,6 +35,8 @@ class PortfolioDetail(BaseModel):
     projects: List[Dict[str, Any]]
     skills: List[Dict[str, Any]]
     summary: Optional[Dict[str, Any]] = None
+    items: List[Dict[str, Any]] = Field(default_factory=list)
+    portfolio_items: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class MessageResponse(BaseModel):
@@ -52,7 +53,7 @@ class ConsentResponse(BaseModel):
     message: str
 
 
-@router.get("/portfolios", response_model=List[PortfolioListItem])
+@router.get("/portfolios", response_model=List[PortfolioListItem], operation_id="list_portfolios")
 async def list_portfolios(username: str = Depends(verify_token)):
     """List all portfolios for the authenticated user."""
     analyses = get_all_analyses_for_user(username)
@@ -64,12 +65,13 @@ async def list_portfolios(username: str = Depends(verify_token)):
             analysis_timestamp=a["analysis_timestamp"],
             total_projects=a["total_projects"],
             analysis_type=a["analysis_type"],
+            project_names=a.get("project_names", []),
         )
         for a in analyses
     ]
 
 
-@router.get("/portfolios/{portfolio_id}", response_model=PortfolioDetail)
+@router.get("/portfolios/{portfolio_id}", response_model=PortfolioDetail, operation_id="get_portfolio")
 async def get_portfolio(portfolio_id: str, username: str = Depends(verify_token)):
     """Get detailed information about a specific portfolio."""
     analysis = get_analysis_by_uuid(portfolio_id, username)
@@ -80,6 +82,10 @@ async def get_portfolio(portfolio_id: str, username: str = Depends(verify_token)
             detail=f"Portfolio {portfolio_id} not found",
         )
 
+    portfolio_items = analysis.get("portfolio_items")
+    if not isinstance(portfolio_items, list):
+        portfolio_items = []
+
     return PortfolioDetail(
         analysis_uuid=analysis["analysis_uuid"],
         analysis_type=analysis["analysis_type"],
@@ -89,30 +95,33 @@ async def get_portfolio(portfolio_id: str, username: str = Depends(verify_token)
         projects=analysis.get("projects", []),
         skills=analysis.get("skills", []),
         summary=analysis.get("summary"),
+        items=portfolio_items,
+        portfolio_items=portfolio_items,
     )
 
 
 # Alias for GET portfolio
-@router.get("/portfolio/{portfolio_id}", response_model=PortfolioDetail)
+@router.get("/portfolio/{portfolio_id}", response_model=PortfolioDetail, operation_id="get_portfolio_alias")
 async def get_portfolio_alias(portfolio_id: str, username: str = Depends(verify_token)):
     """Get detailed information about a specific portfolio (alias)."""
     return await get_portfolio(portfolio_id, username)
 
 
-@router.post("/portfolios/upload", status_code=202)
+@router.post("/portfolios/upload", status_code=202, operation_id="upload_new_portfolio")
 async def upload_new_portfolio(
     file: UploadFile = File(..., description="ZIP file containing project"),
     analysis_type: str = Form("llm", description="Analysis type: llm or non_llm"),
+    project_name: Optional[str] = Form(None, description="User-provided project name (for single project)"),
     username: str = Depends(verify_token),
 ):
     """Upload a new portfolio (create new analysis).
     Returns immediately with task ID.
     """
-    # Verify user consent
-    if not check_user_consent(username):
+    # Require consent only for LLM analysis; non_llm works without consent
+    if analysis_type == "llm" and not check_user_consent(username):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User consent required. Please provide consent before uploading.",
+            detail="Consent required for LLM analysis. Use non_llm or provide consent in Settings.",
         )
 
     # Validate file type
@@ -145,6 +154,24 @@ async def upload_new_portfolio(
             detail=f"Failed to save uploaded file: {str(e)}",
         )
 
+    # Early-exit: if the same ZIP content was already analysed for this user, return immediately
+    from backend.task_manager import FileManager
+
+    _file_hash = FileManager().calculate_file_hash(zip_path)
+    existing = get_analysis_by_file_hash(_file_hash, username)
+    print(f"[DUPLICATE CHECK] user={username!r} hash={_file_hash!r} existing={existing is not None}")
+    if existing:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        return MessageResponse(
+            message="Duplicate upload: returning existing analysis",
+            details={
+                "analysis_uuid": existing["analysis_uuid"],
+                "total_projects": existing["total_projects"],
+                "duplicate": True,
+                "status": "completed",
+            },
+        )
+
     # Queue for background processing
     task_manager = get_task_manager()
     task_id = task_manager.create_task(
@@ -153,6 +180,7 @@ async def upload_new_portfolio(
         filename=file.filename,
         file_path=zip_path,
         analysis_type=analysis_type,
+        project_name=project_name.strip() if project_name and project_name.strip() else None,
     )
 
     return MessageResponse(
@@ -167,10 +195,11 @@ async def upload_new_portfolio(
     )
 
 
-@router.post("/portfolios/{portfolio_id}/add", status_code=202)
+@router.post("/portfolios/{portfolio_id}/add", status_code=202, operation_id="add_to_existing_portfolio")
 async def add_to_existing_portfolio(
     portfolio_id: str,
     file: UploadFile = File(..., description="ZIP file with additional projects"),
+    analysis_type: str = Form("non_llm", description="Analysis type: llm or non_llm"),
     username: str = Depends(verify_token),
 ):
     """Add incremental information to an existing portfolio."""
@@ -182,11 +211,11 @@ async def add_to_existing_portfolio(
             detail=f"Portfolio {portfolio_id} not found or access denied",
         )
 
-    # Verify user consent
-    if not check_user_consent(username):
+    # Require consent only for LLM analysis
+    if analysis_type == "llm" and not check_user_consent(username):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User consent required",
+            detail="Consent required for LLM analysis. Use non_llm or provide consent in Settings.",
         )
 
     # Validate file type
@@ -234,7 +263,7 @@ async def add_to_existing_portfolio(
     )
 
 
-@router.delete("/portfolios/{portfolio_id}")
+@router.delete("/portfolios/{portfolio_id}", operation_id="delete_portfolio")
 async def delete_portfolio(portfolio_id: str, username: str = Depends(verify_token)):
     """Delete a portfolio and all associated data."""
 
@@ -259,7 +288,7 @@ async def delete_portfolio(portfolio_id: str, username: str = Depends(verify_tok
 
 
 # Consent endpoints (kept with portfolios for now)
-@router.post("/user/consent", response_model=ConsentResponse)
+@router.post("/user/consent", response_model=ConsentResponse, operation_id="save_consent")
 async def save_consent(consent: ConsentRequest, username: str = Depends(verify_token)):
     """Save user consent status."""
     try:
@@ -275,13 +304,13 @@ async def save_consent(consent: ConsentRequest, username: str = Depends(verify_t
         )
 
 
-@router.post("/privacy-consent", response_model=ConsentResponse)
+@router.post("/privacy-consent", response_model=ConsentResponse, operation_id="save_privacy_consent")
 async def save_privacy_consent(consent: ConsentRequest, username: str = Depends(verify_token)):
-    """Save user privacy consent status (alias for /api/user/consent)."""
+    """Save user privacy consent status."""
     return await save_consent(consent, username)
 
 
-@router.get("/user/consent", response_model=ConsentResponse)
+@router.get("/user/consent", response_model=ConsentResponse, operation_id="get_consent")
 async def get_consent(username: str = Depends(verify_token)):
     """Get user consent status."""
     try:
@@ -295,15 +324,14 @@ async def get_consent(username: str = Depends(verify_token)):
         )
 
 
-@router.post("/portfolio/generate")
+@router.post("/portfolio/generate", operation_id="generate_portfolio_document")
 async def generate_portfolio_document(
     portfolio_id: str,
     username: str = Depends(verify_token),
 ) -> Dict[str, Any]:
     """Generate a formatted portfolio document (PDF/HTML) from a portfolio."""
     try:
-        from backend.analysis.portfolio_item_generator import \
-            generate_portfolio_items
+        from backend.analysis.portfolio_item_generator import generate_portfolio_items
 
         analysis = get_analysis_by_uuid(portfolio_id, username)
         if not analysis:

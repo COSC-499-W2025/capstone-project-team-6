@@ -19,8 +19,7 @@ import pytest
 src_dir = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(src_dir))
 
-from backend.analysis.role_predictor import (DeveloperRole,
-                                             predict_developer_role)
+from backend.analysis.role_predictor import DeveloperRole, predict_developer_role
 from backend.analysis_database import get_analysis, init_db, record_analysis
 from backend.cli import analyze_folder, display_analysis
 

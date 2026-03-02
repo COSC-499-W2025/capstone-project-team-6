@@ -10,18 +10,14 @@ import zipfile
 from pathlib import Path
 from typing import Optional
 
-from . import (Folder_traversal_fs, MDAShell, UserAlreadyExistsError,
-               authenticate_user, create_user, initialize)
+from . import Folder_traversal_fs, MDAShell, UserAlreadyExistsError, authenticate_user, create_user, initialize
 from .analysis.analyze import calculate_composite_score
 from .analysis.deep_code_analyzer import generate_comprehensive_report
 from .analysis.document_analyzer import DocumentAnalysis, analyze_document
-from .analysis.role_predictor import (format_role_prediction,
-                                      predict_developer_role)
+from .analysis.role_predictor import format_role_prediction, predict_developer_role
 from .analysis_database import init_db
 from .consent import ask_for_consent
-from .curation_cli import (curate_project_rank_interactive,
-                           curate_roles_interactive,
-                           curate_skills_highlight_interactive)
+from .curation_cli import curate_project_rank_interactive, curate_roles_interactive, curate_skills_highlight_interactive
 
 # Avoid importing heavy optional dependencies at module import time
 
@@ -1274,9 +1270,7 @@ def main() -> int:
                     try:
                         import json
 
-                        from .analysis_database import (get_analysis,
-                                                        get_connection,
-                                                        record_analysis)
+                        from .analysis_database import get_analysis, get_connection, record_analysis
 
                         analysis_id = None
                         analysis_uuid = None
@@ -1329,8 +1323,7 @@ def main() -> int:
                                     )
 
                                     # Merge with existing results using smart comparison
-                                    from .project_comparison import \
-                                        process_incremental_projects
+                                    from .project_comparison import process_incremental_projects
 
                                     existing_projects = results.get("projects", [])
                                     new_projects = new_results.get("projects", [])
@@ -1351,8 +1344,7 @@ def main() -> int:
                                     # Update database
                                     import json
 
-                                    from .analysis_database import \
-                                        get_connection
+                                    from .analysis_database import get_connection
 
                                     with get_connection() as conn:
                                         conn.execute(
@@ -1479,13 +1471,9 @@ def main() -> int:
                                 active_features.append("resume")
 
                         try:
-                            from rich.progress import (BarColumn, Progress,
-                                                       SpinnerColumn,
-                                                       TaskProgressColumn,
-                                                       TextColumn)
+                            from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
 
-                            from .analysis.llm_pipeline import \
-                                run_gemini_analysis
+                            from .analysis.llm_pipeline import run_gemini_analysis
 
                             print(f"[*] Running Gemini analysis on: {llm_target_path}")
 
@@ -1610,8 +1598,7 @@ def main() -> int:
                     print_resume_items(results)
 
                     # Generate portfolio items (separate from resume)
-                    from .analysis.portfolio_item_generator import \
-                        generate_portfolio_item
+                    from .analysis.portfolio_item_generator import generate_portfolio_item
 
                     print("\n" + "=" * 70)
                     print("  GENERATED PORTFOLIO ITEMS")
@@ -1737,9 +1724,7 @@ def main() -> int:
 
         elif args.command == "timeline":
             # No login/consent required to view previously stored aggregate timelines
-            from .analysis.chronology import (get_all_skills_chronological,
-                                              get_projects_timeline,
-                                              get_skills_timeline)
+            from .analysis.chronology import get_all_skills_chronological, get_projects_timeline, get_skills_timeline
 
             try:
                 init_db()
@@ -1850,10 +1835,13 @@ def main() -> int:
                 from .curation_cli import (
                     curate_chronology_interactive,
                     curate_comparison_attributes_interactive,
-                    curate_project_rank_interactive, curate_roles_interactive,
+                    curate_project_rank_interactive,
+                    curate_roles_interactive,
                     curate_showcase_projects_interactive,
                     curate_skills_highlight_interactive,
-                    display_curation_status, display_showcase_summary)
+                    display_curation_status,
+                    display_showcase_summary,
+                )
 
                 init_db()
                 init_curation_tables()

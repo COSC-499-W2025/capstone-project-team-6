@@ -503,8 +503,7 @@ def generate_comprehensive_report(
 
                 # Phase 4: Add complexity analysis (Python & Java)
                 try:
-                    from .complexity_analyzer import \
-                        analyze_project as analyze_complexity
+                    from .complexity_analyzer import analyze_project as analyze_complexity
 
                     # Get Python and Java files for this project
                     code_files = []
