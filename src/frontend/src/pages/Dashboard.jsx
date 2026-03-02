@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/Navigation';
-import { projectsAPI, portfoliosAPI } from '../services/api';
+import { projectsAPI, portfoliosAPI, curationAPI } from '../services/api';
 import api from '../services/api';
 
 const Dashboard = () => {
@@ -16,6 +16,8 @@ const Dashboard = () => {
     skillsDetected: 0,
     aiAnalyzedProjects: 0,
   });
+
+  const [showcaseProjects, setShowcaseProjects] = useState([]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -54,6 +56,11 @@ const Dashboard = () => {
     };
 
     fetchDashboardData();
+
+    // Fetch showcase projects
+    curationAPI.getShowcase()
+      .then((data) => setShowcaseProjects(Array.isArray(data) ? data : []))
+      .catch(() => setShowcaseProjects([]));
   }, []);
 
   const quickActions = [
@@ -380,6 +387,126 @@ const Dashboard = () => {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Showcase Projects */}
+        <div style={{ marginTop: '48px' }}>
+          <h2 style={{
+            fontSize: '24px',
+            fontWeight: '600',
+            color: '#1a1a1a',
+            margin: '0 0 20px 0',
+          }}>
+             Showcase Projects
+          </h2>
+
+          {showcaseProjects.length > 0 ? (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${Math.min(showcaseProjects.length, 3)}, 1fr)`,
+              gap: '24px',
+            }}>
+              {showcaseProjects.map((project, index) => (
+                <div
+                  key={project.id}
+                  onClick={() => navigate('/projects', { state: { showcaseProjectId: project.id } })}
+                  style={{
+                    backgroundColor: 'white',
+                    padding: '24px',
+                    borderRadius: '16px',
+                    border: '2px solid #f59e0b',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    position: 'relative',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-4px)';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(245, 158, 11, 0.15)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  <span style={{
+                    position: 'absolute',
+                    top: '-10px',
+                    right: '14px',
+                    padding: '2px 10px',
+                    borderRadius: '999px',
+                    backgroundColor: '#f59e0b',
+                    color: 'white',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                  }}>⭐ Top {index + 1}</span>
+
+                  <h3 style={{
+                    fontSize: '18px',
+                    fontWeight: '600',
+                    color: '#1a1a1a',
+                    margin: '0 0 8px 0',
+                  }}>
+                    {project.project_name || 'Unnamed Project'}
+                  </h3>
+
+                  <div style={{ fontSize: '14px', color: '#525252', marginBottom: '4px' }}>
+                    {project.primary_language || 'Unknown language'}
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#737373' }}>
+                    {project.total_files ?? 0} files
+                    {project.has_tests ? ' • Has tests' : ''}
+                  </div>
+
+                  {(project.frameworks?.length > 0) && (
+                    <div style={{
+                      marginTop: '10px',
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '6px',
+                    }}>
+                      {project.frameworks.slice(0, 3).map((fw) => (
+                        <span key={fw} style={{
+                          padding: '2px 8px',
+                          borderRadius: '999px',
+                          backgroundColor: '#fef3c7',
+                          color: '#92400e',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                        }}>{fw}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{
+              backgroundColor: 'white',
+              padding: '32px',
+              borderRadius: '12px',
+              border: '1px solid #e5e5e5',
+              textAlign: 'center',
+            }}>
+              <p style={{ color: '#737373', margin: '0 0 12px 0' }}>
+                No showcase projects selected yet.
+              </p>
+              <button
+                onClick={() => navigate('/curate')}
+                style={{
+                  padding: '8px 20px',
+                  borderRadius: '8px',
+                  border: '1px solid #f59e0b',
+                  backgroundColor: '#fffbeb',
+                  color: '#b45309',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                }}
+              >
+                Select your top projects →
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
