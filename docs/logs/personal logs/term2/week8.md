@@ -91,4 +91,64 @@ Specifically, ensuring that all API tests were properly executed over HTTP (rath
 
 # Harjot Sahota
 
+## **Date ranges**
+
+February 9 – March 1
+
+---
+
+## **What went well**
+
+- This week I completed all major updates to the Settings page by adding full support for persistent personal information management. This included backend updates, the new `DELETE /api/resume/personal-info` endpoint, improved UI, and full Vitest coverage for loading, saving, deleting, and consent behavior.
+
+- I also helped organize and assign tasks for our team’s video demonstration. I created clear lists of all bugs and remaining todos on our branch, which helped the team stay coordinated and finish recording efficiently.
+
+- I restored the “Delete All Projects” button since it was removed accidentally in a previous PR and fixed the broken single-project deletion flow. After debugging, both delete actions now call the correct project-based API endpoints and work cleanly end-to-end.
+
+- During preparation for the demo, our team found small errors in the app. I helped identify and fix these so our demonstration could run smoothly.
+
+---
+
+## **What didn’t go well**
+
+- My previous delete implementation stopped working because another PR changed how the delete endpoint worked. This caused a lot of debugging before I finally discovered the root cause and fixed it properly.
+
+- While preparing for the video demonstration, we found several small code issues that took extra time to fix. It didn’t block progress, but it slowed things down and added extra stress to the week.
+
+---
+
+## **PRs initiated**
+
+- **Extend Settings page with personal info deletion + full test coverage**  
+  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/379  
+
+- **Fix delete buttons + restore Delete All Projects functionality**  
+  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/387  
+
+- **Improve Personal Information + Resume workflow (backend + UI integration)**  
+  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/402  
+
+---
+
+## **PRs reviewed**
+
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/390  
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/398  
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/394  
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/389  
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/382  
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/381  
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/377  
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/373  
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/368  
+
+---
+
+## **Plans for next week**
+
+Next week, I plan to implement an API key input feature in the Settings page so users can enter their own key and enable LLM-based analysis. This will require new UI work, backend support, and updates to the resume/analysis pipeline to allow the system to use the user’s stored key during generation.
+
+
+
+
 # Mohamed Sakr
