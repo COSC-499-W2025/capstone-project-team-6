@@ -13,14 +13,14 @@ export default function AnalyzePage() {
   const { user } = useAuth();
   
 
-  const uploadId = sessionStorage.getItem("upload_id");
-  const taskIdFromNav = location.state?.taskId ?? null;
+  const taskIdFromNav = location.state?.taskId ?? sessionStorage.getItem("analyze_task_id") ?? null;
   const displayInfo = taskIdFromNav ? `Task: ${taskIdFromNav}` : "(missing taskId — please upload and analyze again)";
 
   const [status, setStatus] = useState("starting"); // starting | running | completed | failed
   const [progress, setProgress] = useState(0);
   const [taskId, setTaskId] = useState(null);
   const [error, setError] = useState("");
+  const [analysisPhase, setAnalysisPhase] = useState(null); // "non_llm" | "llm" | null
 
   const pollTimerRef = useRef(null);
   const cancelledRef = useRef(false);
@@ -73,6 +73,7 @@ export default function AnalyzePage() {
 
       const p = typeof data.progress === "number" ? data.progress : 0;
       setProgress(Math.max(0, Math.min(100, p)));
+      setAnalysisPhase(data.analysis_phase || null);
 
       const s = (data.status || "").toLowerCase();
       if (s === "completed") {
@@ -83,8 +84,13 @@ export default function AnalyzePage() {
         if (analysisUuid) {
           sessionStorage.setItem("portfolio_id", analysisUuid);
         }
+        sessionStorage.removeItem("analyze_task_id");
 
-        navigate("/projects");
+        if (data?.result?.duplicate === true) {
+          navigate("/upload", { state: { duplicateMessage: "This project has already been analyzed. You can view it in your projects." } });
+        } else {
+          navigate("/projects");
+        }
 
 
       } else if (s === "failed") {
@@ -151,6 +157,14 @@ export default function AnalyzePage() {
           {taskId ? " · " : ""}
           {`${progress}%`}
         </div>
+
+        {status === "running" && analysisPhase && (
+          <div style={{ marginTop: 8, fontSize: 13, color: "#4f46e5" }}>
+            Type of analysis: {analysisPhase === "llm" ? "LLM" : "non-LLM"}
+            {analysisPhase === "non_llm" && " — Completing non-LLM analysis"}
+            {analysisPhase === "llm" && " — Running LLM analysis"}
+          </div>
+        )}
 
         {error ? (
           <div style={{ marginTop: 12, color: "#b91c1c" }}>

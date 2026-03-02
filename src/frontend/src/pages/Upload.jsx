@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Navigation from '../components/Navigation';
 import api from '../services/api';
-import { portfoliosAPI } from '../services/api';
+import { consentAPI, portfoliosAPI } from '../services/api';
 
 // Max file size: 500MB
 const MAX_FILE_SIZE_MB = 500;
@@ -10,6 +10,7 @@ const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 const Upload = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const fileInputRef = useRef(null);
   const dragCounter = useRef(0);
 
@@ -34,8 +35,26 @@ const Upload = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState('');
+  const [duplicateMessage, setDuplicateMessage] = useState(location.state?.duplicateMessage || '');
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [incrementalResults, setIncrementalResults] = useState(null);
+
+  // Consent and analysis type: fetch consent on mount; useLLMAnalysis only when consented
+  const [hasConsented, setHasConsented] = useState(false);
+  const [useLLMAnalysis, setUseLLMAnalysis] = useState(false);
+
+  useEffect(() => {
+    consentAPI.getConsent()
+      .then((res) => setHasConsented(!!res?.has_consented))
+      .catch(() => setHasConsented(false));
+  }, []);
+
+  const effectiveAnalysisType = (hasConsented && useLLMAnalysis) ? 'llm' : 'non_llm';
+
+  const canAnalyzeSingle = selectedFile && projectName.trim().length > 0;
+  const isSubmitDisabled = isUploading || (activeTab === 'single' && !canAnalyzeSingle)
+    || (activeTab === 'incremental' && (!selectedPortfolio || !incrementalFile))
+    || (activeTab === 'multiple' && multipleFiles.length === 0);
 
   // Load portfolios when incremental tab is selected
   useEffect(() => {
@@ -177,6 +196,10 @@ const Upload = () => {
       setError('Please select a ZIP file to upload');
       return;
     }
+    if (activeTab === 'single' && !projectName.trim()) {
+      setError('Please enter a project name');
+      return;
+    }
 
     if (activeTab === 'multiple' && multipleFiles.length === 0) {
       setError('Please select at least one ZIP file to upload');
@@ -196,20 +219,28 @@ const Upload = () => {
 
     setIsUploading(true);
     setError('');
+    setDuplicateMessage('');
 
+    let taskIdForAnalyze = null;
     try {
       if (activeTab === 'single') {
         const formData = new FormData();
         formData.append('file', selectedFile);
-        formData.append('analysis_type', 'non_llm');
-        // Note: project_name and description are stored locally but not sent
-        // to the API as the backend doesn't currently support these fields
+        formData.append('analysis_type', effectiveAnalysisType);
+        formData.append('project_name', projectName.trim());
 
         const res = await api.post('/portfolios/upload', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
 
-        console.log("UPLOAD RESPONSE DATA:", res.data);
+        console.log('Upload response:', res.data);
+        console.log('Duplicate flag:', res?.data?.details?.duplicate);
+
+        // Duplicate: this ZIP was already analysed — skip re-analysis
+        if (res?.data?.details?.duplicate === true) {
+          setDuplicateMessage('This project has already been analyzed. You can view it in your projects.');
+          return;
+        }
 
         // Backend returns task_id inside details
         const taskId = res?.data?.task_id || res?.data?.details?.task_id;
@@ -218,9 +249,11 @@ const Upload = () => {
           throw new Error("Upload succeeded but no task_id was returned by the server.");
         }
 
-        // Go straight to Analyze page
+        // Go straight to Analyze page; persist taskId for refresh/back navigation
+        taskIdForAnalyze = taskId;
+        sessionStorage.setItem("analyze_task_id", taskId);
         navigate("/analyze", { state: { taskId } });
-        return; 
+        return;
 
 
       } else if (activeTab === 'multiple') {
@@ -236,12 +269,18 @@ const Upload = () => {
           try {
             const formData = new FormData();
             formData.append('file', file);
-            formData.append('analysis_type', 'non_llm');
+            formData.append('analysis_type', effectiveAnalysisType);
 
             const res = await api.post('/portfolios/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-            const uploadId = res?.data?.upload_id;
-            if (uploadId) sessionStorage.setItem("upload_id", String(uploadId));
-
+            if (res?.data?.details?.duplicate) {
+              errors.push(`${file.name}: Already analyzed (duplicate)`);
+            } else {
+              const taskId = res?.data?.task_id || res?.data?.details?.task_id;
+              if (taskId) {
+                taskIdForAnalyze = taskId;
+                sessionStorage.setItem("analyze_task_id", taskId);
+              }
+            }
           } catch (err) {
             const errorMsg = err.response?.data?.detail || 'Upload failed';
             errors.push(`${file.name}: ${errorMsg}`);
@@ -346,8 +385,12 @@ const Upload = () => {
         fileInputRef.current.value = '';
       }
 
-      // Navigate to analyze page after successful upload
-      navigate('/analyze');
+      // Navigate to analyze page after successful upload (with taskId for multiple)
+      if (taskIdForAnalyze) {
+        navigate("/analyze", { state: { taskId: taskIdForAnalyze } });
+      } else {
+        navigate('/analyze');
+      }
     } catch (err) {
       console.error('Upload error:', err);
       setError(err.response?.data?.detail || err.message || 'Failed to upload project. Please try again.');
@@ -465,6 +508,21 @@ const Upload = () => {
           </button>
         </div>
 
+        {/* Duplicate Message — shown above the card so it is always visible */}
+        {duplicateMessage && (
+          <div style={{
+            padding: '16px 20px',
+            backgroundColor: '#eff6ff',
+            border: '1px solid #93c5fd',
+            borderRadius: '10px',
+            marginBottom: '24px',
+          }}>
+            <p style={{ fontSize: '15px', fontWeight: '500', color: '#1d4ed8', margin: 0 }}>
+              {duplicateMessage}
+            </p>
+          </div>
+        )}
+
         {/* Upload Card */}
         <div style={{
           backgroundColor: '#ffffff',
@@ -560,6 +618,33 @@ const Upload = () => {
                   onBlur={(e) => e.target.style.borderColor = '#e5e5e5'}
                 />
               </div>
+
+              {/* AI-enhanced analysis (requires consent) */}
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  fontSize: '14px',
+                  color: '#1a1a1a',
+                  cursor: hasConsented ? 'pointer' : 'not-allowed',
+                  opacity: hasConsented ? 1 : 0.6,
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={useLLMAnalysis}
+                    onChange={(e) => setUseLLMAnalysis(e.target.checked)}
+                    disabled={!hasConsented}
+                    style={{ width: '18px', height: '18px', cursor: hasConsented ? 'pointer' : 'not-allowed' }}
+                  />
+                  <span>Use AI-enhanced analysis (requires consent in Settings)</span>
+                </label>
+                {!hasConsented && (
+                  <p style={{ fontSize: '12px', color: '#737373', margin: '4px 0 0 28px' }}>
+                    Enable in Settings to use AI-powered analysis
+                  </p>
+                )}
+              </div>
             </>
           ) : activeTab === 'multiple' ? (
             <>
@@ -580,6 +665,28 @@ const Upload = () => {
                 }}>
                   Analyze multiple projects at once
                 </p>
+              </div>
+
+              {/* AI-enhanced analysis for multiple */}
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  fontSize: '14px',
+                  color: '#1a1a1a',
+                  cursor: hasConsented ? 'pointer' : 'not-allowed',
+                  opacity: hasConsented ? 1 : 0.6,
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={useLLMAnalysis}
+                    onChange={(e) => setUseLLMAnalysis(e.target.checked)}
+                    disabled={!hasConsented}
+                    style={{ width: '18px', height: '18px', cursor: hasConsented ? 'pointer' : 'not-allowed' }}
+                  />
+                  <span>Use AI-enhanced analysis (requires consent in Settings)</span>
+                </label>
               </div>
             </>
           ) : (
@@ -926,24 +1033,24 @@ const Upload = () => {
           {/* Submit Button */}
           <button
             onClick={handleSubmit}
-            disabled={isUploading}
+            disabled={isSubmitDisabled}
             style={{
               width: '100%',
               padding: '14px 24px',
-              backgroundColor: isUploading ? '#9ca3af' : '#1a1a1a',
+              backgroundColor: isSubmitDisabled ? '#9ca3af' : '#1a1a1a',
               color: '#ffffff',
               border: 'none',
               borderRadius: '8px',
               fontSize: '14px',
               fontWeight: '500',
-              cursor: isUploading ? 'not-allowed' : 'pointer',
+              cursor: isSubmitDisabled ? 'not-allowed' : 'pointer',
               transition: 'background-color 0.2s ease',
             }}
             onMouseEnter={(e) => {
-              if (!isUploading) e.target.style.backgroundColor = '#333333';
+              if (!isSubmitDisabled) e.target.style.backgroundColor = '#333333';
             }}
             onMouseLeave={(e) => {
-              if (!isUploading) e.target.style.backgroundColor = '#1a1a1a';
+              if (!isSubmitDisabled) e.target.style.backgroundColor = '#1a1a1a';
             }}
           >
             {isUploading

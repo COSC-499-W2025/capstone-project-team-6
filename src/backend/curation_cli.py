@@ -15,18 +15,27 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 try:
-    from .curation import (ATTRIBUTE_DESCRIPTIONS,
-                           DEFAULT_COMPARISON_ATTRIBUTES,
-                           ProjectChronologyCorrection,
-                           format_project_comparison,
-                           get_available_skills_alphabetical,
-                           get_chronology_corrections, get_curated_role,
-                           get_showcase_projects, get_user_curation_settings,
-                           get_user_projects, get_user_projects_with_roles,
-                           init_curation_tables, save_chronology_correction,
-                           save_comparison_attributes, save_curated_role,
-                           save_highlighted_skills, save_project_order,
-                           save_showcase_projects, validate_date_format)
+    from .curation import (
+        ATTRIBUTE_DESCRIPTIONS,
+        DEFAULT_COMPARISON_ATTRIBUTES,
+        ProjectChronologyCorrection,
+        format_project_comparison,
+        get_available_skills_alphabetical,
+        get_chronology_corrections,
+        get_curated_role,
+        get_showcase_projects,
+        get_user_curation_settings,
+        get_user_projects,
+        get_user_projects_with_roles,
+        init_curation_tables,
+        save_chronology_correction,
+        save_comparison_attributes,
+        save_curated_role,
+        save_highlighted_skills,
+        save_project_order,
+        save_showcase_projects,
+        validate_date_format,
+    )
 except ImportError:
     # Handle direct execution or testing
     import sys
@@ -34,22 +43,27 @@ except ImportError:
     current_dir = Path(__file__).parent
     src_dir = current_dir.parent
     sys.path.insert(0, str(src_dir))
-    from backend.curation import (ATTRIBUTE_DESCRIPTIONS,
-                                  DEFAULT_COMPARISON_ATTRIBUTES,
-                                  ProjectChronologyCorrection,
-                                  format_project_comparison,
-                                  get_available_skills_alphabetical,
-                                  get_chronology_corrections, get_curated_role,
-                                  get_showcase_projects,
-                                  get_user_curation_settings,
-                                  get_user_projects,
-                                  get_user_projects_with_roles,
-                                  init_curation_tables,
-                                  save_chronology_correction,
-                                  save_comparison_attributes,
-                                  save_curated_role, save_highlighted_skills,
-                                  save_project_order, save_showcase_projects,
-                                  validate_date_format)
+    from backend.curation import (
+        ATTRIBUTE_DESCRIPTIONS,
+        DEFAULT_COMPARISON_ATTRIBUTES,
+        ProjectChronologyCorrection,
+        format_project_comparison,
+        get_available_skills_alphabetical,
+        get_chronology_corrections,
+        get_curated_role,
+        get_showcase_projects,
+        get_user_curation_settings,
+        get_user_projects,
+        get_user_projects_with_roles,
+        init_curation_tables,
+        save_chronology_correction,
+        save_comparison_attributes,
+        save_curated_role,
+        save_highlighted_skills,
+        save_project_order,
+        save_showcase_projects,
+        validate_date_format,
+    )
 
 
 def curate_chronology_interactive(user_id: str) -> None:

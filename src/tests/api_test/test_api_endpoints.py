@@ -205,6 +205,7 @@ class TestAnalysisEndpoints:
 
     def test_quick_analysis_requires_file(self, client):
         import uuid
+
         username = f"testuser_{uuid.uuid4().hex[:8]}"
         password = "testpass123"
         signup = client.post("/api/auth/signup", json={"username": username, "password": password})
@@ -215,6 +216,7 @@ class TestAnalysisEndpoints:
 
     def test_reanalyze_portfolio_not_found(self, client):
         import uuid
+
         username = f"testuser_{uuid.uuid4().hex[:8]}"
         password = "testpass123"
         signup = client.post("/api/auth/signup", json={"username": username, "password": password})
@@ -225,7 +227,7 @@ class TestAnalysisEndpoints:
             data={"analysis_type": "llm"},
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert resp.status_code in (404, 501)  
+        assert resp.status_code in (404, 501)
 
 
 class TestCurationEndpoints:

@@ -16,11 +16,14 @@ sys.path.insert(0, str(src_dir))
 sys.path.insert(0, str(backend_dir))
 
 try:
-    from analysis.java_oop_analyzer import (JavaOOPAnalysis, JavaOOPAnalyzer,
-                                            analyze_java_file,
-                                            calculate_oop_score,
-                                            calculate_solid_score,
-                                            get_coding_style)
+    from analysis.java_oop_analyzer import (
+        JavaOOPAnalysis,
+        JavaOOPAnalyzer,
+        analyze_java_file,
+        calculate_oop_score,
+        calculate_solid_score,
+        get_coding_style,
+    )
 
     JAVALANG_AVAILABLE = True
 except ImportError:

@@ -19,17 +19,22 @@ SRC = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(SRC))
 
 from backend import analysis_database as db
-from backend.curation import (ATTRIBUTE_DESCRIPTIONS,
-                              DEFAULT_COMPARISON_ATTRIBUTES,
-                              ProjectChronologyCorrection,
-                              ProjectCurationSettings,
-                              format_project_comparison,
-                              get_chronology_corrections,
-                              get_showcase_projects,
-                              get_user_curation_settings, get_user_projects,
-                              init_curation_tables, save_chronology_correction,
-                              save_comparison_attributes,
-                              save_showcase_projects, validate_date_format)
+from backend.curation import (
+    ATTRIBUTE_DESCRIPTIONS,
+    DEFAULT_COMPARISON_ATTRIBUTES,
+    ProjectChronologyCorrection,
+    ProjectCurationSettings,
+    format_project_comparison,
+    get_chronology_corrections,
+    get_showcase_projects,
+    get_user_curation_settings,
+    get_user_projects,
+    init_curation_tables,
+    save_chronology_correction,
+    save_comparison_attributes,
+    save_showcase_projects,
+    validate_date_format,
+)
 
 
 @pytest.fixture(autouse=True)

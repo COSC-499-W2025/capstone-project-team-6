@@ -11,9 +11,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from backend.analysis_database import (get_analysis_by_uuid,
-                                       get_project_by_path_and_portfolio,
-                                       update_project_thumbnail)
+from backend.analysis_database import get_analysis_by_uuid, get_project_by_path_and_portfolio, update_project_thumbnail
 from backend.api.auth import verify_token
 from backend.curation import get_user_projects
 from backend.api.portfolios import upload_new_portfolio
@@ -299,10 +297,7 @@ async def get_project_thumbnail(project_id: str, username: str = Depends(verify_
     # Get thumbnail path
     thumbnail_path = project_db_row["thumbnail_image_path"]
     if not thumbnail_path:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No thumbnail set for this project",
-        )
+        return Response(status_code=204)
 
     # Construct full file path and validate to prevent directory traversal
     full_path = (Path(__file__).parent.parent / thumbnail_path).resolve()

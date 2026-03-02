@@ -51,6 +51,7 @@ describe('AnalyzePage', () => {
 
   describe('Initial state', () => {
     it('shows error when taskId is missing', () => {
+      sessionStorage.removeItem('analyze_task_id');
       render(
         <MemoryRouter initialEntries={['/analyze']}>
           <AnalyzePage />
@@ -128,7 +129,7 @@ describe('AnalyzePage', () => {
       await waitFor(() => {
         expect(screen.getByText(/Invalid ZIP/)).toBeInTheDocument();
       });
-      expect(screen.getByText(/Analysis failed: Invalid ZIP/)).toBeInTheDocument();
+      expect(screen.getAllByText(/Analysis failed: Invalid ZIP/).length).toBeGreaterThan(0);
     });
 
     it('has Go to Projects button disabled until complete', async () => {
@@ -140,6 +141,56 @@ describe('AnalyzePage', () => {
       });
       const goButton = screen.getByText('Go to Projects');
       expect(goButton).toBeDisabled();
+    });
+
+    it('uses sessionStorage fallback when location.state has no taskId', async () => {
+      sessionStorage.setItem('analyze_task_id', 'task-from-storage');
+      getTaskStatus.mockResolvedValue({ status: 'running', progress: 50 });
+      render(
+        <MemoryRouter initialEntries={[{ pathname: '/analyze', state: {} }]}>
+          <AnalyzePage />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(getTaskStatus).toHaveBeenCalledWith('task-from-storage', 'test-token');
+      });
+      expect(screen.getAllByText(/Task: task-from-storage/).length).toBeGreaterThan(0);
+      sessionStorage.removeItem('analyze_task_id');
+    });
+
+    it('shows analysis phase when running (non-LLM)', async () => {
+      getTaskStatus.mockResolvedValue({
+        status: 'running',
+        progress: 60,
+        analysis_phase: 'non_llm',
+      });
+      renderWithState();
+
+      await waitFor(() => {
+        expect(getTaskStatus).toHaveBeenCalled();
+      });
+      await waitFor(() => {
+        expect(screen.getByText(/Type of analysis: non-LLM/)).toBeInTheDocument();
+      });
+      expect(screen.getByText(/Completing non-LLM analysis/)).toBeInTheDocument();
+    });
+
+    it('shows analysis phase when running (LLM)', async () => {
+      getTaskStatus.mockResolvedValue({
+        status: 'running',
+        progress: 95,
+        analysis_phase: 'llm',
+      });
+      renderWithState();
+
+      await waitFor(() => {
+        expect(getTaskStatus).toHaveBeenCalled();
+      });
+      await waitFor(() => {
+        expect(screen.getByText(/Type of analysis: LLM/)).toBeInTheDocument();
+      });
+      expect(screen.getByText(/Running LLM analysis/)).toBeInTheDocument();
     });
   });
 });

@@ -6,9 +6,7 @@ from unittest.mock import patch
 import pytest
 
 from backend.consent import ask_for_consent
-from backend.database import (check_user_consent, create_user, get_connection,
-                              get_db_path, initialize, reset_db,
-                              save_user_consent)
+from backend.database import check_user_consent, create_user, get_connection, get_db_path, initialize, reset_db, save_user_consent
 from backend.session import get_session, save_session
 
 
