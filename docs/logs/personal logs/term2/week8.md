@@ -92,3 +92,83 @@ Specifically, ensuring that all API tests were properly executed over HTTP (rath
 # Harjot Sahota
 
 # Mohamed Sakr
+
+## Date Ranges
+
+February 9-March 1
+![Mohamed Week 8](mohamedW8T2.png)
+
+## Goals for this week (planned last sprint)
+
+- Continue improving frontend-backend communication using FastAPI
+- Fix any additional bugs found during peer testing
+- Finalize all API endpoints and fix tests
+- Present the milestone 2 requirements in class
+- Stabilize Portfolio page end-to-end rendering by aligning backend response contracts with frontend expectations
+- Improve Portfolio UI resilience (deduplication, fallback highlighted skills, and clearer available analyses labels)
+- Align and expand Portfolio test coverage to prevent regressions after recent UI and API-contract updates
+- Expand Milestone 2 README Service/API + Human-in-the-Loop documentation with clear high-level architecture and low-level implementation guidance
+- Expanded the architecture and DFD diagrams to reflect the changes in terms of new features, API endpoints, and the frontend.
+- Perform detailed code reviews across major curation/portfolio PRs to validate architecture quality, UX behavior, and backend/frontend integration risks.
+- Verify that newly added curation features are protected by strong automated tests and call out any remaining regression or usability gaps.
+
+## What went well
+
+This week went well because I was able to fix a full end-to-end Portfolio rendering issue by aligning backend responses with frontend expectations. I updated the portfolio detail response contract so it consistently returns `items` and `portfolio_items`, which allowed the Portfolio page to render portfolio points reliably instead of showing empty states.
+
+I also improved UI resilience by making highlighted skills derive from `portfolio_items[].skills_exercised` whenever `skills` is empty. This prevented missing-skill states when analysis data existed but was shaped differently than older frontend assumptions. In addition, I updated the "Available analyses" cards to use project names from the analysis payload instead of generic analysis type labels (LLM/NON_LLM), which made the page much clearer from a user perspective.
+
+Another major positive was test alignment. I expanded the Portfolio page test suite so it now covers current behavior: portfolio metadata rendering, quality/sophistication display (including `project_statistics` fallback), derived highlighted skills behavior, project-name card titles, and empty-state handling. This gave me stronger confidence that these fixes are stable and less likely to regress.
+
+## What didn't go well
+
+The biggest challenge was debugging root causes that were split across multiple layers. The frontend symptoms looked simple ("No portfolio items", missing highlighted skills), but the real issues involved API response shape mismatches, field availability differences, and stale test expectations after UI changes. Tracing and validating all of these together took longer than expected.
+
+I also had to spend extra effort on duplicate item behavior during reanalysis. To fully resolve it, I implemented both cleanup and fetch-side controls: removing `portfolio_items` on child reanalysis and returning only the latest portfolio item per project during analysis item fetch. This was necessary, but it added complexity and increased implementation/testing time.
+
+## Coding tasks
+
+- **API contract alignment:** Updated portfolio detail responses to include portfolio items in a consistent structure (`items` and `portfolio_items`) for reliable frontend rendering.
+- **Deduplication and lifecycle cleanup:** Prevented duplicate portfolio items by cleaning `portfolio_items` on reanalysis and limiting analysis item fetches to the latest item per project.
+- **Highlighted skills fallback logic:** Added derivation of highlighted skills from `portfolio_items[].skills_exercised` when `skills` is empty.
+- **Available analyses card title fix:** Switched card titles to project names from the analysis payload instead of analysis type labels.
+- **Portfolio page product update:** Removed the Summary section from the Portfolio page based on product request.
+- **End-to-end rendering stabilization:** Verified that portfolio points now render consistently with real analysis data paths.
+
+
+
+## Testing or debugging tasks
+
+- **Portfolio test suite refresh:** Updated tests to match current UI behavior and removed outdated checks tied to the removed Summary section.
+- **Metadata rendering coverage:** Added/updated tests for portfolio title, summary, tech stack, and skills rendering behavior.
+- **Quality/sophistication fallback coverage:** Added explicit tests for nested `project_statistics` fallback display logic.
+- **Derived highlighted skills validation:** Added tests ensuring highlighted skills still populate when `skills` is empty by using portfolio item data.
+- **Available analyses labeling checks:** Added assertions that card titles come from `project_names` rather than LLM/NON_LLM labels.
+- **Empty-state regression checks:** Added coverage for responses with no portfolio items to ensure graceful and correct empty-state UI.
+
+## Reviewing or collaboration tasks
+
+- **Reviewed comprehensive curation platform PR (backend + frontend + persistence):** Assessed the 8-endpoint FastAPI curation API, JWT-protected routes, Pydantic validation, SQLite persistence, and the full 5-tab React curation experience (showcase, comparison attributes, highlighted skills, chronology correction, custom order). Feedback highlighted strong validation/error handling, good state persistence, and well-scoped tests.
+- **Reviewed consent flow bug-fix PR with UX risk callout:** Confirmed backend boolean-consent handling improvements (`save_user_consent(..., False)` default and migration helper) and new tests, while flagging a non-blocking but important UX regression: users who decline consent now enter the app and only encounter downstream 403s without clear guidance. Requested explicit messaging/gating or restoration of the prior logout clarity.
+- **Reviewed thumbnail removal + console-noise cleanup PR:** Validated the new remove-thumbnail flow, blob URL revocation to avoid memory leaks, expected 404 handling for "no thumbnail" cases, and cleanup robustness. Provided polish feedback to ensure delete action feedback is visible during async operations.
+- **Reviewed curation integration across Portfolio/Resume/Projects/Dashboard PR:** Manually tested curated ranking, ordering, skills/attributes propagation, chronology overrides, showcase filtering/navigation, and dashboard showcase presentation. Confirmed curated behavior works consistently across pages and called out the implementation as production-ready.
+- **Reviewed follow-up curation integration test-coverage PR:** Found no blocking issues; verified backend/frontend coverage for highlighted-skills precedence, API forwarding, showcase rendering/navigation, sorting/filter states, and error/empty/loading paths. Confirmed test execution results (20/20 backend pass, 29/29 frontend pass) and noted only minor environment-warning noise with no functional impact.
+
+## Non coding tasks
+- **README documentation PR (Milestone 2 Service/API + HITL):** Expanded the README section to clearly describe the FastAPI service as the frontend/backend mediator and added implementation-level details for API contracts/OpenAPI generation, async job lifecycle orchestration, local session/profile isolation, incremental ZIP ingest behavior, deduplication + canonical artifact storage, and Human-in-the-Loop curation workflows (representation overrides, role attribution, evidence linking, thumbnail association, saved showcase/resume wording customization, and portfolio/resume text rendering). Also added a dedicated FastAPI endpoint map covering health checks, portfolio lifecycle, ingest/jobs, curation updates, and text rendering endpoints.
+- **Updated our architecture and DFD diagrams:** Expanded the architecture and DFD diagrams to reflect the changes in terms of new features, API endpoints, and the frontend.
+
+## **Issues / Blockers**
+-No major blockers this week
+
+## PR's initiated
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/375
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/377
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/403
+
+## PR's reviewed
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/399
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/395
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/389
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/373
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/368
