@@ -64,7 +64,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
     return token_data["username"]
 
 
-@router.post("/signup", response_model=TokenResponse, status_code=201)
+@router.post("/signup", response_model=TokenResponse, status_code=201, operation_id="auth_signup")
 async def signup(credentials: UserCredentials):
     """Register a new user and return access token."""
     try:
@@ -84,7 +84,7 @@ async def signup(credentials: UserCredentials):
         )
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=TokenResponse, operation_id="auth_login")
 async def login(credentials: UserCredentials):
     """Login and return access token."""
     if authenticate_user(credentials.username, credentials.password):
@@ -100,7 +100,7 @@ async def login(credentials: UserCredentials):
         )
 
 
-@router.post("/logout")
+@router.post("/logout", operation_id="auth_logout")
 async def logout(username: str = Depends(verify_token)):
     """Logout and invalidate token."""
     # Remove all tokens for this user
