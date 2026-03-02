@@ -1,12 +1,16 @@
 import { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
-import { projectsAPI, resumeAPI } from './services/api';
+import { projectsAPI, resumeAPI, curationAPI } from './services/api';
 import Navigation from './components/Navigation';
 
 export default function ProjectsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAuthenticated } = useAuth();
+
+  // If navigated from Dashboard with a specific showcase project
+  const [showcaseFilter, setShowcaseFilter] = useState(location.state?.showcaseProjectId || null);
 
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true); // loading projects list
@@ -23,8 +27,12 @@ export default function ProjectsPage() {
     searchTerm: '',
     language: 'all',
     hasTests: 'all',
-    sortBy: 'date', // date, name, language, files
+    sortBy: 'date', // date, name, language, files, curated
   });
+
+  // Curation state
+  const [showcaseRanks, setShowcaseRanks] = useState(new Map());
+  const [customProjectOrder, setCustomProjectOrder] = useState([]);
 
   // track per-project delete loading
   const [deletingIds, setDeletingIds] = useState({}); // { [projectId]: true/false }
@@ -117,7 +125,21 @@ export default function ProjectsPage() {
 
     loadProjectsAndDetails();
     loadStoredResumes();
+    loadCurationSettings();
   }, [isAuthenticated, navigate, user]);
+
+  const loadCurationSettings = async () => {
+    try {
+      const settings = await curationAPI.getSettings();
+      const ids = settings?.showcase_project_ids ?? [];
+      const map = new Map();
+      ids.forEach((id, i) => map.set(id, i + 1));
+      setShowcaseRanks(map);
+      setCustomProjectOrder(settings?.custom_project_order ?? []);
+    } catch (err) {
+      console.error('Error loading curation settings:', err);
+    }
+  };
 
   const loadStoredResumes = async () => {
     try {
@@ -215,6 +237,9 @@ export default function ProjectsPage() {
   // Filter and sort projects
   const getFilteredAndSortedProjects = () => {
     let filtered = projects.filter((p) => {
+      // Showcase filter from Dashboard navigation
+      if (showcaseFilter && p.id !== showcaseFilter) return false;
+
       // Search term filter
       if (filters.searchTerm) {
         const searchLower = filters.searchTerm.toLowerCase();
@@ -244,6 +269,15 @@ export default function ProjectsPage() {
           return (a.primary_language || '').localeCompare(b.primary_language || '');
         case 'files':
           return (b.total_files || 0) - (a.total_files || 0);
+        case 'curated': {
+          if (customProjectOrder.length === 0) return 0;
+          const aIdx = customProjectOrder.indexOf(a.id);
+          const bIdx = customProjectOrder.indexOf(b.id);
+          if (aIdx === -1 && bIdx === -1) return 0;
+          if (aIdx === -1) return 1;
+          if (bIdx === -1) return -1;
+          return aIdx - bIdx;
+        }
         case 'date':
         default:
           const dateA = a.last_modified_date || '';
@@ -660,6 +694,9 @@ export default function ProjectsPage() {
                 <option value="name">Sort by Name</option>
                 <option value="language">Sort by Language</option>
                 <option value="files">Sort by File Count</option>
+                {customProjectOrder.length > 0 && (
+                  <option value="curated">Sort by Curated Order</option>
+                )}
               </select>
 
               {/* Clear filters button */}
@@ -696,8 +733,41 @@ export default function ProjectsPage() {
               )}
             </div>
 
+            {/* Showcase filter banner */}
+            {showcaseFilter && (
+              <div style={{
+                marginTop: '12px',
+                padding: '8px 16px',
+                backgroundColor: '#fffbeb',
+                border: '1px solid #f59e0b',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                fontSize: '14px',
+                color: '#92400e',
+              }}>
+                <span>⭐ Showing showcase project only</span>
+                <button
+                  onClick={() => setShowcaseFilter(null)}
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid #f59e0b',
+                    backgroundColor: 'white',
+                    color: '#b45309',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                  }}
+                >
+                  Show All Projects
+                </button>
+              </div>
+            )}
+
             {/* Filter results info */}
-            {filteredProjects.length < projects.length && (
+            {!showcaseFilter && filteredProjects.length < projects.length && (
               <div style={{ marginTop: '12px', fontSize: '13px', color: '#737373' }}>
                 Showing {filteredProjects.length} of {projects.length} projects
               </div>
@@ -875,6 +945,8 @@ export default function ProjectsPage() {
                 <div style={{ display: 'grid', gap: '20px' }}>
                   {filteredProjects.map((p) => {
                 const isDeleting = !!deletingIds[p.id];
+                const showcaseRank = showcaseRanks.get(p.id);
+                const isShowcase = !!showcaseRank;
 
                 return (
                   <div
@@ -884,6 +956,8 @@ export default function ProjectsPage() {
                       padding: '24px',
                       transition: 'transform 0.2s, box-shadow 0.2s',
                       opacity: isDeleting ? 0.65 : 1,
+                      border: isShowcase ? '2px solid #f59e0b' : cardStyles.border,
+                      position: 'relative',
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.transform = 'translateY(-2px)';
@@ -906,6 +980,18 @@ export default function ProjectsPage() {
                           }}
                         >
                           {p.project_name || 'Unnamed Project'}
+                          {isShowcase && (
+                            <span style={{
+                              marginLeft: '8px',
+                              padding: '2px 8px',
+                              borderRadius: '999px',
+                              backgroundColor: '#fef3c7',
+                              color: '#b45309',
+                              fontSize: '12px',
+                              fontWeight: '700',
+                              verticalAlign: 'middle',
+                            }}>⭐ Top {showcaseRank}</span>
+                          )}
                         </strong>
 
                         <div style={{ color: '#525252', marginBottom: '4px', fontSize: '14px' }}>
