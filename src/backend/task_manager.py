@@ -657,7 +657,8 @@ class TaskManager:
                 project_id = cursor.lastrowid
 
                 try:
-                    from .analysis.portfolio_item_generator import generate_portfolio_item
+                    from .analysis.portfolio_item_generator import \
+                        generate_portfolio_item
 
                     portfolio_item = generate_portfolio_item(project)
                     skills_exercised = portfolio_item.get("skills_exercised", []) or []
@@ -700,7 +701,8 @@ class TaskManager:
                     logger.warning(f"Failed to generate portfolio item for project {project_path}: {e}")
 
                 try:
-                    from .analysis.resume_generator import _generate_project_items
+                    from .analysis.resume_generator import \
+                        _generate_project_items
 
                     bullets = _generate_project_items(project)
                     for idx, bullet in enumerate(bullets):
