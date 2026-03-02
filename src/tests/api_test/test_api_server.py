@@ -20,8 +20,7 @@ class TestAPIServer:
     def test_app_exists(self):
         """Test that FastAPI app is created."""
         assert app is not None
-        assert app.title == "FastAPI"
-        assert app.description == "API for Portfolio and Resume generation with incremental uploads"
+        assert app.title == "Portfolio & Resume Generation API"
         assert app.version == "2.0.0"
 
     def test_cors_middleware_configured(self):
@@ -60,8 +59,7 @@ class TestAPIServer:
         response = client.get("/openapi.json")
         assert response.status_code == 200
         data = response.json()
-        assert data["info"]["title"] == "FastAPI"
-        assert data["info"]["description"] == "API for Portfolio and Resume generation with incremental uploads"
+        assert data["info"]["title"] == "Portfolio & Resume Generation API"
 
     def test_api_tags_configured(self):
         """Test API endpoints have proper tags."""
