@@ -129,6 +129,15 @@ def init_db() -> None:
             conn.execute("ALTER TABLE analyses ADD COLUMN upload_id INTEGER REFERENCES uploads(id);")
             conn.commit()
 
+        existing_columns = {row["name"] for row in conn.execute("PRAGMA table_info(analyses)")}
+        if "zip_file_hash" not in existing_columns:
+            conn.execute("ALTER TABLE analyses ADD COLUMN zip_file_hash TEXT;")
+            conn.commit()
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_analyses_hash_user "
+            "ON analyses (zip_file_hash, username) WHERE zip_file_hash IS NOT NULL;"
+        )
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS projects (
@@ -678,6 +687,7 @@ def record_analysis(
     *,
     username: Optional[str] = None,
     analysis_uuid: Optional[str] = None,
+    zip_file_hash: Optional[str] = None,
 ) -> int:
     if analysis_type not in VALID_ANALYSIS_TYPES:
         raise ValueError(f"analysis_type must be one of {VALID_ANALYSIS_TYPES}")
@@ -728,8 +738,9 @@ def record_analysis(
                 summary_languages,
                 summary_frameworks,
                 llm_summary,
-                username
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                username,
+                zip_file_hash
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 analysis_uuid,
@@ -745,6 +756,7 @@ def record_analysis(
                 summary_fields["summary_frameworks"],
                 payload.get("llm_summary"),
                 username,
+                zip_file_hash,
             ),
         )
         analysis_id = cursor.lastrowid
