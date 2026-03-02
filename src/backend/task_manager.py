@@ -572,7 +572,7 @@ class TaskManager:
                     predicted_role_confidence = role_prediction_data.get("confidence_score")
                     role_prediction_json = json.dumps(role_prediction_data)
 
-                conn.execute(
+                cursor = conn.execute(
                     """
                     INSERT INTO projects (
                         analysis_id,
@@ -654,6 +654,125 @@ class TaskManager:
                         role_prediction_json,
                     ),
                 )
+                project_id = cursor.lastrowid
+
+                try:
+                    from .analysis.portfolio_item_generator import generate_portfolio_item
+
+                    portfolio_item = generate_portfolio_item(project)
+                    skills_exercised = portfolio_item.get("skills_exercised", []) or []
+
+                    for skill in skills_exercised:
+                        conn.execute(
+                            """
+                            INSERT OR IGNORE INTO project_skills (project_id, skill)
+                            VALUES (?, ?)
+                            """,
+                            (project_id, skill),
+                        )
+
+                    stats = portfolio_item.get("project_statistics") or {}
+                    conn.execute(
+                        """
+                        INSERT INTO portfolio_items (
+                            project_id,
+                            project_name,
+                            text_summary,
+                            tech_stack,
+                            skills_exercised,
+                            quality_score,
+                            sophistication_level,
+                            project_statistics
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            project_id,
+                            project.get("project_name"),
+                            portfolio_item.get("text_summary"),
+                            json.dumps(portfolio_item.get("tech_stack", [])),
+                            json.dumps(portfolio_item.get("skills_exercised", [])),
+                            stats.get("quality_score"),
+                            stats.get("sophistication_level"),
+                            json.dumps(stats),
+                        ),
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to generate portfolio item for project {project_path}: {e}")
+
+                try:
+                    from .analysis.resume_generator import _generate_project_items
+
+                    bullets = _generate_project_items(project)
+                    for idx, bullet in enumerate(bullets):
+                        if not bullet or not bullet.strip():
+                            continue
+
+                        conn.execute(
+                            """
+                            INSERT INTO resume_items (analysis_id, project_id, project_name, resume_text, bullet_order)
+                            VALUES (?, ?, ?, ?, ?)
+                            """,
+                            (analysis_id, project_id, project.get("project_name", "Project"), bullet.strip(), idx),
+                        )
+                except Exception as e:
+                    # If resume item generation fails, continue without breaking
+                    logger.warning(f"Failed to generate resume items for project {project_path}: {e}")
+
+                languages = project.get("languages") or {}
+                for language, file_count in languages.items():
+                    conn.execute(
+                        """
+                        INSERT INTO project_languages (project_id, language, file_count)
+                        VALUES (?, ?, ?)
+                        """,
+                        (project_id, language, file_count),
+                    )
+
+                frameworks = project.get("frameworks") or []
+                for framework in frameworks:
+                    conn.execute(
+                        """
+                        INSERT INTO project_frameworks (project_id, framework)
+                        VALUES (?, ?)
+                        """,
+                        (project_id, framework),
+                    )
+
+                dependencies = project.get("dependencies") or {}
+                for ecosystem, deps in dependencies.items():
+                    seen_deps = set()
+                    for dependency in deps or []:
+                        if dependency in seen_deps:
+                            continue
+                        seen_deps.add(dependency)
+                        conn.execute(
+                            """
+                            INSERT INTO project_dependencies (project_id, ecosystem, dependency)
+                            VALUES (?, ?, ?)
+                            """,
+                            (project_id, ecosystem, dependency),
+                        )
+
+                contributors = project.get("contributors") or []
+                for contributor in contributors:
+                    conn.execute(
+                        """
+                        INSERT INTO project_contributors (
+                            project_id,
+                            name,
+                            email,
+                            commits,
+                            files_touched
+                        ) VALUES (?, ?, ?, ?, ?)
+                        """,
+                        (
+                            project_id,
+                            contributor.get("name"),
+                            contributor.get("email"),
+                            contributor.get("commits"),
+                            contributor.get("files_touched"),
+                        ),
+                    )
 
             conn.commit()
 
