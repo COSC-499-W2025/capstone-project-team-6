@@ -14,6 +14,7 @@ from backend.analysis_database import (add_items_to_user_resume,
                                        get_resume_items_for_project_id,
                                        get_user_personal_info, get_user_resume,
                                        get_user_resume_items,
+                                       delete_user_personal_info,
                                        list_user_resumes,
                                        update_user_resume_content,
                                        upsert_user_personal_info)
@@ -186,6 +187,14 @@ async def save_personal_info(request: PersonalInfoSaveRequest, username: str = D
     upsert_user_personal_info(username, request.personal_info)
     return {"ok": True}
 
+@router.delete("/resume/personal-info")
+async def delete_personal_info(username: str = Depends(verify_token)):
+    deleted = delete_user_personal_info(username)
+    return {
+        "ok": True,
+        "deleted": deleted,
+        "message": "Personal info removed" if deleted else "No personal info to remove",
+    }
 
 @router.post("/resume/generate", response_model=ResumeResponse)
 async def generate_resume(

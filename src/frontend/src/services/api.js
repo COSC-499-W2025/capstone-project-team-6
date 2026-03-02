@@ -171,6 +171,7 @@ export const portfoliosAPI = {
 };
 
 // Resume API calls
+// Resume API calls
 export const resumeAPI = {
   generateResume: async (projectIds, options = {}) => {
     const response = await api.post('/resume/generate', {
@@ -218,19 +219,14 @@ export const resumeAPI = {
   },
 
   savePersonalInfo: async (personalInfo) => {
-    const response = await api.put('/resume/personal-info', { personal_info: personalInfo });
-    return response.data;
-  },
-
-  getPersonalInfo: async () => {
-    const response = await api.get('/resume/personal-info');
-    return response.data;
-  },
-
-  savePersonalInfo: async (personalInfo) => {
     const response = await api.put('/resume/personal-info', {
       personal_info: personalInfo,
     });
+    return response.data;
+  },
+
+  deletePersonalInfo: async () => {
+    const response = await api.delete('/resume/personal-info');
     return response.data;
   },
 };
