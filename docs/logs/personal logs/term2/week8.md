@@ -90,6 +90,7 @@ Specifically, ensuring that all API tests were properly executed over HTTP (rath
 # Ansh Rastogi
 
 # Harjot Sahota
+<img width="1097" height="643" alt="Screenshot 2026-03-01 at 10 05 33 PM" src="https://github.com/user-attachments/assets/c5bd8ed5-bce4-4df3-aaf6-dcd28d78335c" />
 
 # Mohamed Sakr
 
