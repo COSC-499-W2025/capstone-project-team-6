@@ -89,23 +89,26 @@ February 9-March 1
 
 ## What went well
 
-The most significant achievement this sprint was the successful stabilization and delivery of Milestone 2. 
+The most significant achievement this sprint was the successful stabilization and delivery of Milestone 2.
 On the technical side, the Incremental Upload system is now fully operational. This was a complex requirement; the system successfully detects if an uploaded project has more than 30% changes compared to the existing version. If it exceeds this threshold, the portfolio and database are updated accordingly. I also built a specialized frontend polling mechanism that tracks the background analysis task. Once complete, it triggers a detailed results modal that gives the user granular feedback on exactly which projects were newly added, which were updated with specific change percentages, and which were skipped to avoid duplicates.
 
 Furthermore, the API documentation was a major success. By adding a comprehensive guide and satisfying all Milestone 2 API requirements, I’ve made the backend significantly more accessible for the frontend team, reducing the time spent on "trial and error" integration.
 
 ## What didn't go well
-The primary challenge this sprint was technical debt. After refactoring our monolithic server into a modular FastAPI structure, our test suite was breaking. I encountered a significant number of errors in the portfolio tests and incorrect patch paths in the curation tests, where mocks were not targeting the correct functions. 
+
+The primary challenge this sprint was technical debt. After refactoring our monolithic server into a modular FastAPI structure, our test suite was breaking. I encountered a significant number of errors in the portfolio tests and incorrect patch paths in the curation tests, where mocks were not targeting the correct functions.
 
 Specifically, ensuring that all API tests were properly executed over HTTP (rather than direct function calls) required a massive overhaul of our testing infrastructure. While I managed to fix the majority of failing tests for the API server and Projects endpoints, there were some outstanding tasksregarding lingering failures in the resume and tasks endpoints. These required extra debugging time that ate into the schedule for new feature development, highlighting the difficulty of maintaining high test coverage while simultaneously moving the architecture to a modular design.
 
 ## Coding tasks
+
 - **Incremental Sync Engine:** Completed the logic to detect >30% project changes and trigger database updates, fulfilling the "later point in time" information requirement.
 - **Frontend Feedback Loop:** Developed a new "incremental upload" UI section and result modal with real-time status polling for background tasks.
 - **Test Infrastructure:** Migrated legacy backend tests to use `FastAPI.TestClient` for true HTTP-level validation.
 - **Milestone 2 Integration:** Performed the final merge of the development branch to main and ensured all features (Resume, Portfolios, Projects) were synced.
 
 **PRs:**
+
 - #372 – Incremental upload detection and frontend sync
 - #390 – Fix and update tests for API
 - #391 – Fix API Server and projects test + API Documentation
@@ -118,10 +121,12 @@ Specifically, ensuring that all API tests were properly executed over HTTP (rath
 - **Project/Resume Regressions:** Identified and addressed failing test cases in the projects endpoints caused by the recent data-model migrations.
 
 **PRs:**
+
 - #390 – Fix and update tests for API
 - #391 – Fix API Server and projects test + API Documentation
 
 ## Reviewing or collaboration tasks
+
 - #290 – Enhanced Contribution Ranking Integration
 - #306 – Project thumbnail
 - #308 – Updated Dashboard
@@ -133,9 +138,11 @@ Specifically, ensuring that all API tests were properly executed over HTTP (rath
 - #333 – Upload zip file page
 
 ## **Issues / Blockers**
+
 -No major blockers this week
 
 ## PR's initiated
+
 - [#372 – Incremental upload detection and frontend sync](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/372)
 - [#390 – Fix and update tests for API](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/390)
 - [#391 – Fix API Server and projects test + API Documentation](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/391)
@@ -150,13 +157,103 @@ Specifically, ensuring that all API tests were properly executed over HTTP (rath
 - [#373 – Bug fix consent](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/373)
 - [#364 – Upload api](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/364)
 
-
 ## Plan for next week
 
 - Discuss milestone 3 requirements
 - Fix any bugs found during milestone 2 wrap up.
 
 # Ansh Rastogi
+
+## Date Ranges
+
+February 9 – March 1
+![Ansh Week 8 Term 2](../images/AnshRastogi_PeerEval_SS_W8T2.png)
+
+## Goals for this week (planned last sprint)
+
+- Continue polishing frontend UI based on peer testing feedback
+- Integrate any remaining frontend components with backend endpoints
+- Address any additional bugs or issues identified during testing
+- Support teammates with frontend-backend integration work
+
+## How this builds on last week's work
+
+Building on the thumbnail upload and ZIP upload page work from the previous sprint, this sprint focused on polish, correctness, and usability across the frontend. I fixed dashboard statistics that were either hardcoded or returning errors, improved the thumbnail management experience by adding removal support, and implemented duplicate ZIP file detection to prevent unnecessary re-analysis runs.
+
+## What went well
+
+This was a productive sprint with several meaningful improvements to the frontend and backend. The dashboard statistics fix resolved real user-facing issues: the skills endpoint was returning errors due to a bad import, AI analysis counts were hardcoded to zero, and the "Total Lines of Code" label was misleading since the database actually tracks file counts. All three were corrected and verified manually.
+
+The thumbnail removal feature was a natural extension of the previous sprint's thumbnail upload work. Adding the remove button, properly revoking blob URLs to prevent memory leaks, and handling 404s gracefully as an expected state rather than an error condition made the feature feel complete. I also cleaned up leftover debug console.log statements during this process.
+
+The duplicate file detection feature added meaningful value for users who might re-upload the same project. Using SHA-256 hashing at both the API and task level to detect duplicates before triggering analysis prevents wasted compute and gives users clear feedback through an informational banner.
+
+On the review side, I provided feedback across a wide range of teammate PRs spanning test fixes, incremental upload, portfolio rendering, personal info management, and curation integration.
+
+## What didn't go well
+
+The thumbnail removal PR required a backend change (returning 204 instead of 404 for missing thumbnails) to properly suppress console noise, which meant coordinating across the stack rather than keeping the fix purely frontend. This added some back-and-forth during review.
+
+For the duplicate detection feature, deferring the LLM pipeline import to avoid the `No module named 'google'` startup error was a workaround rather than a root fix. The underlying dependency issue should be addressed more cleanly in a future sprint.
+
+## Coding tasks
+
+- Fixed `/api/skills` endpoint that was returning errors due to incorrect `db` import (should be `get_connection`)
+- Implemented dynamic AI analysis count on the dashboard by fetching portfolio data and counting projects where `analysis_type === 'llm'`
+- Updated dashboard label from "Total Lines of Code" to "Total Files" to match what the database actually stores
+- Added remove thumbnail functionality with a "Remove" button that calls the existing backend delete endpoint and clears UI state
+- Implemented blob URL revocation on thumbnail removal to prevent memory leaks
+- Modified `getThumbnail` in the API module to handle 404 responses gracefully as expected state
+- Removed debug console.log statements left over from thumbnail development
+- Added SHA-256 hash column to the analyses table to track uploaded ZIP files
+- Implemented duplicate ZIP detection at both API and task levels, returning existing analysis on re-upload
+- Added informational banner: "This project has already been analyzed. You can view it in your projects."
+- Fixed `No module named 'google'` startup error by deferring LLM pipeline import until actually needed
+
+## Testing or debugging tasks
+
+- Manually verified all three dashboard statistics (skills count, AI analyzed count, total files) display correct live data
+- Tested thumbnail removal flow and confirmed blob URLs are properly revoked
+- Verified 404 handling for missing thumbnails no longer produces console errors
+- Tested duplicate ZIP detection with previously analyzed files to confirm the banner appears and no re-analysis is triggered
+
+## Reviewing or collaboration tasks
+
+- Reviewed PR #385 – Test bug fix
+- Reviewed PR #391 – Fix API Server and projects test + API Documentation
+- Reviewed PR #362 – Project Filtering and Sorting Feature
+- Reviewed PR #372 – Incremental upload detection and frontend sync
+- Reviewed PR #375 – Improved Portfolio Page Rendering
+- Reviewed PR #379 – Save personal information in settings + backend support
+- Reviewed PR #399 – Curation integration
+- Reviewed PR #402 – Remove information button
+
+## Issues / Blockers
+
+No major blockers this week.
+
+## PR's initiated
+
+- #381: Dashboard Statistics – https://github.com/COSC-499-W2025/capstone-project-team-6/pull/381
+- #389: Added remove thumbnail option and suppress 404 console errors – https://github.com/COSC-499-W2025/capstone-project-team-6/pull/389
+- #398: Duplicate file handling – https://github.com/COSC-499-W2025/capstone-project-team-6/pull/398
+
+## PR's reviewed
+
+- #385: Test bug fix – https://github.com/COSC-499-W2025/capstone-project-team-6/pull/385
+- #391: Fix API Server and projects test + API Documentation – https://github.com/COSC-499-W2025/capstone-project-team-6/pull/391
+- #362: Project Filtering and Sorting Feature – https://github.com/COSC-499-W2025/capstone-project-team-6/pull/362
+- #372: Incremental upload detection and frontend sync – https://github.com/COSC-499-W2025/capstone-project-team-6/pull/372
+- #375: Improved Portfolio Page Rendering – https://github.com/COSC-499-W2025/capstone-project-team-6/pull/375
+- #379: Added save personal information section in settings page + backend support – https://github.com/COSC-499-W2025/capstone-project-team-6/pull/379
+- #399: Curation integration tests – https://github.com/COSC-499-W2025/capstone-project-team-6/pull/399
+- #402: Remove information button – https://github.com/COSC-499-W2025/capstone-project-team-6/pull/402
+
+## Plan for next week
+
+- Discuss and plan Milestone 3 requirements with the team
+- Continue addressing any bugs or polish items surfaced during Milestone 2 wrap-up
+- Support curation and portfolio feature integration on the frontend as the team moves into the next phase
 
 # Harjot Sahota
 <img width="1097" height="643" alt="Screenshot 2026-03-01 at 10 05 33 PM" src="https://github.com/user-attachments/assets/c5bd8ed5-bce4-4df3-aaf6-dcd28d78335c" />
@@ -205,8 +302,6 @@ I also had to spend extra effort on duplicate item behavior during reanalysis. T
 - **Portfolio page product update:** Removed the Summary section from the Portfolio page based on product request.
 - **End-to-end rendering stabilization:** Verified that portfolio points now render consistently with real analysis data paths.
 
-
-
 ## Testing or debugging tasks
 
 - **Portfolio test suite refresh:** Updated tests to match current UI behavior and removed outdated checks tied to the removed Summary section.
@@ -225,18 +320,22 @@ I also had to spend extra effort on duplicate item behavior during reanalysis. T
 - **Reviewed follow-up curation integration test-coverage PR:** Found no blocking issues; verified backend/frontend coverage for highlighted-skills precedence, API forwarding, showcase rendering/navigation, sorting/filter states, and error/empty/loading paths. Confirmed test execution results (20/20 backend pass, 29/29 frontend pass) and noted only minor environment-warning noise with no functional impact.
 
 ## Non coding tasks
+
 - **README documentation PR (Milestone 2 Service/API + HITL):** Expanded the README section to clearly describe the FastAPI service as the frontend/backend mediator and added implementation-level details for API contracts/OpenAPI generation, async job lifecycle orchestration, local session/profile isolation, incremental ZIP ingest behavior, deduplication + canonical artifact storage, and Human-in-the-Loop curation workflows (representation overrides, role attribution, evidence linking, thumbnail association, saved showcase/resume wording customization, and portfolio/resume text rendering). Also added a dedicated FastAPI endpoint map covering health checks, portfolio lifecycle, ingest/jobs, curation updates, and text rendering endpoints.
 - **Updated our architecture and DFD diagrams:** Expanded the architecture and DFD diagrams to reflect the changes in terms of new features, API endpoints, and the frontend.
 
 ## **Issues / Blockers**
+
 -No major blockers this week
 
 ## PR's initiated
+
 - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/375
 - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/377
 - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/403
 
 ## PR's reviewed
+
 - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/399
 - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/395
 - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/389
