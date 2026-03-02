@@ -988,7 +988,8 @@ def record_analysis(
 
             # Generate portfolio item and store skills_exercised
             try:
-                from .analysis.portfolio_item_generator import generate_portfolio_item
+                from .analysis.portfolio_item_generator import \
+                    generate_portfolio_item
 
                 portfolio_item = generate_portfolio_item(project)
                 skills_exercised = portfolio_item.get("skills_exercised", []) or []

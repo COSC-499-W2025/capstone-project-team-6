@@ -87,7 +87,9 @@ def run_quick_smoke_test():
 
     try:
         # Import and test basic functionality
-        from backend.analysis.role_predictor import DeveloperRole, get_available_roles, predict_developer_role
+        from backend.analysis.role_predictor import (DeveloperRole,
+                                                     get_available_roles,
+                                                     predict_developer_role)
 
         # Test 1: Basic imports work
         roles = get_available_roles()

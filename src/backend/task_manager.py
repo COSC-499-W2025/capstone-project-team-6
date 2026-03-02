@@ -350,7 +350,9 @@ class TaskManager:
         """
         from backend.database import check_user_consent
 
-        from .analysis_database import get_analysis, get_analysis_by_file_hash, record_analysis
+        from .analysis_database import (get_analysis,
+                                        get_analysis_by_file_hash,
+                                        record_analysis)
         from .cli import analyze_folder
 
         await asyncio.sleep(1)
@@ -558,7 +560,8 @@ class TaskManager:
             )
 
             # Now insert updated project records
-            from .analysis_database import _normalize_project_path_value, _normalize_username_value
+            from .analysis_database import (_normalize_project_path_value,
+                                            _normalize_username_value)
 
             owner_username = _normalize_username_value(task.username)
 
@@ -676,7 +679,8 @@ class TaskManager:
                 project_id = cursor.lastrowid
 
                 try:
-                    from .analysis.portfolio_item_generator import generate_portfolio_item
+                    from .analysis.portfolio_item_generator import \
+                        generate_portfolio_item
 
                     portfolio_item = generate_portfolio_item(project)
                     skills_exercised = portfolio_item.get("skills_exercised", []) or []
@@ -719,7 +723,8 @@ class TaskManager:
                     logger.warning(f"Failed to generate portfolio item for project {project_path}: {e}")
 
                 try:
-                    from .analysis.resume_generator import _generate_project_items
+                    from .analysis.resume_generator import \
+                        _generate_project_items
 
                     bullets = _generate_project_items(project)
                     for idx, bullet in enumerate(bullets):

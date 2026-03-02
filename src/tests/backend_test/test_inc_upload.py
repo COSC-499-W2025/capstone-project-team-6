@@ -9,7 +9,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "backend"))
 
-from project_comparison import calculate_project_change_percentage, process_incremental_projects
+from project_comparison import (calculate_project_change_percentage,
+                                process_incremental_projects)
 
 
 @pytest.fixture

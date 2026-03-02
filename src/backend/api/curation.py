@@ -6,21 +6,16 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
 
 from backend.api.auth import verify_token
-from backend.curation import (
-    ATTRIBUTE_DESCRIPTIONS,
-    DEFAULT_COMPARISON_ATTRIBUTES,
-    get_available_skills_alphabetical,
-    get_chronology_corrections,
-    get_showcase_projects,
-    get_user_curation_settings,
-    get_user_projects,
-    save_chronology_correction,
-    save_comparison_attributes,
-    save_highlighted_skills,
-    save_project_order,
-    save_showcase_projects,
-    validate_date_format,
-)
+from backend.curation import (ATTRIBUTE_DESCRIPTIONS,
+                              DEFAULT_COMPARISON_ATTRIBUTES,
+                              get_available_skills_alphabetical,
+                              get_chronology_corrections,
+                              get_showcase_projects,
+                              get_user_curation_settings, get_user_projects,
+                              save_chronology_correction,
+                              save_comparison_attributes,
+                              save_highlighted_skills, save_project_order,
+                              save_showcase_projects, validate_date_format)
 
 router = APIRouter(prefix="/api/curation", tags=["Curation"])
 

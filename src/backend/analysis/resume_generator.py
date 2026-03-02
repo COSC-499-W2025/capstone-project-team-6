@@ -1175,7 +1175,8 @@ def _convert_markdown_to_pdf(markdown_content: str) -> bytes:
     from reportlab.lib.pagesizes import letter
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import inch
-    from reportlab.platypus import ListFlowable, ListItem, Paragraph, SimpleDocTemplate, Spacer
+    from reportlab.platypus import (ListFlowable, ListItem, Paragraph,
+                                    SimpleDocTemplate, Spacer)
 
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.75 * inch, bottomMargin=0.75 * inch)

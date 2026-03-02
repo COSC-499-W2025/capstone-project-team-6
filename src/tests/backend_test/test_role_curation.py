@@ -23,7 +23,8 @@ src_dir = current_dir.parent.parent
 sys.path.insert(0, str(src_dir))
 
 from backend import analysis_database as adb
-from backend.curation import get_curated_role, get_user_projects_with_roles, init_curation_tables, save_curated_role
+from backend.curation import (get_curated_role, get_user_projects_with_roles,
+                              init_curation_tables, save_curated_role)
 from backend.database import UserAlreadyExistsError, create_user
 
 # Sample payload for creating test projects

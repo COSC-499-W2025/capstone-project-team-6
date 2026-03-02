@@ -5,23 +5,19 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from backend.analysis_database import (
-    add_items_to_user_resume,
-    create_user_resume,
-    delete_user_personal_info,
-    get_all_analyses_for_user,
-    get_analysis_by_uuid,
-    get_connection,
-    get_portfolio_item_for_project,
-    get_projects_for_user,
-    get_resume_items_for_project_id,
-    get_user_personal_info,
-    get_user_resume,
-    get_user_resume_items,
-    list_user_resumes,
-    update_user_resume_content,
-    upsert_user_personal_info,
-)
+from backend.analysis_database import (add_items_to_user_resume,
+                                       create_user_resume,
+                                       delete_user_personal_info,
+                                       get_all_analyses_for_user,
+                                       get_analysis_by_uuid, get_connection,
+                                       get_portfolio_item_for_project,
+                                       get_projects_for_user,
+                                       get_resume_items_for_project_id,
+                                       get_user_personal_info, get_user_resume,
+                                       get_user_resume_items,
+                                       list_user_resumes,
+                                       update_user_resume_content,
+                                       upsert_user_personal_info)
 from backend.api.auth import verify_token
 
 router = APIRouter(prefix="/api", tags=["Resume"])
@@ -217,7 +213,8 @@ async def generate_resume(
         import uuid
         from datetime import datetime
 
-        from backend.analysis.resume_generator import generate_resume as generate_resume_impl
+        from backend.analysis.resume_generator import \
+            generate_resume as generate_resume_impl
 
         # Only one portfolio supported at this time
         if len(request.portfolio_ids) != 1:

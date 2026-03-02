@@ -6,10 +6,14 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import (APIRouter, Depends, File, Form, HTTPException, UploadFile,
+                     status)
 from pydantic import BaseModel, Field
 
-from backend.analysis_database import delete_analysis, get_all_analyses_for_user, get_analysis_by_file_hash, get_analysis_by_uuid
+from backend.analysis_database import (delete_analysis,
+                                       get_all_analyses_for_user,
+                                       get_analysis_by_file_hash,
+                                       get_analysis_by_uuid)
 from backend.api.auth import verify_token
 from backend.database import check_user_consent
 from backend.task_manager import TaskType, get_task_manager
@@ -331,7 +335,8 @@ async def generate_portfolio_document(
 ) -> Dict[str, Any]:
     """Generate a formatted portfolio document (PDF/HTML) from a portfolio."""
     try:
-        from backend.analysis.portfolio_item_generator import generate_portfolio_items
+        from backend.analysis.portfolio_item_generator import \
+            generate_portfolio_items
 
         analysis = get_analysis_by_uuid(portfolio_id, username)
         if not analysis:

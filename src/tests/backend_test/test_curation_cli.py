@@ -21,13 +21,11 @@ sys.path.insert(0, str(SRC))
 
 from backend import analysis_database as db
 from backend.curation import init_curation_tables
-from backend.curation_cli import (
-    curate_chronology_interactive,
-    curate_comparison_attributes_interactive,
-    curate_showcase_projects_interactive,
-    display_curation_status,
-    display_showcase_summary,
-)
+from backend.curation_cli import (curate_chronology_interactive,
+                                  curate_comparison_attributes_interactive,
+                                  curate_showcase_projects_interactive,
+                                  display_curation_status,
+                                  display_showcase_summary)
 
 
 @pytest.fixture(autouse=True)
@@ -241,7 +239,8 @@ class TestChronologyInteractive:
         assert "✅ Comparison attributes saved successfully!" in output
 
         # Verify all attributes were saved
-        from backend.curation import ATTRIBUTE_DESCRIPTIONS, get_user_curation_settings
+        from backend.curation import (ATTRIBUTE_DESCRIPTIONS,
+                                      get_user_curation_settings)
 
         settings = get_user_curation_settings("test_user")
         assert len(settings.comparison_attributes) == len(ATTRIBUTE_DESCRIPTIONS)
@@ -380,7 +379,9 @@ class TestStatusDisplay:
         project_ids = sample_projects["project_ids"]
 
         # Set up some curation data
-        from backend.curation import save_chronology_correction, save_comparison_attributes, save_showcase_projects
+        from backend.curation import (save_chronology_correction,
+                                      save_comparison_attributes,
+                                      save_showcase_projects)
 
         save_comparison_attributes(user_id, ["total_files", "has_tests"])
         save_showcase_projects(user_id, [project_ids[0]])

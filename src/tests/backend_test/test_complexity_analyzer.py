@@ -16,13 +16,11 @@ from pathlib import Path
 
 import pytest
 
-from backend.analysis.complexity_analyzer import (
-    ComplexityInsight,
-    ComplexityReport,
-    analyze_python_file,
-    analyze_python_project,
-    format_report,
-)
+from backend.analysis.complexity_analyzer import (ComplexityInsight,
+                                                  ComplexityReport,
+                                                  analyze_python_file,
+                                                  analyze_python_project,
+                                                  format_report)
 from backend.analysis.project_analyzer import FileClassifier
 
 
@@ -890,7 +888,8 @@ class TestJavaScoreCalculation:
 
     def test_score_with_java_good_practices(self):
         """Test score increases with Java good practices."""
-        from backend.analysis.complexity_analyzer import ComplexityInsight, ComplexityReport
+        from backend.analysis.complexity_analyzer import (ComplexityInsight,
+                                                          ComplexityReport)
 
         report = ComplexityReport(total_files_analyzed=1)
 
@@ -915,7 +914,8 @@ class TestJavaScoreCalculation:
 
     def test_score_with_java_bad_practices(self):
         """Test score decreases with Java inefficiencies."""
-        from backend.analysis.complexity_analyzer import ComplexityInsight, ComplexityReport
+        from backend.analysis.complexity_analyzer import (ComplexityInsight,
+                                                          ComplexityReport)
 
         report = ComplexityReport(total_files_analyzed=1)
 

@@ -17,8 +17,12 @@ import pytest
 # Add src to Python path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from backend.analysis_database import delete_analysis, get_all_analyses_for_user, get_analysis_by_uuid, init_db, record_analysis
-from backend.task_manager import FileManager, TaskStatus, TaskType, get_task_manager
+from backend.analysis_database import (delete_analysis,
+                                       get_all_analyses_for_user,
+                                       get_analysis_by_uuid, init_db,
+                                       record_analysis)
+from backend.task_manager import (FileManager, TaskStatus, TaskType,
+                                  get_task_manager)
 
 
 class TestDatabaseIntegration:

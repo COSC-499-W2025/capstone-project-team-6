@@ -14,10 +14,10 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
+import backend.task_manager as _tm_module
 from backend.api.auth import active_tokens
 from backend.api_server import app
 from backend.task_manager import TaskStatus, TaskType
-import backend.task_manager as _tm_module
 
 client = TestClient(app)
 

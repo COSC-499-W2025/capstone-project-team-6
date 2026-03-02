@@ -7,14 +7,17 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+from fastapi import (APIRouter, Depends, File, HTTPException, Request,
+                     UploadFile, status)
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from backend.analysis_database import get_analysis_by_uuid, get_project_by_path_and_portfolio, update_project_thumbnail
+from backend.analysis_database import (get_analysis_by_uuid,
+                                       get_project_by_path_and_portfolio,
+                                       update_project_thumbnail)
 from backend.api.auth import verify_token
-from backend.curation import get_user_projects
 from backend.api.portfolios import upload_new_portfolio
+from backend.curation import get_user_projects
 
 router = APIRouter(prefix="/api", tags=["Projects"])
 
