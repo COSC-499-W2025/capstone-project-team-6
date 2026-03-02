@@ -39,8 +39,7 @@ from backend.curation import init_curation_tables
 from backend.database import authenticate_user, check_user_consent, create_user
 from backend.database import init_db as init_user_db
 from backend.database import save_user_consent, seed_default_users
-from backend.task_manager import (TaskType, cleanup_background_tasks,
-                                  get_task_manager)
+from backend.task_manager import TaskType, cleanup_background_tasks, get_task_manager
 from backend.token_storage import active_tokens
 
 # Initialize databases

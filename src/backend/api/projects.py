@@ -133,7 +133,7 @@ async def get_aggregated_skills(username: str = Depends(verify_token)):
         project_name = project.get("project_name") or project.get("name", "Unknown")
         metadata = project.get("metadata", {})
         skills_from_metadata = metadata.get("skills", [])
-        
+
         if skills_from_metadata:
             for skill in skills_from_metadata:
                 if skill not in skills_map:
