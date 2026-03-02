@@ -350,12 +350,30 @@ class TaskManager:
         """
         from backend.database import check_user_consent
 
-        from .analysis.llm_pipeline import run_gemini_analysis
-        from .analysis_database import get_analysis, record_analysis
+        from .analysis_database import get_analysis, get_analysis_by_file_hash, record_analysis
         from .cli import analyze_folder
 
         await asyncio.sleep(1)
         task.progress = 50
+
+        # Duplicate check: if this ZIP was already analysed for this user, reuse the result
+        if task.file_hash:
+            existing = get_analysis_by_file_hash(task.file_hash, task.username)
+            if existing:
+                logger.info(
+                    f"Task {task.task_id}: duplicate ZIP hash, reusing analysis {existing['analysis_uuid']}"
+                )
+                task.progress = 100
+                return {
+                    "analysis_id": existing["id"],
+                    "analysis_uuid": existing["analysis_uuid"],
+                    "total_projects": existing["total_projects"],
+                    "file_hash": task.file_hash,
+                    "duplicate": True,
+                    "llm_ran": False,
+                    "llm_analysis_id": None,
+                    "llm_error": None,
+                }
 
         if not task.file_path:
             raise ValueError("Task file_path is missing")
@@ -378,7 +396,7 @@ class TaskManager:
                         p["project_name"] = task.project_name.strip()
                         break
 
-        analysis_id = record_analysis(task.analysis_type or "non_llm", analysis_result, username=task.username)
+        analysis_id = record_analysis(task.analysis_type or "non_llm", analysis_result, username=task.username, zip_file_hash=task.file_hash)
         row = get_analysis(analysis_id)
         analysis_uuid = row["analysis_uuid"] if row and "analysis_uuid" in row else None
 
@@ -405,6 +423,8 @@ class TaskManager:
             task.analysis_phase = "llm"
             task.progress = 92
             try:
+                from .analysis.llm_pipeline import run_gemini_analysis
+
                 # Choose active features
                 active_features = ["architecture", "complexity", "security", "skills", "domain", "resume"]
 
@@ -424,7 +444,7 @@ class TaskManager:
                 # (non_llm analysis already stored the projects; LLM only adds enhancements)
                 llm_results["non_llm_results"] = analysis_result
                 llm_payload = {**llm_results, "projects": []}
-                llm_analysis_id = record_analysis("llm", llm_payload, username=task.username)
+                llm_analysis_id = record_analysis("llm", llm_payload, username=task.username, zip_file_hash=task.file_hash)
 
                 result_payload["llm_ran"] = True
                 result_payload["llm_analysis_id"] = llm_analysis_id

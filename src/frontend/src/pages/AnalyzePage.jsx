@@ -13,7 +13,6 @@ export default function AnalyzePage() {
   const { user } = useAuth();
   
 
-  const uploadId = sessionStorage.getItem("upload_id");
   const taskIdFromNav = location.state?.taskId ?? sessionStorage.getItem("analyze_task_id") ?? null;
   const displayInfo = taskIdFromNav ? `Task: ${taskIdFromNav}` : "(missing taskId — please upload and analyze again)";
 
@@ -87,7 +86,11 @@ export default function AnalyzePage() {
         }
         sessionStorage.removeItem("analyze_task_id");
 
-        navigate("/projects");
+        if (data?.result?.duplicate === true) {
+          navigate("/upload", { state: { duplicateMessage: "This project has already been analyzed. You can view it in your projects." } });
+        } else {
+          navigate("/projects");
+        }
 
 
       } else if (s === "failed") {

@@ -9,8 +9,11 @@ from fastapi import (APIRouter, Depends, File, Form, HTTPException, UploadFile,
                      status)
 from pydantic import BaseModel, Field
 
+import shutil
+
 from backend.analysis_database import (delete_analysis,
                                        get_all_analyses_for_user,
+                                       get_analysis_by_file_hash,
                                        get_analysis_by_uuid)
 from backend.api.auth import verify_token
 from backend.database import check_user_consent
@@ -154,6 +157,23 @@ async def upload_new_portfolio(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to save uploaded file: {str(e)}",
+        )
+
+    # Early-exit: if the same ZIP content was already analysed for this user, return immediately
+    from backend.task_manager import FileManager
+    _file_hash = FileManager().calculate_file_hash(zip_path)
+    existing = get_analysis_by_file_hash(_file_hash, username)
+    print(f"[DUPLICATE CHECK] user={username!r} hash={_file_hash!r} existing={existing is not None}")
+    if existing:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        return MessageResponse(
+            message="Duplicate upload: returning existing analysis",
+            details={
+                "analysis_uuid": existing["analysis_uuid"],
+                "total_projects": existing["total_projects"],
+                "duplicate": True,
+                "status": "completed",
+            },
         )
 
     # Queue for background processing

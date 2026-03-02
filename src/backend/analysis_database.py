@@ -129,6 +129,15 @@ def init_db() -> None:
             conn.execute("ALTER TABLE analyses ADD COLUMN upload_id INTEGER REFERENCES uploads(id);")
             conn.commit()
 
+        existing_columns = {row["name"] for row in conn.execute("PRAGMA table_info(analyses)")}
+        if "zip_file_hash" not in existing_columns:
+            conn.execute("ALTER TABLE analyses ADD COLUMN zip_file_hash TEXT;")
+            conn.commit()
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_analyses_hash_user "
+            "ON analyses (zip_file_hash, username) WHERE zip_file_hash IS NOT NULL;"
+        )
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS projects (
@@ -678,6 +687,7 @@ def record_analysis(
     *,
     username: Optional[str] = None,
     analysis_uuid: Optional[str] = None,
+    zip_file_hash: Optional[str] = None,
 ) -> int:
     if analysis_type not in VALID_ANALYSIS_TYPES:
         raise ValueError(f"analysis_type must be one of {VALID_ANALYSIS_TYPES}")
@@ -728,8 +738,9 @@ def record_analysis(
                 summary_languages,
                 summary_frameworks,
                 llm_summary,
-                username
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                username,
+                zip_file_hash
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 analysis_uuid,
@@ -745,6 +756,7 @@ def record_analysis(
                 summary_fields["summary_frameworks"],
                 payload.get("llm_summary"),
                 username,
+                zip_file_hash,
             ),
         )
         analysis_id = cursor.lastrowid
@@ -1241,12 +1253,31 @@ def get_analysis_by_zip_file(zip_file: str, username: Optional[str] = None) -> O
     with get_connection() as conn:
         return conn.execute(
             """
-            SELECT * FROM analyses 
+            SELECT * FROM analyses
             WHERE zip_file = ? AND username = ?
-            ORDER BY created_at DESC 
+            ORDER BY created_at DESC
             LIMIT 1
             """,
             (zip_file, username),
+        ).fetchone()
+
+
+def get_analysis_by_file_hash(
+    file_hash: str,
+    username: str,
+    analysis_type: str = "non_llm",
+) -> Optional[sqlite3.Row]:
+    """Return the most recent analysis for a ZIP content hash scoped to a user."""
+    if not file_hash or not username:
+        return None
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT * FROM analyses
+            WHERE zip_file_hash = ? AND username = ? AND analysis_type = ?
+            ORDER BY created_at DESC LIMIT 1
+            """,
+            (file_hash, username, analysis_type),
         ).fetchone()
 
 
