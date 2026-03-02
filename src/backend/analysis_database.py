@@ -1253,12 +1253,31 @@ def get_analysis_by_zip_file(zip_file: str, username: Optional[str] = None) -> O
     with get_connection() as conn:
         return conn.execute(
             """
-            SELECT * FROM analyses 
+            SELECT * FROM analyses
             WHERE zip_file = ? AND username = ?
-            ORDER BY created_at DESC 
+            ORDER BY created_at DESC
             LIMIT 1
             """,
             (zip_file, username),
+        ).fetchone()
+
+
+def get_analysis_by_file_hash(
+    file_hash: str,
+    username: str,
+    analysis_type: str = "non_llm",
+) -> Optional[sqlite3.Row]:
+    """Return the most recent analysis for a ZIP content hash scoped to a user."""
+    if not file_hash or not username:
+        return None
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT * FROM analyses
+            WHERE zip_file_hash = ? AND username = ? AND analysis_type = ?
+            ORDER BY created_at DESC LIMIT 1
+            """,
+            (file_hash, username, analysis_type),
         ).fetchone()
 
 
