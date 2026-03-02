@@ -34,6 +34,7 @@ const Upload = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState('');
+  const [duplicateMessage, setDuplicateMessage] = useState('');
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [incrementalResults, setIncrementalResults] = useState(null);
 
@@ -230,7 +231,13 @@ const Upload = () => {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
 
-        console.log("UPLOAD RESPONSE DATA:", res.data);
+        // Duplicate: this ZIP was already analysed — skip re-analysis
+        if (res?.data?.details?.duplicate) {
+          setIsUploading(false);
+          setDuplicateMessage('This project has already been analyzed. Redirecting to your projects...');
+          setTimeout(() => navigate('/projects'), 2500);
+          return;
+        }
 
         // Backend returns task_id inside details
         const taskId = res?.data?.task_id || res?.data?.details?.task_id;
@@ -243,7 +250,7 @@ const Upload = () => {
         taskIdForAnalyze = taskId;
         sessionStorage.setItem("analyze_task_id", taskId);
         navigate("/analyze", { state: { taskId } });
-        return; 
+        return;
 
 
       } else if (activeTab === 'multiple') {
@@ -251,7 +258,6 @@ const Upload = () => {
         const errors = [];
         const total = multipleFiles.length;
         setUploadProgress({ current: 0, total });
-        let lastTaskId = null;
 
         for (let i = 0; i < multipleFiles.length; i++) {
           const file = multipleFiles[i];
@@ -263,11 +269,14 @@ const Upload = () => {
             formData.append('analysis_type', effectiveAnalysisType);
 
             const res = await api.post('/portfolios/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-            const taskId = res?.data?.task_id || res?.data?.details?.task_id;
-            if (taskId) {
-              lastTaskId = taskId;
-              taskIdForAnalyze = taskId;
-              sessionStorage.setItem("analyze_task_id", taskId);
+            if (res?.data?.details?.duplicate) {
+              errors.push(`${file.name}: Already analyzed (duplicate)`);
+            } else {
+              const taskId = res?.data?.task_id || res?.data?.details?.task_id;
+              if (taskId) {
+                taskIdForAnalyze = taskId;
+                sessionStorage.setItem("analyze_task_id", taskId);
+              }
             }
           } catch (err) {
             const errorMsg = err.response?.data?.detail || 'Upload failed';
@@ -955,6 +964,21 @@ const Upload = () => {
                   <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </button>
+            </div>
+          )}
+
+          {/* Duplicate Message */}
+          {duplicateMessage && (
+            <div style={{
+              padding: '12px 16px',
+              backgroundColor: '#eff6ff',
+              border: '1px solid #bfdbfe',
+              borderRadius: '8px',
+              marginBottom: '24px',
+            }}>
+              <p style={{ fontSize: '14px', color: '#1d4ed8', margin: 0 }}>
+                {duplicateMessage}
+              </p>
             </div>
           )}
 
