@@ -1,6 +1,75 @@
 # Mandira Samarasekara
 
 # Aakash Tirithdas
+## Date Ranges
+
+February 9-March 1
+![Aakash Week 8](../images/aakashlogst2w8.png)
+
+## Goals for this week (planned last sprint)
+- complete the analyze pipeline for the fronntend completely
+- deal with depricated and incorrect tests
+- help in the making of the presentation for the presentation in front of the class
+- review others presentations and give meaningful feedback
+- help prepare the video demonstration
+
+
+## What went well
+- all tasks went well.
+- all tasks were complete
+  
+## *What could have been done better
+- There was large waiting times for the approval of branches for merge. 
+- the prsentation could have gone better. 
+    - We realised last minnute that we were missing a arcitecture diagram and had to make do with what we had.
+    - We took too long to start our presentation due to technnical issues leading to a loss of critical time.
+- We could have completed some tasks before sunday where several bugs had to be fixed 
+
+
+## Coding tasks
+- complete the analysis pipeline so that project could be analyzed with and without llm use. 
+  - ensure that llm analysis works well.
+  - the project is stored correctly
+  - prevent analysis without a project title
+  - started on the implementation of multi-project analysis
+
+
+
+## Testing or debugging tasks
+- Ensure that all relevet tests passed from the start of the project with the exception of depricated tests. 
+- maually and automatically tests that the analysis pipeline worked as expected. 
+
+
+
+
+## PR's initiated
+- Test bug fix #385 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/385
+- Analyze bug fix #382 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/382
+- Bug fix consent #373 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/373
+
+## PR's reviewed
+- updated readme with Milestone 2 work #403 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/403
+- Remove information button #402 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/402
+- duplicate file handling #398 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/398
+- Incremental upload bug fix #394 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/394
+- Added delete all function + updated delete function #387 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/387
+- Improved Portfolio Page Rendering #375 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/375
+- Incremental upload detection and frontend sync #372 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/372
+- Fix API Server and projects test + API Documentation #391 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/391
+
+
+
+
+
+
+
+
+
+## Plan for next week
+
+- Discuss milestone 3 requirements
+- Fix any bugs found during milestone 2 wrap up.
+- Fix the bug from our extra multiproject analysis
 
 # Mithish Ravisankar Geetha
 
