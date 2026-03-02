@@ -350,7 +350,9 @@ class TaskManager:
         """
         from backend.database import check_user_consent
 
-        from .analysis_database import get_analysis, get_analysis_by_file_hash, record_analysis
+        from .analysis_database import (get_analysis,
+                                        get_analysis_by_file_hash,
+                                        record_analysis)
         from .cli import analyze_folder
 
         await asyncio.sleep(1)
@@ -360,9 +362,7 @@ class TaskManager:
         if task.file_hash:
             existing = get_analysis_by_file_hash(task.file_hash, task.username)
             if existing:
-                logger.info(
-                    f"Task {task.task_id}: duplicate ZIP hash, reusing analysis {existing['analysis_uuid']}"
-                )
+                logger.info(f"Task {task.task_id}: duplicate ZIP hash, reusing analysis {existing['analysis_uuid']}")
                 task.progress = 100
                 return {
                     "analysis_id": existing["id"],
@@ -396,7 +396,9 @@ class TaskManager:
                         p["project_name"] = task.project_name.strip()
                         break
 
-        analysis_id = record_analysis(task.analysis_type or "non_llm", analysis_result, username=task.username, zip_file_hash=task.file_hash)
+        analysis_id = record_analysis(
+            task.analysis_type or "non_llm", analysis_result, username=task.username, zip_file_hash=task.file_hash
+        )
         row = get_analysis(analysis_id)
         analysis_uuid = row["analysis_uuid"] if row and "analysis_uuid" in row else None
 

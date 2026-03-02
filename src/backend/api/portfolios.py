@@ -1,5 +1,6 @@
 """Portfolio management API endpoints."""
 
+import shutil
 import tempfile
 import uuid
 from pathlib import Path
@@ -8,8 +9,6 @@ from typing import Any, Dict, List, Optional
 from fastapi import (APIRouter, Depends, File, Form, HTTPException, UploadFile,
                      status)
 from pydantic import BaseModel, Field
-
-import shutil
 
 from backend.analysis_database import (delete_analysis,
                                        get_all_analyses_for_user,
@@ -161,6 +160,7 @@ async def upload_new_portfolio(
 
     # Early-exit: if the same ZIP content was already analysed for this user, return immediately
     from backend.task_manager import FileManager
+
     _file_hash = FileManager().calculate_file_hash(zip_path)
     existing = get_analysis_by_file_hash(_file_hash, username)
     print(f"[DUPLICATE CHECK] user={username!r} hash={_file_hash!r} existing={existing is not None}")
