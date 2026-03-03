@@ -1,4 +1,60 @@
 # Mandira Samarasekara
+## Date Ranges
+February 9–March 1  
+<img width="1512" height="891" alt="Screenshot 2026-03-01 232534" src="https://github.com/user-attachments/assets/f95ae776-c787-4ecd-9e84-68e58be04273" />
+
+## Goals for this week (planned last sprint)
+- Prepare the Milestone 2 demo video
+- Integrate curation into frontend
+- Attend and contribute to team meetings
+- Present the milestone 2 requirements in class
+
+## What went well
+- Almost all Milestone 2 features were completed this week, so most remaining time was spent on bug hunting and polishing.
+- Fully integrated curation into the frontend and linked it across the Portfolio, Resume/Dashboard, and Projects pages.
+- Curated settings now correctly reflect across the app (showcase rankings, highlighted skills, comparison attributes, chronology corrections, and custom project order).
+
+## What didn’t go well
+- The milestone 2 presentation didn’t go well.
+- We went slightly over the time limit.
+- Slide content could have been clearer and more concise to improve audience understanding.
+
+## Coding tasks
+- Built the portfolio curation foundation (backend API + frontend UI + persistent storage) with authenticated endpoints and validation.
+- Implemented a 5-tab curation workflow:
+  - Showcase (Top 3)
+  - Comparison attributes
+  - Highlighted skills (max 10)
+  - Chronology correction
+  - Project order
+- Integrated curated settings throughout the application:
+  - **Portfolio:** curated badges, Top # ranking badges, curated ordering, curated attribute filtering
+  - **Resume:** curated project preselection + ordering, chronology correction notices, forwarding highlighted_skills to resume generator
+  - **Projects:** Top # badges, curated sort option, filtered navigation from dashboard showcase cards
+  - **Dashboard:** new “Showcase Projects” section displaying curated Top 3 projects and navigation to filtered Projects view
+
+## Testing or debugging tasks
+- Added comprehensive automated coverage for curation integration across backend + frontend.
+- Verified resume generation behavior with highlighted_skills (fallback logic, edge cases, request payload forwarding).
+- Tested Dashboard showcase rendering/navigation and ProjectsPage showcase filtering/sort behavior.
+
+## PR’s initiated
+- Portfolio curation frontend #368 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/368
+- Curation integration #395 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/395
+- Curation integration tests #399 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/399
+
+## PR’s reviewed
+- Fix and update tests for API #390 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/390
+- Test bug fix #385 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/385
+- Extended tests for portfolio items rendering #377 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/377
+
+## Issues / Blockers
+- No major blockers this week
+
+## Plan for next week
+- Discuss milestone 3 requirements
+- Fix any bugs found during milestone 2 wrap up
+- Study for quizz 3
 
 # Aakash Tirithdas
 ## Date Ranges
