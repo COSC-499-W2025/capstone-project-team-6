@@ -6,6 +6,13 @@ Google Docs link to the team contract: https://docs.google.com/document/d/1QnISy
 
 Google Drive link to the test zip files: https://drive.google.com/drive/folders/1OcQmw6caoHSFL_DtbaS9mrlM4EpTM9vs?usp=drive_link
 
+# Architecture diagram
+![architecture](docs/Images/architectureM2.png)
+
+# Dataflow diagram
+![dataflow](docs/Images/DFDM2.png)
+
+
 # Project Work Breakdown Structure 
 
 ## Level-1 Overview
