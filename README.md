@@ -1,9 +1,24 @@
 # Team Contract
 Team Contract can be found [here](docs/Capstone%20Team%206%20Contract.pdf).
 
-
 Google Docs link to the team contract: https://docs.google.com/document/d/1QnISyjm78uy_NUFr6qpKbF3jwdyAV0nqgGjOC47GHT8/edit?usp=sharing
 
+---
+
+## 🐳 Docker Setup
+
+To run the application with Docker:
+
+```bash
+cd scripts
+docker-compose up --build
+```
+
+Access at: http://localhost:8000
+
+For detailed instructions, see [scripts/DOCKER_SETUP.md](scripts/DOCKER_SETUP.md)
+
+---
 
 # Project Work Breakdown Structure 
 

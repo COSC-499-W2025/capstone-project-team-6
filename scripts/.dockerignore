@@ -1,0 +1,85 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+venv/
+.venv/
+env/
+ENV/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+coverage/
+
+# Documentation
+docs/
+*.md
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Environment files
+.env.local
+.env.*.local
+
+# Demo and test files
+demo_project/
+examples/
+test_*.py
+*_test.py
+
+# Build artifacts
+*.egg
+*.wheel
+src/frontend/dist/
+src/frontend/.vite/
+
+# Database
+*.db
+*.sqlite
+
+# Uploads (use volumes)
+src/backend/uploads/*
+analysis_results/*
+
+# Scripts folder
+scripts/
+
+# Tests
+src/tests/
+tests/
