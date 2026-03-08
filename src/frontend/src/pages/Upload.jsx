@@ -252,7 +252,10 @@ const Upload = () => {
         // Go straight to Analyze page; persist taskId for refresh/back navigation
         taskIdForAnalyze = taskId;
         sessionStorage.setItem("analyze_task_id", taskId);
-        navigate("/analyze", { state: { taskId } });
+        sessionStorage.setItem("analyze_project_type", "single");
+        sessionStorage.setItem("analyze_analysis_type", effectiveAnalysisType);
+        sessionStorage.setItem("analyze_project_name", projectName.trim());
+        navigate("/analyze", { state: { taskId, projectType: 'single', analysisType: effectiveAnalysisType, projectName: projectName.trim() } });
         return;
 
 
@@ -387,7 +390,10 @@ const Upload = () => {
 
       // Navigate to analyze page after successful upload (with taskId for multiple)
       if (taskIdForAnalyze) {
-        navigate("/analyze", { state: { taskId: taskIdForAnalyze } });
+        sessionStorage.setItem("analyze_project_type", "multiple");
+        sessionStorage.setItem("analyze_analysis_type", effectiveAnalysisType);
+        sessionStorage.setItem("analyze_project_name", "Multiple Projects");
+        navigate("/analyze", { state: { taskId: taskIdForAnalyze, projectType: 'multiple', analysisType: effectiveAnalysisType, projectName: 'Multiple Projects' } });
       } else {
         navigate('/analyze');
       }
