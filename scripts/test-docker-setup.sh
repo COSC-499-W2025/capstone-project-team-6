@@ -37,7 +37,7 @@ if [ ! -f "../.env" ]; then
         exit 1
     fi
 else
-    echo "✅ .env file exists in project root"
+    echo ".env file exists in project root"
 fi
 echo ""
 

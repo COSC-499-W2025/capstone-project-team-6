@@ -15,5 +15,5 @@ echo Launching containers...
 docker compose up -d
 
 echo Running!
-echo  - Backend:  http://localhost:8000/docs
-echo  - Frontend: http://localhost:5173
+echo  - Application: http://localhost:8000
+echo  - API Docs:    http://localhost:8000/docs
