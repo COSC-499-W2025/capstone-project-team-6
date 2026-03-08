@@ -9,6 +9,8 @@ services:
       - "8000:8000"
     environment:
       - MYAPP_DB_PATH=/app/data/myapp.db
+      - ANALYSIS_DB_PATH=/app/data/analysis.db
+      - DOCUMENTS_DB_PATH=/app/data/documents.db
       - DATABASE_URL=postgresql://postgres:postgres@database:5432/vector_db
       - ENVIRONMENT=production
     env_file:
