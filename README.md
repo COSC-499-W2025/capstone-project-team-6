@@ -3,22 +3,7 @@ Team Contract can be found [here](docs/Capstone%20Team%206%20Contract.pdf).
 
 Google Docs link to the team contract: https://docs.google.com/document/d/1QnISyjm78uy_NUFr6qpKbF3jwdyAV0nqgGjOC47GHT8/edit?usp=sharing
 
----
-
-## 🐳 Docker Setup
-
-To run the application with Docker:
-
-```bash
-cd scripts
-docker-compose up --build
-```
-
-Access at: http://localhost:8000
-
-For detailed instructions, see [scripts/DOCKER_SETUP.md](scripts/DOCKER_SETUP.md)
-
----
+Google Drive link to the test zip files: https://drive.google.com/drive/folders/1OcQmw6caoHSFL_DtbaS9mrlM4EpTM9vs?usp=drive_link
 
 # Project Work Breakdown Structure 
 
@@ -121,23 +106,43 @@ Store results in a local database, enable retrieval and secure deletion, and ens
 
 **Goal:**  
 Run as a service (API). Add human-in-the-loop curation: incremental ingest, deduplication, selection, corrections, and customizable résumé/portfolio text.
+Milestone 2 uses a **FastAPI** backend service to facilitate communication between the front-end and back-end through documented REST endpoints and contracts.
 
 ### 3.1 Service Enablement
-- **3.1.1** API design & contracts (OpenAPI)  
-- **3.1.2** Orchestration & jobs: async processing for ingest/parse/analyze  
-- **3.1.3** Auth/session model (local profile)
+- **3.1.1** API design & contracts: define request/response schemas for ingest, curation, and text rendering workflows. Low-level: Pydantic models validate payload fields and FastAPI auto-generates OpenAPI docs from these schemas.  
+- **3.1.2** Orchestration & jobs: async processing for ingest/parse/analyze so users can submit uploads and poll job status. Low-level: upload requests enqueue a background job record, and workers update a persisted job state machine (`queued` -> `running` -> `done`/`failed`).  
+- **3.1.3** Auth/session model (local profile): local user profile/session context used to isolate and persist each user’s portfolio state. Low-level: each request carries a session/profile identifier used as a partition key in database reads/writes.
 
 ### 3.2 Incremental & Deduplicated Ingest
-- **3.2.1** Add new zipped folders into existing portfolio  
-- **3.2.2** Duplicate detection & single-instance storage  
+- **3.2.1** Add new zipped folders into existing portfolio: allow incremental ingestion by uploading additional ZIP folders later to enrich the same portfolio/résumé record. Low-level: new artifacts are extracted, normalized, and merged into the existing portfolio graph without overwriting curated fields unless explicitly requested.  
+- **3.2.2** Duplicate detection & single-instance storage: detect duplicate files (e.g., hash/signature checks) and keep one canonical stored copy while linking it to all relevant projects. Low-level: a content hash index maps identical files to one artifact ID, and project records store references to that shared artifact.
 
 ### 3.3 Human-in-the-Loop Curation
-- **3.3.1** User controls: choose info to represent (re-rank, chronology fixes, comparison attributes, highlight skills)  
-- **3.3.2** Role attribution: specify user’s role per project  
-- **3.3.3** Evidence linking: metrics/feedback/evaluations  
-- **3.3.4** Project thumbnail association  
-- **3.3.5** Save customizations: curated “showcase project” + résumé wording  
-- **3.3.6** Display textual views: portfolio showcase & résumé item renderers (text)
+- **3.3.1** User controls: choose information to represent, including project re-ranking, chronology corrections, project-comparison attributes, skills to highlight, and projects selected for showcase. Low-level: curation updates are stored as explicit override fields layered on top of auto-extracted data.  
+- **3.3.2** Role attribution: capture and persist the user’s key role for each project. Low-level: role data is stored in a dedicated project-role field and exposed through project read/write APIs.  
+- **3.3.3** Evidence linking: attach evidence of success (metrics, feedback, evaluations) to specific projects for transparent justification. Low-level: evidence entries are stored as typed child records linked by `project_id` with optional source metadata.  
+- **3.3.4** Project thumbnail association: allow users to assign a portfolio image to a project as its thumbnail. Low-level: uploaded image metadata is validated and the selected image URI/artifact ID is saved on the project record.  
+- **3.3.5** Save customizations: persist curated showcase-project settings and customized résumé-item wording per project. Low-level: showcase flags and résumé text variants are versioned in curation tables so they survive re-ingest.  
+- **3.3.6** Display textual views: render project text in two contexts—portfolio showcase view and résumé-item view. Low-level: renderer endpoints compose structured project fields with curation overrides into deterministic text templates for each output mode.
+
+### 3.4 FastAPI APIs & Endpoints (High-Level)
+- `GET /health` — service health check.
+- `POST /api/v1/portfolios` — create a new portfolio/résumé workspace.
+- `GET /api/v1/portfolios/{portfolio_id}` — retrieve portfolio metadata and current curation state.
+- `POST /api/v1/portfolios/{portfolio_id}/ingest` — upload initial ZIP or incremental ZIP for additional information.
+- `GET /api/v1/jobs/{job_id}` — check async ingest/parse/analyze job status.
+- `GET /api/v1/portfolios/{portfolio_id}/projects` — list projects extracted for the portfolio.
+- `PATCH /api/v1/projects/{project_id}/ranking` — update project ordering/rank.
+- `PATCH /api/v1/projects/{project_id}/chronology` — correct project timeline/chronology fields.
+- `PATCH /api/v1/projects/{project_id}/comparison-attributes` — update attributes used for project comparison.
+- `PATCH /api/v1/projects/{project_id}/skills` — select and highlight skills for the project.
+- `PATCH /api/v1/projects/{project_id}/role` — set user role attribution for the project.
+- `PATCH /api/v1/projects/{project_id}/evidence` — attach/update success evidence (metrics/feedback/evaluation).
+- `PATCH /api/v1/projects/{project_id}/thumbnail` — associate a portfolio image thumbnail with a project.
+- `PATCH /api/v1/portfolios/{portfolio_id}/showcase` — choose and save showcase-project customization.
+- `PATCH /api/v1/projects/{project_id}/resume-wording` — customize and save résumé-item wording.
+- `GET /api/v1/projects/{project_id}/render/portfolio-text` — get textual portfolio showcase rendering.
+- `GET /api/v1/projects/{project_id}/render/resume-text` — get textual résumé-item rendering.
 
 #### Milestone-2 Deliverables
 - Running local service with documented API  

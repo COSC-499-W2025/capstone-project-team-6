@@ -86,11 +86,11 @@ async def get_task_status(task_id: str, username: str = Depends(verify_token)):
             progress=task.progress,
             analysis_phase=getattr(task, "analysis_phase", None),
         )
+
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception("get_task_status failed for task_id=%s: %s", task_id, e)
-        traceback.print_exc()
+        logger.exception("Error getting task status")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
@@ -110,11 +110,13 @@ async def list_user_tasks(
     task_manager = get_task_manager()
     all_tasks = task_manager.get_user_tasks(username)
 
-    sorted_tasks = sorted(
-        all_tasks,
-        key=lambda t: t.created_at,
-        reverse=True,
-    )[:limit]
+    def _sort_key(t):
+        val = t.created_at
+        if isinstance(val, datetime):
+            return val.isoformat()
+        return str(val)
+
+    sorted_tasks = sorted(all_tasks, key=_sort_key, reverse=True)[:limit]
 
     result_list = []
     for task in sorted_tasks:
@@ -131,8 +133,7 @@ async def list_user_tasks(
                 updated_at=updated_at,
                 error=task.error,
                 result=_sanitize_for_json(task.result) if task.result else None,
-                progress=task.progress,
-                analysis_phase=getattr(task, "analysis_phase", None),
+                progress=getattr(task, "progress", 0),
             )
         )
     return result_list
@@ -141,15 +142,11 @@ async def list_user_tasks(
 @router.post("/admin/cleanup")
 async def cleanup_completed_tasks(username: str = Depends(verify_token)):
     """Admin endpoint to clean up old completed tasks (stub for now)."""
-    # This would be an admin-only endpoint in production
     task_manager = get_task_manager()
 
-    # Count tasks before cleanup
     user_tasks = task_manager.get_user_tasks(username)
     completed_tasks = [t for t in user_tasks if t.status == TaskStatus.COMPLETED]
 
-    # In a real implementation, we'd delete old completed tasks
-    # For now, just return the count
     return {
         "message": "Cleanup check completed",
         "total_tasks": len(user_tasks),

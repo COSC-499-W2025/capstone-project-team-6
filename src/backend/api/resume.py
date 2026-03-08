@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from backend.analysis_database import (add_items_to_user_resume,
                                        create_user_resume,
+                                       delete_user_personal_info,
                                        get_all_analyses_for_user,
                                        get_analysis_by_uuid, get_connection,
                                        get_portfolio_item_for_project,
@@ -25,7 +26,7 @@ router = APIRouter(prefix="/api", tags=["Resume"])
 class ResumeRequest(BaseModel):
     """Request to generate a resume."""
 
-    project_ids: List[int] = Field(..., description="List of project IDs to include")
+    portfolio_ids: List[str] = Field(..., description="List of portfolio/analysis UUIDs")
     format: str = Field("markdown", description="Output format: markdown, pdf, latex")
     include_skills: bool = Field(True, description="Include skills section")
     include_projects: bool = Field(True, description="Include projects section")
@@ -35,6 +36,10 @@ class ResumeRequest(BaseModel):
         description="Personal information (name, email, phone, location, linkedIn, github, website)",
     )
     stored_resume_id: Optional[int] = Field(None, description="Optional stored resume to use as the base")
+    highlighted_skills: Optional[List[str]] = Field(
+        None,
+        description="Curated highlighted skills to use in the skills section (from curation settings)",
+    )
 
 
 class ResumeResponse(BaseModel):
@@ -187,75 +192,96 @@ async def save_personal_info(request: PersonalInfoSaveRequest, username: str = D
     return {"ok": True}
 
 
+@router.delete("/resume/personal-info")
+async def delete_personal_info(username: str = Depends(verify_token)):
+    deleted = delete_user_personal_info(username)
+    return {
+        "ok": True,
+        "deleted": deleted,
+        "message": "Personal info removed" if deleted else "No personal info to remove",
+    }
+
+
 @router.post("/resume/generate", response_model=ResumeResponse)
 async def generate_resume(
     request: ResumeRequest,
     username: str = Depends(verify_token),
 ):
-    """Generate a resume from selected projects."""
+    """Generate a resume from selected portfolio(s)."""
     try:
         import base64
         import uuid
         from datetime import datetime
 
-        # 1) Load user's projects once (ownership validation)
-        user_projects = get_projects_for_user(username)
-        user_projects_by_id = {p["id"]: p for p in user_projects}
-
-        # 2) Validate project ownership
-        missing = [pid for pid in request.project_ids if pid not in user_projects_by_id]
-        if missing:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Project(s) not found or access denied: {missing}",
-            )
-
-        # 3) Build projects
-        projects_for_resume: List[Dict[str, Any]] = []
-
-        for pid in request.project_ids:
-            project_row = user_projects_by_id[pid]
-
-            resume_rows_raw = get_resume_items_for_project_id(pid)
-            resume_rows = [dict(r) for r in resume_rows_raw]  # ensure dict
-
-            portfolio_item = get_portfolio_item_for_project(pid) or {}
-
-            projects_for_resume.append(
-                {
-                    "project": project_row,
-                    "resume_items": resume_rows,
-                    "portfolio": portfolio_item,
-                }
-            )
-
-        # 4) Generate resume using the existing generator
         from backend.analysis.resume_generator import \
             generate_resume as generate_resume_impl
 
+        # Only one portfolio supported at this time
+        if len(request.portfolio_ids) != 1:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Only a single portfolio is currently supported",
+            )
+
+        # Validate stored_resume_id early so we fail fast before hitting the DB
+        stored_resume = None
+        if request.stored_resume_id is not None:
+            stored_resume = get_user_resume(request.stored_resume_id, username)
+            if not stored_resume:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Stored resume not found",
+                )
+            if request.format != "markdown":
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Merging with a stored resume requires markdown output format",
+                )
+            if stored_resume["format"] != "markdown":
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Stored resume must be in markdown format to merge",
+                )
+
+        # Look up portfolio by UUID
+        portfolio_id = request.portfolio_ids[0]
+        analysis = get_analysis_by_uuid(portfolio_id)
+        if not analysis:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Portfolio {portfolio_id} not found",
+            )
+
+        projects = analysis.get("projects", [])
+        total_projects = analysis.get("total_projects", len(projects))
+
+        # Generate the resume content
         resume_content = generate_resume_impl(
-            projects=projects_for_resume,
+            projects=projects,
             format=request.format,
             include_skills=request.include_skills,
             include_projects=request.include_projects,
             max_projects=request.max_projects,
             personal_info=request.personal_info,
+            highlighted_skills=request.highlighted_skills,
         )
 
-        # Convert PDF bytes to base64 string for JSON response
+        # Encode binary formats (pdf / latex) as base64 for JSON transport
         if request.format in ("pdf", "latex") and isinstance(resume_content, bytes):
             resume_content = base64.b64encode(resume_content).decode("utf-8")
 
-        resume_id = str(uuid.uuid4())
+        # Merge generated content into the stored resume when requested
+        if stored_resume is not None and isinstance(resume_content, str):
+            resume_content = _merge_resume_content(stored_resume["content_text"], resume_content)
 
         return ResumeResponse(
-            resume_id=resume_id,
+            resume_id=str(uuid.uuid4()),
             format=request.format,
             content=resume_content,
             metadata={
                 "username": username,
-                "project_count": len(projects_for_resume),
-                "total_projects": len(user_projects),
+                "portfolio_count": len(request.portfolio_ids),
+                "total_projects": total_projects,
                 "generated_at": datetime.now().isoformat(),
             },
         )
@@ -335,7 +361,7 @@ async def list_stored_resumes(username: str = Depends(verify_token)):
 
 
 @router.get("/resume/personal-info", response_model=PersonalInfoResponse)
-async def get_personal_info(username: str = Depends(verify_token)):
+async def get_personal_info_v2(username: str = Depends(verify_token)):
     info = get_user_personal_info(username)
     return PersonalInfoResponse(personal_info=info or None)
 
@@ -388,6 +414,10 @@ async def add_items_to_stored_resume(resume_id: int, request: AddResumeItemsRequ
     if not request.resume_item_ids:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No resume items selected")
 
+    resume = get_user_resume(resume_id, username)
+    if not resume:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
+
     with get_connection() as conn:
         placeholders = ",".join("?" for _ in request.resume_item_ids)
         rows = conn.execute(
@@ -414,7 +444,6 @@ async def add_items_to_stored_resume(resume_id: int, request: AddResumeItemsRequ
     ]
     add_items_to_user_resume(resume_id, username, items)
 
-    resume = get_user_resume(resume_id, username)
     merged_content = _append_markdown_bullets(resume["content_text"], [row["resume_text"] for row in rows])
     update_user_resume_content(resume_id, username, merged_content)
 
