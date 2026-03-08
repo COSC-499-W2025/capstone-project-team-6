@@ -33,11 +33,17 @@ const renderWithRouter = (state = { taskId: 'test-task-123' }) => {
 };
 
 // Need to pass state via location - MemoryRouter doesn't support initial state directly
-// We need to use a custom route that provides state
 const renderWithState = (taskId = 'test-task-123') => {
-  const location = { pathname: '/analyze', state: { taskId } };
   return render(
     <MemoryRouter initialEntries={[{ pathname: '/analyze', state: { taskId } }]}>
+      <AnalyzePage />
+    </MemoryRouter>
+  );
+};
+
+const renderWithTaskIds = (taskIds = ['task-1', 'task-2']) => {
+  return render(
+    <MemoryRouter initialEntries={[{ pathname: '/analyze', state: { taskIds } }]}>
       <AnalyzePage />
     </MemoryRouter>
   );
@@ -191,6 +197,50 @@ describe('AnalyzePage', () => {
         expect(screen.getByText(/Type of analysis: LLM/)).toBeInTheDocument();
       });
       expect(screen.getByText(/Running LLM analysis/)).toBeInTheDocument();
+    });
+  });
+
+  describe('Multi-task polling', () => {
+    it('polls all task IDs when taskIds is passed', async () => {
+      getTaskStatus.mockResolvedValue({ status: 'running', progress: 50 });
+      renderWithTaskIds(['task-a', 'task-b']);
+
+      await waitFor(() => {
+        expect(getTaskStatus).toHaveBeenCalledWith('task-a', 'test-token');
+        expect(getTaskStatus).toHaveBeenCalledWith('task-b', 'test-token');
+      });
+    });
+
+    it('navigates to projects only when all tasks are completed', async () => {
+      getTaskStatus.mockResolvedValue({
+        status: 'completed',
+        progress: 100,
+        result: { analysis_uuid: 'uuid-1' },
+      });
+      renderWithTaskIds(['task-1', 'task-2']);
+
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith('/projects');
+      });
+      expect(getTaskStatus).toHaveBeenCalledWith('task-1', 'test-token');
+      expect(getTaskStatus).toHaveBeenCalledWith('task-2', 'test-token');
+    });
+
+    it('uses sessionStorage analyze_task_ids fallback for multi-task', async () => {
+      sessionStorage.setItem('analyze_task_ids', JSON.stringify(['stored-task-1', 'stored-task-2']));
+      getTaskStatus.mockResolvedValue({ status: 'running', progress: 50 });
+      render(
+        <MemoryRouter initialEntries={[{ pathname: '/analyze', state: {} }]}>
+          <AnalyzePage />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(getTaskStatus).toHaveBeenCalledWith('stored-task-1', 'test-token');
+        expect(getTaskStatus).toHaveBeenCalledWith('stored-task-2', 'test-token');
+      });
+      expect(screen.getByText(/2 tasks/)).toBeInTheDocument();
+      sessionStorage.removeItem('analyze_task_ids');
     });
   });
 });
