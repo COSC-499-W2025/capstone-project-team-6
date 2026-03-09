@@ -76,49 +76,53 @@ This week went well overall because I completed my assigned tasks on time and wa
 
   
 # Aakash Tirithdas
+
 ## Date Ranges
 
 February 9-March 1
 ![Aakash Week 9](../images/aakashlogst2w9.png)
 
 ## Goals for this week (planned last sprint)
+
 - Discuss milestone 3 requirements
 - Fix any bugs found during milestone 2 wrap up.
 - Fix the bug from our extra multiproject analysis
 
-
 ## What went well
+
 - all tasks went well.
 - all tasks were complete
-  
+
 ## What could have been done better
+
 - There were no team meetings that occured this week due to everyone being busy
 
-
 ## Coding tasks
+
 - fixed the multi-project analysis bug.
-  - the bug stemmed from the task analysis only being able to assign 1 task id. 
+  - the bug stemmed from the task analysis only being able to assign 1 task id.
   - the code was adjusted to be compatible with multiple task ids fixing the bug
 - 2 new bugs were found
   - 1 duplication in mult-analysis is not implemented
   - duplicatio of deleted projects is still found meaning there is a logical error in the duplication identification
 
-
-
 ## Testing or debugging tasks
+
 - Ensure that all relevet tests passed from the start of the project with the exception of depricated tests. (closed last weeks branch as there were too may merge conflicts causing several new errors, was easier to make the same fixes in a new branch with a few slight changes)
-- maually and automatically tests that the multiple analysis fix worked as expected. 
+- maually and automatically tests that the multiple analysis fix worked as expected.
 
 ## Document tasks
+
 - updated our DFD1 and architecture diagram
 
-
 ## PR's initiated
+
 - fixed the multiproject bug. #414 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/414
 - made changes to the tests so that all tests pass #412 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/412
 - updated documentation for milestone2 #410 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/410
 
 ## PR's reviewed
+
 - Settings page: change password #418 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/418
 - Analyze Page Restyled #420 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/420
 - Fixed bugs that broke resume generation #425 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/425
@@ -144,12 +148,13 @@ March 2-March 8
 - Implement the change password feature
 
 ## What went well
-The transition to a unified Docker environment was a significant success this week, as merging the React frontend and FastAPI backend into a single container has greatly streamlined the local development workflow. This change, along with the implementation of a persistent SQLite database through volume mounting, provides a much more stable foundation for the team. 
+
+The transition to a unified Docker environment was a significant success this week, as merging the React frontend and FastAPI backend into a single container has greatly streamlined the local development workflow. This change, along with the implementation of a persistent SQLite database through volume mounting, provides a much more stable foundation for the team.
 On the feature side, the settings page was successfully enhanced with the change password functionality and a direct logout button, which noticeably improves the user experience by centralizing account controls. Additionally, providing detailed architectural feedback on the Milestone 2 documentation helped ensure our system design. The modular connections between the FastAPI server and Gemini AI is accurately represented for future milestones.
 
 ## What didn't go well
-Despite the progress with containerization, a primary concern remains the lack of verification for Windows environments; since the script was developed on macOS, there may be minor compatibility issues that haven't been surfaced yet. The migration to the new Docker setup constitutes a breaking change regarding local data. Because the application now relies on a new SQLite volume mounting strategy, all previously saved local login credentials will no longer function, requiring all team members and testers to create new accounts.
 
+Despite the progress with containerization, a primary concern remains the lack of verification for Windows environments; since the script was developed on macOS, there may be minor compatibility issues that haven't been surfaced yet. The migration to the new Docker setup constitutes a breaking change regarding local data. Because the application now relies on a new SQLite volume mounting strategy, all previously saved local login credentials will no longer function, requiring all team members and testers to create new accounts.
 
 ## Coding tasks
 
@@ -158,20 +163,23 @@ Despite the progress with containerization, a primary concern remains the lack o
 - **Settings Page Enhancements:** Integrated a logout trigger directly into the settings interface.
 
 **PRs:**
+
 - Docker Containerization - Unified Setup [#416](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/416)
 - Settings page: change password [#418](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/418)
 
-
 ## Testing or debugging tasks
+
 - **Auth Testing:** Verified password change and logout logic using `pytest src/tests/api_test/test_auth.py`.
 - **Persistence Validation:** Tested Docker volume mounting to ensure SQLite data persists across container restarts.
 - **Container Health:** Used `test-docker-setup.sh` to verify API and Frontend availability on the new unified port.
 
 **PRs:**
+
 - Fix the multiproject bug [#414](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/414)
 - Settings page: change password [#418](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/418)
 
 ## Reviewing or collaboration tasks
+
 - **Architecture Guidance:** Requested specific changes to the Milestone 2 documentation to correctly map the relationship between the FastAPI server, Gemini AI, and the independent Task/Project/Portfolio modules.
 - **Bug Triaging:** Reviewed and approved fixes for the multiproject bug and general setup issues.
 
@@ -180,22 +188,25 @@ Despite the progress with containerization, a primary concern remains the lack o
 -No major blockers this week
 
 ## PR's initiated
+
 - Docker Containerization - Unified Setup #416 (https://github.com/COSC-499-W2025/capstone-project-team-6/pull/416)
 - Settings page: change password #418 (https://github.com/COSC-499-W2025/capstone-project-team-6/pull/418)
 
 ## PR's reviewed
+
 - fixed the multiproject bug #414: (https://github.com/COSC-499-W2025/capstone-project-team-6/pull/414)
 - Setup fix #411 (https://github.com/COSC-499-W2025/capstone-project-team-6/pull/411)
 - updated documentation for milestone2 #410 (https://github.com/COSC-499-W2025/capstone-project-team-6/pull/410) (Changes Requested)
 
-
 ## Plan for next week
+
 - Verify Docker functionality on Windows environments.
 - Begin implementation of Milestone 3 core requirements based on team discussion.
 
 # Harjot Sahota
 
 ## Date Range
+
 March 1 - March 8
 <img width="1081" height="634" alt="Screenshot 2026-03-08 at 4 40 47 PM" src="https://github.com/user-attachments/assets/ce3e832c-abab-48b0-8317-45ee252e360c" />
 
@@ -216,20 +227,19 @@ Given the size and scope of the PR, I decided to use a backend helper function t
 
 ## PRs initiated
 
-Projects page UI cleanup and card layout improvements  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/423
+Projects page UI cleanup and card layout improvements https://github.com/COSC-499-W2025/capstone-project-team-6/pull/423
 
-Add delete account feature with frontend, backend, and tests  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/428
+Add delete account feature with frontend, backend, and tests https://github.com/COSC-499-W2025/capstone-project-team-6/pull/428
 
 ## PRs reviewed
 
-added tests to verify resume bugs are fixed  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/426
+added tests to verify resume bugs are fixed https://github.com/COSC-499-W2025/capstone-project-team-6/pull/426
 
-fixed the multiproject bug setup fix  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/414
+fixed the multiproject bug setup fix https://github.com/COSC-499-W2025/capstone-project-team-6/pull/414
 
 Setup fix https://github.com/COSC-499-W2025/capstone-project-team-6/pull/411
 
-updated documentation for milestone2  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/410
-
+updated documentation for milestone2 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/410
 
 ## Plans for next week
 
@@ -238,20 +248,24 @@ Next week I plan to work on a cleanup PR that migrates the remaining relevant fo
 I also plan to work on a feature that allows users to upload or paste in their own API key in the app so they can use the LLM analysis feature through the frontend.
 
 # Mohamed Sakr
+
 ## Date Ranges
 
 February 9-March 1
 ![Mohamed Week 9](../term2/mohamedW9T2.png)
 
 ## Goals for this week (planned last sprint)
+
 - Investigate and fix the resume generation white screen bug
 - Write tests to cover resume generation
 
 ## What went well
+
 - Identified and fixed all root causes of the resume generation crash
 - Tests pass cleanly across backend and frontend
 
 ## Coding tasks
+
 - Diagnosed and fixed the resume generation feature which was completely broken — clicking "Generate Resume" caused a white screen with no error shown
   - Fixed field name mismatch: backend `ResumeRequest` used `portfolio_ids` (UUID strings) while frontend sent `project_ids` (integers), causing an immediate 422 rejection on every request
   - Rewrote the `generate_resume` endpoint to look up projects by integer ID using `get_projects_for_user`, fetch resume items and portfolio data per project, parse JSON fields, and assemble the correct `{project, resume_items, portfolio}` bundle structure expected by `generate_resume_impl`
@@ -260,6 +274,7 @@ February 9-March 1
   - Increased axios timeout from 10 s to 60 s
 
 ## Testing or debugging tasks
+
 - Updated all stale tests in `test_resume.py` that were using the old `portfolio_ids` field and `get_analysis_by_uuid` mocks — replaced with `project_ids` and the three new DB helper mocks
 - Created `test_resume_generate_bugfix.py` with 19 regression tests, one class per bug, ensuring each root cause cannot silently regress
 - Created `Resume.test.jsx` covering initial render, button state, success path (verifies integer `project_ids` are sent), and error path (confirms a failing API call shows an error message rather than a blank screen)
@@ -267,13 +282,86 @@ February 9-March 1
 - All 85 tests (64 backend, 21 frontend) pass locally
 
 ## PR's initiated
+
 - Resume generation bug fix #resume-fix https://github.com/COSC-499-W2025/capstone-project-team-6/pull/425
 - Tests to verify resume bugs are fixed #426 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/426
 
 ## PR's reviewed
+
 - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/420 (first review)
 - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/428 (first review)
 
 ## Plan for next week
+
 - Continue working on Milestone 3 features
 - Look into further improvements to the resume generation output quality
+
+# Ansh Rastogi
+
+## Date Ranges
+
+March 2 – March 8
+![Ansh Week 9 Term 2](../images/AnshRastogi_PeerEval_SS_W9T2.png)
+
+## Goals for this week (planned last sprint)
+
+- Discuss and plan Milestone 3 requirements with the team
+- Continue addressing any bugs or polish items surfaced during Milestone 2 wrap-up
+
+## How this builds on last week's work
+
+Building directly on the duplicate file detection feature shipped in week 8 (PR #398), this sprint addressed a series of follow-on bugs in that same flow that only surfaced during broader manual testing. The initial implementation covered the happy path but left several edge cases unhandled across deletion, LLM uploads, multi-file uploads, and navigation state management.
+
+## What went well
+
+This sprint involved tracing and fixing eight distinct bugs in the duplicate detection flow. The most impactful fix was the false-positive for deleted projects: `get_analysis_by_file_hash` was matching stale `analyses` rows where `total_projects = 0`, so re-uploading a previously-deleted project was incorrectly blocked. Adding `AND total_projects > 0` to the SQL query resolved this without side effects. Similarly, the hard-coded `analysis_type = 'non_llm'` filter in the deduplication query meant LLM-analyzed uploads were never detected as duplicates — removing that filter and relying solely on file hash and username made the logic correct for all analysis types.
+
+On the frontend side, separating `duplicates` and `uploadErrors` into distinct arrays fixed the multi-file early-return bug, and introducing `duplicateCount` tracking in `AnalyzePage` enabled correct redirect behaviour regardless of how many files were duplicates. The mixed-case message (some new, some duplicate) was also wired up end-to-end by passing `skippedDuplicates` and `totalFiles` through navigation state from `Upload.jsx` to `AnalyzePage`.
+
+## What didn't go well
+
+The number of edge cases that compounded on top of each other made this harder to isolate than expected. Several bugs were only visible in specific sequences (e.g. upload → delete → re-upload, or multi-file with partial duplicates), which required systematic manual testing of each scenario individually rather than being able to rely on a single automated test run.
+
+## Coding tasks
+
+- Added `AND total_projects > 0` to `get_analysis_by_file_hash` SQL query to prevent stale analyses from blocking re-upload after project deletion
+- Removed hard-coded `analysis_type = 'non_llm'` filter from deduplication query; deduplication is now purely hash + username based
+- Separated `duplicates` and `uploadErrors` into distinct arrays in the multi-file upload path to fix early-return logic
+- Switched all-duplicates error message in multi-upload from `setDuplicateMessage` to `setError` so it renders inside the visible card
+- Added `duplicateCount` tracking in `AnalyzePage` and computed `allDuplicate = anyDuplicate && duplicateCount === completedCount` for correct multi-file redirect
+- Passed `skippedDuplicates` and `totalFiles` through navigation state from `Upload.jsx` to `AnalyzePage` to build accurate mixed-case messages
+- Hoisted `multipleSkippedDuplicates` and `multipleTotalFiles` as `let` variables before the `try` block to fix `duplicates is not defined` runtime error
+- Added `useEffect` syncing `duplicateMessage` from `location.state?.duplicateMessage` to handle navigate-back cases where the component is not remounted
+
+## Testing or debugging tasks
+
+- Manually verified all eight bug scenarios: deleted-project re-upload, genuine single duplicate, multiple all-duplicates, mixed new + duplicate multi-upload, LLM duplicate detection, runtime error reproduction, message visibility, and navigate-back message persistence
+- Confirmed each fix in isolation before combining into the final PR
+
+## Reviewing or collaboration tasks
+
+- Reviewed PR #412 – Test fixes to ensure all tests pass
+- Reviewed PR #418 – Settings page: change password
+- Reviewed PR #423 – Projects page UI cleanup and card layout improvements
+- Reviewed PR #426 – Tests to verify resume bugs are fixed
+
+## Issues / Blockers
+
+No major blockers this week.
+
+## PR's initiated
+
+- #431: Duplicate detection bug fixes (8 fixes across SQL, backend task logic, and frontend upload/navigate flow) – https://github.com/COSC-499-W2025/capstone-project-team-6/pull/431
+
+## PR's reviewed
+
+- #412: Test fixes to ensure all tests pass – https://github.com/COSC-499-W2025/capstone-project-team-6/pull/412
+- #418: Settings page: change password – https://github.com/COSC-499-W2025/capstone-project-team-6/pull/418
+- #423: Projects page UI cleanup and card layout improvements – https://github.com/COSC-499-W2025/capstone-project-team-6/pull/423
+- #426: Tests to verify resume bugs are fixed – https://github.com/COSC-499-W2025/capstone-project-team-6/pull/426
+
+## Plan for next week
+
+- Begin working on a Milestone 3 feature task
+- Continue supporting teammates with frontend integration and review work
+- Address any remaining polish or bugs identified during testing
