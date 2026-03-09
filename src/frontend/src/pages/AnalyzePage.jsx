@@ -136,7 +136,7 @@ export default function AnalyzePage() {
       if (allDuplicate) {
         const msg = idList.length === 1
           ? "This project has already been analyzed. You can view it in your projects."
-          : `All ${duplicateCount} project(s) have already been analyzed. You can view them in your projects.`;
+          : `All ${duplicateCount} ${duplicateCount === 1 ? 'project has' : 'projects have'} already been analyzed. You can view them in your projects.`;
         navigate("/upload", { state: { duplicateMessage: msg } });
         return;
       }
@@ -149,7 +149,9 @@ export default function AnalyzePage() {
       } else if (skippedDuplicates.length > 0) {
         const total = totalFiles ?? (completedCount - duplicateCount + skippedDuplicates.length);
         const analyzedCount = completedCount - duplicateCount;
-        const msg = `${skippedDuplicates.length} of ${total} project(s) ${skippedDuplicates.length === 1 ? 'was' : 'were'} already analyzed (skipped). ${analyzedCount} project(s) ${analyzedCount === 1 ? 'has' : 'have'} been analyzed successfully.`;
+        const skipWord = skippedDuplicates.length === 1 ? 'project was' : 'projects were';
+        const analyzeWord = analyzedCount === 1 ? 'project has' : 'projects have';
+        const msg = `${skippedDuplicates.length} of ${total} ${skipWord} already analyzed (skipped). ${analyzedCount} ${analyzeWord} been analyzed successfully.`;
         navigate("/upload", { state: { duplicateMessage: msg } });
       } else {
         navigate("/projects");
