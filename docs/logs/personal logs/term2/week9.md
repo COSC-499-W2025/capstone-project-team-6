@@ -113,3 +113,48 @@ Despite the progress with containerization, a primary concern remains the lack o
 ## Plan for next week
 - Verify Docker functionality on Windows environments.
 - Begin implementation of Milestone 3 core requirements based on team discussion.
+
+# Harjot Sahota
+
+## Date Range
+March 1 - March 8
+<img width="1081" height="634" alt="Screenshot 2026-03-08 at 4 40 47 PM" src="https://github.com/user-attachments/assets/ce3e832c-abab-48b0-8317-45ee252e360c" />
+
+## What went well
+
+This week I completed two meaningful improvements to the application: a Projects page UI cleanup and a full Delete Account feature.
+
+I updated the Projects page UI to make project cards cleaner, more readable, and easier to use. I removed the unused “Select stored resume” / “Add selected bullets” section, removed checkbox selection from resume bullets so they are now displayed as plain bullet points only, and improved the overall card layout and styling. These changes made the page feel more polished and user-friendly without changing the main functionality.
+I successfully added a Delete Account feature that allows an authenticated user to permanently remove their account and all associated data from the system through the Settings page. This included adding a new Delete Account section and confirmation modal in the frontend, wiring the frontend API call, creating the backend delete account endpoint, and adding helper logic to remove the user and related stored data. I also added Settings page tests covering the new delete account flow.
+
+Overall, this week went well because I was able to both improve the usability of the app and add a valuable account management feature for users who no longer want to use the system.
+
+## What didn’t go well
+
+While implementing the Delete Account feature, I discovered that some database relationships were not set up with the correct cascading delete behavior. Because of that, deleting an account was not as straightforward as it should have been.
+
+Given the size and scope of the PR, I decided to use a backend helper function to work around the current database relationship issues by deleting dependent data in the correct order before removing the user row. This allowed me to complete the feature without expanding the PR too far, but it also highlighted an area of the database design that still needs improvement.
+
+## PRs initiated
+
+Projects page UI cleanup and card layout improvements  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/423
+
+Add delete account feature with frontend, backend, and tests  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/428
+
+## PRs reviewed
+
+added tests to verify resume bugs are fixed  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/426
+
+fixed the multiproject bug setup fix  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/414
+
+Setup fix https://github.com/COSC-499-W2025/capstone-project-team-6/pull/411
+
+updated documentation for milestone2  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/410
+
+
+## Plans for next week
+
+Next week I plan to work on a cleanup PR that migrates the remaining relevant foreign key relationships to use `ON DELETE CASCADE` where appropriate. This should simplify the delete-account flow and reduce the need for manual ordered cleanup in backend helper logic.
+
+I also plan to work on a feature that allows users to upload or paste in their own API key in the app so they can use the LLM analysis feature through the frontend.
+
