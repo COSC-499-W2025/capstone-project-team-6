@@ -166,9 +166,7 @@ class TestResumeEndpoints:
         mock_projects.return_value = [{"id": 1, "project_name": "GenProj", "primary_language": "Python"}]
         mock_items.return_value = []
         mock_portfolio.return_value = {}
-        mock_generate.return_value = (
-            "John Doe\njohn@example.com\n\n## Projects\n\n**GenProj** | *Python*\n- gen bullet\n"
-        )
+        mock_generate.return_value = "John Doe\njohn@example.com\n\n## Projects\n\n**GenProj** | *Python*\n- gen bullet\n"
 
         create_response = client.post(
             "/api/resumes",
@@ -224,18 +222,14 @@ class TestResumeEndpoints:
     @patch("backend.api.resume.get_resume_items_for_project_id")
     @patch("backend.api.resume.get_portfolio_item_for_project")
     @patch("backend.analysis.resume_generator.generate_resume")
-    def test_generate_resume_success(
-        self, mock_generate, mock_portfolio, mock_items, mock_projects, auth_token
-    ):
+    def test_generate_resume_success(self, mock_generate, mock_portfolio, mock_items, mock_projects, auth_token):
         """Test generating resume with valid project IDs succeeds."""
         token, username = auth_token
         projects, items, portfolio = _mock_one_project()
         mock_projects.return_value = projects
         mock_items.return_value = items
         mock_portfolio.return_value = portfolio
-        mock_generate.return_value = (
-            "John Doe\njohn@example.com\n\n## Projects\n\n**TestProject** | *Python*\n- Test bullet\n"
-        )
+        mock_generate.return_value = "John Doe\njohn@example.com\n\n## Projects\n\n**TestProject** | *Python*\n- Test bullet\n"
 
         response = client.post(
             "/api/resume/generate",
@@ -267,9 +261,7 @@ class TestResumeEndpoints:
     @patch("backend.api.resume.get_resume_items_for_project_id")
     @patch("backend.api.resume.get_portfolio_item_for_project")
     @patch("backend.analysis.resume_generator.generate_resume")
-    def test_generate_resume_with_personal_info(
-        self, mock_generate, mock_portfolio, mock_items, mock_projects, auth_token
-    ):
+    def test_generate_resume_with_personal_info(self, mock_generate, mock_portfolio, mock_items, mock_projects, auth_token):
         """Test generating resume with personal info."""
         token, _ = auth_token
         projects, items, portfolio = _mock_one_project()
@@ -296,9 +288,7 @@ class TestResumeEndpoints:
     @patch("backend.api.resume.get_resume_items_for_project_id")
     @patch("backend.api.resume.get_portfolio_item_for_project")
     @patch("backend.analysis.resume_generator.generate_resume")
-    def test_generate_resume_with_options(
-        self, mock_generate, mock_portfolio, mock_items, mock_projects, auth_token
-    ):
+    def test_generate_resume_with_options(self, mock_generate, mock_portfolio, mock_items, mock_projects, auth_token):
         """Test generating resume with include_skills, include_projects, max_projects options."""
         token, _ = auth_token
         projects, items, portfolio = _mock_one_project()
@@ -328,9 +318,7 @@ class TestResumeEndpoints:
     @patch("backend.api.resume.get_resume_items_for_project_id")
     @patch("backend.api.resume.get_portfolio_item_for_project")
     @patch("backend.analysis.resume_generator.generate_resume")
-    def test_generate_resume_pdf_format(
-        self, mock_generate, mock_portfolio, mock_items, mock_projects, auth_token
-    ):
+    def test_generate_resume_pdf_format(self, mock_generate, mock_portfolio, mock_items, mock_projects, auth_token):
         """Test generating resume in PDF format."""
         token, _ = auth_token
         projects, items, portfolio = _mock_one_project()
@@ -353,9 +341,7 @@ class TestResumeEndpoints:
     @patch("backend.api.resume.get_resume_items_for_project_id")
     @patch("backend.api.resume.get_portfolio_item_for_project")
     @patch("backend.analysis.resume_generator.generate_resume")
-    def test_generate_resume_latex_format(
-        self, mock_generate, mock_portfolio, mock_items, mock_projects, auth_token
-    ):
+    def test_generate_resume_latex_format(self, mock_generate, mock_portfolio, mock_items, mock_projects, auth_token):
         """Test generating resume in LaTeX format."""
         token, _ = auth_token
         projects, items, portfolio = _mock_one_project()
@@ -664,9 +650,7 @@ class TestResumeEndpoints:
     @patch("backend.api.resume.get_resume_items_for_project_id")
     @patch("backend.api.resume.get_portfolio_item_for_project")
     @patch("backend.analysis.resume_generator.generate_resume")
-    def test_generate_resume_error_handling(
-        self, mock_generate, mock_portfolio, mock_items, mock_projects, auth_token
-    ):
+    def test_generate_resume_error_handling(self, mock_generate, mock_portfolio, mock_items, mock_projects, auth_token):
         """Test error handling when resume generation fails."""
         token, username = auth_token
         projects, items, portfolio = _mock_one_project()
@@ -704,9 +688,7 @@ class TestResumeEndpoints:
     @patch("backend.api.resume.get_resume_items_for_project_id")
     @patch("backend.api.resume.get_portfolio_item_for_project")
     @patch("backend.analysis.resume_generator.generate_resume")
-    def test_resume_response_metadata(
-        self, mock_generate, mock_portfolio, mock_items, mock_projects, auth_token
-    ):
+    def test_resume_response_metadata(self, mock_generate, mock_portfolio, mock_items, mock_projects, auth_token):
         """Test that generated resume response includes proper metadata."""
         token, username = auth_token
         projects, items, portfolio = _mock_one_project()

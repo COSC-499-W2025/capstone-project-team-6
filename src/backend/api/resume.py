@@ -273,11 +273,13 @@ async def generate_resume(
             # The resume generator looks for portfolio["skills"]
             portfolio_item["skills"] = portfolio_item.get("skills_exercised") or []
 
-            bundles.append({
-                "project": project,
-                "resume_items": resume_items,
-                "portfolio": portfolio_item,
-            })
+            bundles.append(
+                {
+                    "project": project,
+                    "resume_items": resume_items,
+                    "portfolio": portfolio_item,
+                }
+            )
 
         if not bundles:
             raise HTTPException(

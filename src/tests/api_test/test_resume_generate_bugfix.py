@@ -146,9 +146,7 @@ class TestBug2IntegerProjectIds:
     @patch("backend.api.resume.get_resume_items_for_project_id")
     @patch("backend.api.resume.get_portfolio_item_for_project")
     @patch("backend.analysis.resume_generator.generate_resume")
-    def test_integer_project_id_resolves_correctly(
-        self, mock_gen, mock_portfolio, mock_items, mock_projects, auth_token
-    ):
+    def test_integer_project_id_resolves_correctly(self, mock_gen, mock_portfolio, mock_items, mock_projects, auth_token):
         """An integer project ID must resolve to the correct project dict."""
         token, username = auth_token
         mock_projects.return_value = [{"id": 42, "project_name": "MyApp", "primary_language": "Rust"}]
@@ -168,9 +166,7 @@ class TestBug2IntegerProjectIds:
     @patch("backend.api.resume.get_resume_items_for_project_id")
     @patch("backend.api.resume.get_portfolio_item_for_project")
     @patch("backend.analysis.resume_generator.generate_resume")
-    def test_get_analysis_by_uuid_is_never_called(
-        self, mock_gen, mock_portfolio, mock_items, mock_projects, auth_token
-    ):
+    def test_get_analysis_by_uuid_is_never_called(self, mock_gen, mock_portfolio, mock_items, mock_projects, auth_token):
         """The old UUID-based lookup must not be invoked at all."""
         token, _ = auth_token
         mock_projects.return_value = [{"id": 1, "project_name": "Proj", "primary_language": "Go"}]
@@ -214,9 +210,7 @@ class TestBug3MultipleProjectsSupported:
     @patch("backend.api.resume.get_resume_items_for_project_id")
     @patch("backend.api.resume.get_portfolio_item_for_project")
     @patch("backend.analysis.resume_generator.generate_resume")
-    def test_two_projects_succeed(
-        self, mock_gen, mock_portfolio, mock_items, mock_projects, auth_token
-    ):
+    def test_two_projects_succeed(self, mock_gen, mock_portfolio, mock_items, mock_projects, auth_token):
         token, _ = auth_token
         mock_projects.return_value = [
             {"id": 1, "project_name": "Alpha", "primary_language": "Python"},
@@ -238,14 +232,9 @@ class TestBug3MultipleProjectsSupported:
     @patch("backend.api.resume.get_resume_items_for_project_id")
     @patch("backend.api.resume.get_portfolio_item_for_project")
     @patch("backend.analysis.resume_generator.generate_resume")
-    def test_five_projects_succeed(
-        self, mock_gen, mock_portfolio, mock_items, mock_projects, auth_token
-    ):
+    def test_five_projects_succeed(self, mock_gen, mock_portfolio, mock_items, mock_projects, auth_token):
         token, _ = auth_token
-        mock_projects.return_value = [
-            {"id": i, "project_name": f"Project{i}", "primary_language": "Java"}
-            for i in range(1, 6)
-        ]
+        mock_projects.return_value = [{"id": i, "project_name": f"Project{i}", "primary_language": "Java"} for i in range(1, 6)]
         mock_items.return_value = []
         mock_portfolio.return_value = {}
         mock_gen.return_value = "Five projects"
@@ -272,9 +261,7 @@ class TestBug3MultipleProjectsSupported:
     @patch("backend.api.resume.get_resume_items_for_project_id")
     @patch("backend.api.resume.get_portfolio_item_for_project")
     @patch("backend.analysis.resume_generator.generate_resume")
-    def test_generator_receives_all_bundles(
-        self, mock_gen, mock_portfolio, mock_items, mock_projects, auth_token
-    ):
+    def test_generator_receives_all_bundles(self, mock_gen, mock_portfolio, mock_items, mock_projects, auth_token):
         """generate_resume_impl must be called with one bundle per selected project."""
         token, _ = auth_token
         mock_projects.return_value = [
@@ -314,9 +301,7 @@ class TestBug4CorrectBundleShape:
     @patch("backend.api.resume.get_resume_items_for_project_id")
     @patch("backend.api.resume.get_portfolio_item_for_project")
     @patch("backend.analysis.resume_generator.generate_resume")
-    def test_bundle_has_project_key(
-        self, mock_gen, mock_portfolio, mock_items, mock_projects, auth_token
-    ):
+    def test_bundle_has_project_key(self, mock_gen, mock_portfolio, mock_items, mock_projects, auth_token):
         """Each bundle passed to generate_resume must contain a 'project' key."""
         token, _ = auth_token
         mock_projects.return_value = [{"id": 1, "project_name": "Foo", "primary_language": "Ruby"}]
@@ -339,15 +324,11 @@ class TestBug4CorrectBundleShape:
     @patch("backend.api.resume.get_resume_items_for_project_id")
     @patch("backend.api.resume.get_portfolio_item_for_project")
     @patch("backend.analysis.resume_generator.generate_resume")
-    def test_bundle_has_resume_items_key(
-        self, mock_gen, mock_portfolio, mock_items, mock_projects, auth_token
-    ):
+    def test_bundle_has_resume_items_key(self, mock_gen, mock_portfolio, mock_items, mock_projects, auth_token):
         """Each bundle must contain a 'resume_items' key from the DB lookup."""
         token, _ = auth_token
         mock_projects.return_value = [{"id": 5, "project_name": "Bar", "primary_language": "Kotlin"}]
-        mock_items.return_value = [
-            {"id": 11, "resume_text": "Built a scalable API", "bullet_order": 0}
-        ]
+        mock_items.return_value = [{"id": 11, "resume_text": "Built a scalable API", "bullet_order": 0}]
         mock_portfolio.return_value = {}
         mock_gen.return_value = "ok"
 
@@ -425,9 +406,7 @@ class TestBug4CorrectBundleShape:
     @patch("backend.api.resume.get_resume_items_for_project_id")
     @patch("backend.api.resume.get_portfolio_item_for_project")
     @patch("backend.analysis.resume_generator.generate_resume")
-    def test_resume_items_fetched_once_per_project(
-        self, mock_gen, mock_portfolio, mock_items, mock_projects, auth_token
-    ):
+    def test_resume_items_fetched_once_per_project(self, mock_gen, mock_portfolio, mock_items, mock_projects, auth_token):
         """get_resume_items_for_project_id must be called exactly once per project."""
         token, _ = auth_token
         mock_projects.return_value = [
@@ -451,20 +430,14 @@ class TestBug4CorrectBundleShape:
     @patch("backend.api.resume.get_projects_for_user")
     @patch("backend.api.resume.get_resume_items_for_project_id")
     @patch("backend.api.resume.get_portfolio_item_for_project")
-    def test_end_to_end_resume_content_contains_project_name(
-        self, mock_portfolio, mock_items, mock_projects, auth_token
-    ):
+    def test_end_to_end_resume_content_contains_project_name(self, mock_portfolio, mock_items, mock_projects, auth_token):
         """
         Full integration: with real generate_resume_impl, the output must
         contain the project name, not a blank 'Project' placeholder.
         """
         token, _ = auth_token
-        mock_projects.return_value = [
-            {"id": 1, "project_name": "CapstoneApp", "primary_language": "Python"}
-        ]
-        mock_items.return_value = [
-            {"id": 1, "resume_text": "Designed a REST API for portfolio analysis", "bullet_order": 0}
-        ]
+        mock_projects.return_value = [{"id": 1, "project_name": "CapstoneApp", "primary_language": "Python"}]
+        mock_items.return_value = [{"id": 1, "resume_text": "Designed a REST API for portfolio analysis", "bullet_order": 0}]
         mock_portfolio.return_value = {}
 
         response = client.post(
@@ -492,9 +465,7 @@ class TestMetadataRegression:
     @patch("backend.api.resume.get_resume_items_for_project_id")
     @patch("backend.api.resume.get_portfolio_item_for_project")
     @patch("backend.analysis.resume_generator.generate_resume")
-    def test_metadata_contains_project_count(
-        self, mock_gen, mock_portfolio, mock_items, mock_projects, auth_token
-    ):
+    def test_metadata_contains_project_count(self, mock_gen, mock_portfolio, mock_items, mock_projects, auth_token):
         token, username = auth_token
         mock_projects.return_value = [
             {"id": 1, "project_name": "A", "primary_language": "Python"},
@@ -520,9 +491,7 @@ class TestMetadataRegression:
     @patch("backend.api.resume.get_resume_items_for_project_id")
     @patch("backend.api.resume.get_portfolio_item_for_project")
     @patch("backend.analysis.resume_generator.generate_resume")
-    def test_metadata_contains_required_fields(
-        self, mock_gen, mock_portfolio, mock_items, mock_projects, auth_token
-    ):
+    def test_metadata_contains_required_fields(self, mock_gen, mock_portfolio, mock_items, mock_projects, auth_token):
         token, username = auth_token
         mock_projects.return_value = [{"id": 1, "project_name": "A", "primary_language": "Python"}]
         mock_items.return_value = []
