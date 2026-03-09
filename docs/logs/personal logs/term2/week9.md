@@ -42,7 +42,9 @@ February 9-March 1
 - updated documentation for milestone2 #410 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/410
 
 ## PR's reviewed
-
+- Settings page: change password #418 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/418
+- Analyze Page Restyled #420 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/420
+- Fixed bugs that broke resume generation #425 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/425
 
 ## Plan for next week
 
