@@ -26,7 +26,7 @@ router = APIRouter(prefix="/api", tags=["Resume"])
 class ResumeRequest(BaseModel):
     """Request to generate a resume."""
 
-    portfolio_ids: List[str] = Field(..., description="List of portfolio/analysis UUIDs")
+    project_ids: List[int] = Field(..., description="List of project DB integer IDs")
     format: str = Field("markdown", description="Output format: markdown, pdf, latex")
     include_skills: bool = Field(True, description="Include skills section")
     include_projects: bool = Field(True, description="Include projects section")
@@ -207,20 +207,20 @@ async def generate_resume(
     request: ResumeRequest,
     username: str = Depends(verify_token),
 ):
-    """Generate a resume from selected portfolio(s)."""
+    """Generate a resume from selected projects."""
     try:
         import base64
+        import json
         import uuid
         from datetime import datetime
 
         from backend.analysis.resume_generator import \
             generate_resume as generate_resume_impl
 
-        # Only one portfolio supported at this time
-        if len(request.portfolio_ids) != 1:
+        if not request.project_ids:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Only a single portfolio is currently supported",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No project IDs provided",
             )
 
         # Validate stored_resume_id early so we fail fast before hitting the DB
@@ -243,21 +243,51 @@ async def generate_resume(
                     detail="Stored resume must be in markdown format to merge",
                 )
 
-        # Look up portfolio by UUID
-        portfolio_id = request.portfolio_ids[0]
-        analysis = get_analysis_by_uuid(portfolio_id)
-        if not analysis:
+        # Fetch all projects belonging to the user and build a lookup map
+        user_projects = get_projects_for_user(username)
+        user_project_map = {p["id"]: p for p in user_projects}
+
+        # Build project bundles for the resume generator
+        bundles = []
+        for pid in request.project_ids:
+            project = user_project_map.get(pid)
+            if not project:
+                # Skip project IDs that don't belong to this user
+                continue
+
+            resume_items = [dict(r) for r in get_resume_items_for_project_id(pid)]
+
+            # Fetch portfolio item and parse its JSON fields
+            portfolio_item = get_portfolio_item_for_project(pid) or {}
+            for key in ("tech_stack", "skills_exercised"):
+                raw = portfolio_item.get(key)
+                if not raw:
+                    portfolio_item[key] = []
+                elif isinstance(raw, str):
+                    try:
+                        parsed = json.loads(raw)
+                        portfolio_item[key] = parsed if isinstance(parsed, list) else []
+                    except (TypeError, json.JSONDecodeError):
+                        portfolio_item[key] = []
+
+            # The resume generator looks for portfolio["skills"]
+            portfolio_item["skills"] = portfolio_item.get("skills_exercised") or []
+
+            bundles.append({
+                "project": project,
+                "resume_items": resume_items,
+                "portfolio": portfolio_item,
+            })
+
+        if not bundles:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Portfolio {portfolio_id} not found",
+                detail="No valid projects found for the provided IDs",
             )
-
-        projects = analysis.get("projects", [])
-        total_projects = analysis.get("total_projects", len(projects))
 
         # Generate the resume content
         resume_content = generate_resume_impl(
-            projects=projects,
+            projects=bundles,
             format=request.format,
             include_skills=request.include_skills,
             include_projects=request.include_projects,
@@ -280,8 +310,8 @@ async def generate_resume(
             content=resume_content,
             metadata={
                 "username": username,
-                "portfolio_count": len(request.portfolio_ids),
-                "total_projects": total_projects,
+                "project_count": len(bundles),
+                "total_projects": len(bundles),
                 "generated_at": datetime.now().isoformat(),
             },
         )
