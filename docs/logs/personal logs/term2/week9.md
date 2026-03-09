@@ -1,3 +1,80 @@
+# Mandira Samarasekara
+
+## Date Ranges
+March 2 - March 8
+<img width="1511" height="890" alt="Screenshot 2026-03-08 191254" src="https://github.com/user-attachments/assets/7228cfb2-5c3c-41f4-a161-8ae204c8d720" />
+
+
+## Goals for this week (planned last sprint)
+- Discuss milestone 3 requirements
+- Fix any bugs found during milestone 2 wrap up
+- Fix the bug from our extra multiproject analysis
+- Redesign the Analyze page and fix the loading bar
+
+## What went well
+This week went well overall because I completed my assigned tasks on time and was able to contribute across setup, UI, and debugging work. One of the biggest wins was helping improve the unified Docker setup by testing it on Windows after it was dockerized on macOS, then fixing the missing pieces needed to make it run properly on Windows as well. I also caught project setup issues that could have caused problems for our TA, including missing setup instructions and deprecated dependencies in the root `requirements.txt`, and I was able to address those quickly.
+
+## What could have been done better
+- There were no team meetings this week because everyone was busy, which made coordination more difficult.
+- I only realized later that our project setup documentation was missing clear instructions for the TA. Although I fixed this within the week, it would have been better to catch it earlier.
+
+## Coding tasks
+- Contributed fixes to **Docker Containerization - Unified Setup** PR [#416](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/416)
+  - Removed `-v` from `docker-compose down -v` in both `run.sh` and `run.bat` so the `postgres_data` volume is no longer deleted on every run
+  - Added automatic `.env` creation from `.env.example` when missing, so setup does not fail immediately
+  - Standardized Docker commands to Docker Compose v2 (`docker compose`)
+  - Replaced the hardcoded CORS port (`5173`) with `CORS_ORIGINS` from environment variables
+  - Added a Windows test script: `test-docker-setup.bat`
+- Restyled the **Analyze Page** in PR [#420](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/420)
+  - Hid the raw task ID from users
+  - Added a project name display card
+  - Added badges for project type (Single/Multi Project) and analysis type (LLM/Non-LLM)
+  - Updated the page styling to match the Dashboard and Upload design system
+- Fixed the **Analyze page progress bar** so it reflects real analysis progress more accurately
+  - Added a `progress_callback` parameter to `analyze_folder()` in `cli.py`
+  - Added 6 real phase-boundary progress updates: Preparing → Main pipeline → C/C++ analysis → Git analysis → Role prediction → Finalizing
+  - Updated `task_manager.py` to map `analyze_folder()` progress from 0–100% into the task’s 35–80% range instead of using the old hardcoded 50%
+
+## Testing or debugging tasks
+- Tested the unified Docker setup on **Windows**
+  - Verified build and startup
+  - Verified container health checks
+  - Verified frontend accessibility
+  - Verified authentication flow
+  - Verified data persistence works correctly
+- Debugged setup issues related to missing `.env` handling, Docker command compatibility, and broken persistence caused by volume deletion
+- Tested the resume generation fixes in PR [#425](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/425)
+  - Confirmed generating resumes no longer causes the previous white screen
+  - Verified that selecting one or multiple projects now works correctly
+  - Confirmed the backend retrieves project, resume item, and portfolio data properly
+  - Verified the added React `ErrorBoundary` and increased axios timeout resolve the previous failure path
+- Tested UI updates in PR [#423](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/423)
+  - Confirmed the removed resume selection section no longer appears
+  - Verified resume bullets display correctly as plain bullet points
+  - Verified the moved delete button still works
+  - Verified the thumbnail upload area appears correctly and at the intended size
+
+## Document tasks
+- Fixed outdated and deprecated dependencies in the root `requirements.txt` in PR [#411](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/411)
+- Added `SETUP_INSTRUCTIONS.md` under the `docs` folder with detailed instructions for setting up the project from scratch for the TA
+
+## PR's initiated
+- Setup fix [#411](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/411)
+- Analyze Page Restyled [#420](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/420)
+
+## PR's reviewed
+- Update week9.md [#429](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/429)
+- added week9 logs [#415](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/415)
+- Fixed bugs that broke resume generation [#425](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/425) — approved after testing locally
+- Updated Projects Page UI [#423](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/423) — approved after verifying UI behavior
+- Docker Containerization - Unified Setup [#416](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/416) — reviewed and pushed Windows/setup fixes
+- made changes to the tests so that all tests pass [#412](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/412) — noted a minor issue with a weak assertion but approved to merge
+
+## Plan for next week
+- Change the loading animation in the Analyze page to better account for multi-project analysis
+- Incorporate role prediction into resume and portfolio generation
+
+  
 # Aakash Tirithdas
 ## Date Ranges
 
