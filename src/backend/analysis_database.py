@@ -1275,6 +1275,7 @@ def get_analysis_by_file_hash(
             """
             SELECT * FROM analyses
             WHERE zip_file_hash = ? AND username = ? AND analysis_type = ?
+            AND total_projects > 0
             ORDER BY created_at DESC LIMIT 1
             """,
             (file_hash, username, analysis_type),
