@@ -540,24 +540,24 @@ app.include_router(curation_router)
 frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
 if frontend_dist.exists():
     app.mount("/assets", StaticFiles(directory=str(frontend_dist / "assets")), name="assets")
-    
+
     # Serve index.html for all non-API routes (client-side routing)
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
         # Don't interfere with API routes
         if full_path.startswith("api/"):
             raise HTTPException(status_code=404, detail="API endpoint not found")
-        
+
         # Try to serve the requested file
         file_path = frontend_dist / full_path
         if file_path.is_file():
             return FileResponse(file_path)
-        
+
         # Otherwise serve index.html for client-side routing
         index_path = frontend_dist / "index.html"
         if index_path.exists():
             return FileResponse(index_path)
-        
+
         raise HTTPException(status_code=404, detail="Frontend not built")
 
 
