@@ -158,3 +158,43 @@ Next week I plan to work on a cleanup PR that migrates the remaining relevant fo
 
 I also plan to work on a feature that allows users to upload or paste in their own API key in the app so they can use the LLM analysis feature through the frontend.
 
+# Mohamed Sakr
+## Date Ranges
+
+February 9-March 1
+![Mohamed Week 9](../term2/mohamedW9T2.png)
+
+## Goals for this week (planned last sprint)
+- Investigate and fix the resume generation white screen bug
+- Write tests to cover resume generation
+
+## What went well
+- Identified and fixed all root causes of the resume generation crash
+- Tests pass cleanly across backend and frontend
+
+## Coding tasks
+- Diagnosed and fixed the resume generation feature which was completely broken — clicking "Generate Resume" caused a white screen with no error shown
+  - Fixed field name mismatch: backend `ResumeRequest` used `portfolio_ids` (UUID strings) while frontend sent `project_ids` (integers), causing an immediate 422 rejection on every request
+  - Rewrote the `generate_resume` endpoint to look up projects by integer ID using `get_projects_for_user`, fetch resume items and portfolio data per project, parse JSON fields, and assemble the correct `{project, resume_items, portfolio}` bundle structure expected by `generate_resume_impl`
+  - Removed the single-portfolio constraint that blocked multi-project selection
+  - Added a React `ErrorBoundary` to `App.jsx` so render crashes show a readable error card instead of a blank white screen
+  - Increased axios timeout from 10 s to 60 s
+
+## Testing or debugging tasks
+- Updated all stale tests in `test_resume.py` that were using the old `portfolio_ids` field and `get_analysis_by_uuid` mocks — replaced with `project_ids` and the three new DB helper mocks
+- Created `test_resume_generate_bugfix.py` with 19 regression tests, one class per bug, ensuring each root cause cannot silently regress
+- Created `Resume.test.jsx` covering initial render, button state, success path (verifies integer `project_ids` are sent), and error path (confirms a failing API call shows an error message rather than a blank screen)
+- Created `App.test.jsx` verifying the `ErrorBoundary` catches render crashes and displays "Something went wrong" with a reload button instead of a white screen
+- All 85 tests (64 backend, 21 frontend) pass locally
+
+## PR's initiated
+- Resume generation bug fix #resume-fix https://github.com/COSC-499-W2025/capstone-project-team-6/pull/425
+- Tests to verify resume bugs are fixed #426 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/426
+
+## PR's reviewed
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/420 (first review)
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/428 (first review)
+
+## Plan for next week
+- Continue working on Milestone 3 features
+- Look into further improvements to the resume generation output quality
