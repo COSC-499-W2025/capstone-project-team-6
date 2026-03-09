@@ -66,9 +66,7 @@ class TestResumeHighlightedSkills:
 
     @patch("backend.api.resume.get_analysis_by_uuid")
     @patch("backend.analysis.resume_generator.generate_resume")
-    def test_highlighted_skills_passed_to_generator(
-        self, mock_generate_resume, mock_get_analysis_by_uuid, auth_token
-    ):
+    def test_highlighted_skills_passed_to_generator(self, mock_generate_resume, mock_get_analysis_by_uuid, auth_token):
         """Test that highlighted_skills from the request body are forwarded to the generator."""
         token, username = auth_token
 
@@ -95,9 +93,7 @@ class TestResumeHighlightedSkills:
 
     @patch("backend.api.resume.get_analysis_by_uuid")
     @patch("backend.analysis.resume_generator.generate_resume")
-    def test_highlighted_skills_none_when_not_provided(
-        self, mock_generate_resume, mock_get_analysis_by_uuid, auth_token
-    ):
+    def test_highlighted_skills_none_when_not_provided(self, mock_generate_resume, mock_get_analysis_by_uuid, auth_token):
         """Test that highlighted_skills defaults to None when not in the request."""
         token, username = auth_token
 
@@ -119,9 +115,7 @@ class TestResumeHighlightedSkills:
 
     @patch("backend.api.resume.get_analysis_by_uuid")
     @patch("backend.analysis.resume_generator.generate_resume")
-    def test_highlighted_skills_empty_list(
-        self, mock_generate_resume, mock_get_analysis_by_uuid, auth_token
-    ):
+    def test_highlighted_skills_empty_list(self, mock_generate_resume, mock_get_analysis_by_uuid, auth_token):
         """Test that empty list is passed through correctly."""
         token, username = auth_token
 
@@ -144,9 +138,7 @@ class TestResumeHighlightedSkills:
 
     @patch("backend.api.resume.get_analysis_by_uuid")
     @patch("backend.analysis.resume_generator.generate_resume")
-    def test_highlighted_skills_with_personal_info_and_options(
-        self, mock_generate_resume, mock_get_analysis_by_uuid, auth_token
-    ):
+    def test_highlighted_skills_with_personal_info_and_options(self, mock_generate_resume, mock_get_analysis_by_uuid, auth_token):
         """Test highlighted_skills alongside other request fields."""
         token, username = auth_token
 
