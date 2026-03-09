@@ -87,6 +87,10 @@
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/415  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/429
 
+<img width="586" height="81" alt="image" src="https://github.com/user-attachments/assets/39922dbd-e439-455f-80ae-87ce12073665" />
+<img width="1259" height="86" alt="image" src="https://github.com/user-attachments/assets/055bde0f-36f8-4b91-89ca-45fa08eed043" />
+
+
 ---
 
 ### Aakash Tirithdas (**aakash-tir**)
@@ -109,6 +113,9 @@
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/418  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/420  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/425
+
+<img width="425" height="86" alt="image" src="https://github.com/user-attachments/assets/fe3d25b5-b794-450d-90ee-891f6bb722c7" />
+
 
 ---
 
@@ -135,6 +142,9 @@
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/411  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/410
 
+<img width="948" height="94" alt="image" src="https://github.com/user-attachments/assets/2cfa107a-6641-4185-990a-227a2956f7b7" />
+
+
 ---
 
 ### Harjot Sahota (**HarjotSahota**)
@@ -158,6 +168,9 @@
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/411  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/410
 
+<img width="715" height="199" alt="image" src="https://github.com/user-attachments/assets/ff7f3ed1-cd7c-45a1-9150-e0f5f23eb13f" />
+
+
 ---
 
 ### Mohamed Sakr (**mgjim101**)
@@ -175,6 +188,8 @@
   **Reviewed PRs:**  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/420  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/428
+
+
 
 ---
 
@@ -194,6 +209,10 @@
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/418  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/423  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/426
+
+<img width="451" height="85" alt="image" src="https://github.com/user-attachments/assets/3cae9fa9-3743-490c-a885-d8fcfe7b931a" />
+<img width="469" height="91" alt="image" src="https://github.com/user-attachments/assets/40c64e0e-d8f9-4a92-8adc-c27ab7634920" />
+
 
 ---
 
@@ -291,4 +310,5 @@
 
 ## Project Burnup Chart
 
-<!-- Add updated burnup chart image here -->
+<img width="1787" height="928" alt="image" src="https://github.com/user-attachments/assets/72e4f857-ccb7-4079-8979-22567bfb5a7e" />
+
