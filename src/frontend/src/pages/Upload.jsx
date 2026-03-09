@@ -49,6 +49,12 @@ const Upload = () => {
       .catch(() => setHasConsented(false));
   }, []);
 
+  // Sync duplicateMessage from navigation state (e.g. when AnalyzePage navigates back)
+  useEffect(() => {
+    const msg = location.state?.duplicateMessage;
+    if (msg) setDuplicateMessage(msg);
+  }, [location.state?.duplicateMessage]);
+
   const effectiveAnalysisType = (hasConsented && useLLMAnalysis) ? 'llm' : 'non_llm';
 
   const canAnalyzeSingle = selectedFile && projectName.trim().length > 0;
@@ -223,6 +229,8 @@ const Upload = () => {
 
     let taskIdForAnalyze = null;
     let taskIdsForAnalyze = [];
+    let multipleSkippedDuplicates = [];
+    let multipleTotalFiles = 0;
     try {
       if (activeTab === 'single') {
         const formData = new FormData();
@@ -262,6 +270,7 @@ const Upload = () => {
         const uploadErrors = [];
         const duplicates = [];
         const total = multipleFiles.length;
+        multipleTotalFiles = total;
         setUploadProgress({ current: 0, total });
 
         for (let i = 0; i < multipleFiles.length; i++) {
@@ -305,11 +314,12 @@ const Upload = () => {
           }
         } else if (duplicates.length > 0 && taskIdsForAnalyze.length === 0) {
           // All files were duplicates — nothing new to analyze
-          setError(`All ${duplicates.length} project(s) have already been analyzed. You can view them in your projects.`);
+          setError(`All ${duplicates.length} ${duplicates.length === 1 ? 'project has' : 'projects have'} already been analyzed. You can view them in your projects.`);
           setIsUploading(false);
           setUploadProgress({ current: 0, total: 0 });
           return;
         }
+        multipleSkippedDuplicates = duplicates;
       } else if (activeTab === 'incremental') {
         // Upload to existing portfolio
         const response = await portfoliosAPI.addToPortfolio(selectedPortfolio, incrementalFile);
@@ -402,8 +412,8 @@ const Upload = () => {
         navigate("/analyze", {
           state: {
             taskIds: taskIdsForAnalyze,
-            skippedDuplicates: duplicates,
-            totalFiles: total,
+            skippedDuplicates: multipleSkippedDuplicates,
+            totalFiles: multipleTotalFiles,
           },
         });
       } else if (taskIdForAnalyze) {
