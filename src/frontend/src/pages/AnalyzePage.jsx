@@ -13,12 +13,26 @@ export default function AnalyzePage() {
   const { user } = useAuth();
   
 
-  const taskIdFromNav = location.state?.taskId ?? sessionStorage.getItem("analyze_task_id") ?? null;
-  const displayInfo = taskIdFromNav ? `Task: ${taskIdFromNav}` : "(missing taskId — please upload and analyze again)";
+  // Support both single taskId and multiple taskIds
+  const taskIdsFromNav = location.state?.taskIds ?? (location.state?.taskId ? [location.state.taskId] : null)
+    ?? (() => {
+      try {
+        const stored = sessionStorage.getItem("analyze_task_ids");
+        return stored ? JSON.parse(stored) : null;
+      } catch {
+        return null;
+      }
+    })()
+    ?? (sessionStorage.getItem("analyze_task_id") ? [sessionStorage.getItem("analyze_task_id")] : null);
+  const isMultiTask = Array.isArray(taskIdsFromNav) && taskIdsFromNav.length > 1;
+  const displayInfo = taskIdsFromNav?.length
+    ? (isMultiTask ? `${taskIdsFromNav.length} tasks` : `Task: ${taskIdsFromNav[0]}`)
+    : "(missing taskId — please upload and analyze again)";
 
   const [status, setStatus] = useState("starting"); // starting | running | completed | failed
   const [progress, setProgress] = useState(0);
   const [taskId, setTaskId] = useState(null);
+  const [taskStatuses, setTaskStatuses] = useState({}); // { taskId: "running"|"completed"|"failed" }
   const [error, setError] = useState("");
   const [analysisPhase, setAnalysisPhase] = useState(null); // "non_llm" | "llm" | null
 
@@ -34,76 +48,104 @@ export default function AnalyzePage() {
       return;
     }
 
-    if (!taskIdFromNav) {
+    if (!taskIdsFromNav || taskIdsFromNav.length === 0) {
       setStatus("failed");
       setError("Missing taskId. Please go back to Upload and click Analyze again.");
       return;
     }
 
-    setTaskId(taskIdFromNav);
+    setTaskId(taskIdsFromNav[0]);
     setStatus("running");
     setProgress(0);
     setError("");
+    setTaskStatuses({});
 
-    beginPolling(taskIdFromNav);
+    beginPolling(taskIdsFromNav);
 
     return () => {
       cancelledRef.current = true;
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
     };
-  }, [user?.token, taskIdFromNav]);
+  }, [user?.token, taskIdsFromNav ? taskIdsFromNav.join(",") : null]);
 
-
-  function beginPolling(id) {
-    // poll immediately once, then every 1s
-    pollOnce(id);
-
-    pollTimerRef.current = setInterval(() => {
-      pollOnce(id);
-    }, 1000);
+  function beginPolling(ids) {
+    const idList = Array.isArray(ids) ? ids : [ids];
+    pollAllOnce(idList);
+    pollTimerRef.current = setInterval(() => pollAllOnce(idList), 1000);
   }
 
-  async function pollOnce(id) {
-    try {
-      const data = await getTaskStatus(id, user.token);
-      console.log("task status:", data.status, data.progress);
+  async function pollAllOnce(idList) {
+    if (!idList?.length || !user?.token) return;
+    const results = await Promise.all(
+      idList.map(async (id) => {
+        try {
+          return await getTaskStatus(id, user.token);
+        } catch (e) {
+          return { status: "failed", error: e?.message ?? "Polling error", taskId: id };
+        }
+      })
+    );
 
+    if (cancelledRef.current) return;
 
-      if (cancelledRef.current) return;
+    const statusMap = {};
+    let completedCount = 0;
+    let failedCount = 0;
+    let anyDuplicate = false;
+    let lastAnalysisUuid = null;
+    let lastError = null;
+    let maxProgress = 0;
 
-      const p = typeof data.progress === "number" ? data.progress : 0;
-      setProgress(Math.max(0, Math.min(100, p)));
-      setAnalysisPhase(data.analysis_phase || null);
+    for (let i = 0; i < idList.length; i++) {
+      const data = results[i];
+      const id = idList[i];
+      const s = (data?.status || "").toLowerCase();
+      statusMap[id] = s;
 
-      const s = (data.status || "").toLowerCase();
       if (s === "completed") {
-        setStatus("completed");
-        setProgress(100);
-        clearInterval(pollTimerRef.current);
-        const analysisUuid = data?.result?.analysis_uuid;
-        if (analysisUuid) {
-          sessionStorage.setItem("portfolio_id", analysisUuid);
-        }
-        sessionStorage.removeItem("analyze_task_id");
-
-        if (data?.result?.duplicate === true) {
-          navigate("/upload", { state: { duplicateMessage: "This project has already been analyzed. You can view it in your projects." } });
-        } else {
-          navigate("/projects");
-        }
-
-
+        completedCount++;
+        if (data?.result?.duplicate === true) anyDuplicate = true;
+        if (data?.result?.analysis_uuid) lastAnalysisUuid = data.result.analysis_uuid;
+        const p = typeof data?.progress === "number" ? data.progress : 100;
+        maxProgress = Math.max(maxProgress, p);
       } else if (s === "failed") {
-        setStatus("failed");
-        setError(data.error || "Analysis failed");
-        clearInterval(pollTimerRef.current);
+        failedCount++;
+        lastError = data?.error || "Analysis failed";
       } else {
-        setStatus("running");
+        const p = typeof data?.progress === "number" ? data.progress : 0;
+        maxProgress = Math.max(maxProgress, p);
       }
-    } catch (e) {
-      if (cancelledRef.current) return;
-      // If polling fails temporarily, keep running but show last error
-      setError(e?.message ?? "Polling error");
+      if (data?.analysis_phase) setAnalysisPhase(data.analysis_phase);
+    }
+
+    setTaskStatuses(statusMap);
+    setProgress(idList.length > 1 ? Math.round((completedCount / idList.length) * 100) : maxProgress);
+
+    const allTerminal = completedCount + failedCount === idList.length;
+
+    if (allTerminal) {
+      clearInterval(pollTimerRef.current);
+      sessionStorage.removeItem("analyze_task_id");
+      sessionStorage.removeItem("analyze_task_ids");
+      if (lastAnalysisUuid) sessionStorage.setItem("portfolio_id", lastAnalysisUuid);
+
+      if (anyDuplicate && idList.length === 1) {
+        navigate("/upload", { state: { duplicateMessage: "This project has already been analyzed. You can view it in your projects." } });
+        return;
+      }
+
+      setStatus("completed");
+      setProgress(100);
+      if (failedCount > 0 && completedCount === 0) {
+        setStatus("failed");
+        setError(lastError || "All analyses failed");
+      } else {
+        navigate("/projects");
+      }
+    } else if (failedCount > 0) {
+      setError(lastError || "Some analyses failed");
+    } else {
+      setStatus("running");
     }
   }
 
@@ -153,9 +195,11 @@ export default function AnalyzePage() {
         </div>
 
         <div style={{ marginTop: 8, fontSize: 13, opacity: 0.8 }}>
-          {taskId ? `Task: ${taskId}` : ""}
-          {taskId ? " · " : ""}
-          {`${progress}%`}
+          {isMultiTask
+            ? `${Object.values(taskStatuses).filter((s) => s === "completed").length}/${taskIdsFromNav?.length ?? 0} completed · ${progress}%`
+            : taskId
+            ? `Task: ${taskId} · ${progress}%`
+            : `${progress}%`}
         </div>
 
         {status === "running" && analysisPhase && (
@@ -188,7 +232,7 @@ export default function AnalyzePage() {
 
 
         {isFailed ? (
-          <button onClick={() => taskIdFromNav && beginPolling(taskIdFromNav)}>Retry</button>
+          <button onClick={() => taskIdsFromNav && beginPolling(taskIdsFromNav)}>Retry</button>
         ) : null}
 
       </div>

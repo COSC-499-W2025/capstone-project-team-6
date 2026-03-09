@@ -143,14 +143,22 @@ describe('Upload', () => {
   });
 
   describe('Multiple projects upload flow', () => {
-    it('navigates to analyze with taskId from last upload', async () => {
-      const lastTaskId = 'task-from-last-upload';
-      api.post.mockResolvedValue({
-        data: {
-          message: 'Upload accepted',
-          details: { task_id: lastTaskId, filename: 'project.zip', status: 'processing' },
-        },
-      });
+    it('navigates to analyze with all task IDs for multiple uploads', async () => {
+      const taskId1 = 'task-uuid-1';
+      const taskId2 = 'task-uuid-2';
+      api.post
+        .mockResolvedValueOnce({
+          data: {
+            message: 'Upload accepted',
+            details: { task_id: taskId1, filename: 'project1.zip', status: 'processing' },
+          },
+        })
+        .mockResolvedValueOnce({
+          data: {
+            message: 'Upload accepted',
+            details: { task_id: taskId2, filename: 'project2.zip', status: 'processing' },
+          },
+        });
 
       const file1 = new File(['a'], 'project1.zip', { type: 'application/zip' });
       const file2 = new File(['b'], 'project2.zip', { type: 'application/zip' });
@@ -173,7 +181,7 @@ describe('Upload', () => {
         expect(api.post).toHaveBeenCalledTimes(2);
       });
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/analyze', { state: { taskId: lastTaskId } });
+        expect(mockNavigate).toHaveBeenCalledWith('/analyze', { state: { taskIds: [taskId1, taskId2] } });
       });
     });
   });
