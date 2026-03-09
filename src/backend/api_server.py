@@ -36,10 +36,10 @@ from backend.api.projects import router as projects_router
 from backend.api.resume import router as resume_router
 from backend.api.tasks import router as tasks_router
 from backend.curation import init_curation_tables
-from backend.database import (authenticate_user, check_user_consent, create_user,
-                              delete_user_account, save_user_consent,
-                              seed_default_users)
+from backend.database import (authenticate_user, check_user_consent,
+                              create_user, delete_user_account)
 from backend.database import init_db as init_user_db
+from backend.database import save_user_consent, seed_default_users
 from backend.task_manager import (TaskType, cleanup_background_tasks,
                                   get_task_manager)
 from backend.token_storage import active_tokens
@@ -199,6 +199,7 @@ async def logout(username: str = Depends(verify_token)):
 
     return MessageResponse(message="Successfully logged out")
 
+
 @app.delete("/api/user/account")
 async def delete_account(username: str = Depends(verify_token)):
     """Delete the authenticated user's account and all associated data."""
@@ -212,10 +213,7 @@ async def delete_account(username: str = Depends(verify_token)):
             )
 
         # Invalidate all active tokens for this user
-        tokens_to_remove = [
-            token for token, data in active_tokens.items()
-            if data["username"] == username
-        ]
+        tokens_to_remove = [token for token, data in active_tokens.items() if data["username"] == username]
         for token in tokens_to_remove:
             del active_tokens[token]
 
@@ -228,6 +226,7 @@ async def delete_account(username: str = Depends(verify_token)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete account: {str(e)}",
         )
+
 
 @app.post("/api/user/consent", response_model=ConsentResponse)
 async def save_consent(consent: ConsentRequest, username: str = Depends(verify_token)):

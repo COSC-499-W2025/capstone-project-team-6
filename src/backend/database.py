@@ -147,6 +147,7 @@ def create_user(username: str, password: str) -> int:
 
         return cursor.lastrowid
 
+
 def delete_user_account(username: str) -> bool:
     """
     Permanently delete a user and all associated data.
@@ -222,6 +223,7 @@ def delete_user_account(username: str) -> bool:
         except Exception:
             conn.rollback()
             raise
+
 
 def get_user(username: str) -> Optional[sqlite3.Row]:
     with get_connection() as conn:
