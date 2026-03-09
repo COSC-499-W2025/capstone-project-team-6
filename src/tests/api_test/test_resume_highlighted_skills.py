@@ -64,19 +64,15 @@ def auth_token():
 class TestResumeHighlightedSkills:
     """Tests for the highlighted_skills field in ResumeRequest."""
 
-    @patch("backend.api.resume.get_projects_for_user")
-    @patch("backend.api.resume.get_resume_items_for_project_id")
-    @patch("backend.api.resume.get_portfolio_item_for_project")
+    @patch("backend.api.resume.get_analysis_by_uuid")
     @patch("backend.analysis.resume_generator.generate_resume")
     def test_highlighted_skills_passed_to_generator(
-        self, mock_generate_resume, mock_get_portfolio, mock_get_resume_items, mock_get_projects, auth_token
+        self, mock_generate_resume, mock_get_analysis_by_uuid, auth_token
     ):
         """Test that highlighted_skills from the request body are forwarded to the generator."""
         token, username = auth_token
 
-        mock_get_projects.return_value = [{"id": 1, "project_name": "Test"}]
-        mock_get_resume_items.return_value = []
-        mock_get_portfolio.return_value = {}
+        mock_get_analysis_by_uuid.return_value = {"projects": [{"project_name": "Test"}], "total_projects": 1}
         mock_generate_resume.return_value = "Resume with curated skills"
 
         curated_skills = ["Python", "React", "FastAPI"]
@@ -85,7 +81,7 @@ class TestResumeHighlightedSkills:
             "/api/resume/generate",
             headers={"Authorization": f"Bearer {token}"},
             json={
-                "project_ids": [1],
+                "portfolio_ids": ["portfolio-1"],
                 "format": "markdown",
                 "highlighted_skills": curated_skills,
             },
@@ -97,26 +93,22 @@ class TestResumeHighlightedSkills:
         call_kwargs = mock_generate_resume.call_args[1]
         assert call_kwargs["highlighted_skills"] == curated_skills
 
-    @patch("backend.api.resume.get_projects_for_user")
-    @patch("backend.api.resume.get_resume_items_for_project_id")
-    @patch("backend.api.resume.get_portfolio_item_for_project")
+    @patch("backend.api.resume.get_analysis_by_uuid")
     @patch("backend.analysis.resume_generator.generate_resume")
     def test_highlighted_skills_none_when_not_provided(
-        self, mock_generate_resume, mock_get_portfolio, mock_get_resume_items, mock_get_projects, auth_token
+        self, mock_generate_resume, mock_get_analysis_by_uuid, auth_token
     ):
         """Test that highlighted_skills defaults to None when not in the request."""
         token, username = auth_token
 
-        mock_get_projects.return_value = [{"id": 1, "project_name": "Test"}]
-        mock_get_resume_items.return_value = []
-        mock_get_portfolio.return_value = {}
+        mock_get_analysis_by_uuid.return_value = {"projects": [{"project_name": "Test"}], "total_projects": 1}
         mock_generate_resume.return_value = "Resume without curated skills"
 
         response = client.post(
             "/api/resume/generate",
             headers={"Authorization": f"Bearer {token}"},
             json={
-                "project_ids": [1],
+                "portfolio_ids": ["portfolio-1"],
                 "format": "markdown",
             },
         )
@@ -125,26 +117,22 @@ class TestResumeHighlightedSkills:
         call_kwargs = mock_generate_resume.call_args[1]
         assert call_kwargs["highlighted_skills"] is None
 
-    @patch("backend.api.resume.get_projects_for_user")
-    @patch("backend.api.resume.get_resume_items_for_project_id")
-    @patch("backend.api.resume.get_portfolio_item_for_project")
+    @patch("backend.api.resume.get_analysis_by_uuid")
     @patch("backend.analysis.resume_generator.generate_resume")
     def test_highlighted_skills_empty_list(
-        self, mock_generate_resume, mock_get_portfolio, mock_get_resume_items, mock_get_projects, auth_token
+        self, mock_generate_resume, mock_get_analysis_by_uuid, auth_token
     ):
         """Test that empty list is passed through correctly."""
         token, username = auth_token
 
-        mock_get_projects.return_value = [{"id": 1, "project_name": "Test"}]
-        mock_get_resume_items.return_value = []
-        mock_get_portfolio.return_value = {}
+        mock_get_analysis_by_uuid.return_value = {"projects": [{"project_name": "Test"}], "total_projects": 1}
         mock_generate_resume.return_value = "Resume content"
 
         response = client.post(
             "/api/resume/generate",
             headers={"Authorization": f"Bearer {token}"},
             json={
-                "project_ids": [1],
+                "portfolio_ids": ["portfolio-1"],
                 "format": "markdown",
                 "highlighted_skills": [],
             },
@@ -154,19 +142,15 @@ class TestResumeHighlightedSkills:
         call_kwargs = mock_generate_resume.call_args[1]
         assert call_kwargs["highlighted_skills"] == []
 
-    @patch("backend.api.resume.get_projects_for_user")
-    @patch("backend.api.resume.get_resume_items_for_project_id")
-    @patch("backend.api.resume.get_portfolio_item_for_project")
+    @patch("backend.api.resume.get_analysis_by_uuid")
     @patch("backend.analysis.resume_generator.generate_resume")
     def test_highlighted_skills_with_personal_info_and_options(
-        self, mock_generate_resume, mock_get_portfolio, mock_get_resume_items, mock_get_projects, auth_token
+        self, mock_generate_resume, mock_get_analysis_by_uuid, auth_token
     ):
         """Test highlighted_skills alongside other request fields."""
         token, username = auth_token
 
-        mock_get_projects.return_value = [{"id": 1, "project_name": "Test"}]
-        mock_get_resume_items.return_value = []
-        mock_get_portfolio.return_value = {}
+        mock_get_analysis_by_uuid.return_value = {"projects": [{"project_name": "Test"}], "total_projects": 1}
         mock_generate_resume.return_value = "Full resume"
 
         personal = {"name": "Jane Doe", "email": "jane@example.com"}
@@ -176,7 +160,7 @@ class TestResumeHighlightedSkills:
             "/api/resume/generate",
             headers={"Authorization": f"Bearer {token}"},
             json={
-                "project_ids": [1],
+                "portfolio_ids": ["portfolio-1"],
                 "format": "markdown",
                 "include_skills": True,
                 "include_projects": True,
@@ -198,7 +182,7 @@ class TestResumeHighlightedSkills:
         from backend.api.resume import ResumeRequest
 
         req = ResumeRequest(
-            project_ids=[1, 2],
+            portfolio_ids=["portfolio-1", "portfolio-2"],
             format="markdown",
             highlighted_skills=["Python", "React"],
         )
@@ -208,14 +192,14 @@ class TestResumeHighlightedSkills:
         """Test that highlighted_skills defaults to None."""
         from backend.api.resume import ResumeRequest
 
-        req = ResumeRequest(project_ids=[1])
+        req = ResumeRequest(portfolio_ids=["portfolio-1"])
         assert req.highlighted_skills is None
 
     def test_resume_request_model_highlighted_skills_empty(self):
         """Test that highlighted_skills can be an empty list."""
         from backend.api.resume import ResumeRequest
 
-        req = ResumeRequest(project_ids=[1], highlighted_skills=[])
+        req = ResumeRequest(portfolio_ids=["portfolio-1"], highlighted_skills=[])
         assert req.highlighted_skills == []
 
 
