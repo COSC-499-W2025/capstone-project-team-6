@@ -216,6 +216,38 @@ class TestPortfoliosEndpoints:
         assert data["details"]["task_id"] == "task-uuid"
         assert data["details"]["status"] == "processing"
 
+    @patch("backend.api_server.check_user_consent", return_value=True)
+    @patch("backend.api_server.get_task_manager")
+    def test_multiple_uploads_return_distinct_task_ids(self, mock_get_task_manager, mock_check_consent, auth_token):
+        """Multiple sequential uploads each return a distinct task_id (for multi-upload flow)."""
+        token, username = auth_token
+        mock_task_manager = mock_get_task_manager.return_value
+        mock_task_manager.create_task.side_effect = ["task-uuid-1", "task-uuid-2"]
+
+        file_content_1 = b"fake zip content one"
+        file_content_2 = b"fake zip content two"
+
+        r1 = client.post(
+            "/api/portfolios/upload",
+            headers={"Authorization": f"Bearer {token}"},
+            files={"file": ("project1.zip", file_content_1, "application/zip")},
+            data={"analysis_type": "non_llm"},
+        )
+        assert r1.status_code == 202
+        assert r1.json()["details"]["task_id"] == "task-uuid-1"
+
+        r2 = client.post(
+            "/api/portfolios/upload",
+            headers={"Authorization": f"Bearer {token}"},
+            files={"file": ("project2.zip", file_content_2, "application/zip")},
+            data={"analysis_type": "non_llm"},
+        )
+        assert r2.status_code == 202
+        assert r2.json()["details"]["task_id"] == "task-uuid-2"
+
+        assert mock_task_manager.create_task.call_count == 2
+        assert r1.json()["details"]["task_id"] != r2.json()["details"]["task_id"]
+
     @patch("backend.api_server.get_analysis_by_uuid")
     @patch("backend.api_server.check_user_consent", return_value=True)
     @patch("backend.api_server.get_task_manager")

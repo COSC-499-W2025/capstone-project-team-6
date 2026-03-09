@@ -15,14 +15,3 @@ async def health_check():
         "version": "2.0.0",
         "timestamp": datetime.now().isoformat(),
     }
-
-
-@router.get("/", operation_id="root_info")
-async def root():
-    """Root endpoint with API information."""
-    return {
-        "name": "MDA Portfolio API",
-        "version": "2.0.0",
-        "docs": "/docs",
-        "health": "/api/health",
-    }

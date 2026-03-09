@@ -222,6 +222,7 @@ const Upload = () => {
     setDuplicateMessage('');
 
     let taskIdForAnalyze = null;
+    let taskIdsForAnalyze = [];
     try {
       if (activeTab === 'single') {
         const formData = new FormData();
@@ -277,8 +278,7 @@ const Upload = () => {
             } else {
               const taskId = res?.data?.task_id || res?.data?.details?.task_id;
               if (taskId) {
-                taskIdForAnalyze = taskId;
-                sessionStorage.setItem("analyze_task_id", taskId);
+                taskIdsForAnalyze.push(taskId);
               }
             }
           } catch (err) {
@@ -385,8 +385,11 @@ const Upload = () => {
         fileInputRef.current.value = '';
       }
 
-      // Navigate to analyze page after successful upload (with taskId for multiple)
-      if (taskIdForAnalyze) {
+      // Navigate to analyze page after successful upload
+      if (activeTab === 'multiple' && taskIdsForAnalyze.length > 0) {
+        sessionStorage.setItem("analyze_task_ids", JSON.stringify(taskIdsForAnalyze));
+        navigate("/analyze", { state: { taskIds: taskIdsForAnalyze } });
+      } else if (taskIdForAnalyze) {
         navigate("/analyze", { state: { taskId: taskIdForAnalyze } });
       } else {
         navigate('/analyze');

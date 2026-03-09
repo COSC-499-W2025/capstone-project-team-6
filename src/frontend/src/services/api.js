@@ -6,7 +6,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
+  timeout: 60000,
 });
 
 // Request interceptor to add auth token
@@ -65,6 +65,8 @@ export const authAPI = {
       current_password: currentPassword,
       new_password: newPassword,
     });
+  deleteAccount: async () => {
+    const response = await api.delete('/user/account');
     return response.data;
   },
 };

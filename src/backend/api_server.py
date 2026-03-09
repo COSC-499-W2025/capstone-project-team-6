@@ -11,7 +11,9 @@ import bcrypt
 from fastapi import (Depends, FastAPI, File, Form, HTTPException, Security,
                      UploadFile, status)
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from backend.analysis_database import (delete_all_projects_for_user,
@@ -34,9 +36,10 @@ from backend.api.projects import router as projects_router
 from backend.api.resume import router as resume_router
 from backend.api.tasks import router as tasks_router
 from backend.curation import init_curation_tables
-from backend.database import authenticate_user, check_user_consent, create_user
+from backend.database import (authenticate_user, check_user_consent, create_user,
+                              delete_user_account, save_user_consent,
+                              seed_default_users)
 from backend.database import init_db as init_user_db
-from backend.database import save_user_consent, seed_default_users
 from backend.task_manager import (TaskType, cleanup_background_tasks,
                                   get_task_manager)
 from backend.token_storage import active_tokens
@@ -53,9 +56,10 @@ app = FastAPI(
 )
 
 # Configure CORS
+cors_origins = os.environ.get("CORS_ORIGINS", "http://localhost:5173,http://localhost:8000").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Frontend URL
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -195,6 +199,35 @@ async def logout(username: str = Depends(verify_token)):
 
     return MessageResponse(message="Successfully logged out")
 
+@app.delete("/api/user/account")
+async def delete_account(username: str = Depends(verify_token)):
+    """Delete the authenticated user's account and all associated data."""
+    try:
+        deleted = delete_user_account(username)
+
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User account not found",
+            )
+
+        # Invalidate all active tokens for this user
+        tokens_to_remove = [
+            token for token, data in active_tokens.items()
+            if data["username"] == username
+        ]
+        for token in tokens_to_remove:
+            del active_tokens[token]
+
+        return MessageResponse(message="Account deleted successfully")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete account: {str(e)}",
+        )
 
 @app.post("/api/user/consent", response_model=ConsentResponse)
 async def save_consent(consent: ConsentRequest, username: str = Depends(verify_token)):
@@ -464,9 +497,9 @@ async def health_check():
     }
 
 
-@app.get("/")
-async def root():
-    """Root endpoint with API information."""
+@app.get("/api/info")
+async def api_info():
+    """API information endpoint."""
     return {
         "name": "MDA Portfolio API",
         "version": "2.0.0",
@@ -532,6 +565,30 @@ app.include_router(analysis_router)
 app.include_router(resume_router)
 app.include_router(tasks_router)
 app.include_router(curation_router)
+
+# Mount static files for frontend (unified deployment)
+frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
+if frontend_dist.exists():
+    app.mount("/assets", StaticFiles(directory=str(frontend_dist / "assets")), name="assets")
+
+    # Serve index.html for all non-API routes (client-side routing)
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        # Don't interfere with API routes
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="API endpoint not found")
+
+        # Try to serve the requested file
+        file_path = frontend_dist / full_path
+        if file_path.is_file():
+            return FileResponse(file_path)
+
+        # Otherwise serve index.html for client-side routing
+        index_path = frontend_dist / "index.html"
+        if index_path.exists():
+            return FileResponse(index_path)
+
+        raise HTTPException(status_code=404, detail="Frontend not built")
 
 
 @app.delete("/api/projects/{project_id}")

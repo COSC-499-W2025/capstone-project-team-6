@@ -5,6 +5,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.
 
 import pytest
 
+if not os.getenv("VECTOR_DB_URL"):
+    pytest.skip("VECTOR_DB_URL not set; skipping vector service tests", allow_module_level=True)
+
 from src.backend.database_vector import Document, DocumentChunk, SessionLocal
 from src.backend.vector_service import store_document
 

@@ -1,5 +1,6 @@
 """Tests for text_extractor OCR functions."""
 
+import shutil
 from pathlib import Path
 
 import pytest
@@ -20,6 +21,9 @@ def test_extract_text_from_plain_text(tmp_path):
 
 def test_extract_text_from_image(tmp_path):
     """Should extract text from an image using Tesseract."""
+    if shutil.which("tesseract") is None:
+        pytest.skip("tesseract binary not installed")
+
     img_path = tmp_path / "ocr_image.png"
     img = Image.new("RGB", (200, 80), color="white")
     draw = ImageDraw.Draw(img)
@@ -35,6 +39,11 @@ def test_extract_text_from_image(tmp_path):
 
 def test_extract_text_from_pdf(tmp_path):
     """Should convert PDF to images to OCR text."""
+    if shutil.which("tesseract") is None:
+        pytest.skip("tesseract binary not installed")
+    if shutil.which("pdfinfo") is None:
+        pytest.skip("poppler utilities not installed (missing pdfinfo)")
+
     pdf_path = tmp_path / "ocr_test.pdf"
     pdf = FPDF()
     pdf.add_page()

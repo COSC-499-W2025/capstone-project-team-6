@@ -77,6 +77,7 @@ class TestTasksEndpoints:
         mock_task.error = None
         mock_task.result = {"analysis_uuid": str(uuid.uuid4())}
         mock_task.progress = 0
+        mock_task.analysis_phase = None
 
         mock_manager.get_task_status.return_value = mock_task
 
@@ -239,6 +240,7 @@ class TestTasksEndpoints:
         mock_task.error = "Analysis failed: Invalid ZIP file"
         mock_task.result = None
         mock_task.progress = 0
+        mock_task.analysis_phase = None
 
         mock_manager.get_task_status.return_value = mock_task
 
