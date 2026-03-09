@@ -8,13 +8,26 @@ export default function AnalyzePage() {
   const location = useLocation();
   const { user } = useAuth();
 
-  const taskIdFromNav = location.state?.taskId ?? sessionStorage.getItem("analyze_task_id") ?? null;
+  // Support both single taskId and multiple taskIds
+  const taskIdsFromNav = location.state?.taskIds ?? (location.state?.taskId ? [location.state.taskId] : null)
+    ?? (() => {
+      try {
+        const stored = sessionStorage.getItem("analyze_task_ids");
+        return stored ? JSON.parse(stored) : null;
+      } catch {
+        return null;
+      }
+    })()
+    ?? (sessionStorage.getItem("analyze_task_id") ? [sessionStorage.getItem("analyze_task_id")] : null);
+  const isMultiTask = Array.isArray(taskIdsFromNav) && taskIdsFromNav.length > 1;
+
   const projectType = location.state?.projectType ?? sessionStorage.getItem("analyze_project_type") ?? null;
   const analysisType = location.state?.analysisType ?? sessionStorage.getItem("analyze_analysis_type") ?? null;
   const projectName = location.state?.projectName ?? sessionStorage.getItem("analyze_project_name") ?? null;
 
   const [status, setStatus] = useState("starting");
   const [progress, setProgress] = useState(0);
+  const [taskStatuses, setTaskStatuses] = useState({});
   const [error, setError] = useState("");
   const [analysisPhase, setAnalysisPhase] = useState(null);
 
@@ -30,7 +43,7 @@ export default function AnalyzePage() {
       return;
     }
 
-    if (!taskIdFromNav) {
+    if (!taskIdsFromNav || taskIdsFromNav.length === 0) {
       setStatus("failed");
       setError("Missing task. Please go back to Upload and click Analyze again.");
       return;
@@ -39,61 +52,97 @@ export default function AnalyzePage() {
     setStatus("running");
     setProgress(0);
     setError("");
+    setTaskStatuses({});
 
-    beginPolling(taskIdFromNav);
+    beginPolling(taskIdsFromNav);
 
     return () => {
       cancelledRef.current = true;
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
     };
-  }, [user?.token, taskIdFromNav]);
+  }, [user?.token, taskIdsFromNav ? taskIdsFromNav.join(",") : null]);
 
-  function beginPolling(id) {
-    pollOnce(id);
-    pollTimerRef.current = setInterval(() => {
-      pollOnce(id);
-    }, 1000);
+  function beginPolling(ids) {
+    const idList = Array.isArray(ids) ? ids : [ids];
+    pollAllOnce(idList);
+    pollTimerRef.current = setInterval(() => pollAllOnce(idList), 1000);
   }
 
-  async function pollOnce(id) {
-    try {
-      const data = await getTaskStatus(id, user.token);
+  async function pollAllOnce(idList) {
+    if (!idList?.length || !user?.token) return;
+    const results = await Promise.all(
+      idList.map(async (id) => {
+        try {
+          return await getTaskStatus(id, user.token);
+        } catch (e) {
+          return { status: "failed", error: e?.message ?? "Polling error", taskId: id };
+        }
+      })
+    );
 
-      if (cancelledRef.current) return;
+    if (cancelledRef.current) return;
 
-      const p = typeof data.progress === "number" ? data.progress : 0;
-      setProgress(Math.max(0, Math.min(100, p)));
-      setAnalysisPhase(data.analysis_phase || null);
+    const statusMap = {};
+    let completedCount = 0;
+    let failedCount = 0;
+    let anyDuplicate = false;
+    let lastAnalysisUuid = null;
+    let lastError = null;
+    let maxProgress = 0;
 
-      const s = (data.status || "").toLowerCase();
+    for (let i = 0; i < idList.length; i++) {
+      const data = results[i];
+      const id = idList[i];
+      const s = (data?.status || "").toLowerCase();
+      statusMap[id] = s;
+
       if (s === "completed") {
-        setStatus("completed");
-        setProgress(100);
-        clearInterval(pollTimerRef.current);
-        const analysisUuid = data?.result?.analysis_uuid;
-        if (analysisUuid) {
-          sessionStorage.setItem("portfolio_id", analysisUuid);
-        }
-        sessionStorage.removeItem("analyze_task_id");
-        sessionStorage.removeItem("analyze_project_type");
-        sessionStorage.removeItem("analyze_analysis_type");
-        sessionStorage.removeItem("analyze_project_name");
-
-        if (data?.result?.duplicate === true) {
-          navigate("/upload", { state: { duplicateMessage: "This project has already been analyzed. You can view it in your projects." } });
-        } else {
-          navigate("/projects");
-        }
+        completedCount++;
+        if (data?.result?.duplicate === true) anyDuplicate = true;
+        if (data?.result?.analysis_uuid) lastAnalysisUuid = data.result.analysis_uuid;
+        const p = typeof data?.progress === "number" ? data.progress : 100;
+        maxProgress = Math.max(maxProgress, p);
       } else if (s === "failed") {
-        setStatus("failed");
-        setError(data.error || "Analysis failed");
-        clearInterval(pollTimerRef.current);
+        failedCount++;
+        lastError = data?.error || "Analysis failed";
       } else {
-        setStatus("running");
+        const p = typeof data?.progress === "number" ? data.progress : 0;
+        maxProgress = Math.max(maxProgress, p);
       }
-    } catch (e) {
-      if (cancelledRef.current) return;
-      setError(e?.message ?? "Polling error");
+      if (data?.analysis_phase) setAnalysisPhase(data.analysis_phase);
+    }
+
+    setTaskStatuses(statusMap);
+    setProgress(idList.length > 1 ? Math.round((completedCount / idList.length) * 100) : maxProgress);
+
+    const allTerminal = completedCount + failedCount === idList.length;
+
+    if (allTerminal) {
+      clearInterval(pollTimerRef.current);
+      sessionStorage.removeItem("analyze_task_id");
+      sessionStorage.removeItem("analyze_task_ids");
+      sessionStorage.removeItem("analyze_project_type");
+      sessionStorage.removeItem("analyze_analysis_type");
+      sessionStorage.removeItem("analyze_project_name");
+      if (lastAnalysisUuid) sessionStorage.setItem("portfolio_id", lastAnalysisUuid);
+
+      if (anyDuplicate && idList.length === 1) {
+        navigate("/upload", { state: { duplicateMessage: "This project has already been analyzed. You can view it in your projects." } });
+        return;
+      }
+
+      setStatus("completed");
+      setProgress(100);
+      if (failedCount > 0 && completedCount === 0) {
+        setStatus("failed");
+        setError(lastError || "All analyses failed");
+      } else {
+        navigate("/projects");
+      }
+    } else if (failedCount > 0) {
+      setError(lastError || "Some analyses failed");
+    } else {
+      setStatus("running");
     }
   }
 
@@ -272,6 +321,13 @@ export default function AnalyzePage() {
             }} />
           </div>
 
+          {/* Multi-task progress info */}
+          {isMultiTask && (
+            <div style={{ fontSize: 13, color: "#737373", marginBottom: 16 }}>
+              {Object.values(taskStatuses).filter((s) => s === "completed").length}/{taskIdsFromNav?.length ?? 0} projects completed
+            </div>
+          )}
+
           {/* Phase info */}
           {status === "running" && phaseMessage && (
             <div style={{
@@ -359,7 +415,7 @@ export default function AnalyzePage() {
 
           {isFailed && (
             <button
-              onClick={() => taskIdFromNav && beginPolling(taskIdFromNav)}
+              onClick={() => taskIdsFromNav && beginPolling(taskIdsFromNav)}
               style={{
                 padding: "10px 20px",
                 backgroundColor: "#fef2f2",
