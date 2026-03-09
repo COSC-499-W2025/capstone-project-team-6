@@ -14,7 +14,7 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-// Mock Navigation (so tests don’t depend on it)
+// Mock Navigation
 vi.mock('../components/Navigation', () => {
   return {
     default: () => <div data-testid="nav">Navigation</div>,
@@ -24,6 +24,9 @@ vi.mock('../components/Navigation', () => {
 // Mock API module
 vi.mock('../services/api', () => {
   return {
+    authAPI: {
+      deleteAccount: vi.fn(),
+    },
     consentAPI: {
       getConsent: vi.fn(),
       saveConsent: vi.fn(),
@@ -38,7 +41,7 @@ vi.mock('../services/api', () => {
 
 // Import after mocks
 import Settings from '../pages/Settings';
-import { consentAPI, resumeAPI } from '../services/api';
+import { authAPI, consentAPI, resumeAPI } from '../services/api';
 
 const renderSettings = () => {
   return render(
@@ -51,6 +54,11 @@ const renderSettings = () => {
 describe('Settings Page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
+
+    localStorage.setItem('access_token', 'fake-token');
+    localStorage.setItem('username', 'deleteaccount');
+    localStorage.setItem('token_expiry', 'fake-expiry');
   });
 
   describe('Header + Navigation', () => {
@@ -85,9 +93,9 @@ describe('Settings Page', () => {
     it('shows Loading… badges initially', async () => {
       consentAPI.getConsent.mockImplementation(() => new Promise(() => {}));
       resumeAPI.getPersonalInfo.mockImplementation(() => new Promise(() => {}));
-    
+
       renderSettings();
-    
+
       const loadingBadges = await screen.findAllByText('Loading…');
       expect(loadingBadges.length).toBeGreaterThanOrEqual(2);
     });
@@ -101,7 +109,6 @@ describe('Settings Page', () => {
         expect(screen.getByText('Consented')).toBeInTheDocument();
       });
 
-      // Toggle label should match state
       expect(screen.getByText('Enabled')).toBeInTheDocument();
     });
 
@@ -293,16 +300,13 @@ describe('Settings Page', () => {
 
       renderSettings();
 
-      // wait for load
       await waitFor(() => {
         expect(screen.getByDisplayValue('Harjot')).toBeInTheDocument();
       });
 
-      // button should be disabled (no changes)
       const saveBtn = screen.getByRole('button', { name: /update personal info|save personal info/i });
       expect(saveBtn).toBeDisabled();
 
-      // change name
       fireEvent.change(screen.getByPlaceholderText('Full Name'), {
         target: { value: 'Harjot Sahota' },
       });
@@ -342,7 +346,6 @@ describe('Settings Page', () => {
         expect(screen.getByText('Personal info saved successfully.')).toBeInTheDocument();
       });
 
-      // after save, it should be "clean" again (disabled)
       await waitFor(() => {
         expect(saveBtn).toBeDisabled();
       });
@@ -388,7 +391,6 @@ describe('Settings Page', () => {
         expect(resumeAPI.deletePersonalInfo).toHaveBeenCalledTimes(1);
       });
 
-      // cleared inputs
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Full Name')).toHaveValue('');
       });
@@ -419,7 +421,6 @@ describe('Settings Page', () => {
         expect(screen.getByText('Failed to remove personal info')).toBeInTheDocument();
       });
 
-      // still has old values
       expect(screen.getByDisplayValue('Harjot')).toBeInTheDocument();
       expect(screen.getByDisplayValue('h@h.com')).toBeInTheDocument();
     });
@@ -446,6 +447,130 @@ describe('Settings Page', () => {
       });
 
       expect(resumeAPI.deletePersonalInfo).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Delete Account', () => {
+    it('renders the delete account section', async () => {
+      consentAPI.getConsent.mockResolvedValue({ has_consented: false });
+      resumeAPI.getPersonalInfo.mockResolvedValue({ personal_info: {} });
+
+      renderSettings();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /delete account/i })).toBeInTheDocument();
+      });
+      
+      expect(screen.getByRole('button', { name: /delete account/i })).toBeInTheDocument();
+      
+      expect(
+        screen.getByText(/permanently delete your account and all associated data/i)
+      ).toBeInTheDocument();
+    });
+
+    it('opens delete account confirmation modal', async () => {
+      consentAPI.getConsent.mockResolvedValue({ has_consented: false });
+      resumeAPI.getPersonalInfo.mockResolvedValue({ personal_info: {} });
+
+      renderSettings();
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Delete Account').length).toBeGreaterThan(0);
+      });
+
+      const deleteButtons = screen.getAllByRole('button', { name: /delete account/i });
+      fireEvent.click(deleteButtons[0]);
+
+      expect(screen.getByText('Delete account?')).toBeInTheDocument();
+      expect(
+        screen.getByText(/this will permanently delete your account and everything associated with it/i)
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /yes, delete/i })).toBeInTheDocument();
+    });
+
+    it('cancel delete account closes modal and does not call API', async () => {
+      consentAPI.getConsent.mockResolvedValue({ has_consented: false });
+      resumeAPI.getPersonalInfo.mockResolvedValue({ personal_info: {} });
+
+      renderSettings();
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Delete Account').length).toBeGreaterThan(0);
+      });
+
+      const deleteButtons = screen.getAllByRole('button', { name: /delete account/i });
+      fireEvent.click(deleteButtons[0]);
+
+      expect(screen.getByText('Delete account?')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: /^cancel$/i }));
+
+      await waitFor(() => {
+        expect(screen.queryByText('Delete account?')).not.toBeInTheDocument();
+      });
+
+      expect(authAPI.deleteAccount).not.toHaveBeenCalled();
+    });
+
+    it('confirm delete account calls API, clears localStorage, and navigates to login', async () => {
+      consentAPI.getConsent.mockResolvedValue({ has_consented: false });
+      resumeAPI.getPersonalInfo.mockResolvedValue({ personal_info: {} });
+      authAPI.deleteAccount.mockResolvedValue({ message: 'Account deleted successfully' });
+    
+      const removeItemSpy = vi.spyOn(window.localStorage, 'removeItem');
+    
+      renderSettings();
+    
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /delete account/i })).toBeInTheDocument();
+      });
+    
+      fireEvent.click(screen.getByRole('button', { name: /delete account/i }));
+      fireEvent.click(screen.getByRole('button', { name: /yes, delete/i }));
+    
+      await waitFor(() => {
+        expect(authAPI.deleteAccount).toHaveBeenCalledTimes(1);
+      });
+    
+      await waitFor(() => {
+        expect(removeItemSpy).toHaveBeenCalledWith('access_token');
+        expect(removeItemSpy).toHaveBeenCalledWith('username');
+        expect(removeItemSpy).toHaveBeenCalledWith('token_expiry');
+      });
+    
+      expect(mockNavigate).toHaveBeenCalledWith('/login');
+    
+      removeItemSpy.mockRestore();
+    });
+
+    it('shows error message when delete account fails', async () => {
+      consentAPI.getConsent.mockResolvedValue({ has_consented: false });
+      resumeAPI.getPersonalInfo.mockResolvedValue({ personal_info: {} });
+      authAPI.deleteAccount.mockRejectedValue({
+        response: { data: { detail: 'Failed to delete account' } },
+      });
+    
+      const removeItemSpy = vi.spyOn(Storage.prototype, 'removeItem');
+    
+      renderSettings();
+    
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /delete account/i })).toBeInTheDocument();
+      });
+    
+      fireEvent.click(screen.getByRole('button', { name: /delete account/i }));
+      fireEvent.click(screen.getByRole('button', { name: /yes, delete/i }));
+    
+      await waitFor(() => {
+        expect(screen.getByText('Failed to delete account')).toBeInTheDocument();
+      });
+    
+      expect(mockNavigate).not.toHaveBeenCalledWith('/login');
+      expect(removeItemSpy).not.toHaveBeenCalledWith('access_token');
+      expect(removeItemSpy).not.toHaveBeenCalledWith('username');
+      expect(removeItemSpy).not.toHaveBeenCalledWith('token_expiry');
+    
+      removeItemSpy.mockRestore();
     });
   });
 });

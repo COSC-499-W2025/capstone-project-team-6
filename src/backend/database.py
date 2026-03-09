@@ -147,6 +147,81 @@ def create_user(username: str, password: str) -> int:
 
         return cursor.lastrowid
 
+def delete_user_account(username: str) -> bool:
+    """
+    Permanently delete a user and all associated data.
+
+    Uses ONE SQLite connection/transaction only, because both auth data and
+    analysis data live in the same myapp.db file. Opening two write connections
+    to the same SQLite file can cause 'database is locked'.
+    """
+    if not username:
+        raise ValueError("username is required")
+
+    with get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+
+        try:
+            conn.execute("BEGIN;")
+
+            # Delete analysis-side rows first (these reference users.username and
+            # some do not use ON DELETE CASCADE)
+            conn.execute(
+                """
+                DELETE FROM analyses
+                WHERE username = ?
+                """,
+                (username,),
+            )
+
+            conn.execute(
+                """
+                DELETE FROM uploads
+                WHERE username = ?
+                """,
+                (username,),
+            )
+
+            conn.execute(
+                """
+                DELETE FROM user_profile
+                WHERE username = ?
+                """,
+                (username,),
+            )
+
+            conn.execute(
+                """
+                DELETE FROM user_resumes
+                WHERE username = ?
+                """,
+                (username,),
+            )
+
+            # Delete auth-side dependent rows
+            conn.execute(
+                """
+                DELETE FROM user_consent
+                WHERE username = ?
+                """,
+                (username,),
+            )
+
+            # Finally delete the user row
+            cur = conn.execute(
+                """
+                DELETE FROM users
+                WHERE username = ?
+                """,
+                (username,),
+            )
+
+            conn.commit()
+            return (cur.rowcount or 0) > 0
+
+        except Exception:
+            conn.rollback()
+            raise
 
 def get_user(username: str) -> Optional[sqlite3.Row]:
     with get_connection() as conn:

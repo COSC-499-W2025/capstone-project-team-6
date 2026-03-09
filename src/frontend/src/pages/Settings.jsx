@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/Navigation';
-import { consentAPI, resumeAPI } from '../services/api';
+import { authAPI, consentAPI, resumeAPI } from '../services/api';
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -43,6 +43,10 @@ const Settings = () => {
   // New state for remove personal info flow
   const [removingPersonalInfo, setRemovingPersonalInfo] = useState(false);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+
+  // Delete account state
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false);
 
   const normalize = (v) => (v || '').trim();
 
@@ -237,6 +241,43 @@ const Settings = () => {
     } finally {
       setRemovingPersonalInfo(false);
       setShowRemoveConfirm(false);
+    }
+  };
+
+  const onClickDeleteAccount = () => {
+    setErrorMsg('');
+    setStatusMsg('');
+    setPersonalErrorMsg('');
+    setPersonalStatusMsg('');
+    setShowDeleteAccountConfirm(true);
+  };
+
+  const onCancelDeleteAccount = () => {
+    if (deletingAccount) return;
+    setShowDeleteAccountConfirm(false);
+  };
+
+  const onConfirmDeleteAccount = async () => {
+    setDeletingAccount(true);
+    setErrorMsg('');
+    setStatusMsg('');
+    setPersonalErrorMsg('');
+    setPersonalStatusMsg('');
+
+    try {
+      await authAPI.deleteAccount();
+
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('username');
+      localStorage.removeItem('token_expiry');
+
+      navigate('/login');
+    } catch (err) {
+      setErrorMsg(
+        err?.response?.data?.detail || 'Failed to delete account. Please try again.'
+      );
+      setDeletingAccount(false);
+      setShowDeleteAccountConfirm(false);
     }
   };
 
@@ -729,6 +770,73 @@ const Settings = () => {
             </div>
           )}
         </div>
+
+        {/* Delete Account Card */}
+        <div style={{ ...cardStyles, padding: '24px', marginTop: '20px' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              gap: '16px',
+              flexWrap: 'wrap',
+            }}
+          >
+            <div style={{ flex: 1, minWidth: '260px' }}>
+              <h2
+                style={{
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  color: '#1a1a1a',
+                  margin: '0 0 8px 0',
+                }}
+              >
+                Delete Account
+              </h2>
+
+              <p style={{ fontSize: '14px', color: '#666', margin: 0, lineHeight: 1.5 }}>
+                Permanently delete your account and all associated data, including your
+                projects, analyses, saved resumes, personal info, and consent settings.
+                This action cannot be undone.
+              </p>
+            </div>
+
+            <div>
+              <button
+                type="button"
+                onClick={onClickDeleteAccount}
+                disabled={
+                  deletingAccount ||
+                  loading ||
+                  saving ||
+                  loadingPersonalInfo ||
+                  savingPersonalInfo ||
+                  removingPersonalInfo
+                }
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '12px',
+                  border: '1px solid #e5e5e5',
+                  backgroundColor: '#991b1b',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  cursor:
+                    deletingAccount ||
+                    loading ||
+                    saving ||
+                    loadingPersonalInfo ||
+                    savingPersonalInfo ||
+                    removingPersonalInfo
+                      ? 'not-allowed'
+                      : 'pointer',
+                  minWidth: '170px',
+                }}
+              >
+                {deletingAccount ? 'Deleting…' : 'Delete Account'}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Confirmation Modal */}
@@ -913,6 +1021,97 @@ const Settings = () => {
         </div>
       )}
       {/* End Remove Personal Info Confirmation Modal */}
+
+      {/* Delete Account Confirmation Modal */}
+      {showDeleteAccountConfirm && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px',
+            zIndex: 9999,
+          }}
+          onClick={onCancelDeleteAccount}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '520px',
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              border: '1px solid #e5e5e5',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+              padding: '18px',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ marginBottom: '12px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#111827' }}>
+                Delete account?
+              </h3>
+              <p
+                style={{
+                  margin: '8px 0 0 0',
+                  fontSize: '14px',
+                  color: '#4b5563',
+                  lineHeight: 1.5,
+                }}
+              >
+                This will permanently delete your account and everything associated with it.
+                This action cannot be undone.
+              </p>
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '10px',
+                marginTop: '16px',
+              }}
+            >
+              <button
+                type="button"
+                onClick={onCancelDeleteAccount}
+                disabled={deletingAccount}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  border: '1px solid #e5e5e5',
+                  backgroundColor: '#ffffff',
+                  color: '#111827',
+                  fontWeight: 600,
+                  cursor: deletingAccount ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={onConfirmDeleteAccount}
+                disabled={deletingAccount}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  border: '1px solid #e5e5e5',
+                  backgroundColor: '#991b1b',
+                  color: '#ffffff',
+                  fontWeight: 600,
+                  cursor: deletingAccount ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {deletingAccount ? 'Deleting…' : 'Yes, delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* End Delete Account Confirmation Modal */}
     </div>
   );
 };
