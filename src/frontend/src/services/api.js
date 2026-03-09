@@ -29,11 +29,15 @@ api.interceptors.response.use(
     console.error('Error response:', error.response);
 
     if (error.response?.status === 401) {
-      console.log('401 Unauthorized - clearing tokens and redirecting to login');
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('username');
-      localStorage.removeItem('token_expiry');
-      window.location.href = '/login';
+      const isChangePassword = error.config?.url?.includes('/auth/change-password');
+      
+      if (!isChangePassword) {
+        console.log('401 Unauthorized - clearing tokens and redirecting to login');
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('username');
+        localStorage.removeItem('token_expiry');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
@@ -59,19 +63,6 @@ export const authAPI = {
   changePassword: async (currentPassword, newPassword) => {
     const response = await api.post('/auth/change-password', {
       current_password: currentPassword,
-      new_password: newPassword,
-    });
-    return response.data;
-  },
-
-  forgotPassword: async (username) => {
-    const response = await api.post('/auth/forgot-password', { username });
-    return response.data;
-  },
-
-  resetPassword: async (token, newPassword) => {
-    const response = await api.post('/auth/reset-password', {
-      token,
       new_password: newPassword,
     });
     return response.data;

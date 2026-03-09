@@ -122,14 +122,15 @@ async def change_password(
     username: str = Depends(verify_token)
 ):
     """Change user password."""
-    if not authenticate_user(username, request.current_password):
+    from backend.database import get_user, verify_password, update_user_password
+    user = get_user(username)
+    if user is None or not verify_password(request.current_password, user["password_hash"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Current password is incorrect",
         )
     
     try:
-        from backend.database import update_user_password
         update_user_password(username, request.new_password)
         
         return MessageResponse(message="Password changed successfully")
