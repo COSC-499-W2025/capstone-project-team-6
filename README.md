@@ -1,7 +1,6 @@
 # Team Contract
 Team Contract can be found [here](docs/Capstone%20Team%206%20Contract.pdf).
 
-
 Google Docs link to the team contract: https://docs.google.com/document/d/1QnISyjm78uy_NUFr6qpKbF3jwdyAV0nqgGjOC47GHT8/edit?usp=sharing
 
 Google Drive link to the test zip files: https://drive.google.com/drive/folders/1OcQmw6caoHSFL_DtbaS9mrlM4EpTM9vs?usp=drive_link

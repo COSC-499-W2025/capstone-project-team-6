@@ -6,7 +6,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
+  timeout: 60000,
 });
 
 // Request interceptor to add auth token
@@ -29,11 +29,15 @@ api.interceptors.response.use(
     console.error('Error response:', error.response);
 
     if (error.response?.status === 401) {
-      console.log('401 Unauthorized - clearing tokens and redirecting to login');
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('username');
-      localStorage.removeItem('token_expiry');
-      window.location.href = '/login';
+      const isChangePassword = error.config?.url?.includes('/auth/change-password');
+      
+      if (!isChangePassword) {
+        console.log('401 Unauthorized - clearing tokens and redirecting to login');
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('username');
+        localStorage.removeItem('token_expiry');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
@@ -53,6 +57,16 @@ export const authAPI = {
 
   logout: async () => {
     const response = await api.post('/auth/logout');
+    return response.data;
+  },
+
+  changePassword: async (currentPassword, newPassword) => {
+    const response = await api.post('/auth/change-password', {
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+  deleteAccount: async () => {
+    const response = await api.delete('/user/account');
     return response.data;
   },
 };

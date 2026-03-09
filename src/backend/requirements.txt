@@ -4,7 +4,7 @@ numpy==2.1.2
 bcrypt>=4.2.0
 # Core Dependencies
 fastapi==0.115.6
-python-multipart==0.0.12
+python-multipart==0.0.20
 uvicorn[standard]==0.34.0
 
 # Database (SQLite - built into Python)
@@ -23,7 +23,6 @@ black==24.4.2
 flake8==7.1.0
 
 # File Upload
-python-multipart==0.0.20
 aiofiles==24.1.0
 click==8.1.8
 
@@ -44,6 +43,7 @@ google-genai
 
 # Resilience
 tenacity>=8.2.3
+
 # Java
 javalang==0.13.0
 

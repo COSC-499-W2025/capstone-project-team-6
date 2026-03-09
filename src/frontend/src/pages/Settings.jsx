@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/Navigation';
-import { consentAPI, resumeAPI } from '../services/api';
+import { consentAPI, resumeAPI, authAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 const Settings = () => {
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -17,6 +19,13 @@ const Settings = () => {
 
   const [statusMsg, setStatusMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordStatusMsg, setPasswordStatusMsg] = useState('');
+  const [passwordErrorMsg, setPasswordErrorMsg] = useState('');
 
   // --- Personal Info state ---
   const emptyPersonal = {
@@ -43,6 +52,10 @@ const Settings = () => {
   // New state for remove personal info flow
   const [removingPersonalInfo, setRemovingPersonalInfo] = useState(false);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+
+  // Delete account state
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false);
 
   const normalize = (v) => (v || '').trim();
 
@@ -240,6 +253,92 @@ const Settings = () => {
     }
   };
 
+  // --- Change Password Handlers ---
+  const onChangePassword = async () => {
+    setPasswordErrorMsg('');
+    setPasswordStatusMsg('');
+
+    // Validation
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordErrorMsg('All fields are required.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordErrorMsg('New password must be at least 6 characters.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordErrorMsg('New passwords do not match.');
+      return;
+    }
+
+    setChangingPassword(true);
+
+    try {
+      await authAPI.changePassword(currentPassword, newPassword);
+      setPasswordStatusMsg('Password changed successfully!');
+      
+      // Clear form
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setPasswordErrorMsg(
+        err?.response?.data?.detail || 'Failed to change password. Please try again.'
+      );
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  // --- Logout Handler ---
+  const onLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (err) {
+      console.error('Logout error:', err);
+      // Even if logout fails, still redirect to login
+      navigate('/login');
+  const onClickDeleteAccount = () => {
+    setErrorMsg('');
+    setStatusMsg('');
+    setPersonalErrorMsg('');
+    setPersonalStatusMsg('');
+    setShowDeleteAccountConfirm(true);
+  };
+
+  const onCancelDeleteAccount = () => {
+    if (deletingAccount) return;
+    setShowDeleteAccountConfirm(false);
+  };
+
+  const onConfirmDeleteAccount = async () => {
+    setDeletingAccount(true);
+    setErrorMsg('');
+    setStatusMsg('');
+    setPersonalErrorMsg('');
+    setPersonalStatusMsg('');
+
+    try {
+      await authAPI.deleteAccount();
+
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('username');
+      localStorage.removeItem('token_expiry');
+
+      navigate('/login');
+    } catch (err) {
+      setErrorMsg(
+        err?.response?.data?.detail || 'Failed to delete account. Please try again.'
+      );
+      setDeletingAccount(false);
+      setShowDeleteAccountConfirm(false);
+    }
+  };
+
   const Toggle = ({ checked, disabled, onClick }) => {
     return (
       <button
@@ -340,35 +439,64 @@ const Settings = () => {
             </p>
           </div>
 
-          <button
-            onClick={() => navigate('/dashboard')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '10px 20px',
-              backgroundColor: 'white',
-              color: '#1a1a1a',
-              border: '1px solid #e5e5e5',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-              transition: 'all 0.2s',
-              whiteSpace: 'nowrap',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#f5f5f5';
-              e.currentTarget.style.borderColor = '#d4d4d4';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'white';
-              e.currentTarget.style.borderColor = '#e5e5e5';
-            }}
-          >
-            <span style={{ opacity: 0.8 }}>←</span>
-            <span>Back to Dashboard</span>
-          </button>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <button
+              onClick={onLogout}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 20px',
+                backgroundColor: '#dc2626',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                transition: 'all 0.2s',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#b91c1c';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#dc2626';
+              }}
+            >
+              Logout
+            </button>
+
+            <button
+              onClick={() => navigate('/dashboard')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 20px',
+                backgroundColor: 'white',
+                color: '#1a1a1a',
+                border: '1px solid #e5e5e5',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                transition: 'all 0.2s',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f5f5f5';
+                e.currentTarget.style.borderColor = '#d4d4d4';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'white';
+                e.currentTarget.style.borderColor = '#e5e5e5';
+              }}
+            >
+              <span style={{ opacity: 0.8 }}>←</span>
+              <span>Back to Dashboard</span>
+            </button>
+          </div>
         </div>
 
         {/* Consent Card */}
@@ -729,6 +857,186 @@ const Settings = () => {
             </div>
           )}
         </div>
+
+        {/* Change Password Card */}
+        <div style={{ ...cardStyles, padding: '24px', marginTop: '20px' }}>
+          <div style={{ marginBottom: '18px' }}>
+            <h2
+              style={{
+                fontSize: '18px',
+                fontWeight: '600',
+                color: '#1a1a1a',
+                margin: '0 0 8px 0',
+              }}
+            >
+              Change Password
+            </h2>
+            <p style={{ fontSize: '14px', color: '#666', margin: 0, lineHeight: 1.5 }}>
+              Update your password to keep your account secure.
+            </p>
+          </div>
+
+          {/* Divider */}
+          <div style={{ height: '1px', backgroundColor: '#e5e5e5', marginBottom: '18px' }} />
+
+          {/* Password Form */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(1, minmax(0, 1fr))',
+              gap: '14px',
+              maxWidth: '500px',
+            }}
+          >
+            <div>
+              <div style={labelStyle}>Current Password</div>
+              <input
+                type="password"
+                style={inputStyle}
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="Enter current password"
+                disabled={changingPassword}
+              />
+            </div>
+
+            <div>
+              <div style={labelStyle}>New Password</div>
+              <input
+                type="password"
+                style={inputStyle}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password (min. 6 characters)"
+                disabled={changingPassword}
+              />
+            </div>
+
+            <div>
+              <div style={labelStyle}>Confirm New Password</div>
+              <input
+                type="password"
+                style={inputStyle}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm new password"
+                disabled={changingPassword}
+              />
+            </div>
+
+            <div style={{ marginTop: '8px' }}>
+              <button
+                type="button"
+                onClick={onChangePassword}
+                disabled={changingPassword}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '12px',
+                  border: 'none',
+                  backgroundColor: '#111827',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  cursor: changingPassword ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  opacity: changingPassword ? 0.6 : 1,
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  if (!changingPassword) {
+                    e.currentTarget.style.backgroundColor = '#1f2937';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#111827';
+                }}
+              >
+                {changingPassword ? 'Changing Password...' : 'Change Password'}
+              </button>
+            </div>
+          </div>
+
+          {(passwordStatusMsg || passwordErrorMsg) && (
+            <div
+              style={{
+                marginTop: '16px',
+                borderRadius: '12px',
+                padding: '12px 14px',
+                border: '1px solid #e5e5e5',
+                backgroundColor: passwordErrorMsg ? '#fff1f2' : '#ecfeff',
+                color: passwordErrorMsg ? '#991b1b' : '#0f766e',
+                fontSize: '13px',
+                lineHeight: 1.4,
+              }}
+            >
+              {passwordErrorMsg || passwordStatusMsg}
+            </div>
+          )}
+        {/* Delete Account Card */}
+        <div style={{ ...cardStyles, padding: '24px', marginTop: '20px' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              gap: '16px',
+              flexWrap: 'wrap',
+            }}
+          >
+            <div style={{ flex: 1, minWidth: '260px' }}>
+              <h2
+                style={{
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  color: '#1a1a1a',
+                  margin: '0 0 8px 0',
+                }}
+              >
+                Delete Account
+              </h2>
+
+              <p style={{ fontSize: '14px', color: '#666', margin: 0, lineHeight: 1.5 }}>
+                Permanently delete your account and all associated data, including your
+                projects, analyses, saved resumes, personal info, and consent settings.
+                This action cannot be undone.
+              </p>
+            </div>
+
+            <div>
+              <button
+                type="button"
+                onClick={onClickDeleteAccount}
+                disabled={
+                  deletingAccount ||
+                  loading ||
+                  saving ||
+                  loadingPersonalInfo ||
+                  savingPersonalInfo ||
+                  removingPersonalInfo
+                }
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '12px',
+                  border: '1px solid #e5e5e5',
+                  backgroundColor: '#991b1b',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  cursor:
+                    deletingAccount ||
+                    loading ||
+                    saving ||
+                    loadingPersonalInfo ||
+                    savingPersonalInfo ||
+                    removingPersonalInfo
+                      ? 'not-allowed'
+                      : 'pointer',
+                  minWidth: '170px',
+                }}
+              >
+                {deletingAccount ? 'Deleting…' : 'Delete Account'}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Confirmation Modal */}
@@ -913,6 +1221,97 @@ const Settings = () => {
         </div>
       )}
       {/* End Remove Personal Info Confirmation Modal */}
+
+      {/* Delete Account Confirmation Modal */}
+      {showDeleteAccountConfirm && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px',
+            zIndex: 9999,
+          }}
+          onClick={onCancelDeleteAccount}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '520px',
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              border: '1px solid #e5e5e5',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+              padding: '18px',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ marginBottom: '12px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#111827' }}>
+                Delete account?
+              </h3>
+              <p
+                style={{
+                  margin: '8px 0 0 0',
+                  fontSize: '14px',
+                  color: '#4b5563',
+                  lineHeight: 1.5,
+                }}
+              >
+                This will permanently delete your account and everything associated with it.
+                This action cannot be undone.
+              </p>
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '10px',
+                marginTop: '16px',
+              }}
+            >
+              <button
+                type="button"
+                onClick={onCancelDeleteAccount}
+                disabled={deletingAccount}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  border: '1px solid #e5e5e5',
+                  backgroundColor: '#ffffff',
+                  color: '#111827',
+                  fontWeight: 600,
+                  cursor: deletingAccount ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={onConfirmDeleteAccount}
+                disabled={deletingAccount}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  border: '1px solid #e5e5e5',
+                  backgroundColor: '#991b1b',
+                  color: '#ffffff',
+                  fontWeight: 600,
+                  cursor: deletingAccount ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {deletingAccount ? 'Deleting…' : 'Yes, delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* End Delete Account Confirmation Modal */}
     </div>
   );
 };

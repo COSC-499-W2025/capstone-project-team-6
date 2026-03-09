@@ -355,8 +355,7 @@ class TaskManager:
                                         record_analysis)
         from .cli import analyze_folder
 
-        await asyncio.sleep(1)
-        task.progress = 50
+        task.progress = 32
 
         # Duplicate check: if this ZIP was already analysed for this user, reuse the result
         if task.file_hash:
@@ -381,8 +380,16 @@ class TaskManager:
         loop = asyncio.get_event_loop()
 
         # 1) NON-LLM ANALYSIS (always)
+        # Map analyze_folder's 0-100% progress to task progress 35-80%
+        def _analysis_progress(pct, msg=""):
+            mapped = 35 + int(pct * 0.45)  # 0→35, 100→80
+            task.progress = min(80, mapped)
+            task.updated_at = datetime.now()
+
         task.analysis_phase = "non_llm"
-        analysis_result = await loop.run_in_executor(_executor, analyze_folder, file_path)
+        analysis_result = await loop.run_in_executor(
+            _executor, lambda: analyze_folder(file_path, progress_callback=_analysis_progress)
+        )
         task.progress = 80
 
         # Override project name with user-provided value if set
