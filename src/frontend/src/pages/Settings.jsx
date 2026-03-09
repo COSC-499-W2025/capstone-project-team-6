@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/Navigation';
-import { authAPI, consentAPI, resumeAPI } from '../services/api';
+import { consentAPI, resumeAPI, authAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 const Settings = () => {
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -17,6 +19,13 @@ const Settings = () => {
 
   const [statusMsg, setStatusMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordStatusMsg, setPasswordStatusMsg] = useState('');
+  const [passwordErrorMsg, setPasswordErrorMsg] = useState('');
 
   // --- Personal Info state ---
   const emptyPersonal = {
@@ -244,6 +253,55 @@ const Settings = () => {
     }
   };
 
+  // --- Change Password Handlers ---
+  const onChangePassword = async () => {
+    setPasswordErrorMsg('');
+    setPasswordStatusMsg('');
+
+    // Validation
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordErrorMsg('All fields are required.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordErrorMsg('New password must be at least 6 characters.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordErrorMsg('New passwords do not match.');
+      return;
+    }
+
+    setChangingPassword(true);
+
+    try {
+      await authAPI.changePassword(currentPassword, newPassword);
+      setPasswordStatusMsg('Password changed successfully!');
+      
+      // Clear form
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setPasswordErrorMsg(
+        err?.response?.data?.detail || 'Failed to change password. Please try again.'
+      );
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  // --- Logout Handler ---
+  const onLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (err) {
+      console.error('Logout error:', err);
+      // Even if logout fails, still redirect to login
+      navigate('/login');
   const onClickDeleteAccount = () => {
     setErrorMsg('');
     setStatusMsg('');
@@ -381,35 +439,64 @@ const Settings = () => {
             </p>
           </div>
 
-          <button
-            onClick={() => navigate('/dashboard')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '10px 20px',
-              backgroundColor: 'white',
-              color: '#1a1a1a',
-              border: '1px solid #e5e5e5',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-              transition: 'all 0.2s',
-              whiteSpace: 'nowrap',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#f5f5f5';
-              e.currentTarget.style.borderColor = '#d4d4d4';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'white';
-              e.currentTarget.style.borderColor = '#e5e5e5';
-            }}
-          >
-            <span style={{ opacity: 0.8 }}>←</span>
-            <span>Back to Dashboard</span>
-          </button>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <button
+              onClick={onLogout}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 20px',
+                backgroundColor: '#dc2626',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                transition: 'all 0.2s',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#b91c1c';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#dc2626';
+              }}
+            >
+              Logout
+            </button>
+
+            <button
+              onClick={() => navigate('/dashboard')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 20px',
+                backgroundColor: 'white',
+                color: '#1a1a1a',
+                border: '1px solid #e5e5e5',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                transition: 'all 0.2s',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f5f5f5';
+                e.currentTarget.style.borderColor = '#d4d4d4';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'white';
+                e.currentTarget.style.borderColor = '#e5e5e5';
+              }}
+            >
+              <span style={{ opacity: 0.8 }}>←</span>
+              <span>Back to Dashboard</span>
+            </button>
+          </div>
         </div>
 
         {/* Consent Card */}
@@ -771,6 +858,119 @@ const Settings = () => {
           )}
         </div>
 
+        {/* Change Password Card */}
+        <div style={{ ...cardStyles, padding: '24px', marginTop: '20px' }}>
+          <div style={{ marginBottom: '18px' }}>
+            <h2
+              style={{
+                fontSize: '18px',
+                fontWeight: '600',
+                color: '#1a1a1a',
+                margin: '0 0 8px 0',
+              }}
+            >
+              Change Password
+            </h2>
+            <p style={{ fontSize: '14px', color: '#666', margin: 0, lineHeight: 1.5 }}>
+              Update your password to keep your account secure.
+            </p>
+          </div>
+
+          {/* Divider */}
+          <div style={{ height: '1px', backgroundColor: '#e5e5e5', marginBottom: '18px' }} />
+
+          {/* Password Form */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(1, minmax(0, 1fr))',
+              gap: '14px',
+              maxWidth: '500px',
+            }}
+          >
+            <div>
+              <div style={labelStyle}>Current Password</div>
+              <input
+                type="password"
+                style={inputStyle}
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="Enter current password"
+                disabled={changingPassword}
+              />
+            </div>
+
+            <div>
+              <div style={labelStyle}>New Password</div>
+              <input
+                type="password"
+                style={inputStyle}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password (min. 6 characters)"
+                disabled={changingPassword}
+              />
+            </div>
+
+            <div>
+              <div style={labelStyle}>Confirm New Password</div>
+              <input
+                type="password"
+                style={inputStyle}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm new password"
+                disabled={changingPassword}
+              />
+            </div>
+
+            <div style={{ marginTop: '8px' }}>
+              <button
+                type="button"
+                onClick={onChangePassword}
+                disabled={changingPassword}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '12px',
+                  border: 'none',
+                  backgroundColor: '#111827',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  cursor: changingPassword ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  opacity: changingPassword ? 0.6 : 1,
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  if (!changingPassword) {
+                    e.currentTarget.style.backgroundColor = '#1f2937';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#111827';
+                }}
+              >
+                {changingPassword ? 'Changing Password...' : 'Change Password'}
+              </button>
+            </div>
+          </div>
+
+          {(passwordStatusMsg || passwordErrorMsg) && (
+            <div
+              style={{
+                marginTop: '16px',
+                borderRadius: '12px',
+                padding: '12px 14px',
+                border: '1px solid #e5e5e5',
+                backgroundColor: passwordErrorMsg ? '#fff1f2' : '#ecfeff',
+                color: passwordErrorMsg ? '#991b1b' : '#0f766e',
+                fontSize: '13px',
+                lineHeight: 1.4,
+              }}
+            >
+              {passwordErrorMsg || passwordStatusMsg}
+            </div>
+          )}
         {/* Delete Account Card */}
         <div style={{ ...cardStyles, padding: '24px', marginTop: '20px' }}>
           <div

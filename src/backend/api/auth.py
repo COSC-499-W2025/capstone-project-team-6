@@ -109,3 +109,33 @@ async def logout(username: str = Depends(verify_token)):
         del active_tokens[token]
 
     return MessageResponse(message="Successfully logged out")
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(..., min_length=6)
+    new_password: str = Field(..., min_length=6)
+
+
+@router.post("/change-password", operation_id="change_password")
+async def change_password(
+    request: ChangePasswordRequest,
+    username: str = Depends(verify_token)
+):
+    """Change user password."""
+    from backend.database import get_user, verify_password, update_user_password
+    user = get_user(username)
+    if user is None or not verify_password(request.current_password, user["password_hash"]):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Current password is incorrect",
+        )
+    
+    try:
+        update_user_password(username, request.new_password)
+        
+        return MessageResponse(message="Password changed successfully")
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to change password: {str(e)}",
+        )
