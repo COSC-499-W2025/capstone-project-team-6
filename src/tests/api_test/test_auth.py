@@ -354,7 +354,7 @@ class TestChangePassword:
             json={"current_password": "oldpass123", "new_password": "newpass456"},
         )
 
-        assert response.status_code == 403  
+        assert response.status_code == 403
 
     def test_change_password_invalid_token(self):
         """Test password change with invalid token fails."""
@@ -383,7 +383,7 @@ class TestChangePassword:
             headers={"Authorization": f"Bearer {token}"},
         )
 
-        assert response.status_code == 422  
+        assert response.status_code == 422
 
     def test_change_password_same_as_current(self):
         """Test password can be changed to the same value (edge case)."""
@@ -410,4 +410,3 @@ class TestChangePassword:
         )
 
         assert login_response.status_code == 200
-

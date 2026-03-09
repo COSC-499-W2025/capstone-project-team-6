@@ -250,12 +250,12 @@ def update_user_password(username: str, new_password: str) -> None:
         raise ValueError("Username is required")
     if not new_password:
         raise ValueError("New password is required")
-    
+
     if get_user(username) is None:
         raise ValueError("User does not exist")
-    
+
     hashed = hash_password(new_password)
-    
+
     with get_connection() as conn:
         conn.execute(
             "UPDATE users SET password_hash = ? WHERE username = ?",
