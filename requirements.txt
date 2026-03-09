@@ -65,4 +65,4 @@ google-genai
 # CLI
 rich
 
-greenlet==3.0.3
+greenlet>=3.0.0
