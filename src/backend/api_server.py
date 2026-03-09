@@ -11,7 +11,9 @@ import bcrypt
 from fastapi import (Depends, FastAPI, File, Form, HTTPException, Security,
                      UploadFile, status)
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from backend.analysis_database import (delete_all_projects_for_user,
@@ -53,9 +55,10 @@ app = FastAPI(
 )
 
 # Configure CORS
+cors_origins = os.environ.get("CORS_ORIGINS", "http://localhost:5173,http://localhost:8000").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Frontend URL
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -464,9 +467,9 @@ async def health_check():
     }
 
 
-@app.get("/")
-async def root():
-    """Root endpoint with API information."""
+@app.get("/api/info")
+async def api_info():
+    """API information endpoint."""
     return {
         "name": "MDA Portfolio API",
         "version": "2.0.0",
@@ -532,6 +535,30 @@ app.include_router(analysis_router)
 app.include_router(resume_router)
 app.include_router(tasks_router)
 app.include_router(curation_router)
+
+# Mount static files for frontend (unified deployment)
+frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
+if frontend_dist.exists():
+    app.mount("/assets", StaticFiles(directory=str(frontend_dist / "assets")), name="assets")
+    
+    # Serve index.html for all non-API routes (client-side routing)
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        # Don't interfere with API routes
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="API endpoint not found")
+        
+        # Try to serve the requested file
+        file_path = frontend_dist / full_path
+        if file_path.is_file():
+            return FileResponse(file_path)
+        
+        # Otherwise serve index.html for client-side routing
+        index_path = frontend_dist / "index.html"
+        if index_path.exists():
+            return FileResponse(index_path)
+        
+        raise HTTPException(status_code=404, detail="Frontend not built")
 
 
 @app.delete("/api/projects/{project_id}")
