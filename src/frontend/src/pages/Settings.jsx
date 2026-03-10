@@ -279,7 +279,7 @@ const Settings = () => {
     try {
       await authAPI.changePassword(currentPassword, newPassword);
       setPasswordStatusMsg('Password changed successfully!');
-      
+
       // Clear form
       setCurrentPassword('');
       setNewPassword('');
@@ -302,6 +302,9 @@ const Settings = () => {
       console.error('Logout error:', err);
       // Even if logout fails, still redirect to login
       navigate('/login');
+    }
+  };
+
   const onClickDeleteAccount = () => {
     setErrorMsg('');
     setStatusMsg('');
@@ -971,6 +974,8 @@ const Settings = () => {
               {passwordErrorMsg || passwordStatusMsg}
             </div>
           )}
+        </div>
+
         {/* Delete Account Card */}
         <div style={{ ...cardStyles, padding: '24px', marginTop: '20px' }}>
           <div
