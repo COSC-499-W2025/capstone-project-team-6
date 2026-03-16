@@ -49,6 +49,12 @@ const Upload = () => {
       .catch(() => setHasConsented(false));
   }, []);
 
+  // Sync duplicateMessage from navigation state (e.g. when AnalyzePage navigates back)
+  useEffect(() => {
+    const msg = location.state?.duplicateMessage;
+    if (msg) setDuplicateMessage(msg);
+  }, [location.state?.duplicateMessage]);
+
   const effectiveAnalysisType = (hasConsented && useLLMAnalysis) ? 'llm' : 'non_llm';
 
   const canAnalyzeSingle = selectedFile && projectName.trim().length > 0;
@@ -223,6 +229,8 @@ const Upload = () => {
 
     let taskIdForAnalyze = null;
     let taskIdsForAnalyze = [];
+    let multipleSkippedDuplicates = [];
+    let multipleTotalFiles = 0;
     try {
       if (activeTab === 'single') {
         const formData = new FormData();
@@ -262,8 +270,10 @@ const Upload = () => {
 
       } else if (activeTab === 'multiple') {
         // Upload multiple files with progress tracking and error aggregation
-        const errors = [];
+        const uploadErrors = [];
+        const duplicates = [];
         const total = multipleFiles.length;
+        multipleTotalFiles = total;
         setUploadProgress({ current: 0, total });
 
         for (let i = 0; i < multipleFiles.length; i++) {
@@ -277,7 +287,7 @@ const Upload = () => {
 
             const res = await api.post('/portfolios/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
             if (res?.data?.details?.duplicate) {
-              errors.push(`${file.name}: Already analyzed (duplicate)`);
+              duplicates.push(file.name);
             } else {
               const taskId = res?.data?.task_id || res?.data?.details?.task_id;
               if (taskId) {
@@ -286,22 +296,33 @@ const Upload = () => {
             }
           } catch (err) {
             const errorMsg = err.response?.data?.detail || 'Upload failed';
-            errors.push(`${file.name}: ${errorMsg}`);
+            uploadErrors.push(`${file.name}: ${errorMsg}`);
           }
         }
 
-        // If some uploads failed, show aggregated errors
-        if (errors.length > 0) {
-          const successCount = total - errors.length;
+        // If there were actual upload errors (not duplicates), show them
+        if (uploadErrors.length > 0) {
+          const successCount = taskIdsForAnalyze.length;
+          const errorLines = uploadErrors.join('\n');
+          const dupNote = duplicates.length > 0 ? `\nAlready analyzed (skipped): ${duplicates.join(', ')}` : '';
           if (successCount > 0) {
-            setError(`${successCount}/${total} files uploaded successfully.\nFailed:\n${errors.join('\n')}`);
+            setError(`${successCount} file(s) uploaded. Failed:\n${errorLines}${dupNote}`);
           } else {
-            setError(`All uploads failed:\n${errors.join('\n')}`);
+            setError(`All uploads failed:\n${errorLines}${dupNote}`);
           }
+          if (taskIdsForAnalyze.length === 0) {
+            setIsUploading(false);
+            setUploadProgress({ current: 0, total: 0 });
+            return;
+          }
+        } else if (duplicates.length > 0 && taskIdsForAnalyze.length === 0) {
+          // All files were duplicates — nothing new to analyze
+          setError(`All ${duplicates.length} ${duplicates.length === 1 ? 'project has' : 'projects have'} already been analyzed. You can view them in your projects.`);
           setIsUploading(false);
           setUploadProgress({ current: 0, total: 0 });
           return;
         }
+        multipleSkippedDuplicates = duplicates;
       } else if (activeTab === 'incremental') {
         // Upload to existing portfolio
         const response = await portfoliosAPI.addToPortfolio(selectedPortfolio, incrementalFile);
@@ -391,10 +412,13 @@ const Upload = () => {
       // Navigate to analyze page after successful upload
       if (activeTab === 'multiple' && taskIdsForAnalyze.length > 0) {
         sessionStorage.setItem("analyze_task_ids", JSON.stringify(taskIdsForAnalyze));
-        sessionStorage.setItem("analyze_project_type", "multiple");
-        sessionStorage.setItem("analyze_analysis_type", effectiveAnalysisType);
-        sessionStorage.setItem("analyze_project_name", "Multiple Projects");
-        navigate("/analyze", { state: { taskIds: taskIdsForAnalyze, projectType: 'multiple', analysisType: effectiveAnalysisType, projectName: 'Multiple Projects' } });
+        navigate("/analyze", {
+          state: {
+            taskIds: taskIdsForAnalyze,
+            skippedDuplicates: multipleSkippedDuplicates,
+            totalFiles: multipleTotalFiles,
+          },
+        });
       } else if (taskIdForAnalyze) {
         navigate("/analyze", { state: { taskId: taskIdForAnalyze } });
       } else {

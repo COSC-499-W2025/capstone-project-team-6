@@ -19,6 +19,8 @@ export default function AnalyzePage() {
       }
     })()
     ?? (sessionStorage.getItem("analyze_task_id") ? [sessionStorage.getItem("analyze_task_id")] : null);
+  const skippedDuplicates = location.state?.skippedDuplicates ?? [];
+  const totalFiles = location.state?.totalFiles ?? null;
   const isMultiTask = Array.isArray(taskIdsFromNav) && taskIdsFromNav.length > 1;
 
   const projectType = location.state?.projectType ?? sessionStorage.getItem("analyze_project_type") ?? null;
@@ -86,6 +88,7 @@ export default function AnalyzePage() {
     let completedCount = 0;
     let failedCount = 0;
     let anyDuplicate = false;
+    let duplicateCount = 0;
     let lastAnalysisUuid = null;
     let lastError = null;
     let maxProgress = 0;
@@ -98,7 +101,7 @@ export default function AnalyzePage() {
 
       if (s === "completed") {
         completedCount++;
-        if (data?.result?.duplicate === true) anyDuplicate = true;
+        if (data?.result?.duplicate === true) { anyDuplicate = true; duplicateCount++; }
         if (data?.result?.analysis_uuid) lastAnalysisUuid = data.result.analysis_uuid;
         const p = typeof data?.progress === "number" ? data.progress : 100;
         maxProgress = Math.max(maxProgress, p);
@@ -126,8 +129,12 @@ export default function AnalyzePage() {
       sessionStorage.removeItem("analyze_project_name");
       if (lastAnalysisUuid) sessionStorage.setItem("portfolio_id", lastAnalysisUuid);
 
-      if (anyDuplicate && idList.length === 1) {
-        navigate("/upload", { state: { duplicateMessage: "This project has already been analyzed. You can view it in your projects." } });
+      const allDuplicate = anyDuplicate && duplicateCount === completedCount;
+      if (allDuplicate) {
+        const msg = idList.length === 1
+          ? "This project has already been analyzed. You can view it in your projects."
+          : `All ${duplicateCount} ${duplicateCount === 1 ? 'project has' : 'projects have'} already been analyzed. You can view them in your projects.`;
+        navigate("/upload", { state: { duplicateMessage: msg } });
         return;
       }
 
@@ -136,6 +143,13 @@ export default function AnalyzePage() {
       if (failedCount > 0 && completedCount === 0) {
         setStatus("failed");
         setError(lastError || "All analyses failed");
+      } else if (skippedDuplicates.length > 0) {
+        const total = totalFiles ?? (completedCount - duplicateCount + skippedDuplicates.length);
+        const analyzedCount = completedCount - duplicateCount;
+        const skipWord = skippedDuplicates.length === 1 ? 'project was' : 'projects were';
+        const analyzeWord = analyzedCount === 1 ? 'project has' : 'projects have';
+        const msg = `${skippedDuplicates.length} of ${total} ${skipWord} already analyzed (skipped). ${analyzedCount} ${analyzeWord} been analyzed successfully.`;
+        navigate("/upload", { state: { duplicateMessage: msg } });
       } else {
         navigate("/projects");
       }

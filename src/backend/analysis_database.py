@@ -1265,7 +1265,6 @@ def get_analysis_by_zip_file(zip_file: str, username: Optional[str] = None) -> O
 def get_analysis_by_file_hash(
     file_hash: str,
     username: str,
-    analysis_type: str = "non_llm",
 ) -> Optional[sqlite3.Row]:
     """Return the most recent analysis for a ZIP content hash scoped to a user."""
     if not file_hash or not username:
@@ -1274,10 +1273,11 @@ def get_analysis_by_file_hash(
         return conn.execute(
             """
             SELECT * FROM analyses
-            WHERE zip_file_hash = ? AND username = ? AND analysis_type = ?
+            WHERE zip_file_hash = ? AND username = ?
+            AND total_projects > 0
             ORDER BY created_at DESC LIMIT 1
             """,
-            (file_hash, username, analysis_type),
+            (file_hash, username),
         ).fetchone()
 
 
