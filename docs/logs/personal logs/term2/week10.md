@@ -2,6 +2,7 @@
 
 ## Date Ranges
 March 9 - March 15
+docs/logs/personal logs/images/Screenshot 2026-03-15 191305.png
 
 
 ## Goals for this week (planned last sprint)
