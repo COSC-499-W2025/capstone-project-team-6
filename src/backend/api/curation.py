@@ -13,8 +13,7 @@ from backend.curation import (ATTRIBUTE_DESCRIPTIONS,
                               get_showcase_projects,
                               get_user_curation_settings, get_user_projects,
                               save_chronology_correction,
-                              save_comparison_attributes,
-                              save_curated_role,
+                              save_comparison_attributes, save_curated_role,
                               save_highlighted_skills, save_project_order,
                               save_showcase_projects, validate_date_format)
 
@@ -362,6 +361,8 @@ async def set_curated_role(
         )
 
     return MessageResponse(
-        message=f"Role updated for project {request.project_id}" if curated_role else f"Role cleared for project {request.project_id}",
+        message=(
+            f"Role updated for project {request.project_id}" if curated_role else f"Role cleared for project {request.project_id}"
+        ),
         success=True,
     )

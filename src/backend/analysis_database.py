@@ -1921,9 +1921,7 @@ def get_analysis_by_uuid(uuid_str: str, username: str = None) -> Optional[Dict[s
 
         # Enrich raw projects with role prediction data from the projects table
         projects_list = raw_data.get("projects", [])
-        analysis_id_row = conn.execute(
-            "SELECT id FROM analyses WHERE analysis_uuid = ?", (uuid_str,)
-        ).fetchone()
+        analysis_id_row = conn.execute("SELECT id FROM analyses WHERE analysis_uuid = ?", (uuid_str,)).fetchone()
         if analysis_id_row:
             db_projects = conn.execute(
                 """SELECT project_name, project_path, predicted_role,

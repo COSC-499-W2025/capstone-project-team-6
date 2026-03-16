@@ -950,7 +950,7 @@ def _bundles_to_portfolios(
             except Exception:
                 tech_stack = []
         frameworks = [t for t in (tech_stack if isinstance(tech_stack, list) else []) if isinstance(t, str)][:10]
-        for s in (port.get("skills") or port.get("skills_exercised") or []):
+        for s in port.get("skills") or port.get("skills_exercised") or []:
             if isinstance(s, str) and s.strip():
                 all_skills.add(s.strip())
         resume_bullets = []
@@ -958,14 +958,16 @@ def _bundles_to_portfolios(
             text = r.get("resume_text") or r.get("content") or r.get("bullet_text") or ""
             if isinstance(text, str) and text.strip():
                 resume_bullets.append(text.strip())
-        all_projects.append({
-            "project_name": name,
-            "timeline": timeline,
-            "languages": languages,
-            "frameworks": frameworks,
-            "dependencies": {},
-            "resume_bullets": resume_bullets,
-        })
+        all_projects.append(
+            {
+                "project_name": name,
+                "timeline": timeline,
+                "languages": languages,
+                "frameworks": frameworks,
+                "dependencies": {},
+                "resume_bullets": resume_bullets,
+            }
+        )
     return [{"projects": all_projects, "skills": list(all_skills)}]
 
 
