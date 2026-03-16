@@ -60,8 +60,8 @@ No major blockers this week.
 - Feature/role prediction frontend [#444](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/444)
 
 ## PR's reviewed
-- duplicate file analysis detection bug fix [#431](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/431) — approved after testing duplicate handling scenarios and confirming the major fixes worked as expected
-- Fixed syntax errors [#439](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/439) — approved after verifying the frontend and Docker build issues were resolved
+- duplicate file analysis detection bug fix [#431](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/431) : approved after testing duplicate handling scenarios and confirming the major fixes worked as expected
+- Fixed syntax errors [#439](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/439) : approved after verifying the frontend and Docker build issues were resolved
 
 ## Plan for next week
 - Continue milestone 3 frontend integration work
