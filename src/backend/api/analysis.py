@@ -372,9 +372,7 @@ async def start_analysis_for_upload(
         username=username,
         filename=zip_path.name,
         file_path=zip_path,
-        analysis_type="non_llm",
-        # If your task manager supports metadata, pass upload_id too.
-        # upload_id=upload_id,  # only if supported
+        analysis_type="llm",
     )
 
     return {

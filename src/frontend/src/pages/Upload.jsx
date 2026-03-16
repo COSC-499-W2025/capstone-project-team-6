@@ -39,14 +39,21 @@ const Upload = () => {
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [incrementalResults, setIncrementalResults] = useState(null);
 
-  // Consent and analysis type: fetch consent on mount; useLLMAnalysis only when consented
+  // Consent and analysis type: fetch consent on mount; default LLM on when consented
   const [hasConsented, setHasConsented] = useState(false);
-  const [useLLMAnalysis, setUseLLMAnalysis] = useState(false);
+  const [useLLMAnalysis, setUseLLMAnalysis] = useState(true);
 
   useEffect(() => {
     consentAPI.getConsent()
-      .then((res) => setHasConsented(!!res?.has_consented))
-      .catch(() => setHasConsented(false));
+      .then((res) => {
+        const consented = !!res?.has_consented;
+        setHasConsented(consented);
+        setUseLLMAnalysis(consented);
+      })
+      .catch(() => {
+        setHasConsented(false);
+        setUseLLMAnalysis(false);
+      });
   }, []);
 
   // Sync duplicateMessage from navigation state (e.g. when AnalyzePage navigates back)

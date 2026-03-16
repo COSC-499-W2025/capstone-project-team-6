@@ -409,7 +409,7 @@ class TaskManager:
             task.analysis_type or "non_llm", analysis_result, username=task.username, zip_file_hash=task.file_hash
         )
         row = get_analysis(analysis_id)
-        analysis_uuid = row["analysis_uuid"] if row and "analysis_uuid" in row else None
+        analysis_uuid = row["analysis_uuid"] if row else None
 
         task.progress = 90
 
@@ -423,48 +423,62 @@ class TaskManager:
             "llm_error": None,
         }
 
-        # 2) LLM ANALYSIS (only if consent)
+        # 2) LLM ANALYSIS (always runs when user has consented)
         try:
             has_consented = check_user_consent(task.username)
         except Exception as e:
             has_consented = False
             result_payload["llm_error"] = f"Consent check failed: {e}"
 
-        if has_consented and (task.analysis_type or "non_llm") == "llm":
+        if has_consented:
             task.analysis_phase = "llm"
-            task.progress = 92
+            task.progress = 82
+            logger.info(f"Task {task.task_id}: Starting LLM analysis")
             try:
                 from .analysis.llm_pipeline import run_gemini_analysis
+                from .analysis_database import update_llm_summary
 
-                # Choose active features
                 active_features = ["architecture", "complexity", "security", "skills", "domain", "resume"]
 
-                # Run LLM analysis
+                def _llm_progress(current, total, msg):
+                    fraction = current / total if total > 0 else 0
+                    mapped = 82 + int(fraction * 16)
+                    task.progress = min(98, mapped)
+                    task.updated_at = datetime.now()
+
                 llm_results = await loop.run_in_executor(
                     _executor,
-                    run_gemini_analysis,
-                    file_path,
-                    active_features,
-                    None,  # prompt_override
-                    None,  # progress_callback
+                    lambda: run_gemini_analysis(
+                        file_path,
+                        active_features,
+                        None,
+                        _llm_progress,
+                    ),
                 )
 
-                task.progress = 97
+                task.progress = 98
 
-                # Store LLM under same user. Use empty projects to avoid duplicate project rows
-                # (non_llm analysis already stored the projects; LLM only adds enhancements)
-                llm_results["non_llm_results"] = analysis_result
-                llm_payload = {**llm_results, "projects": []}
-                llm_analysis_id = record_analysis("llm", llm_payload, username=task.username, zip_file_hash=task.file_hash)
+                llm_summary_text = llm_results.get("llm_summary")
+                llm_error_text = llm_results.get("llm_error")
+
+                logger.info(
+                    f"Task {task.task_id}: LLM pipeline finished. "
+                    f"summary={'present (' + str(len(llm_summary_text)) + ' chars)' if llm_summary_text else 'ABSENT'}, "
+                    f"analysis_uuid={analysis_uuid}, "
+                    f"llm_error={llm_error_text}"
+                )
+
+                if llm_summary_text and analysis_uuid:
+                    update_llm_summary(analysis_uuid, llm_summary_text, task.username)
+                    logger.info(f"Task {task.task_id}: LLM summary saved to analysis {analysis_uuid}")
 
                 result_payload["llm_ran"] = True
-                result_payload["llm_analysis_id"] = llm_analysis_id
-                result_payload["llm_error"] = None
+                result_payload["llm_error"] = llm_error_text
 
             except Exception as e:
-                # do NOT fail entire task if LLM fails
                 result_payload["llm_ran"] = False
                 result_payload["llm_error"] = str(e)
+                logger.error(f"Task {task.task_id}: LLM analysis failed: {e}", exc_info=True)
 
         task.progress = 99
         return result_payload
