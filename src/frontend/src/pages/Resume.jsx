@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Navigation from '../components/Navigation';
 import { projectsAPI, resumeAPI, curationAPI } from '../services/api';
 import ReactMarkdown from 'react-markdown';
@@ -25,7 +25,7 @@ const Resume = () => {
   const [storedResumeSaving, setStoredResumeSaving] = useState(false);
 
   // Personal information
-  const emptyPersonal = {
+  const [personalInfo, setPersonalInfo] = useState({
     name: '',
     email: '',
     phone: '',
@@ -33,87 +33,7 @@ const Resume = () => {
     linkedIn: '',
     github: '',
     website: '',
-    education: '',
-    education_university: '',
-    education_location: '',
-    education_degree: '',
-    education_start_date: '',
-    education_end_date: '',
-    education_awards: '',
   });
-  };
-  const [personalInfo, setPersonalInfo] = useState(emptyPersonal);
-  const [originalPersonalInfo, setOriginalPersonalInfo] = useState(emptyPersonal);
-  const [personalErrors, setPersonalErrors] = useState({});
-
-  const validatePersonalInfo = (info) => {
-    const errs = {};
-
-    if (!info.name.trim()) {
-      errs.name = 'Full name is required.';
-    } else if (!/^[A-Za-z\s\-'.]+$/.test(info.name.trim())) {
-      errs.name = 'Name may only contain letters, spaces, hyphens, and apostrophes.';
-    } else if (info.name.trim().length > 100) {
-      errs.name = 'Name must be 100 characters or fewer.';
-    }
-
-    if (!info.email.trim()) {
-      errs.email = 'Email is required.';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(info.email.trim())) {
-      errs.email = 'Enter a valid email address.';
-    }
-
-    const phoneTrim = info.phone.trim();
-    if (phoneTrim) {
-      if (!/^[+\d][\d\s\-().]{7,20}$/.test(phoneTrim)) {
-        errs.phone = 'Phone may only contain digits, spaces, dashes, parentheses, or a leading +. Minimum of 7 digits required.';
-      } else if ((phoneTrim.replace(/\D/g, '').length || 0) < 7) {
-        errs.phone = 'Phone may only contain digits, spaces, dashes, parentheses, or a leading +. Minimum of 7 digits required.';
-      }
-    }
-
-    if (info.location.trim().length > 100) {
-      errs.location = 'Location must be 100 characters or fewer.';
-    }
-
-    const linkedInPattern = /^https?:\/\/(www\.)?linkedin\.com\//i;
-    if (info.linkedIn.trim() && !linkedInPattern.test(info.linkedIn.trim())) {
-      errs.linkedIn = 'Must start with https://linkedin.com/ or https://www.linkedin.com/';
-    }
-
-    if (info.github.trim() && !/^https?:\/\/(www\.)?github\.com\//i.test(info.github.trim())) {
-      errs.github = 'Must start with https://github.com/';
-    }
-
-    if (info.website.trim() && !/^https?:\/\/.+\..+/.test(info.website.trim())) {
-      errs.website = 'Must be a valid URL starting with http:// or https://';
-    }
-
-    return errs;
-  };
-
-  const onChangePersonalField = (key, value) => {
-    const updated = { ...personalInfo, [key]: value };
-    setPersonalInfo(updated);
-    if (Object.keys(personalErrors).length > 0) {
-      setPersonalErrors(validatePersonalInfo(updated));
-    }
-  };
-
-  const hasOriginalPersonalInfo = Object.values(originalPersonalInfo).some((v) => (v || '').trim().length > 0);
-
-  const hasPersonalInfoChanges = () => {
-    const keys = Object.keys(emptyPersonal);
-    for (const k of keys) {
-      if ((personalInfo[k] || '').trim() !== (originalPersonalInfo[k] || '').trim()) return true;
-    }
-    return false;
-  };
-
-  const onCancelPersonalInfo = () => {
-    setPersonalInfo({ ...originalPersonalInfo });
-    setPersonalErrors({});
-  };
 
   // Editable resume content
   const [editableContent, setEditableContent] = useState(null);
@@ -122,6 +42,7 @@ const Resume = () => {
   // Curation settings
   const [curationSettings, setCurationSettings] = useState(null);
   const [chronologyCorrections, setChronologyCorrections] = useState({});
+  const [showShowcaseOnly, setShowShowcaseOnly] = useState(false);
 
   useEffect(() => {
     loadProjects();
@@ -135,7 +56,6 @@ const Resume = () => {
       setLoading(true);
       const data = await projectsAPI.getProjects();
 
-      // data should already be a list of projects
       const projectList = Array.isArray(data) ? data : [];
       setProjects(projectList);
       setError('');
@@ -155,7 +75,6 @@ const Resume = () => {
       ]);
       setCurationSettings(settings);
 
-      // Build chronology corrections map from curation projects
       const corrections = {};
       if (Array.isArray(curationProjects)) {
         curationProjects.forEach((p) => {
@@ -171,7 +90,6 @@ const Resume = () => {
       }
       setChronologyCorrections(corrections);
 
-      // Pre-select showcase projects if no projects are selected yet
       if (settings?.showcase_project_ids?.length > 0) {
         setSelectedProjectIds((prev) => {
           if (prev.length === 0) {
@@ -203,9 +121,10 @@ const Resume = () => {
       const saved = data?.personal_info || {};
 
       if (saved && typeof saved === 'object') {
-        const loaded = { ...emptyPersonal, ...saved };
-        setPersonalInfo(loaded);
-        setOriginalPersonalInfo(loaded);
+        setPersonalInfo((prev) => ({
+          ...prev,
+          ...saved,
+        }));
       }
     } catch (err) {
       console.error('Error loading personal info:', err);
@@ -285,29 +204,55 @@ const Resume = () => {
     });
   };
 
-  const selectAll = () => {
-    if (selectedProjectIds.length === projects.length) {
-      setSelectedProjectIds([]);
-    } else {
-      setSelectedProjectIds(projects.map((p) => p.id));
-    }
+  const handleSelectAllProjects = () => {
+    setSelectedProjectIds(projects.map((p) => p.id));
   };
+
+  const handleClearSelection = () => {
+    setSelectedProjectIds([]);
+  };
+
+  const handleSelectShowcaseProjects = () => {
+    const showcaseIds = curationSettings?.showcase_project_ids ?? [];
+    if (!Array.isArray(showcaseIds) || showcaseIds.length === 0) {
+      return;
+    }
+
+    const projectIdSet = new Set(projects.map((project) => project.id));
+    const validShowcaseIds = showcaseIds.filter((id) => projectIdSet.has(id));
+    setSelectedProjectIds(validShowcaseIds);
+  };
+
+  const showcaseProjectIds = curationSettings?.showcase_project_ids ?? [];
+  const showcaseProjectIdSet = useMemo(() => new Set(showcaseProjectIds), [showcaseProjectIds]);
+
+  const displayedProjects = useMemo(() => {
+    const orderIds = curationSettings?.custom_project_order;
+    const sortedProjects = [...projects];
+
+    if (Array.isArray(orderIds) && orderIds.length > 0) {
+      sortedProjects.sort((a, b) => {
+        const aIdx = orderIds.indexOf(a.id);
+        const bIdx = orderIds.indexOf(b.id);
+        if (aIdx === -1 && bIdx === -1) return 0;
+        if (aIdx === -1) return 1;
+        if (bIdx === -1) return -1;
+        return aIdx - bIdx;
+      });
+    }
+
+    if (showShowcaseOnly) {
+      return sortedProjects.filter((project) => showcaseProjectIdSet.has(project.id));
+    }
+
+    return sortedProjects;
+  }, [projects, curationSettings, showShowcaseOnly, showcaseProjectIdSet]);
 
   const handleGenerateResume = async () => {
     if (selectedProjectIds.length === 0) {
       setError('Please select at least one project');
-      try { window.scrollTo(0, 0); } catch (_) {}
       return;
     }
-
-    const errs = validatePersonalInfo(personalInfo);
-    if (Object.keys(errs).length > 0) {
-      setPersonalErrors(errs);
-      setError('Please fix the personal information errors before generating.');
-      try { window.scrollTo(0, 0); } catch (_) {}
-      return;
-    }
-    setPersonalErrors({});
 
     try {
       setGenerating(true);
@@ -319,9 +264,10 @@ const Resume = () => {
         include_projects: includeProjects,
         personal_info: personalInfo,
         stored_resume_id: resumeFormat === 'markdown' ? (storedResumeId || null) : null,
-        highlighted_skills: curationSettings?.highlighted_skills?.length > 0
-          ? curationSettings.highlighted_skills
-          : undefined,
+        highlighted_skills:
+          curationSettings?.highlighted_skills?.length > 0
+            ? curationSettings.highlighted_skills
+            : undefined,
       });
 
       setGeneratedResume(resume);
@@ -330,7 +276,6 @@ const Resume = () => {
     } catch (err) {
       console.error('Error generating resume:', err);
       setError(err.response?.data?.detail || 'Failed to generate resume');
-      try { window.scrollTo(0, 0); } catch (_) {}
     } finally {
       setGenerating(false);
     }
@@ -357,7 +302,6 @@ const Resume = () => {
     if (!generatedResume) return;
 
     if (resumeFormat === 'pdf') {
-      // Decode base64 PDF
       const binaryString = atob(generatedResume.content);
       const bytes = new Uint8Array(binaryString.length);
       for (let i = 0; i < binaryString.length; i++) {
@@ -424,7 +368,6 @@ const Resume = () => {
     alert('Resume copied to clipboard!');
   };
 
-  // backend may return different metadata keys now (project-based)
   const meta = generatedResume?.metadata || {};
   const selectedCount =
     meta.project_count ??
@@ -437,54 +380,16 @@ const Resume = () => {
     meta.projects_total ??
     selectedProjectIds.length;
 
+  const showcaseButtonDisabled = showcaseProjectIds.length === 0;
+  const allProjectsSelected = projects.length > 0 && selectedProjectIds.length === projects.length;
+
   return (
     <div
       style={{
         minHeight: '100vh',
         backgroundColor: '#fafafa',
-        paddingTop: error ? '52px' : 0,
       }}
     >
-      {/* Fixed error toast at top so Generate Resume errors are visible without scrolling */}
-      {error && (
-        <div
-          role="alert"
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 9999,
-            backgroundColor: '#dc2626',
-            color: 'white',
-            padding: '12px 16px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '16px',
-          }}
-        >
-          <span style={{ flex: 1 }}>{error}</span>
-          <button
-            type="button"
-            onClick={() => setError('')}
-            aria-label="Dismiss"
-            style={{
-              background: 'rgba(255,255,255,0.2)',
-              border: 'none',
-              color: 'white',
-              padding: '6px 12px',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontWeight: '500',
-            }}
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-
       <Navigation />
 
       <div
@@ -494,7 +399,6 @@ const Resume = () => {
           padding: '48px 32px',
         }}
       >
-        {/* Header */}
         <div
           style={{
             marginBottom: '32px',
@@ -543,9 +447,7 @@ const Resume = () => {
             gap: '24px',
           }}
         >
-          {/* Left Panel */}
           <div>
-            {/* Personal Information */}
             <div
               style={{
                 backgroundColor: 'white',
@@ -555,258 +457,120 @@ const Resume = () => {
                 marginBottom: '24px',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h2
-                  style={{
-                    fontSize: '20px',
-                    fontWeight: '600',
-                    color: '#1a1a1a',
-                    margin: 0,
-                  }}
-                />
-                <div style={{ marginTop: '8px', paddingTop: '12px', borderTop: '1px solid #e5e7eb' }}>
-                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#525252', marginBottom: '8px' }}>Education Section</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <input
-                      type="text"
-                      placeholder="University Name"
-                      value={personalInfo.education_university}
-                      onChange={(e) => setPersonalInfo({ ...personalInfo, education_university: e.target.value })}
-                      style={{ padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Location (e.g., City, State)"
-                      value={personalInfo.education_location}
-                      onChange={(e) => setPersonalInfo({ ...personalInfo, education_location: e.target.value })}
-                      style={{ padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Degree (e.g., B.S. Computer Science)"
-                      value={personalInfo.education_degree}
-                      onChange={(e) => setPersonalInfo({ ...personalInfo, education_degree: e.target.value })}
-                      style={{ padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }}
-                    />
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <input
-                        type="text"
-                        placeholder="Start date (e.g., Aug 2020)"
-                        value={personalInfo.education_start_date}
-                        onChange={(e) => setPersonalInfo({ ...personalInfo, education_start_date: e.target.value })}
-                        style={{ flex: 1, padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }}
-                      />
-                      <input
-                        type="text"
-                        placeholder="End date (e.g., May 2024)"
-                        value={personalInfo.education_end_date}
-                        onChange={(e) => setPersonalInfo({ ...personalInfo, education_end_date: e.target.value })}
-                        style={{ flex: 1, padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }}
-                      />
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Awards (e.g., Dean's List, Scholarship Name)"
-                      value={personalInfo.education_awards}
-                      onChange={(e) => setPersonalInfo({ ...personalInfo, education_awards: e.target.value })}
-                      style={{ padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }}
-                    />
-                  </div>
-                >
-                  Personal Information
-                </h2>
-                {hasOriginalPersonalInfo && hasPersonalInfoChanges() && (
-                  <button
-                    type="button"
-                    onClick={onCancelPersonalInfo}
-                    style={{
-                      padding: '6px 14px',
-                      fontSize: '13px',
-                      fontWeight: '500',
-                      color: '#991b1b',
-                      backgroundColor: 'white',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Cancel Changes
-                  </button>
-                )}
-              </div>
+              <h2
+                style={{
+                  fontSize: '20px',
+                  fontWeight: '600',
+                  color: '#1a1a1a',
+                  margin: 0,
+                  marginBottom: '16px',
+                }}
+              >
+                Personal Information
+              </h2>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
-                    Full Name
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Full Name"
-                    value={personalInfo.name}
-                    onChange={(e) => onChangePersonalField('name', e.target.value)}
-                    style={{
-                      padding: '10px 12px',
-                      border: `1px solid ${personalErrors.name ? '#dc2626' : '#e5e7eb'}`,
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      width: '100%',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                  {personalErrors.name && (
-                    <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
-                      {personalErrors.name}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
-                    Email
-                  </div>
-                  <input
-                    type="email"
-                    placeholder="Email Address"
-                    value={personalInfo.email}
-                    onChange={(e) => onChangePersonalField('email', e.target.value)}
-                    style={{
-                      padding: '10px 12px',
-                      border: `1px solid ${personalErrors.email ? '#dc2626' : '#e5e7eb'}`,
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      width: '100%',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                  {personalErrors.email && (
-                    <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
-                      {personalErrors.email}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
-                    Phone
-                  </div>
-                  <input
-                    type="tel"
-                    placeholder="Phone Number"
-                    value={personalInfo.phone}
-                    onChange={(e) => onChangePersonalField('phone', e.target.value)}
-                    style={{
-                      padding: '10px 12px',
-                      border: `1px solid ${personalErrors.phone ? '#dc2626' : '#e5e7eb'}`,
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      width: '100%',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                  {personalErrors.phone && (
-                    <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
-                      {personalErrors.phone}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
-                    Location
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Location (e.g., City, State)"
-                    value={personalInfo.location}
-                    onChange={(e) => onChangePersonalField('location', e.target.value)}
-                    style={{
-                      padding: '10px 12px',
-                      border: `1px solid ${personalErrors.location ? '#dc2626' : '#e5e7eb'}`,
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      width: '100%',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                  {personalErrors.location && (
-                    <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
-                      {personalErrors.location}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
-                    LinkedIn <span style={{ color: '#9ca3af', fontWeight: '400' }}>(optional)</span>
-                  </div>
-                  <input
-                    type="url"
-                    placeholder="LinkedIn URL"
-                    value={personalInfo.linkedIn}
-                    onChange={(e) => onChangePersonalField('linkedIn', e.target.value)}
-                    style={{
-                      padding: '10px 12px',
-                      border: `1px solid ${personalErrors.linkedIn ? '#dc2626' : '#e5e7eb'}`,
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      width: '100%',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                  {personalErrors.linkedIn && (
-                    <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
-                      {personalErrors.linkedIn}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
-                    GitHub <span style={{ color: '#9ca3af', fontWeight: '400' }}>(optional)</span>
-                  </div>
-                  <input
-                    type="url"
-                    placeholder="GitHub URL"
-                    value={personalInfo.github}
-                    onChange={(e) => onChangePersonalField('github', e.target.value)}
-                    style={{
-                      padding: '10px 12px',
-                      border: `1px solid ${personalErrors.github ? '#dc2626' : '#e5e7eb'}`,
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      width: '100%',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                  {personalErrors.github && (
-                    <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
-                      {personalErrors.github}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
-                    Website <span style={{ color: '#9ca3af', fontWeight: '400' }}>(optional)</span>
-                  </div>
-                  <input
-                    type="url"
-                    placeholder="Personal Website"
-                    value={personalInfo.website}
-                    onChange={(e) => onChangePersonalField('website', e.target.value)}
-                    style={{
-                      padding: '10px 12px',
-                      border: `1px solid ${personalErrors.website ? '#dc2626' : '#e5e7eb'}`,
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      width: '100%',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                  {personalErrors.website && (
-                    <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
-                      {personalErrors.website}
-                    </div>
-                  )}
-                </div>
+                <input
+                  type="text"
+                  placeholder="Full Name"
+                  value={personalInfo.name}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, name: e.target.value })}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <input
+                  type="email"
+                  placeholder="Email Address"
+                  value={personalInfo.email}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, email: e.target.value })}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <input
+                  type="tel"
+                  placeholder="Phone Number"
+                  value={personalInfo.phone}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, phone: e.target.value })}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <input
+                  type="text"
+                  placeholder="Location (e.g., City, State)"
+                  value={personalInfo.location}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, location: e.target.value })}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <input
+                  type="url"
+                  placeholder="LinkedIn URL (optional)"
+                  value={personalInfo.linkedIn}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, linkedIn: e.target.value })}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <input
+                  type="url"
+                  placeholder="GitHub URL (optional)"
+                  value={personalInfo.github}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, github: e.target.value })}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <input
+                  type="url"
+                  placeholder="Personal Website (optional)"
+                  value={personalInfo.website}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, website: e.target.value })}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
               </div>
             </div>
-            {/* Stored Resume */}
+
             <div
               style={{
                 backgroundColor: 'white',
@@ -921,7 +685,6 @@ const Resume = () => {
               </div>
             </div>
 
-            {/* Project Selection */}
             <div
               style={{
                 backgroundColor: 'white',
@@ -934,8 +697,10 @@ const Resume = () => {
                 style={{
                   display: 'flex',
                   justifyContent: 'space-between',
-                  alignItems: 'center',
+                  alignItems: 'flex-start',
                   marginBottom: '16px',
+                  gap: '12px',
+                  flexWrap: 'wrap',
                 }}
               >
                 <h2
@@ -949,21 +714,79 @@ const Resume = () => {
                   Select Projects
                 </h2>
 
-                <button
-                  onClick={selectAll}
-                  style={{
-                    padding: '6px 12px',
-                    fontSize: '14px',
-                    color: '#2563eb',
-                    backgroundColor: 'transparent',
-                    border: '1px solid #2563eb',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {selectedProjectIds.length === projects.length ? 'Deselect All' : 'Select All'}
-                </button>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={handleSelectShowcaseProjects}
+                    disabled={showcaseButtonDisabled}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '14px',
+                      color: showcaseButtonDisabled ? '#9ca3af' : '#b45309',
+                      backgroundColor: showcaseButtonDisabled ? '#f5f5f5' : '#fffbeb',
+                      border: showcaseButtonDisabled ? '1px solid #e5e7eb' : '1px solid #f59e0b',
+                      borderRadius: '6px',
+                      cursor: showcaseButtonDisabled ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    Select Showcase Projects
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSelectAllProjects}
+                    disabled={projects.length === 0 || allProjectsSelected}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '14px',
+                      color: projects.length === 0 || allProjectsSelected ? '#9ca3af' : '#2563eb',
+                      backgroundColor: 'transparent',
+                      border: '1px solid #2563eb',
+                      borderRadius: '6px',
+                      cursor: projects.length === 0 || allProjectsSelected ? 'not-allowed' : 'pointer',
+                      opacity: projects.length === 0 || allProjectsSelected ? 0.6 : 1,
+                    }}
+                  >
+                    Select All
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleClearSelection}
+                    disabled={selectedProjectIds.length === 0}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '14px',
+                      color: selectedProjectIds.length === 0 ? '#9ca3af' : '#6b7280',
+                      backgroundColor: 'transparent',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      cursor: selectedProjectIds.length === 0 ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    Clear Selection
+                  </button>
+                </div>
               </div>
+
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '14px',
+                  color: '#525252',
+                  marginBottom: '16px',
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={showShowcaseOnly}
+                  onChange={(e) => setShowShowcaseOnly(e.target.checked)}
+                />
+                Show showcase projects only
+              </label>
 
               {loading ? (
                 <div style={{ textAlign: 'center', padding: '20px', color: '#737373' }}>
@@ -973,123 +796,116 @@ const Resume = () => {
                 <div style={{ textAlign: 'center', padding: '20px', color: '#737373' }}>
                   No projects found. Upload a project first.
                 </div>
+              ) : displayedProjects.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '20px', color: '#737373' }}>
+                  {showShowcaseOnly
+                    ? 'No showcase projects selected in curation yet.'
+                    : 'No projects found. Upload a project first.'}
+                </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {(() => {
-                    // Sort projects by curation order if available
-                    const orderIds = curationSettings?.custom_project_order;
+                  {displayedProjects.map((project) => {
                     const showcaseIdsList = curationSettings?.showcase_project_ids ?? [];
                     const showcaseRanks = new Map();
                     showcaseIdsList.forEach((id, i) => showcaseRanks.set(id, i + 1));
-                    let sortedProjects = [...projects];
-                    if (Array.isArray(orderIds) && orderIds.length > 0) {
-                      sortedProjects.sort((a, b) => {
-                        const aIdx = orderIds.indexOf(a.id);
-                        const bIdx = orderIds.indexOf(b.id);
-                        if (aIdx === -1 && bIdx === -1) return 0;
-                        if (aIdx === -1) return 1;
-                        if (bIdx === -1) return -1;
-                        return aIdx - bIdx;
-                      });
-                    }
-                    return sortedProjects.map((project) => {
-                      const showcaseRank = showcaseRanks.get(project.id);
-                      const isShowcase = !!showcaseRank;
-                      const correction = chronologyCorrections[project.id];
-                      return (
-                        <label
-                          key={project.id}
+
+                    const showcaseRank = showcaseRanks.get(project.id);
+                    const isShowcase = !!showcaseRank;
+                    const correction = chronologyCorrections[project.id];
+
+                    return (
+                      <label
+                        key={project.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          padding: '12px',
+                          backgroundColor: selectedProjectIds.includes(project.id)
+                            ? isShowcase
+                              ? '#fefce8'
+                              : '#eff6ff'
+                            : isShowcase
+                              ? '#fffbeb'
+                              : '#f9fafb',
+                          border: `2px solid ${
+                            selectedProjectIds.includes(project.id)
+                              ? isShowcase
+                                ? '#f59e0b'
+                                : '#2563eb'
+                              : isShowcase
+                                ? '#fcd34d'
+                                : '#e5e7eb'
+                          }`,
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedProjectIds.includes(project.id)}
+                          onChange={() => toggleProject(project.id)}
                           style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            padding: '12px',
-                            backgroundColor: selectedProjectIds.includes(project.id)
-                              ? isShowcase ? '#fefce8' : '#eff6ff'
-                              : isShowcase ? '#fffbeb' : '#f9fafb',
-                            border: `2px solid ${
-                              selectedProjectIds.includes(project.id)
-                                ? isShowcase ? '#f59e0b' : '#2563eb'
-                                : isShowcase ? '#fcd34d' : '#e5e7eb'
-                            }`,
-                            borderRadius: '8px',
+                            width: '18px',
+                            height: '18px',
+                            marginRight: '12px',
                             cursor: 'pointer',
-                            transition: 'all 0.2s',
                           }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedProjectIds.includes(project.id)}
-                            onChange={() => toggleProject(project.id)}
+                        />
+                        <div style={{ flex: 1 }}>
+                          <div
                             style={{
-                              width: '18px',
-                              height: '18px',
-                              marginRight: '12px',
-                              cursor: 'pointer',
+                              fontSize: '14px',
+                              fontWeight: '600',
+                              color: '#1a1a1a',
+                              marginBottom: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              flexWrap: 'wrap',
                             }}
-                          />
-                          <div style={{ flex: 1 }}>
-                            <div
-                              style={{
-                                fontSize: '14px',
-                                fontWeight: '600',
-                                color: '#1a1a1a',
-                                marginBottom: '4px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                              }}
-                            >
-                              {project.project_name || 'Unnamed Project'}
-                              {isShowcase && (
-                                <span style={{
+                          >
+                            {project.project_name || 'Unnamed Project'}
+                            {isShowcase && (
+                              <span
+                                style={{
                                   padding: '1px 6px',
                                   borderRadius: '999px',
                                   backgroundColor: '#fef3c7',
                                   color: '#b45309',
                                   fontSize: '10px',
                                   fontWeight: '700',
-                                }}>⭐ Top {showcaseRank}</span>
-                              )}
-                            </div>
+                                }}
+                              >
+                                ⭐ Top {showcaseRank}
+                              </span>
+                            )}
+                          </div>
 
-                        <div style={{ fontSize: '12px', color: '#737373' }}>
-                          Project ID: <span style={{ fontFamily: 'monospace' }}>{project.id}</span>
-                          {project.primary_language ? ` • ${project.primary_language}` : ''}
-                          {typeof project.total_files === 'number' ? ` • ${project.total_files} files` : ''}
-                          {(project.curated_role || project.predicted_role) && (
-                            <span style={{
-                              marginLeft: '6px',
-                              padding: '1px 8px',
-                              borderRadius: '999px',
-                              backgroundColor: project.curated_role ? '#f0fdf4' : '#eef2ff',
-                              color: project.curated_role ? '#166534' : '#3730a3',
-                              fontSize: '11px',
-                              fontWeight: '600',
-                              border: `1px solid ${project.curated_role ? '#bbf7d0' : '#c7d2fe'}`,
-                            }}>
-                              {project.curated_role || project.predicted_role}
-                              {!project.curated_role && project.predicted_role_confidence != null
-                                ? ` (${Math.round(project.predicted_role_confidence * 100)}%)`
-                                : ''}
-                            </span>
-                          )}
-                          {correction && correction.project_start_date ? (
-                            <span style={{ color: '#16a34a' }}>
-                              {' '}• {correction.project_start_date}
-                              {correction.project_end_date ? ` – ${correction.project_end_date}` : ''}
-                              {' '}(corrected)
-                            </span>
-                          ) : null}
+                          <div style={{ fontSize: '12px', color: '#737373' }}>
+                            Project ID: <span style={{ fontFamily: 'monospace' }}>{project.id}</span>
+                            {project.primary_language ? ` • ${project.primary_language}` : ''}
+                            {typeof project.total_files === 'number'
+                              ? ` • ${project.total_files} files`
+                              : ''}
+                            {correction && correction.project_start_date ? (
+                              <span style={{ color: '#16a34a' }}>
+                                {' '}
+                                • {correction.project_start_date}
+                                {correction.project_end_date
+                                  ? ` – ${correction.project_end_date}`
+                                  : ''}
+                                {' '}(corrected)
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
-                      </div>
-                    </label>
-                  );
-                    });
-                  })()}
+                      </label>
+                    );
+                  })}
                 </div>
               )}
 
-              {/* Options */}
               <div
                 style={{
                   marginTop: '24px',
@@ -1133,12 +949,11 @@ const Resume = () => {
                     }}
                   >
                     <option value="markdown">Markdown</option>
-                    <option value="pdf">PDF</option>
+                    <option value="latex">PDF</option>
                   </select>
                 </div>
 
                 <div>
-                  {/* Stored Resume Selector */}
                   <div style={{ marginBottom: '12px' }}>
                     <label
                       style={{
@@ -1171,7 +986,6 @@ const Resume = () => {
                     </select>
                   </div>
 
-                  {/* Include Projects Section */}
                   <label
                     style={{
                       display: 'flex',
@@ -1191,7 +1005,6 @@ const Resume = () => {
                   </label>
                 </div>
 
-                {/* Generate Button */}
                 <button
                   onClick={handleGenerateResume}
                   disabled={generating || selectedProjectIds.length === 0}
@@ -1206,7 +1019,8 @@ const Resume = () => {
                       generating || selectedProjectIds.length === 0 ? '#9ca3af' : '#2563eb',
                     border: 'none',
                     borderRadius: '8px',
-                    cursor: generating || selectedProjectIds.length === 0 ? 'not-allowed' : 'pointer',
+                    cursor:
+                      generating || selectedProjectIds.length === 0 ? 'not-allowed' : 'pointer',
                     transition: 'background-color 0.2s',
                   }}
                 >
@@ -1216,7 +1030,6 @@ const Resume = () => {
             </div>
           </div>
 
-          {/* Right Panel - Generated Resume Preview */}
           {generatedResume && (
             <div
               style={{
@@ -1331,7 +1144,6 @@ const Resume = () => {
                 </div>
               </div>
 
-              {/* Metadata */}
               <div
                 style={{
                   padding: '12px',
@@ -1359,7 +1171,6 @@ const Resume = () => {
                 </div>
               </div>
 
-              {/* Resume Content */}
               <div
                 style={{
                   padding: '24px',
@@ -1369,7 +1180,7 @@ const Resume = () => {
                   overflowY: 'auto',
                 }}
               >
-                {resumeFormat === 'pdf' ? (
+                {resumeFormat === 'pdf' || resumeFormat === 'latex' ? (
                   <div
                     style={{
                       display: 'flex',
@@ -1386,7 +1197,7 @@ const Resume = () => {
                       height="64"
                       viewBox="0 0 24 24"
                       fill="none"
-                      stroke="#2563eb"
+                      stroke={resumeFormat === 'latex' ? '#16a34a' : '#2563eb'}
                       strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -1406,12 +1217,62 @@ const Resume = () => {
                         marginBottom: '8px',
                       }}
                     >
-                      PDF Resume Generated Successfully
+                      {resumeFormat === 'latex'
+                        ? generatedResume.content.startsWith('%')
+                          ? 'LaTeX Source Generated'
+                          : 'LaTeX Resume Compiled Successfully'
+                        : 'PDF Resume Generated Successfully'}
                     </h3>
 
                     <p style={{ color: '#737373', marginBottom: '16px' }}>
-                      Your resume has been generated as a professional PDF file. Click the Download button above to save it.
+                      {resumeFormat === 'latex' && generatedResume.content.startsWith('%')
+                        ? 'LaTeX compilation requires pdflatex. Download the .tex file to compile locally or upload to Overleaf.'
+                        : 'Your resume has been generated as a professional PDF file. Click the Download button above to save it.'}
                     </p>
+
+                    <div
+                      style={{
+                        padding: '12px 16px',
+                        backgroundColor:
+                          resumeFormat === 'latex' && generatedResume.content.startsWith('%')
+                            ? '#fef3c7'
+                            : resumeFormat === 'latex'
+                              ? '#f0fdf4'
+                              : '#eff6ff',
+                        borderRadius: '6px',
+                        border: `1px solid ${
+                          resumeFormat === 'latex' && generatedResume.content.startsWith('%')
+                            ? '#fcd34d'
+                            : resumeFormat === 'latex'
+                              ? '#86efac'
+                              : '#bfdbfe'
+                        }`,
+                        color:
+                          resumeFormat === 'latex' && generatedResume.content.startsWith('%')
+                            ? '#92400e'
+                            : resumeFormat === 'latex'
+                              ? '#166534'
+                              : '#1e40af',
+                        fontSize: '13px',
+                      }}
+                    >
+                      {resumeFormat === 'latex' ? (
+                        generatedResume.content.startsWith('%') ? (
+                          <span>
+                            LaTeX compilation failed. Install pdflatex:{' '}
+                            <code>brew install --cask mactex-no-gui</code> or upload the .tex file
+                            to Overleaf.com
+                          </span>
+                        ) : (
+                          <span>
+                            Resume compiled successfully. Download the PDF by clicking the button
+                            above.
+                          </span>
+                        )
+                      ) : (
+                        <span />
+                      )}
+                    </div>
                   </div>
                 ) : isEditing ? (
                   <textarea
@@ -1492,10 +1353,24 @@ const Resume = () => {
                         ),
                         p: ({ node, ...props }) => <p style={{ marginBottom: '12px' }} {...props} />,
                         ul: ({ node, ...props }) => (
-                          <ul style={{ marginLeft: '20px', marginBottom: '12px', listStyleType: 'disc' }} {...props} />
+                          <ul
+                            style={{
+                              marginLeft: '20px',
+                              marginBottom: '12px',
+                              listStyleType: 'disc',
+                            }}
+                            {...props}
+                          />
                         ),
                         ol: ({ node, ...props }) => (
-                          <ol style={{ marginLeft: '20px', marginBottom: '12px', listStyleType: 'decimal' }} {...props} />
+                          <ol
+                            style={{
+                              marginLeft: '20px',
+                              marginBottom: '12px',
+                              listStyleType: 'decimal',
+                            }}
+                            {...props}
+                          />
                         ),
                         li: ({ node, ...props }) => <li style={{ marginBottom: '6px' }} {...props} />,
                         strong: ({ node, ...props }) => (
@@ -1543,9 +1418,18 @@ const Resume = () => {
                             {...props}
                           />
                         ),
-                        a: ({ node, ...props }) => <a style={{ color: '#2563eb', textDecoration: 'underline' }} {...props} />,
+                        a: ({ node, ...props }) => (
+                          <a style={{ color: '#2563eb', textDecoration: 'underline' }} {...props} />
+                        ),
                         hr: ({ node, ...props }) => (
-                          <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '24px 0' }} {...props} />
+                          <hr
+                            style={{
+                              border: 'none',
+                              borderTop: '1px solid #e5e7eb',
+                              margin: '24px 0',
+                            }}
+                            {...props}
+                          />
                         ),
                       }}
                     >
