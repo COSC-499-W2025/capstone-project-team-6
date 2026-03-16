@@ -194,6 +194,7 @@ def run_gemini_analysis(
             logger.info(msg)
 
     import os
+
     api_key = os.getenv("GOOGLE_API_KEY")
     logger.info(f"LLM pipeline: GOOGLE_API_KEY={'set (' + str(len(api_key)) + ' chars)' if api_key else 'NOT SET'}")
 

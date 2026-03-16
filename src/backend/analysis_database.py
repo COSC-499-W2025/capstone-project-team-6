@@ -1211,9 +1211,7 @@ def record_analysis(
 
         conn.commit()
 
-        final_count = conn.execute(
-            "SELECT COUNT(*) as c FROM projects WHERE analysis_id = ?", (analysis_id,)
-        ).fetchone()["c"]
+        final_count = conn.execute("SELECT COUNT(*) as c FROM projects WHERE analysis_id = ?", (analysis_id,)).fetchone()["c"]
         logger.info(f"record_analysis: committed. analysis_id={analysis_id}, projects_in_db={final_count}")
 
     return analysis_id

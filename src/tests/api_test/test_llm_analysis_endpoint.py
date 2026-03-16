@@ -107,9 +107,7 @@ def auth_token(isolated_db):
 def project_with_llm(isolated_db, auth_token):
     """Create a real analysis+project row with LLM summary in the DB."""
     _, username = auth_token
-    analysis_id = adb.record_analysis(
-        "non_llm", SAMPLE_PAYLOAD, username=username, analysis_uuid="test-uuid-llm"
-    )
+    analysis_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, username=username, analysis_uuid="test-uuid-llm")
     adb.update_llm_summary("test-uuid-llm", SAMPLE_LLM_SUMMARY, username)
     # Get the project integer ID
     projects = adb.get_projects_for_analysis(analysis_id)
@@ -120,9 +118,7 @@ def project_with_llm(isolated_db, auth_token):
 def project_without_llm(isolated_db, auth_token):
     """Create a real analysis+project row WITHOUT an LLM summary."""
     _, username = auth_token
-    analysis_id = adb.record_analysis(
-        "non_llm", SAMPLE_PAYLOAD, username=username, analysis_uuid="test-uuid-no-llm"
-    )
+    analysis_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, username=username, analysis_uuid="test-uuid-no-llm")
     projects = adb.get_projects_for_analysis(analysis_id)
     return projects[0]["id"]
 
@@ -164,9 +160,7 @@ class TestLlmAnalysisEndpoint:
         # Create user A with a project
         user_a = f"user_a_{uuid.uuid4().hex[:6]}"
         udb.create_user(user_a, "password123")
-        analysis_id = adb.record_analysis(
-            "non_llm", SAMPLE_PAYLOAD, username=user_a, analysis_uuid="owner-a-uuid"
-        )
+        analysis_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, username=user_a, analysis_uuid="owner-a-uuid")
         projects = adb.get_projects_for_analysis(analysis_id)
         project_id = projects[0]["id"]
 
@@ -188,9 +182,7 @@ class TestLlmAnalysisEndpoint:
         resp = client.get("/api/projects/1/llm-analysis")
         assert resp.status_code in (401, 403)
 
-    def test_response_always_has_project_id_and_llm_summary_keys(
-        self, auth_token, project_with_llm
-    ):
+    def test_response_always_has_project_id_and_llm_summary_keys(self, auth_token, project_with_llm):
         """Response shape must always include both keys."""
         token, _ = auth_token
         resp = client.get(

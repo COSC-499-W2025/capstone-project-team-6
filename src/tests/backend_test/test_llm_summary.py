@@ -95,9 +95,7 @@ def db(tmp_path):
 
 class TestUpdateAndGetLlmSummary:
     def test_update_saves_summary_and_get_retrieves_it(self, db):
-        analysis_id = adb.record_analysis(
-            "non_llm", SAMPLE_PAYLOAD, username="alice", analysis_uuid="uuid-aaa"
-        )
+        analysis_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, username="alice", analysis_uuid="uuid-aaa")
         assert analysis_id is not None
 
         saved = adb.update_llm_summary("uuid-aaa", SAMPLE_LLM_SUMMARY, "alice")
@@ -115,26 +113,20 @@ class TestUpdateAndGetLlmSummary:
         assert result is None
 
     def test_get_returns_none_when_summary_not_set(self, db):
-        adb.record_analysis(
-            "non_llm", SAMPLE_PAYLOAD, username="alice", analysis_uuid="uuid-bbb"
-        )
+        adb.record_analysis("non_llm", SAMPLE_PAYLOAD, username="alice", analysis_uuid="uuid-bbb")
         result = adb.get_llm_summary_for_analysis("uuid-bbb", "alice")
         assert result is None
 
     def test_get_returns_none_for_wrong_user(self, db):
         udb.create_user("bob", "password123")
-        adb.record_analysis(
-            "non_llm", SAMPLE_PAYLOAD, username="alice", analysis_uuid="uuid-ccc"
-        )
+        adb.record_analysis("non_llm", SAMPLE_PAYLOAD, username="alice", analysis_uuid="uuid-ccc")
         adb.update_llm_summary("uuid-ccc", SAMPLE_LLM_SUMMARY, "alice")
 
         result = adb.get_llm_summary_for_analysis("uuid-ccc", "bob")
         assert result is None
 
     def test_update_overwrites_existing_summary(self, db):
-        adb.record_analysis(
-            "non_llm", SAMPLE_PAYLOAD, username="alice", analysis_uuid="uuid-ddd"
-        )
+        adb.record_analysis("non_llm", SAMPLE_PAYLOAD, username="alice", analysis_uuid="uuid-ddd")
         adb.update_llm_summary("uuid-ddd", "first summary", "alice")
         adb.update_llm_summary("uuid-ddd", "updated summary", "alice")
 
@@ -143,9 +135,7 @@ class TestUpdateAndGetLlmSummary:
 
     def test_summary_persists_large_text(self, db):
         large_summary = "# Analysis\n" + ("X" * 50_000)
-        adb.record_analysis(
-            "non_llm", SAMPLE_PAYLOAD, username="alice", analysis_uuid="uuid-eee"
-        )
+        adb.record_analysis("non_llm", SAMPLE_PAYLOAD, username="alice", analysis_uuid="uuid-eee")
         adb.update_llm_summary("uuid-eee", large_summary, "alice")
 
         result = adb.get_llm_summary_for_analysis("uuid-eee", "alice")
@@ -160,24 +150,18 @@ class TestUpdateAndGetLlmSummary:
 
 class TestRecordAnalysisProjectPersistence:
     def test_projects_created_in_db_after_record_analysis(self, db):
-        analysis_id = adb.record_analysis(
-            "non_llm", SAMPLE_PAYLOAD, username="alice"
-        )
+        analysis_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, username="alice")
         projects = adb.get_projects_for_analysis(analysis_id)
         assert len(projects) == 1
         assert projects[0]["project_name"] == "demo_project"
 
     def test_total_projects_column_matches_actual_count(self, db):
-        analysis_id = adb.record_analysis(
-            "non_llm", SAMPLE_PAYLOAD, username="alice"
-        )
+        analysis_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, username="alice")
         row = adb.get_analysis(analysis_id)
         assert row["total_projects"] == 1
 
     def test_analysis_uuid_stored_correctly(self, db):
-        analysis_id = adb.record_analysis(
-            "non_llm", SAMPLE_PAYLOAD, username="alice", analysis_uuid="my-fixed-uuid"
-        )
+        analysis_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, username="alice", analysis_uuid="my-fixed-uuid")
         row = adb.get_analysis(analysis_id)
         assert row["analysis_uuid"] == "my-fixed-uuid"
 
@@ -188,9 +172,7 @@ class TestRecordAnalysisProjectPersistence:
         assert len(row["analysis_uuid"]) == 36  # standard UUID4 length
 
     def test_zip_file_hash_stored(self, db):
-        analysis_id = adb.record_analysis(
-            "non_llm", SAMPLE_PAYLOAD, username="alice", zip_file_hash="abc123hash"
-        )
+        analysis_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, username="alice", zip_file_hash="abc123hash")
         row = adb.get_analysis(analysis_id)
         assert row["zip_file_hash"] == "abc123hash"
 
@@ -210,9 +192,7 @@ class TestSqlite3RowUuidExtraction:
 
     def test_in_operator_returns_false_for_sqlite3_row(self, db):
         """Demonstrates the original broken pattern."""
-        analysis_id = adb.record_analysis(
-            "non_llm", SAMPLE_PAYLOAD, username="alice", analysis_uuid="bug-test-uuid"
-        )
+        analysis_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, username="alice", analysis_uuid="bug-test-uuid")
         row = adb.get_analysis(analysis_id)
 
         # sqlite3.Row does NOT support 'in' for column name checks
@@ -222,9 +202,7 @@ class TestSqlite3RowUuidExtraction:
 
     def test_correct_uuid_extraction_without_in_check(self, db):
         """Demonstrates the fixed pattern used in task_manager."""
-        analysis_id = adb.record_analysis(
-            "non_llm", SAMPLE_PAYLOAD, username="alice", analysis_uuid="fixed-uuid"
-        )
+        analysis_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, username="alice", analysis_uuid="fixed-uuid")
         row = adb.get_analysis(analysis_id)
 
         # Correct pattern: just check row is not None
@@ -239,9 +217,7 @@ class TestSqlite3RowUuidExtraction:
 
     def test_llm_summary_saved_when_uuid_extracted_correctly(self, db):
         """End-to-end: correct uuid extraction allows LLM summary to be saved."""
-        analysis_id = adb.record_analysis(
-            "non_llm", SAMPLE_PAYLOAD, username="alice", analysis_uuid="e2e-uuid"
-        )
+        analysis_id = adb.record_analysis("non_llm", SAMPLE_PAYLOAD, username="alice", analysis_uuid="e2e-uuid")
         row = adb.get_analysis(analysis_id)
 
         # The fixed extraction
@@ -290,7 +266,8 @@ class TestTaskManagerLlmSave:
         minimal_zip,
     ):
         """When get_analysis returns a row with analysis_uuid, update_llm_summary is called."""
-        from backend.task_manager import TaskInfo, TaskManager, TaskStatus, TaskType
+        from backend.task_manager import (TaskInfo, TaskManager, TaskStatus,
+                                          TaskType)
 
         mock_analyze.return_value = {
             "projects": [{"project_name": "Test", "project_path": ""}],
@@ -342,7 +319,8 @@ class TestTaskManagerLlmSave:
         minimal_zip,
     ):
         """When get_analysis returns None (uuid=None), update_llm_summary is NOT called."""
-        from backend.task_manager import TaskInfo, TaskManager, TaskStatus, TaskType
+        from backend.task_manager import (TaskInfo, TaskManager, TaskStatus,
+                                          TaskType)
 
         mock_analyze.return_value = {
             "projects": [{"project_name": "Test", "project_path": ""}],
@@ -385,7 +363,8 @@ class TestTaskManagerLlmSave:
         minimal_zip,
     ):
         """LLM pipeline is skipped entirely when user has not consented."""
-        from backend.task_manager import TaskInfo, TaskManager, TaskStatus, TaskType
+        from backend.task_manager import (TaskInfo, TaskManager, TaskStatus,
+                                          TaskType)
 
         mock_analyze.return_value = {
             "projects": [{"project_name": "Test", "project_path": ""}],
@@ -433,7 +412,8 @@ class TestTaskManagerLlmSave:
         minimal_zip,
     ):
         """If LLM pipeline raises an exception, the task still completes (llm_ran=False)."""
-        from backend.task_manager import TaskInfo, TaskManager, TaskStatus, TaskType
+        from backend.task_manager import (TaskInfo, TaskManager, TaskStatus,
+                                          TaskType)
 
         mock_analyze.return_value = {
             "projects": [{"project_name": "Test", "project_path": ""}],

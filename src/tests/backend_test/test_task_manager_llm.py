@@ -61,7 +61,8 @@ class TestLlmStoredViaUpdateNotRecordAnalysis:
         minimal_zip,
     ):
         """update_llm_summary is called with the correct UUID and summary text."""
-        from backend.task_manager import TaskInfo, TaskManager, TaskStatus, TaskType
+        from backend.task_manager import (TaskInfo, TaskManager, TaskStatus,
+                                          TaskType)
 
         mock_analyze.return_value = {
             "projects": [{"project_name": "Test", "project_path": "project"}],
@@ -116,7 +117,8 @@ class TestLlmStoredViaUpdateNotRecordAnalysis:
         minimal_zip,
     ):
         """record_analysis must only be called once (for the non-LLM analysis)."""
-        from backend.task_manager import TaskInfo, TaskManager, TaskStatus, TaskType
+        from backend.task_manager import (TaskInfo, TaskManager, TaskStatus,
+                                          TaskType)
 
         mock_analyze.return_value = {
             "projects": [{"project_name": "Test", "project_path": "project"}],
@@ -151,6 +153,5 @@ class TestLlmStoredViaUpdateNotRecordAnalysis:
         asyncio.run(manager._process_new_portfolio(task))
 
         assert mock_record.call_count == 1, (
-            "record_analysis must only be called once. "
-            "A second call would create duplicate project rows in the database."
+            "record_analysis must only be called once. " "A second call would create duplicate project rows in the database."
         )
