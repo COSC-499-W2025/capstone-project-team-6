@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 from fastapi import (APIRouter, Depends, File, HTTPException, Request,
                      UploadFile, status)
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
 from backend.analysis_database import (get_analysis_by_uuid,
