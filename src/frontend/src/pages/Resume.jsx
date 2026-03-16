@@ -25,7 +25,7 @@ const Resume = () => {
   const [storedResumeSaving, setStoredResumeSaving] = useState(false);
 
   // Personal information
-  const [personalInfo, setPersonalInfo] = useState({
+  const emptyPersonal = {
     name: '',
     email: '',
     phone: '',
@@ -41,6 +41,79 @@ const Resume = () => {
     education_end_date: '',
     education_awards: '',
   });
+  };
+  const [personalInfo, setPersonalInfo] = useState(emptyPersonal);
+  const [originalPersonalInfo, setOriginalPersonalInfo] = useState(emptyPersonal);
+  const [personalErrors, setPersonalErrors] = useState({});
+
+  const validatePersonalInfo = (info) => {
+    const errs = {};
+
+    if (!info.name.trim()) {
+      errs.name = 'Full name is required.';
+    } else if (!/^[A-Za-z\s\-'.]+$/.test(info.name.trim())) {
+      errs.name = 'Name may only contain letters, spaces, hyphens, and apostrophes.';
+    } else if (info.name.trim().length > 100) {
+      errs.name = 'Name must be 100 characters or fewer.';
+    }
+
+    if (!info.email.trim()) {
+      errs.email = 'Email is required.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(info.email.trim())) {
+      errs.email = 'Enter a valid email address.';
+    }
+
+    const phoneTrim = info.phone.trim();
+    if (phoneTrim) {
+      if (!/^[+\d][\d\s\-().]{7,20}$/.test(phoneTrim)) {
+        errs.phone = 'Phone may only contain digits, spaces, dashes, parentheses, or a leading +. Minimum of 7 digits required.';
+      } else if ((phoneTrim.replace(/\D/g, '').length || 0) < 7) {
+        errs.phone = 'Phone may only contain digits, spaces, dashes, parentheses, or a leading +. Minimum of 7 digits required.';
+      }
+    }
+
+    if (info.location.trim().length > 100) {
+      errs.location = 'Location must be 100 characters or fewer.';
+    }
+
+    const linkedInPattern = /^https?:\/\/(www\.)?linkedin\.com\//i;
+    if (info.linkedIn.trim() && !linkedInPattern.test(info.linkedIn.trim())) {
+      errs.linkedIn = 'Must start with https://linkedin.com/ or https://www.linkedin.com/';
+    }
+
+    if (info.github.trim() && !/^https?:\/\/(www\.)?github\.com\//i.test(info.github.trim())) {
+      errs.github = 'Must start with https://github.com/';
+    }
+
+    if (info.website.trim() && !/^https?:\/\/.+\..+/.test(info.website.trim())) {
+      errs.website = 'Must be a valid URL starting with http:// or https://';
+    }
+
+    return errs;
+  };
+
+  const onChangePersonalField = (key, value) => {
+    const updated = { ...personalInfo, [key]: value };
+    setPersonalInfo(updated);
+    if (Object.keys(personalErrors).length > 0) {
+      setPersonalErrors(validatePersonalInfo(updated));
+    }
+  };
+
+  const hasOriginalPersonalInfo = Object.values(originalPersonalInfo).some((v) => (v || '').trim().length > 0);
+
+  const hasPersonalInfoChanges = () => {
+    const keys = Object.keys(emptyPersonal);
+    for (const k of keys) {
+      if ((personalInfo[k] || '').trim() !== (originalPersonalInfo[k] || '').trim()) return true;
+    }
+    return false;
+  };
+
+  const onCancelPersonalInfo = () => {
+    setPersonalInfo({ ...originalPersonalInfo });
+    setPersonalErrors({});
+  };
 
   // Editable resume content
   const [editableContent, setEditableContent] = useState(null);
@@ -130,10 +203,9 @@ const Resume = () => {
       const saved = data?.personal_info || {};
 
       if (saved && typeof saved === 'object') {
-        setPersonalInfo((prev) => ({
-          ...prev,
-          ...saved,
-        }));
+        const loaded = { ...emptyPersonal, ...saved };
+        setPersonalInfo(loaded);
+        setOriginalPersonalInfo(loaded);
       }
     } catch (err) {
       console.error('Error loading personal info:', err);
@@ -224,8 +296,18 @@ const Resume = () => {
   const handleGenerateResume = async () => {
     if (selectedProjectIds.length === 0) {
       setError('Please select at least one project');
+      try { window.scrollTo(0, 0); } catch (_) {}
       return;
     }
+
+    const errs = validatePersonalInfo(personalInfo);
+    if (Object.keys(errs).length > 0) {
+      setPersonalErrors(errs);
+      setError('Please fix the personal information errors before generating.');
+      try { window.scrollTo(0, 0); } catch (_) {}
+      return;
+    }
+    setPersonalErrors({});
 
     try {
       setGenerating(true);
@@ -248,6 +330,7 @@ const Resume = () => {
     } catch (err) {
       console.error('Error generating resume:', err);
       setError(err.response?.data?.detail || 'Failed to generate resume');
+      try { window.scrollTo(0, 0); } catch (_) {}
     } finally {
       setGenerating(false);
     }
@@ -359,8 +442,49 @@ const Resume = () => {
       style={{
         minHeight: '100vh',
         backgroundColor: '#fafafa',
+        paddingTop: error ? '52px' : 0,
       }}
     >
+      {/* Fixed error toast at top so Generate Resume errors are visible without scrolling */}
+      {error && (
+        <div
+          role="alert"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 9999,
+            backgroundColor: '#dc2626',
+            color: 'white',
+            padding: '12px 16px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '16px',
+          }}
+        >
+          <span style={{ flex: 1 }}>{error}</span>
+          <button
+            type="button"
+            onClick={() => setError('')}
+            aria-label="Dismiss"
+            style={{
+              background: 'rgba(255,255,255,0.2)',
+              border: 'none',
+              color: 'white',
+              padding: '6px 12px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: '500',
+            }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       <Navigation />
 
       <div
@@ -431,115 +555,13 @@ const Resume = () => {
                 marginBottom: '24px',
               }}
             >
-              <h2
-                style={{
-                  fontSize: '20px',
-                  fontWeight: '600',
-                  color: '#1a1a1a',
-                  margin: 0,
-                  marginBottom: '16px',
-                }}
-              >
-                Personal Information
-              </h2>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <input
-                  type="text"
-                  placeholder="Full Name"
-                  value={personalInfo.name}
-                  onChange={(e) => setPersonalInfo({ ...personalInfo, name: e.target.value })}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <h2
                   style={{
-                    padding: '10px 12px',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    width: '100%',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                <input
-                  type="email"
-                  placeholder="Email Address"
-                  value={personalInfo.email}
-                  onChange={(e) => setPersonalInfo({ ...personalInfo, email: e.target.value })}
-                  style={{
-                    padding: '10px 12px',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    width: '100%',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                <input
-                  type="tel"
-                  placeholder="Phone Number"
-                  value={personalInfo.phone}
-                  onChange={(e) => setPersonalInfo({ ...personalInfo, phone: e.target.value })}
-                  style={{
-                    padding: '10px 12px',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    width: '100%',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                <input
-                  type="text"
-                  placeholder="Location (e.g., City, State)"
-                  value={personalInfo.location}
-                  onChange={(e) => setPersonalInfo({ ...personalInfo, location: e.target.value })}
-                  style={{
-                    padding: '10px 12px',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    width: '100%',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                <input
-                  type="url"
-                  placeholder="LinkedIn URL (optional)"
-                  value={personalInfo.linkedIn}
-                  onChange={(e) => setPersonalInfo({ ...personalInfo, linkedIn: e.target.value })}
-                  style={{
-                    padding: '10px 12px',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    width: '100%',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                <input
-                  type="url"
-                  placeholder="GitHub URL (optional)"
-                  value={personalInfo.github}
-                  onChange={(e) => setPersonalInfo({ ...personalInfo, github: e.target.value })}
-                  style={{
-                    padding: '10px 12px',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    width: '100%',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                <input
-                  type="url"
-                  placeholder="Personal Website (optional)"
-                  value={personalInfo.website}
-                  onChange={(e) => setPersonalInfo({ ...personalInfo, website: e.target.value })}
-                  style={{
-                    padding: '10px 12px',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    width: '100%',
-                    boxSizing: 'border-box',
+                    fontSize: '20px',
+                    fontWeight: '600',
+                    color: '#1a1a1a',
+                    margin: 0,
                   }}
                 />
                 <div style={{ marginTop: '8px', paddingTop: '12px', borderTop: '1px solid #e5e7eb' }}>
@@ -590,6 +612,197 @@ const Resume = () => {
                       style={{ padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }}
                     />
                   </div>
+                >
+                  Personal Information
+                </h2>
+                {hasOriginalPersonalInfo && hasPersonalInfoChanges() && (
+                  <button
+                    type="button"
+                    onClick={onCancelPersonalInfo}
+                    style={{
+                      padding: '6px 14px',
+                      fontSize: '13px',
+                      fontWeight: '500',
+                      color: '#991b1b',
+                      backgroundColor: 'white',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Cancel Changes
+                  </button>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
+                    Full Name
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Full Name"
+                    value={personalInfo.name}
+                    onChange={(e) => onChangePersonalField('name', e.target.value)}
+                    style={{
+                      padding: '10px 12px',
+                      border: `1px solid ${personalErrors.name ? '#dc2626' : '#e5e7eb'}`,
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  {personalErrors.name && (
+                    <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                      {personalErrors.name}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
+                    Email
+                  </div>
+                  <input
+                    type="email"
+                    placeholder="Email Address"
+                    value={personalInfo.email}
+                    onChange={(e) => onChangePersonalField('email', e.target.value)}
+                    style={{
+                      padding: '10px 12px',
+                      border: `1px solid ${personalErrors.email ? '#dc2626' : '#e5e7eb'}`,
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  {personalErrors.email && (
+                    <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                      {personalErrors.email}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
+                    Phone
+                  </div>
+                  <input
+                    type="tel"
+                    placeholder="Phone Number"
+                    value={personalInfo.phone}
+                    onChange={(e) => onChangePersonalField('phone', e.target.value)}
+                    style={{
+                      padding: '10px 12px',
+                      border: `1px solid ${personalErrors.phone ? '#dc2626' : '#e5e7eb'}`,
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  {personalErrors.phone && (
+                    <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                      {personalErrors.phone}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
+                    Location
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Location (e.g., City, State)"
+                    value={personalInfo.location}
+                    onChange={(e) => onChangePersonalField('location', e.target.value)}
+                    style={{
+                      padding: '10px 12px',
+                      border: `1px solid ${personalErrors.location ? '#dc2626' : '#e5e7eb'}`,
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  {personalErrors.location && (
+                    <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                      {personalErrors.location}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
+                    LinkedIn <span style={{ color: '#9ca3af', fontWeight: '400' }}>(optional)</span>
+                  </div>
+                  <input
+                    type="url"
+                    placeholder="LinkedIn URL"
+                    value={personalInfo.linkedIn}
+                    onChange={(e) => onChangePersonalField('linkedIn', e.target.value)}
+                    style={{
+                      padding: '10px 12px',
+                      border: `1px solid ${personalErrors.linkedIn ? '#dc2626' : '#e5e7eb'}`,
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  {personalErrors.linkedIn && (
+                    <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                      {personalErrors.linkedIn}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
+                    GitHub <span style={{ color: '#9ca3af', fontWeight: '400' }}>(optional)</span>
+                  </div>
+                  <input
+                    type="url"
+                    placeholder="GitHub URL"
+                    value={personalInfo.github}
+                    onChange={(e) => onChangePersonalField('github', e.target.value)}
+                    style={{
+                      padding: '10px 12px',
+                      border: `1px solid ${personalErrors.github ? '#dc2626' : '#e5e7eb'}`,
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  {personalErrors.github && (
+                    <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                      {personalErrors.github}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
+                    Website <span style={{ color: '#9ca3af', fontWeight: '400' }}>(optional)</span>
+                  </div>
+                  <input
+                    type="url"
+                    placeholder="Personal Website"
+                    value={personalInfo.website}
+                    onChange={(e) => onChangePersonalField('website', e.target.value)}
+                    style={{
+                      padding: '10px 12px',
+                      border: `1px solid ${personalErrors.website ? '#dc2626' : '#e5e7eb'}`,
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  {personalErrors.website && (
+                    <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                      {personalErrors.website}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

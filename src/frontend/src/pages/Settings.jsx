@@ -76,6 +76,54 @@ const Settings = () => {
 
   const hasPersonalChanges = !infosEqual(personalInfo, originalPersonalInfo);
 
+  const [personalErrors, setPersonalErrors] = useState({});
+
+  const validatePersonalInfo = (info) => {
+    const errs = {};
+
+    if (!info.name.trim()) {
+      errs.name = 'Full name is required.';
+    } else if (!/^[A-Za-z\s\-'.]+$/.test(info.name.trim())) {
+      errs.name = 'Name may only contain letters, spaces, hyphens, and apostrophes.';
+    } else if (info.name.trim().length > 100) {
+      errs.name = 'Name must be 100 characters or fewer.';
+    }
+
+    if (!info.email.trim()) {
+      errs.email = 'Email is required.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(info.email.trim())) {
+      errs.email = 'Enter a valid email address.';
+    }
+
+    const phoneTrim = info.phone.trim();
+    if (phoneTrim) {
+      if (!/^[+\d][\d\s\-().]{7,20}$/.test(phoneTrim)) {
+        errs.phone = 'Phone may only contain digits, spaces, dashes, parentheses, or a leading +. Minimum of 7 digits required.';
+      } else if ((phoneTrim.replace(/\D/g, '').length || 0) < 7) {
+        errs.phone = 'Phone may only contain digits, spaces, dashes, parentheses, or a leading +. Minimum of 7 digits required.';
+      }
+    }
+
+    if (info.location.trim().length > 100) {
+      errs.location = 'Location must be 100 characters or fewer.';
+    }
+
+    const linkedInPattern = /^https?:\/\/(www\.)?linkedin\.com\//i;
+    if (info.linkedIn.trim() && !linkedInPattern.test(info.linkedIn.trim())) {
+      errs.linkedIn = 'Must start with https://linkedin.com/ or https://www.linkedin.com/';
+    }
+
+    if (info.github.trim() && !/^https?:\/\/(www\.)?github\.com\//i.test(info.github.trim())) {
+      errs.github = 'Must start with https://github.com/';
+    }
+
+    if (info.website.trim() && !/^https?:\/\/.+\..+/.test(info.website.trim())) {
+      errs.website = 'Must be a valid URL starting with http:// or https://';
+    }
+
+    return errs;
+  };
+
   const hasAnyPersonalInfoSaved = () => {
     const values = Object.values(personalInfo || {});
     for (let i = 0; i < values.length; i++) {
@@ -193,18 +241,36 @@ const Settings = () => {
   };
 
   const onChangePersonalField = (key, value) => {
-    setPersonalInfo((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
+    const updated = { ...personalInfo, [key]: value };
+    setPersonalInfo(updated);
+    if (Object.keys(personalErrors).length > 0) {
+      setPersonalErrors(validatePersonalInfo(updated));
+    }
+  };
+
+  const hasOriginalPersonalInfoSaved = Object.values(originalPersonalInfo).some(
+    (v) => (v || '').trim().length > 0
+  );
+
+  const onCancelPersonalChanges = () => {
+    setPersonalInfo({ ...originalPersonalInfo });
+    setPersonalErrors({});
+    setPersonalErrorMsg('');
+    setPersonalStatusMsg('');
   };
 
   const onSavePersonalInfo = async () => {
     setPersonalErrorMsg('');
     setPersonalStatusMsg('');
 
-    // ✅ Nothing changed -> do nothing (and show no "saved" popup)
     if (!hasPersonalChanges) return;
+
+    const errs = validatePersonalInfo(personalInfo);
+    if (Object.keys(errs).length > 0) {
+      setPersonalErrors(errs);
+      return;
+    }
+    setPersonalErrors({});
 
     setSavingPersonalInfo(true);
 
@@ -716,6 +782,29 @@ const Settings = () => {
                 {removingPersonalInfo ? 'Removing…' : 'Remove Info'}
               </button>
 
+              {hasOriginalPersonalInfoSaved && hasPersonalChanges && (
+                <button
+                  type="button"
+                  onClick={onCancelPersonalChanges}
+                  disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: '12px',
+                    border: '1px solid #e5e5e5',
+                    backgroundColor: '#ffffff',
+                    color: '#374151',
+                    fontWeight: 700,
+                    cursor:
+                      loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo
+                        ? 'not-allowed'
+                        : 'pointer',
+                    minWidth: '120px',
+                  }}
+                >
+                  Cancel
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={onSavePersonalInfo}
@@ -772,80 +861,122 @@ const Settings = () => {
             <div style={{ gridColumn: '1 / -1' }}>
               <div style={labelStyle}>Full Name</div>
               <input
-                style={inputStyle}
+                style={{ ...inputStyle, ...(personalErrors.name ? { borderColor: '#dc2626' } : {}) }}
+                type="text"
                 value={personalInfo.name}
                 onChange={(e) => onChangePersonalField('name', e.target.value)}
                 placeholder="Full Name"
                 disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
               />
+              {personalErrors.name && (
+                <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                  {personalErrors.name}
+                </div>
+              )}
             </div>
 
             <div>
               <div style={labelStyle}>Email</div>
               <input
-                style={inputStyle}
+                style={{ ...inputStyle, ...(personalErrors.email ? { borderColor: '#dc2626' } : {}) }}
+                type="email"
                 value={personalInfo.email}
                 onChange={(e) => onChangePersonalField('email', e.target.value)}
                 placeholder="Email Address"
                 disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
               />
+              {personalErrors.email && (
+                <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                  {personalErrors.email}
+                </div>
+              )}
             </div>
 
             <div>
               <div style={labelStyle}>Phone</div>
               <input
-                style={inputStyle}
+                style={{ ...inputStyle, ...(personalErrors.phone ? { borderColor: '#dc2626' } : {}) }}
+                type="tel"
                 value={personalInfo.phone}
                 onChange={(e) => onChangePersonalField('phone', e.target.value)}
                 placeholder="Phone Number"
                 disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
               />
+              {personalErrors.phone && (
+                <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                  {personalErrors.phone}
+                </div>
+              )}
             </div>
 
             {/* Location (full width) */}
             <div style={{ gridColumn: '1 / -1' }}>
               <div style={labelStyle}>Location</div>
               <input
-                style={inputStyle}
+                style={{ ...inputStyle, ...(personalErrors.location ? { borderColor: '#dc2626' } : {}) }}
+                type="text"
                 value={personalInfo.location}
                 onChange={(e) => onChangePersonalField('location', e.target.value)}
                 placeholder="Location (e.g., City, State)"
                 disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
               />
+              {personalErrors.location && (
+                <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                  {personalErrors.location}
+                </div>
+              )}
             </div>
 
             <div>
               <div style={labelStyle}>LinkedIn</div>
               <input
-                style={inputStyle}
+                style={{ ...inputStyle, ...(personalErrors.linkedIn ? { borderColor: '#dc2626' } : {}) }}
+                type="url"
                 value={personalInfo.linkedIn}
                 onChange={(e) => onChangePersonalField('linkedIn', e.target.value)}
                 placeholder="LinkedIn URL"
                 disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
               />
+              {personalErrors.linkedIn && (
+                <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                  {personalErrors.linkedIn}
+                </div>
+              )}
             </div>
 
             <div>
               <div style={labelStyle}>GitHub</div>
               <input
-                style={inputStyle}
+                style={{ ...inputStyle, ...(personalErrors.github ? { borderColor: '#dc2626' } : {}) }}
+                type="url"
                 value={personalInfo.github}
                 onChange={(e) => onChangePersonalField('github', e.target.value)}
                 placeholder="GitHub URL"
                 disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
               />
+              {personalErrors.github && (
+                <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                  {personalErrors.github}
+                </div>
+              )}
             </div>
 
             {/* Website (full width) */}
             <div style={{ gridColumn: '1 / -1' }}>
               <div style={labelStyle}>Website</div>
               <input
-                style={inputStyle}
+                style={{ ...inputStyle, ...(personalErrors.website ? { borderColor: '#dc2626' } : {}) }}
+                type="url"
                 value={personalInfo.website}
                 onChange={(e) => onChangePersonalField('website', e.target.value)}
                 placeholder="Personal Website"
                 disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
               />
+              {personalErrors.website && (
+                <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                  {personalErrors.website}
+                </div>
+              )}
             </div>
 
             {/* Education (for PDF resume) */}
