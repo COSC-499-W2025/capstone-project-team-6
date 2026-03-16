@@ -2,7 +2,7 @@
 
 ## Date Ranges
 March 9 - March 15
-![Maddy Week 10](capstone-project-team-6\docs\logs\personal logs\term2\MaddyW10T2.png)
+![Maddy Week 10]("C:\Users\maddy\OneDrive\Pictures\Screenshots\Screenshot 2026-03-15 191305.png")
 
 ## Goals for this week (planned last sprint)
 - Incorporated role prediction into resume and portfolio generation
