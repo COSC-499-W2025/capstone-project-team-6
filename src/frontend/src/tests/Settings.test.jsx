@@ -510,6 +510,32 @@ describe('Settings Page', () => {
       expect(resumeAPI.savePersonalInfo).not.toHaveBeenCalled();
     });
 
+    it('validation blocks save when phone has fewer than 7 digits', async () => {
+      consentAPI.getConsent.mockResolvedValue({ has_consented: false });
+      resumeAPI.getPersonalInfo.mockResolvedValue({
+        personal_info: { name: 'Harjot', email: 'h@h.com', phone: '5551234567' },
+      });
+
+      renderSettings();
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Harjot')).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByPlaceholderText('Phone Number'), {
+        target: { value: '123456' },
+      });
+
+      const saveBtn = screen.getByRole('button', { name: /update personal info|save personal info/i });
+      fireEvent.click(saveBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText(/minimum of 7 digits required/i)).toBeInTheDocument();
+      });
+
+      expect(resumeAPI.savePersonalInfo).not.toHaveBeenCalled();
+    });
+
     it('validation blocks save when name is empty', async () => {
       consentAPI.getConsent.mockResolvedValue({ has_consented: false });
       resumeAPI.getPersonalInfo.mockResolvedValue({

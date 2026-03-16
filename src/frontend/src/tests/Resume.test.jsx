@@ -223,11 +223,9 @@ describe('Resume Page', () => {
       fireEvent.click(checkboxes[0]);
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
-      // Error message must appear — not a blank screen
+      // Error message must appear in toast at top — not a blank screen
       await waitFor(() => {
-        expect(
-          screen.getByText(/no valid projects found/i)
-        ).toBeInTheDocument();
+        expect(screen.getByRole('alert')).toHaveTextContent(/no valid projects found/i);
       });
     });
 
@@ -243,7 +241,7 @@ describe('Resume Page', () => {
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
       await waitFor(() => {
-        expect(screen.getByText(/failed to generate resume/i)).toBeInTheDocument();
+        expect(screen.getByRole('alert')).toHaveTextContent(/failed to generate resume/i);
       });
     });
 
@@ -319,6 +317,44 @@ describe('Resume Page', () => {
       });
 
       expect(resumeAPI.generateResume).not.toHaveBeenCalled();
+    });
+
+    it('blocks generate when phone has fewer than 7 digits', async () => {
+      setupDefaultMocks();
+      resumeAPI.getPersonalInfo.mockResolvedValue({
+        personal_info: { ...MOCK_VALID_PERSONAL_INFO, phone: '123456' },
+      });
+
+      renderResume();
+      await screen.findByText('CapstoneApp');
+
+      const checkboxes = screen.getAllByRole('checkbox');
+      fireEvent.click(checkboxes[0]);
+      fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/minimum of 7 digits required/i)).toBeInTheDocument();
+      });
+
+      expect(resumeAPI.generateResume).not.toHaveBeenCalled();
+    });
+
+    it('shows error in toast at top when generate fails validation', async () => {
+      setupDefaultMocks();
+      resumeAPI.getPersonalInfo.mockResolvedValue({
+        personal_info: { ...MOCK_VALID_PERSONAL_INFO, name: '' },
+      });
+
+      renderResume();
+      await screen.findByText('CapstoneApp');
+
+      const checkboxes = screen.getAllByRole('checkbox');
+      fireEvent.click(checkboxes[0]);
+      fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toHaveTextContent(/please fix the personal information errors/i);
+      });
     });
 
     it('blocks generate when name is empty', async () => {

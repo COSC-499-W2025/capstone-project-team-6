@@ -55,8 +55,13 @@ const Resume = () => {
       errs.email = 'Enter a valid email address.';
     }
 
-    if (info.phone.trim() && !/^[+\d][\d\s\-().]{6,20}$/.test(info.phone.trim())) {
-      errs.phone = 'Phone may only contain digits, spaces, dashes, parentheses, or a leading +.';
+    const phoneTrim = info.phone.trim();
+    if (phoneTrim) {
+      if (!/^[+\d][\d\s\-().]{7,20}$/.test(phoneTrim)) {
+        errs.phone = 'Phone may only contain digits, spaces, dashes, parentheses, or a leading +. Minimum of 7 digits required.';
+      } else if ((phoneTrim.replace(/\D/g, '').length || 0) < 7) {
+        errs.phone = 'Phone may only contain digits, spaces, dashes, parentheses, or a leading +. Minimum of 7 digits required.';
+      }
     }
 
     if (info.location.trim().length > 100) {
@@ -283,6 +288,7 @@ const Resume = () => {
   const handleGenerateResume = async () => {
     if (selectedProjectIds.length === 0) {
       setError('Please select at least one project');
+      try { window.scrollTo(0, 0); } catch (_) {}
       return;
     }
 
@@ -290,6 +296,7 @@ const Resume = () => {
     if (Object.keys(errs).length > 0) {
       setPersonalErrors(errs);
       setError('Please fix the personal information errors before generating.');
+      try { window.scrollTo(0, 0); } catch (_) {}
       return;
     }
     setPersonalErrors({});
@@ -315,6 +322,7 @@ const Resume = () => {
     } catch (err) {
       console.error('Error generating resume:', err);
       setError(err.response?.data?.detail || 'Failed to generate resume');
+      try { window.scrollTo(0, 0); } catch (_) {}
     } finally {
       setGenerating(false);
     }
@@ -426,8 +434,49 @@ const Resume = () => {
       style={{
         minHeight: '100vh',
         backgroundColor: '#fafafa',
+        paddingTop: error ? '52px' : 0,
       }}
     >
+      {/* Fixed error toast at top so Generate Resume errors are visible without scrolling */}
+      {error && (
+        <div
+          role="alert"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 9999,
+            backgroundColor: '#dc2626',
+            color: 'white',
+            padding: '12px 16px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '16px',
+          }}
+        >
+          <span style={{ flex: 1 }}>{error}</span>
+          <button
+            type="button"
+            onClick={() => setError('')}
+            aria-label="Dismiss"
+            style={{
+              background: 'rgba(255,255,255,0.2)',
+              border: 'none',
+              color: 'white',
+              padding: '6px 12px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: '500',
+            }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       <Navigation />
 
       <div

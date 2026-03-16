@@ -88,8 +88,13 @@ const Settings = () => {
       errs.email = 'Enter a valid email address.';
     }
 
-    if (info.phone.trim() && !/^[+\d][\d\s\-().]{6,20}$/.test(info.phone.trim())) {
-      errs.phone = 'Phone may only contain digits, spaces, dashes, parentheses, or a leading +.';
+    const phoneTrim = info.phone.trim();
+    if (phoneTrim) {
+      if (!/^[+\d][\d\s\-().]{7,20}$/.test(phoneTrim)) {
+        errs.phone = 'Phone may only contain digits, spaces, dashes, parentheses, or a leading +. Minimum of 7 digits required.';
+      } else if ((phoneTrim.replace(/\D/g, '').length || 0) < 7) {
+        errs.phone = 'Phone may only contain digits, spaces, dashes, parentheses, or a leading +. Minimum of 7 digits required.';
+      }
     }
 
     if (info.location.trim().length > 100) {
