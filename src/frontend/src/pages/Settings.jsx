@@ -236,6 +236,17 @@ const Settings = () => {
     }
   };
 
+  const hasOriginalPersonalInfoSaved = Object.values(originalPersonalInfo).some(
+    (v) => (v || '').trim().length > 0
+  );
+
+  const onCancelPersonalChanges = () => {
+    setPersonalInfo({ ...originalPersonalInfo });
+    setPersonalErrors({});
+    setPersonalErrorMsg('');
+    setPersonalStatusMsg('');
+  };
+
   const onSavePersonalInfo = async () => {
     setPersonalErrorMsg('');
     setPersonalStatusMsg('');
@@ -758,6 +769,29 @@ const Settings = () => {
               >
                 {removingPersonalInfo ? 'Removing…' : 'Remove Info'}
               </button>
+
+              {hasOriginalPersonalInfoSaved && hasPersonalChanges && (
+                <button
+                  type="button"
+                  onClick={onCancelPersonalChanges}
+                  disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: '12px',
+                    border: '1px solid #e5e5e5',
+                    backgroundColor: '#ffffff',
+                    color: '#374151',
+                    fontWeight: 700,
+                    cursor:
+                      loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo
+                        ? 'not-allowed'
+                        : 'pointer',
+                    minWidth: '120px',
+                  }}
+                >
+                  Cancel
+                </button>
+              )}
 
               <button
                 type="button"

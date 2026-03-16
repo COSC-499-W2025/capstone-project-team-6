@@ -25,7 +25,7 @@ const Resume = () => {
   const [storedResumeSaving, setStoredResumeSaving] = useState(false);
 
   // Personal information
-  const [personalInfo, setPersonalInfo] = useState({
+  const emptyPersonal = {
     name: '',
     email: '',
     phone: '',
@@ -33,7 +33,9 @@ const Resume = () => {
     linkedIn: '',
     github: '',
     website: '',
-  });
+  };
+  const [personalInfo, setPersonalInfo] = useState(emptyPersonal);
+  const [originalPersonalInfo, setOriginalPersonalInfo] = useState(emptyPersonal);
   const [personalErrors, setPersonalErrors] = useState({});
 
   const validatePersonalInfo = (info) => {
@@ -83,6 +85,21 @@ const Resume = () => {
     if (Object.keys(personalErrors).length > 0) {
       setPersonalErrors(validatePersonalInfo(updated));
     }
+  };
+
+  const hasOriginalPersonalInfo = Object.values(originalPersonalInfo).some((v) => (v || '').trim().length > 0);
+
+  const hasPersonalInfoChanges = () => {
+    const keys = Object.keys(emptyPersonal);
+    for (const k of keys) {
+      if ((personalInfo[k] || '').trim() !== (originalPersonalInfo[k] || '').trim()) return true;
+    }
+    return false;
+  };
+
+  const onCancelPersonalInfo = () => {
+    setPersonalInfo({ ...originalPersonalInfo });
+    setPersonalErrors({});
   };
 
   // Editable resume content
@@ -173,10 +190,9 @@ const Resume = () => {
       const saved = data?.personal_info || {};
 
       if (saved && typeof saved === 'object') {
-        setPersonalInfo((prev) => ({
-          ...prev,
-          ...saved,
-        }));
+        const loaded = { ...emptyPersonal, ...saved };
+        setPersonalInfo(loaded);
+        setOriginalPersonalInfo(loaded);
       }
     } catch (err) {
       console.error('Error loading personal info:', err);
@@ -482,17 +498,36 @@ const Resume = () => {
                 marginBottom: '24px',
               }}
             >
-              <h2
-                style={{
-                  fontSize: '20px',
-                  fontWeight: '600',
-                  color: '#1a1a1a',
-                  margin: 0,
-                  marginBottom: '16px',
-                }}
-              >
-                Personal Information
-              </h2>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <h2
+                  style={{
+                    fontSize: '20px',
+                    fontWeight: '600',
+                    color: '#1a1a1a',
+                    margin: 0,
+                  }}
+                >
+                  Personal Information
+                </h2>
+                {hasOriginalPersonalInfo && hasPersonalInfoChanges() && (
+                  <button
+                    type="button"
+                    onClick={onCancelPersonalInfo}
+                    style={{
+                      padding: '6px 14px',
+                      fontSize: '13px',
+                      fontWeight: '500',
+                      color: '#991b1b',
+                      backgroundColor: 'white',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Cancel Changes
+                  </button>
+                )}
+              </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div>
