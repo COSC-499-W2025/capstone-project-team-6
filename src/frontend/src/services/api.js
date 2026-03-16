@@ -153,6 +153,11 @@ export const projectsAPI = {
     const response = await api.delete(`/projects/${encodedId}/thumbnail`);
     return response.data;
   },
+
+  getLlmAnalysis: async (projectId) => {
+    const response = await api.get(`/projects/${projectId}/llm-analysis`);
+    return response.data;
+  },
 };
 
 export const portfoliosAPI = {
