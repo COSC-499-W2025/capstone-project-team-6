@@ -153,28 +153,76 @@ March 9 - March 15
 
 ## Date Ranges
 March 9 - March 15
-
+![Mohamed Week 10](../term2/mohamedw10t2.png)
 ## Goals for this week (planned last sprint)
+
+- Continue working on Milestone 3 features
+- Look into further improvements to the resume generation output quality
 
 ## What went well
 
+The LLM analysis feature is now fully end-to-end functional. After a methodical debugging process involving backend logging, direct database inspection, and tracing through the full task pipeline, I was able to pinpoint all root causes blocking the analysis from displaying. The frontend panel I built to surface the Gemini output turned out to be solid, the issues were all in the data pipeline, not the UI. Writing focused automated tests for each bug site made the fixes verifiable and should prevent silent regressions.
+
 ## What could have been done better
+
+- The root cause of the most critical bug (`sqlite3.Row` not supporting the `in` operator) was subtle and only found after adding extensive diagnostic logging. Knowing the quirks of `sqlite3.Row` upfront would have saved significant debugging time.
+- The database ended up in a corrupted state (analyses with `total_projects = 0` and no project rows) from prior partial runs during development, which masked whether fixes were working. It would have been better to clean the test database earlier in the process rather than late in debugging.
 
 ## Coding tasks
 
+- Implemented the **LLM analysis display panel** on the Projects page (`ProjectsPage.jsx`)
+  - The base prompt output section is always shown for each project
+  - A side dropdown lets users select and toggle additional categories from `PROMPT_MODULES` (architecture, security, complexity, skills, domain, resume)
+  - Added `parseLlmSections` to transform the Gemini markdown output into rendered React subsections
+  - Added `GET /api/projects/{project_id}/llm-analysis` endpoint in `projects.py` to serve `llm_summary` per project
+  - Fixed a `NameError` in `projects.py` caused by a missing `Response` import
+- Fixed the **LLM summary not being persisted** despite the pipeline running successfully
+  - Root cause: `"analysis_uuid" in row` always returned `False` for `sqlite3.Row` objects, so `analysis_uuid` was always set to `None` and the `update_llm_summary` call was skipped
+  - Fix: removed the `in row` guard — `analysis_uuid = row["analysis_uuid"] if row else None`
+- Fixed **silently suppressed LLM errors** in `llm_pipeline.py`
+  - All `logger.error` calls were guarded by `if not progress_callback:`, meaning errors from the Gemini API were never logged when a callback was active
+  - Removed all such guards so errors are always logged
+- Fixed **frontend dropdown scrolling** for analysis categories in `ProjectsPage.jsx`
+  - Changed the dropdown container from `overflow: hidden` to `maxHeight: 320px, overflowY: auto`
+  - Removed `overflow: hidden` from the parent panel container which was clipping the absolute-positioned dropdown
+- Added **diagnostic logging** to `task_manager.py`, `llm_pipeline.py`, and `analysis_database.py` to track the full LLM pipeline flow: API key presence, pipeline result content, `analysis_uuid` value at save time, and project row counts after `record_analysis`
+
 ## Testing or debugging tasks
 
-## Document tasks
+- Created `tests/backend_test/test_llm_summary.py` with 18 unit tests covering:
+  - `update_llm_summary` and `get_llm_summary_for_analysis` round-trip correctness
+  - `record_analysis` project row persistence and `total_projects` count accuracy
+  - `sqlite3.Row` `in` operator regression (documents the bug and verifies the fix)
+  - `_process_new_portfolio` in `task_manager`: LLM summary saved when UUID is available, not saved when UUID is `None`, skipped without consent, and does not crash on Gemini errors
+- Created `tests/api_test/test_llm_analysis_endpoint.py` with 6 integration tests covering:
+  - Returns `llm_summary` when present for an authenticated user's project
+  - Returns `null` summary when LLM has not run
+  - Returns 404 for non-existent or other users' projects
+  - Rejects unauthenticated requests
+  - Response always contains `project_id` and `llm_summary` keys
+- Updated `tests/backend_test/test_task_manager_llm.py` to replace the stale test (which tested the old `record_analysis("llm", ...)` architecture) with two new tests verifying the current behavior:
+  - `update_llm_summary` is called once with the correct UUID and summary text
+  - `record_analysis` is called exactly once (not a second time for the LLM result)
+- Diagnosed database corruption by running direct SQL queries confirming `total_projects = 0` and empty `projects` table; cleared corrupted rows and re-ran a clean upload to verify the full pipeline end-to-end
 
 ## Reviewing or collaboration tasks
+- Reviewed role prediciton frontend edits, validation settings, and docker documentation
 
 ## Issues / Blockers
-
+- No blockers
 ## PR's initiated
+-https://github.com/COSC-499-W2025/capstone-project-team-6/pull/446
 
 ## PR's reviewed
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/444 (first review)
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/443
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/441
 
 ## Plan for next week
+
+- Continue Milestone 3 frontend integration work
+- Look into further output quality improvements for the Gemini analysis sections
+- Support review of related frontend/backend integration PRs from teammates
 
 # Ansh Rastogi
 
