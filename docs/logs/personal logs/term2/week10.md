@@ -2,7 +2,7 @@
 
 ## Date Ranges
 March 9 - March 15
-![Aakash Week 8](../images/MaddyW10T2.png)
+![Maddy Week 10](../images/MaddyW10T2.png)
 
 
 ## Goals for this week (planned last sprint)
