@@ -36,6 +36,13 @@ const Settings = () => {
     linkedIn: '',
     github: '',
     website: '',
+    education: '',
+    education_university: '',
+    education_location: '',
+    education_degree: '',
+    education_start_date: '',
+    education_end_date: '',
+    education_awards: '',
   };
 
   const [personalInfo, setPersonalInfo] = useState(emptyPersonal);
@@ -837,6 +844,68 @@ const Settings = () => {
                 value={personalInfo.website}
                 onChange={(e) => onChangePersonalField('website', e.target.value)}
                 placeholder="Personal Website"
+                disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
+              />
+            </div>
+
+            {/* Education (for PDF resume) */}
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div style={labelStyle}>Education (University)</div>
+              <input
+                style={inputStyle}
+                value={personalInfo.education_university}
+                onChange={(e) => onChangePersonalField('education_university', e.target.value)}
+                placeholder="University Name"
+                disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
+              />
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div style={labelStyle}>Education (Location)</div>
+              <input
+                style={inputStyle}
+                value={personalInfo.education_location}
+                onChange={(e) => onChangePersonalField('education_location', e.target.value)}
+                placeholder="City, State"
+                disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
+              />
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div style={labelStyle}>Education (Degree)</div>
+              <input
+                style={inputStyle}
+                value={personalInfo.education_degree}
+                onChange={(e) => onChangePersonalField('education_degree', e.target.value)}
+                placeholder="e.g., B.S. Computer Science"
+                disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
+              />
+            </div>
+            <div>
+              <div style={labelStyle}>Start Date</div>
+              <input
+                style={inputStyle}
+                value={personalInfo.education_start_date}
+                onChange={(e) => onChangePersonalField('education_start_date', e.target.value)}
+                placeholder="e.g., Aug 2020"
+                disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
+              />
+            </div>
+            <div>
+              <div style={labelStyle}>End Date</div>
+              <input
+                style={inputStyle}
+                value={personalInfo.education_end_date}
+                onChange={(e) => onChangePersonalField('education_end_date', e.target.value)}
+                placeholder="e.g., May 2024"
+                disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
+              />
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div style={labelStyle}>Education (Awards)</div>
+              <input
+                style={inputStyle}
+                value={personalInfo.education_awards}
+                onChange={(e) => onChangePersonalField('education_awards', e.target.value)}
+                placeholder="e.g., Dean's List, Scholarship Name"
                 disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
               />
             </div>

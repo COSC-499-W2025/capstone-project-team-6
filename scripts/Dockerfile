@@ -28,6 +28,13 @@ RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir -r backend-requirements.txt
 
+RUN apt-get update && apt-get install -y \
+    texlive-latex-base \
+    texlive-fonts-recommended \
+    texlive-fonts-extra \
+    texlive-latex-extra \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY src/ ./src/
 COPY setup.py ./
 

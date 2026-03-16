@@ -357,10 +357,12 @@ class TaskManager:
 
         task.progress = 32
 
-        # Duplicate check: if this ZIP was already analysed for this user, reuse the result
+        # Duplicate check: if this ZIP was already analysed for this user and still has projects, reuse the result
+        # (If the user deleted the project, total_projects is 0 and we allow re-analysis.)
         if task.file_hash:
             existing = get_analysis_by_file_hash(task.file_hash, task.username)
-            if existing:
+            has_projects = existing is not None and (existing["total_projects"] or 0) > 0
+            if has_projects:
                 logger.info(f"Task {task.task_id}: duplicate ZIP hash, reusing analysis {existing['analysis_uuid']}")
                 task.progress = 100
                 return {

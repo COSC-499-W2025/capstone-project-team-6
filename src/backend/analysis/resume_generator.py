@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import subprocess
@@ -564,7 +565,6 @@ def format_resume_items(items: List[str]) -> str:
 def generate_formatted_resume_entry(project: Dict[str, Any]) -> str:
     """Generate a formatted resume entry for a single project."""
     project_name = project.get("project_name", "Project")
-    timeline = project.get("timeline", "")
 
     bullets = _generate_project_items(project)
     languages = list(project.get("languages", {}).keys())
@@ -609,12 +609,7 @@ def generate_formatted_resume_entry(project: Dict[str, Any]) -> str:
     tech_stack = sorted(set([t for t in tech_stack if t]))[:8]
     tech_str = ", ".join(tech_stack)
 
-    # Jake's LaTeX style: table-like layout with project name | tech stack on left, timeline on right
-    # Using markdown table-like formatting
-    if timeline:
-        header_line = f"**{project_name}** | *{tech_str}*<span style='float:right'>{timeline}</span>"
-    else:
-        header_line = f"**{project_name}** | *{tech_str}*"
+    header_line = f"**{project_name}** | *{tech_str}*"
 
     # Bullet points (limit to 4 like Jake's resume for conciseness)
     bullet_lines = []
@@ -732,11 +727,31 @@ def generate_latex_resume(
 \end{{center}}
 """
 
-    # 2. Education Section
-    if info.get("university"):
+    # 2. Education Section (Jake's format: subheading + date + awards list)
+    def _safe(s: str) -> str:
+        return (s or "").replace("&", "\\&").replace("%", "\\%").replace("_", "\\_").replace("#", "\\#")
+
+    university = (info.get("education_university") or info.get("university") or "").strip()
+    location = (info.get("education_location") or info.get("location") or "").strip()
+    degree = (info.get("education_degree") or info.get("degree") or "").strip()
+    start_date = (info.get("education_start_date") or "").strip()
+    end_date = (info.get("education_end_date") or info.get("grad_date") or "").strip()
+    date_range = f"{start_date} -- {end_date}" if (start_date and end_date) else (end_date or start_date or " ")
+    awards = (info.get("education_awards") or "").strip()
+
+    if university or degree or (info.get("education") or "").strip():
         latex += r"\section{Education}" + "\n\\resumeSubHeadingListStart\n"
-        latex += rf"  \resumeSubheading{{{info.get('university', '')}}}{{{info.get('location', '')}}}"
-        latex += rf"{{{info.get('degree', '')}}}{{{info.get('grad_date', '')}}}\n"
+        if university or degree:
+            latex += "  \\resumeSubheading{"
+            latex += _safe(university or " ") + "}{" + _safe(location) + "}{"
+            latex += _safe(degree) + "}{\\textnormal{" + _safe(date_range) + "}}\n"
+            if awards:
+                latex += "  \\resumeItemListStart\n"
+                latex += "    \\resumeItem{\\textbf{Awards}: " + _safe(awards) + "}\n"
+                latex += "  \\resumeItemListEnd\n"
+        else:
+            education_text = (info.get("education") or "").strip().replace("\n", " ")
+            latex += f"  \\item \\small{{{_safe(education_text)}}}\n"
         latex += "\\resumeSubHeadingListEnd\n\n"
 
     # 3. Projects Section
@@ -744,7 +759,7 @@ def generate_latex_resume(
         latex += r"\section{Projects}" + "\n\\resumeSubHeadingListStart\n"
         for project in all_projects:
             project_name = project.get("project_name", "Project")
-            timeline = project.get("timeline", "Present")
+            timeline = ""  # Timestamp not shown on resume projects
 
             # Extract Tech Stack
             langs = list(project.get("languages", {}).keys())
@@ -786,8 +801,12 @@ def generate_latex_resume(
 
             latex += f"    \\resumeProjectHeading{{\\textbf{{{safe_name}}} $|$ \\emph{{{safe_tech}}}}}{{{timeline}}}\n"
             latex += "      \\resumeItemListStart\n"
-            # Generate bullet points
-            bullets = _generate_project_items(project)
+            # Use stored resume bullets if provided (from DB), else generate from project dict
+            resume_bullets = project.get("resume_bullets")
+            if resume_bullets and isinstance(resume_bullets, list):
+                bullets = [b for b in resume_bullets if isinstance(b, str) and b.strip()]
+            else:
+                bullets = _generate_project_items(project)
             for bullet in bullets[:4]:
                 safe_bullet = (
                     bullet.replace("\\", "\\textbackslash ")
@@ -875,7 +894,9 @@ def _compile_latex_to_pdf(latex_content: str) -> bytes:
 
     if not pdflatex_cmd:
         raise FileNotFoundError(
-            "pdflatex not found. To fix this, ensure BasicTeX is installed and " "run: export PATH='/Library/TeX/texbin:$PATH'"
+            "pdflatex is required to generate the resume as PDF (Jake's format). "
+            "Install BasicTeX or MacTeX (e.g. brew install --cask basictex), then run: "
+            "export PATH='/Library/TeX/texbin:$PATH'"
         )
 
     # 2. Run compilation in a temporary directory
@@ -904,6 +925,48 @@ def _compile_latex_to_pdf(latex_content: str) -> bytes:
 
         except subprocess.TimeoutExpired:
             raise RuntimeError("LaTeX compilation timed out.")
+
+
+def _bundles_to_portfolios(
+    bundles: List[Dict[str, Any]],
+    skills_set: Set[str],
+    include_skills: bool,
+) -> List[Dict[str, Any]]:
+    """Convert API project bundles to the portfolio shape expected by generate_latex_resume."""
+    all_projects: List[Dict[str, Any]] = []
+    all_skills: Set[str] = set(skills_set) if skills_set else set()
+    for bundle in bundles:
+        proj_row = bundle.get("project") or {}
+        port = bundle.get("portfolio") or {}
+        items = bundle.get("resume_items") or []
+        name = proj_row.get("project_name") or proj_row.get("name") or "Project"
+        timeline = proj_row.get("last_modified_date") or "Present"
+        primary = proj_row.get("primary_language") or ""
+        languages = {primary: 1} if primary else {}
+        tech_stack = port.get("tech_stack")
+        if isinstance(tech_stack, str):
+            try:
+                tech_stack = json.loads(tech_stack) if tech_stack else []
+            except Exception:
+                tech_stack = []
+        frameworks = [t for t in (tech_stack if isinstance(tech_stack, list) else []) if isinstance(t, str)][:10]
+        for s in (port.get("skills") or port.get("skills_exercised") or []):
+            if isinstance(s, str) and s.strip():
+                all_skills.add(s.strip())
+        resume_bullets = []
+        for r in items:
+            text = r.get("resume_text") or r.get("content") or r.get("bullet_text") or ""
+            if isinstance(text, str) and text.strip():
+                resume_bullets.append(text.strip())
+        all_projects.append({
+            "project_name": name,
+            "timeline": timeline,
+            "languages": languages,
+            "frameworks": frameworks,
+            "dependencies": {},
+            "resume_bullets": resume_bullets,
+        })
+    return [{"projects": all_projects, "skills": list(all_skills)}]
 
 
 def generate_resume(
@@ -1027,6 +1090,24 @@ def generate_resume(
         if contact_bits:
             md_parts.append(" • ".join(contact_bits))
 
+        education = (personal_info.get("education") or "").strip()
+        u = (personal_info.get("education_university") or personal_info.get("university") or "").strip()
+        d = (personal_info.get("education_degree") or personal_info.get("degree") or "").strip()
+        if u or d:
+            line = ", ".join(x for x in [d, u, (personal_info.get("education_location") or "").strip()] if x)
+            start_d = (personal_info.get("education_start_date") or "").strip()
+            end_d = (personal_info.get("education_end_date") or personal_info.get("grad_date") or "").strip()
+            if start_d or end_d:
+                line += f" ({start_d} -- {end_d})"
+            awards = (personal_info.get("education_awards") or "").strip()
+            if awards:
+                line += f"\n- **Awards**: {awards}"
+            md_parts.append("## Education")
+            md_parts.append(line)
+        elif education:
+            md_parts.append("## Education")
+            md_parts.append(education)
+
     # Skills section
     if include_skills and skills_set:
         md_parts.append("## Skills")
@@ -1045,7 +1126,16 @@ def generate_resume(
     elif format == "latex":
         return markdown_resume
     elif format == "pdf":
-        return markdown_resume
+        # LaTeX (Jake's format) resume compiled to PDF via pdflatex — requires pdflatex on the system
+        portfolios = _bundles_to_portfolios(selected, skills_set, include_skills)
+        latex_content = generate_latex_resume(
+            portfolios,
+            personal_info=personal_info,
+            include_skills=include_skills,
+            include_projects=include_projects,
+            max_projects=max_projects,
+        )
+        return _compile_latex_to_pdf(latex_content)
     else:
         return markdown_resume
 
