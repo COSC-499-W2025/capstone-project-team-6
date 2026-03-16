@@ -2,7 +2,7 @@
 
 ## Date Ranges
 March 9 - March 15
-docs/logs/personal logs/images/Screenshot 2026-03-15 191305.png
+<img width="1425" height="836" alt="image" src="https://github.com/user-attachments/assets/cd1602ac-81fe-49b4-90f2-0f662f0ce07b" />
 
 
 ## Goals for this week (planned last sprint)
