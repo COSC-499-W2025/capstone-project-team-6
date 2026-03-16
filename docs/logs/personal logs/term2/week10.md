@@ -2,7 +2,7 @@
 
 ## Date Ranges
 March 9 - March 15
-<img width="1425" height="836" alt="image" src="https://github.com/user-attachments/assets/cd1602ac-81fe-49b4-90f2-0f662f0ce07b" />
+![Aakash Week 8](../images/MaddyW10T2.png)
 
 
 ## Goals for this week (planned last sprint)
