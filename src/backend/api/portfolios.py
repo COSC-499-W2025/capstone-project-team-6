@@ -163,8 +163,9 @@ async def upload_new_portfolio(
 
     _file_hash = FileManager().calculate_file_hash(zip_path)
     existing = get_analysis_by_file_hash(_file_hash, username)
-    print(f"[DUPLICATE CHECK] user={username!r} hash={_file_hash!r} existing={existing is not None}")
-    if existing:
+    has_projects = existing is not None and (existing["total_projects"] or 0) > 0
+    print(f"[DUPLICATE CHECK] user={username!r} hash={_file_hash!r} existing={existing is not None} has_projects={has_projects}")
+    if has_projects:
         shutil.rmtree(temp_dir, ignore_errors=True)
         return MessageResponse(
             message="Duplicate upload: returning existing analysis",

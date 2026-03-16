@@ -33,6 +33,14 @@ const Resume = () => {
     linkedIn: '',
     github: '',
     website: '',
+    education: '',
+    education_university: '',
+    education_location: '',
+    education_degree: '',
+    education_start_date: '',
+    education_end_date: '',
+    education_awards: '',
+  });
   };
   const [personalInfo, setPersonalInfo] = useState(emptyPersonal);
   const [originalPersonalInfo, setOriginalPersonalInfo] = useState(emptyPersonal);
@@ -555,6 +563,55 @@ const Resume = () => {
                     color: '#1a1a1a',
                     margin: 0,
                   }}
+                />
+                <div style={{ marginTop: '8px', paddingTop: '12px', borderTop: '1px solid #e5e7eb' }}>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#525252', marginBottom: '8px' }}>Education Section</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <input
+                      type="text"
+                      placeholder="University Name"
+                      value={personalInfo.education_university}
+                      onChange={(e) => setPersonalInfo({ ...personalInfo, education_university: e.target.value })}
+                      style={{ padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Location (e.g., City, State)"
+                      value={personalInfo.education_location}
+                      onChange={(e) => setPersonalInfo({ ...personalInfo, education_location: e.target.value })}
+                      style={{ padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Degree (e.g., B.S. Computer Science)"
+                      value={personalInfo.education_degree}
+                      onChange={(e) => setPersonalInfo({ ...personalInfo, education_degree: e.target.value })}
+                      style={{ padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }}
+                    />
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        type="text"
+                        placeholder="Start date (e.g., Aug 2020)"
+                        value={personalInfo.education_start_date}
+                        onChange={(e) => setPersonalInfo({ ...personalInfo, education_start_date: e.target.value })}
+                        style={{ flex: 1, padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }}
+                      />
+                      <input
+                        type="text"
+                        placeholder="End date (e.g., May 2024)"
+                        value={personalInfo.education_end_date}
+                        onChange={(e) => setPersonalInfo({ ...personalInfo, education_end_date: e.target.value })}
+                        style={{ flex: 1, padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Awards (e.g., Dean's List, Scholarship Name)"
+                      value={personalInfo.education_awards}
+                      onChange={(e) => setPersonalInfo({ ...personalInfo, education_awards: e.target.value })}
+                      style={{ padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }}
+                    />
+                  </div>
                 >
                   Personal Information
                 </h2>
@@ -1059,7 +1116,7 @@ const Resume = () => {
                     }}
                   >
                     <option value="markdown">Markdown</option>
-                    <option value="latex">PDF</option>
+                    <option value="pdf">PDF</option>
                   </select>
                 </div>
 
@@ -1295,7 +1352,7 @@ const Resume = () => {
                   overflowY: 'auto',
                 }}
               >
-                {resumeFormat === 'pdf' || resumeFormat === 'latex' ? (
+                {resumeFormat === 'pdf' ? (
                   <div
                     style={{
                       display: 'flex',
@@ -1312,7 +1369,7 @@ const Resume = () => {
                       height="64"
                       viewBox="0 0 24 24"
                       fill="none"
-                      stroke={resumeFormat === 'latex' ? '#16a34a' : '#2563eb'}
+                      stroke="#2563eb"
                       strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -1332,58 +1389,12 @@ const Resume = () => {
                         marginBottom: '8px',
                       }}
                     >
-                      {resumeFormat === 'latex'
-                        ? generatedResume.content.startsWith('%')
-                          ? 'LaTeX Source Generated'
-                          : 'LaTeX Resume Compiled Successfully'
-                        : 'PDF Resume Generated Successfully'}
+                      PDF Resume Generated Successfully
                     </h3>
 
                     <p style={{ color: '#737373', marginBottom: '16px' }}>
-                      {resumeFormat === 'latex' && generatedResume.content.startsWith('%')
-                        ? 'LaTeX compilation requires pdflatex. Download the .tex file to compile locally or upload to Overleaf.'
-                        : 'Your resume has been generated as a professional PDF file. Click the Download button above to save it.'}
+                      Your resume has been generated as a professional PDF file. Click the Download button above to save it.
                     </p>
-
-                    <div
-                      style={{
-                        padding: '12px 16px',
-                        backgroundColor:
-                          resumeFormat === 'latex' && generatedResume.content.startsWith('%')
-                            ? '#fef3c7'
-                            : resumeFormat === 'latex'
-                            ? '#f0fdf4'
-                            : '#eff6ff',
-                        borderRadius: '6px',
-                        border: `1px solid ${
-                          resumeFormat === 'latex' && generatedResume.content.startsWith('%')
-                            ? '#fcd34d'
-                            : resumeFormat === 'latex'
-                            ? '#86efac'
-                            : '#bfdbfe'
-                        }`,
-                        color:
-                          resumeFormat === 'latex' && generatedResume.content.startsWith('%')
-                            ? '#92400e'
-                            : resumeFormat === 'latex'
-                            ? '#166534'
-                            : '#1e40af',
-                        fontSize: '13px',
-                      }}
-                    >
-                      {resumeFormat === 'latex' ? (
-                        generatedResume.content.startsWith('%') ? (
-                          <span>
-                            LaTeX compilation failed. Install pdflatex:{' '}
-                            <code>brew install --cask mactex-no-gui</code> or upload the .tex file to Overleaf.com
-                          </span>
-                        ) : (
-                          <span>Resume compiled successfully. Download the PDF by clicking the button above.</span>
-                        )
-                      ) : (
-                        <span />
-                      )}
-                    </div>
                   </div>
                 ) : isEditing ? (
                   <textarea

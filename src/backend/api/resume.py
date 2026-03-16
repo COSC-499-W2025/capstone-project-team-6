@@ -33,7 +33,7 @@ class ResumeRequest(BaseModel):
     max_projects: Optional[int] = Field(None, description="Maximum number of projects to include")
     personal_info: Optional[Dict[str, str]] = Field(
         None,
-        description="Personal information (name, email, phone, location, linkedIn, github, website)",
+        description="Personal information (name, email, phone, location, linkedIn, github, website, education)",
     )
     stored_resume_id: Optional[int] = Field(None, description="Optional stored resume to use as the base")
     highlighted_skills: Optional[List[str]] = Field(
@@ -89,7 +89,7 @@ class StoredResumeResponse(BaseModel):
 class PersonalInfoUpsertRequest(BaseModel):
     personal_info: Dict[str, str] = Field(
         ...,
-        description="Personal information (name, email, phone, location, linkedIn, github, website)",
+        description="Personal information (name, email, phone, location, linkedIn, github, website, education)",
     )
 
 
