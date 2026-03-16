@@ -69,31 +69,50 @@ No major blockers this week.
 - Support testing and review for related frontend/backend integration PRs
 
 # Aakash Tirithdas
+![](../images/aakashlogst2w10.png)
 
 ## Date Ranges
 March 9 - March 15
 
 ## Goals for this week (planned last sprint)
+- fix the 2 new bugs that i found
+  - 1 duplication in mult-analysis is not implemented
+  - duplicatio of deleted projects is still found meaning there is a logical error in the duplication identification
 
 ## What went well
+There was good communication and another teamate picked up on the goals from last week and I did a smaller task since my free time was significatntly less. 
+
+- I finished on the feature that i planned to complete this week
+
 
 ## What could have been done better
+- We need to have more team meetings outside of the Monday class
+- last week was busy for everyone, but from this week onwards need to have meetings.
 
 ## Coding tasks
+- Personal information is now validated and only what is expected can be input and saved. 
+- resume page and settings page both validate personal information
+- changes in the resume page does not update the settings page saved information
 
 ## Testing or debugging tasks
-
-## Document tasks
+updated and created the tests for the settings and resume page in relation to the personal information
 
 ## Reviewing or collaboration tasks
+- made sure docker worked well on windows laptop and the documenation was upto date. 
 
 ## Issues / Blockers
 
 ## PR's initiated
+- Aakash/validate settings #443  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/443
 
 ## PR's reviewed
+- Projects page LLM analysis integration #446 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/446
+- Resolved CORS and thumbnail 500 error in projects page #450 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/450
+- updated resume page to include specified showcase projects #452 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/452
+- Docker documentation #441 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/441
 
 ## Plan for next week
+- How a full system test and fix any and all bugs before next week so that we can focus on our selling point adn implement any excess features from week after.
 
 # Mithish Ravisankar Geetha
 
