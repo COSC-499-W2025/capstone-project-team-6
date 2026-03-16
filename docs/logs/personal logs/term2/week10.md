@@ -199,27 +199,35 @@ No major blockers this week
 
 March 9 - March 15
 
-## Goals for this week (planned last sprint)
-
 ## What went well
 
-## What could have been done better
+This week went well because I contributed in ways that supported both the team’s workflow and the project itself. I created the task list and had all of my teammates review it and make changes, which helped make sure everyone was aligned on what needed to be done.
 
-## Coding tasks
+I also found and fixed a bug early in the week that was preventing Docker from running properly. This was important because it allowed the rest of my team to continue working on the project throughout the week without being blocked by environment issues.
 
-## Testing or debugging tasks
+In addition, I completed work on the resume page and fixed syntax errors in another PR. Overall, I was able to help improve both team coordination and project stability this week.
 
-## Document tasks
+## What didn’t go well
 
-## Reviewing or collaboration tasks
+One thing that did not go well this week was that a teammate and I accidentally started working on the same task. I only realized this when they opened their PR while I was still working on the same feature.
 
-## Issues / Blockers
+Because of that, I had to disregard the work I had already started and choose a different task to work on instead. It was frustrating, but it was also a learning experience. It showed me how important clear communication is within a team, especially when multiple people are working on the same codebase at the same time. I will definitely learn from this experience and be more proactive about checking task ownership with my teammates in the future.
 
-## PR's initiated
+## PRs initiated
 
-## PR's reviewed
+updated resume page to include specified showcase projects  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/452
 
-## Plan for next week
+Fixed syntax errors  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/439
+
+## PRs reviewed
+
+duplicate file analysis detection bug fix  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/431
+
+Delete project bug fix and Education Section for Resume  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/440
+
+## Plans for next week
+
+Next week I plan to continue incorporating the showcase feature into other parts of the page, since it is important for users to be able to clearly display and access their top 3 projects.
 
 # Mohamed Sakr
 
