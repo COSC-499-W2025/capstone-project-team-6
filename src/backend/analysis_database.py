@@ -1709,7 +1709,10 @@ def get_portfolio_items_for_analysis(analysis_uuid: str, username: Optional[str]
                     pi.quality_score,
                     pi.sophistication_level,
                     pi.project_statistics,
-                    pi.created_at
+                    pi.created_at,
+                    p.predicted_role,
+                    p.predicted_role_confidence,
+                    p.curated_role
                 FROM portfolio_items pi
                 JOIN projects p ON p.id = pi.project_id
                 JOIN analyses a ON a.id = p.analysis_id
@@ -1736,7 +1739,10 @@ def get_portfolio_items_for_analysis(analysis_uuid: str, username: Optional[str]
                     pi.quality_score,
                     pi.sophistication_level,
                     pi.project_statistics,
-                    pi.created_at
+                    pi.created_at,
+                    p.predicted_role,
+                    p.predicted_role_confidence,
+                    p.curated_role
                 FROM portfolio_items pi
                 JOIN projects p ON p.id = pi.project_id
                 JOIN analyses a ON a.id = p.analysis_id
@@ -1913,13 +1919,42 @@ def get_analysis_by_uuid(uuid_str: str, username: str = None) -> Optional[Dict[s
         # Parse the JSON data to get projects and other details
         raw_data = json.loads(row["raw_json"]) if row["raw_json"] else {}
 
+        # Enrich raw projects with role prediction data from the projects table
+        projects_list = raw_data.get("projects", [])
+        analysis_id_row = conn.execute(
+            "SELECT id FROM analyses WHERE analysis_uuid = ?", (uuid_str,)
+        ).fetchone()
+        if analysis_id_row:
+            db_projects = conn.execute(
+                """SELECT project_name, project_path, predicted_role,
+                          predicted_role_confidence, curated_role
+                   FROM projects WHERE analysis_id = ?""",
+                (analysis_id_row["id"],),
+            ).fetchall()
+            role_map = {}
+            for dbp in db_projects:
+                key = (dbp["project_name"] or "", dbp["project_path"] or "")
+                role_map[key] = {
+                    "predicted_role": dbp["predicted_role"],
+                    "predicted_role_confidence": dbp["predicted_role_confidence"],
+                    "curated_role": dbp["curated_role"],
+                }
+            for proj in projects_list:
+                pname = proj.get("project_name") or proj.get("name") or ""
+                ppath = proj.get("project_path") or ""
+                role_info = role_map.get((pname, ppath))
+                if role_info:
+                    proj["predicted_role"] = role_info["predicted_role"]
+                    proj["predicted_role_confidence"] = role_info["predicted_role_confidence"]
+                    proj["curated_role"] = role_info["curated_role"]
+
         return {
             "analysis_uuid": row["analysis_uuid"],
             "analysis_type": row["analysis_type"],
             "zip_file": row["zip_file"],
             "analysis_timestamp": row["analysis_timestamp"],
             "total_projects": row["total_projects"],
-            "projects": raw_data.get("projects", []),
+            "projects": projects_list,
             "skills": raw_data.get("skills", []),
             "summary": raw_data.get("summary"),
             "portfolio_items": get_portfolio_items_for_analysis(uuid_str, username),

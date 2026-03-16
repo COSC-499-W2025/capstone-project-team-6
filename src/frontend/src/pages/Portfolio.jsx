@@ -518,6 +518,28 @@ const Portfolio = () => {
                                 Sophistication: {sophisticationLevel}
                               </p>
                             )}
+                            {(item.curated_role || item.predicted_role) && (
+                              <p style={{
+                                margin: '8px 0 0',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '3px 10px',
+                                borderRadius: '999px',
+                                backgroundColor: item.curated_role ? '#f0fdf4' : '#eef2ff',
+                                border: `1px solid ${item.curated_role ? '#bbf7d0' : '#c7d2fe'}`,
+                                fontSize: '13px',
+                                fontWeight: '600',
+                                color: item.curated_role ? '#166534' : '#3730a3',
+                              }}>
+                                {item.curated_role || item.predicted_role}
+                                {!item.curated_role && item.predicted_role_confidence != null && (
+                                  <span style={{ fontSize: '11px', opacity: 0.8 }}>
+                                    {Math.round(item.predicted_role_confidence * 100)}%
+                                  </span>
+                                )}
+                              </p>
+                            )}
                           </div>
                         );
                       })()
@@ -573,6 +595,23 @@ const Portfolio = () => {
                           <span style={{ fontSize: '13px', color: '#6b7280' }}>
                             {project.primary_language || 'Language unknown'} •{' '}
                             {project.total_files ?? '0'} files
+                            {(project.curated_role || project.predicted_role) && (
+                              <span style={{
+                                marginLeft: '8px',
+                                padding: '1px 8px',
+                                borderRadius: '999px',
+                                backgroundColor: project.curated_role ? '#f0fdf4' : '#eef2ff',
+                                color: project.curated_role ? '#166534' : '#3730a3',
+                                fontSize: '11px',
+                                fontWeight: '600',
+                                border: `1px solid ${project.curated_role ? '#bbf7d0' : '#c7d2fe'}`,
+                              }}>
+                                {project.curated_role || project.predicted_role}
+                                {!project.curated_role && project.predicted_role_confidence != null
+                                  ? ` (${Math.round(project.predicted_role_confidence * 100)}%)`
+                                  : ''}
+                              </span>
+                            )}
                           </span>
                           {project.summary && (
                             <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#374151' }}>

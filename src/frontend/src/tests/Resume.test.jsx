@@ -50,10 +50,20 @@ const MOCK_CURATION_SETTINGS = {
   highlighted_skills: [],
 };
 
+const MOCK_VALID_PERSONAL_INFO = {
+  name: 'Jane Doe',
+  email: 'jane@example.com',
+  phone: '5551234567',
+  location: '',
+  linkedIn: '',
+  github: '',
+  website: '',
+};
+
 function setupDefaultMocks() {
   projectsAPI.getProjects.mockResolvedValue(MOCK_PROJECTS);
   resumeAPI.listStoredResumes.mockResolvedValue([]);
-  resumeAPI.getPersonalInfo.mockResolvedValue({ personal_info: {} });
+  resumeAPI.getPersonalInfo.mockResolvedValue({ personal_info: MOCK_VALID_PERSONAL_INFO });
   curationAPI.getSettings.mockResolvedValue(MOCK_CURATION_SETTINGS);
   curationAPI.getProjects.mockResolvedValue([]);
 }
@@ -213,11 +223,9 @@ describe('Resume Page', () => {
       fireEvent.click(checkboxes[0]);
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
-      // Error message must appear — not a blank screen
+      // Error message must appear in toast at top — not a blank screen
       await waitFor(() => {
-        expect(
-          screen.getByText(/no valid projects found/i)
-        ).toBeInTheDocument();
+        expect(screen.getByRole('alert')).toHaveTextContent(/no valid projects found/i);
       });
     });
 
@@ -233,7 +241,7 @@ describe('Resume Page', () => {
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
       await waitFor(() => {
-        expect(screen.getByText(/failed to generate resume/i)).toBeInTheDocument();
+        expect(screen.getByRole('alert')).toHaveTextContent(/failed to generate resume/i);
       });
     });
 
@@ -267,6 +275,153 @@ describe('Resume Page', () => {
 
       const btn = screen.getByRole('button', { name: /generate resume/i });
       expect(btn).not.toBeDisabled();
+    });
+  });
+
+  describe('Personal info validation', () => {
+    it('blocks generate when personal info has invalid email', async () => {
+      setupDefaultMocks();
+      resumeAPI.getPersonalInfo.mockResolvedValue({
+        personal_info: { ...MOCK_VALID_PERSONAL_INFO, email: 'not-an-email' },
+      });
+
+      renderResume();
+      await screen.findByText('CapstoneApp');
+
+      const checkboxes = screen.getAllByRole('checkbox');
+      fireEvent.click(checkboxes[0]);
+      fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/enter a valid email address/i)).toBeInTheDocument();
+      });
+
+      expect(resumeAPI.generateResume).not.toHaveBeenCalled();
+    });
+
+    it('blocks generate when phone contains letters', async () => {
+      setupDefaultMocks();
+      resumeAPI.getPersonalInfo.mockResolvedValue({
+        personal_info: { ...MOCK_VALID_PERSONAL_INFO, phone: '555-abc-1234' },
+      });
+
+      renderResume();
+      await screen.findByText('CapstoneApp');
+
+      const checkboxes = screen.getAllByRole('checkbox');
+      fireEvent.click(checkboxes[0]);
+      fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/phone may only contain digits/i)).toBeInTheDocument();
+      });
+
+      expect(resumeAPI.generateResume).not.toHaveBeenCalled();
+    });
+
+    it('blocks generate when phone has fewer than 7 digits', async () => {
+      setupDefaultMocks();
+      resumeAPI.getPersonalInfo.mockResolvedValue({
+        personal_info: { ...MOCK_VALID_PERSONAL_INFO, phone: '123456' },
+      });
+
+      renderResume();
+      await screen.findByText('CapstoneApp');
+
+      const checkboxes = screen.getAllByRole('checkbox');
+      fireEvent.click(checkboxes[0]);
+      fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/minimum of 7 digits required/i)).toBeInTheDocument();
+      });
+
+      expect(resumeAPI.generateResume).not.toHaveBeenCalled();
+    });
+
+    it('shows error in toast at top when generate fails validation', async () => {
+      setupDefaultMocks();
+      resumeAPI.getPersonalInfo.mockResolvedValue({
+        personal_info: { ...MOCK_VALID_PERSONAL_INFO, name: '' },
+      });
+
+      renderResume();
+      await screen.findByText('CapstoneApp');
+
+      const checkboxes = screen.getAllByRole('checkbox');
+      fireEvent.click(checkboxes[0]);
+      fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toHaveTextContent(/please fix the personal information errors/i);
+      });
+    });
+
+    it('blocks generate when name is empty', async () => {
+      setupDefaultMocks();
+      resumeAPI.getPersonalInfo.mockResolvedValue({
+        personal_info: { ...MOCK_VALID_PERSONAL_INFO, name: '' },
+      });
+
+      renderResume();
+      await screen.findByText('CapstoneApp');
+
+      const checkboxes = screen.getAllByRole('checkbox');
+      fireEvent.click(checkboxes[0]);
+      fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/full name is required/i)).toBeInTheDocument();
+      });
+
+      expect(resumeAPI.generateResume).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Personal info Cancel Changes', () => {
+    it('Cancel Changes button reverts to loaded values when user has changes', async () => {
+      setupDefaultMocks();
+
+      renderResume();
+      await screen.findByText('CapstoneApp');
+
+      expect(screen.getByDisplayValue('Jane Doe')).toBeInTheDocument();
+
+      fireEvent.change(screen.getByPlaceholderText('Full Name'), {
+        target: { value: 'Jane Smith' },
+      });
+
+      expect(screen.getByDisplayValue('Jane Smith')).toBeInTheDocument();
+
+      const cancelBtn = screen.getByRole('button', { name: /cancel changes/i });
+      fireEvent.click(cancelBtn);
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Jane Doe')).toBeInTheDocument();
+      });
+    });
+
+    it('Cancel Changes button does not show when no loaded data', async () => {
+      projectsAPI.getProjects.mockResolvedValue(MOCK_PROJECTS);
+      resumeAPI.listStoredResumes.mockResolvedValue([]);
+      resumeAPI.getPersonalInfo.mockResolvedValue({ personal_info: {} });
+      curationAPI.getSettings.mockResolvedValue(MOCK_CURATION_SETTINGS);
+      curationAPI.getProjects.mockResolvedValue([]);
+
+      renderResume();
+      await screen.findByText('CapstoneApp');
+
+      expect(screen.queryByRole('button', { name: /cancel changes/i })).not.toBeInTheDocument();
+    });
+
+    it('Cancel Changes button does not show when no changes', async () => {
+      setupDefaultMocks();
+
+      renderResume();
+      await screen.findByText('CapstoneApp');
+
+      expect(screen.getByDisplayValue('Jane Doe')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /cancel changes/i })).not.toBeInTheDocument();
     });
   });
 });

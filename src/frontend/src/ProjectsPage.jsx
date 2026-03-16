@@ -31,6 +31,13 @@ export default function ProjectsPage() {
   const [thumbnailLoading, setThumbnailLoading] = useState({});
   const [thumbnailErrors, setThumbnailErrors] = useState({});
 
+  // Role curation state
+  const [availableRoles, setAvailableRoles] = useState([]);
+  const [editingRoleId, setEditingRoleId] = useState(null);
+  const [roleDropdownValue, setRoleDropdownValue] = useState('');
+  const [customRoleInput, setCustomRoleInput] = useState('');
+  const [roleSaving, setRoleSaving] = useState({});
+
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login');
@@ -107,7 +114,72 @@ export default function ProjectsPage() {
 
     loadProjectsAndDetails();
     loadCurationSettings();
+    loadAvailableRoles();
   }, [isAuthenticated, navigate, user]);
+
+  const loadAvailableRoles = async () => {
+    try {
+      const roles = await curationAPI.getAvailableRoles();
+      setAvailableRoles(Array.isArray(roles) ? roles : []);
+    } catch (err) {
+      console.error('Error loading available roles:', err);
+    }
+  };
+
+  const handleRoleEdit = (project) => {
+    setEditingRoleId(project.id);
+    const currentRole = project.curated_role || project.predicted_role || '';
+    if (availableRoles.includes(currentRole)) {
+      setRoleDropdownValue(currentRole);
+      setCustomRoleInput('');
+    } else if (currentRole) {
+      setRoleDropdownValue('__custom__');
+      setCustomRoleInput(currentRole);
+    } else {
+      setRoleDropdownValue('');
+      setCustomRoleInput('');
+    }
+  };
+
+  const handleRoleSave = async (projectId) => {
+    const finalRole = roleDropdownValue === '__custom__'
+      ? customRoleInput.trim()
+      : roleDropdownValue;
+
+    setRoleSaving((prev) => ({ ...prev, [projectId]: true }));
+    try {
+      await curationAPI.saveRole(projectId, finalRole || null);
+      setProjects((prev) =>
+        prev.map((p) =>
+          p.id === projectId ? { ...p, curated_role: finalRole || null } : p
+        )
+      );
+      setEditingRoleId(null);
+    } catch (err) {
+      console.error('Error saving role:', err);
+      setError(err?.response?.data?.detail || 'Failed to save role');
+    } finally {
+      setRoleSaving((prev) => ({ ...prev, [projectId]: false }));
+    }
+  };
+
+  const handleRoleClear = async (projectId) => {
+    setRoleSaving((prev) => ({ ...prev, [projectId]: true }));
+    try {
+      await curationAPI.saveRole(projectId, null);
+      setProjects((prev) =>
+        prev.map((p) =>
+          p.id === projectId ? { ...p, curated_role: null } : p
+        )
+      );
+      setEditingRoleId(null);
+    } catch (err) {
+      console.error('Error clearing role:', err);
+      setError(err?.response?.data?.detail || 'Failed to clear role');
+    } finally {
+      setRoleSaving((prev) => ({ ...prev, [projectId]: false }));
+    }
+  };
 
   const loadCurationSettings = async () => {
     try {
@@ -883,6 +955,147 @@ export default function ProjectsPage() {
                                 marginBottom: '22px',
                               }}
                             >
+                              {editingRoleId === p.id ? (
+                                <div style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                  flexWrap: 'wrap',
+                                  padding: '8px 12px',
+                                  backgroundColor: '#f8fafc',
+                                  border: '1px solid #cbd5e1',
+                                  borderRadius: '12px',
+                                }}>
+                                  <span style={{ fontSize: '13px', fontWeight: '600', color: '#525252' }}>Role:</span>
+                                  <select
+                                    value={roleDropdownValue}
+                                    onChange={(e) => {
+                                      setRoleDropdownValue(e.target.value);
+                                      if (e.target.value !== '__custom__') setCustomRoleInput('');
+                                    }}
+                                    style={{
+                                      padding: '6px 10px',
+                                      fontSize: '13px',
+                                      border: '1px solid #d4d4d8',
+                                      borderRadius: '8px',
+                                      backgroundColor: 'white',
+                                      cursor: 'pointer',
+                                      outline: 'none',
+                                    }}
+                                  >
+                                    <option value="">-- Select Role --</option>
+                                    {availableRoles.map((role) => (
+                                      <option key={role} value={role}>{role}</option>
+                                    ))}
+                                    <option value="__custom__">Custom role...</option>
+                                  </select>
+                                  {roleDropdownValue === '__custom__' && (
+                                    <input
+                                      type="text"
+                                      value={customRoleInput}
+                                      onChange={(e) => setCustomRoleInput(e.target.value)}
+                                      placeholder="Enter custom role..."
+                                      maxLength={100}
+                                      style={{
+                                        padding: '6px 10px',
+                                        fontSize: '13px',
+                                        border: '1px solid #d4d4d8',
+                                        borderRadius: '8px',
+                                        outline: 'none',
+                                        minWidth: '160px',
+                                      }}
+                                      onFocus={(e) => (e.currentTarget.style.borderColor = '#6366f1')}
+                                      onBlur={(e) => (e.currentTarget.style.borderColor = '#d4d4d8')}
+                                    />
+                                  )}
+                                  <button
+                                    onClick={() => handleRoleSave(p.id)}
+                                    disabled={roleSaving[p.id] || (!roleDropdownValue || (roleDropdownValue === '__custom__' && !customRoleInput.trim()))}
+                                    style={{
+                                      padding: '5px 12px',
+                                      fontSize: '12px',
+                                      fontWeight: '700',
+                                      border: '1px solid #16a34a',
+                                      borderRadius: '8px',
+                                      backgroundColor: '#f0fdf4',
+                                      color: '#166534',
+                                      cursor: roleSaving[p.id] ? 'not-allowed' : 'pointer',
+                                    }}
+                                  >
+                                    {roleSaving[p.id] ? 'Saving...' : 'Save'}
+                                  </button>
+                                  {p.curated_role && (
+                                    <button
+                                      onClick={() => handleRoleClear(p.id)}
+                                      disabled={roleSaving[p.id]}
+                                      style={{
+                                        padding: '5px 12px',
+                                        fontSize: '12px',
+                                        fontWeight: '700',
+                                        border: '1px solid #dc2626',
+                                        borderRadius: '8px',
+                                        backgroundColor: '#fef2f2',
+                                        color: '#991b1b',
+                                        cursor: roleSaving[p.id] ? 'not-allowed' : 'pointer',
+                                      }}
+                                    >
+                                      Reset
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => setEditingRoleId(null)}
+                                    style={{
+                                      padding: '5px 12px',
+                                      fontSize: '12px',
+                                      fontWeight: '600',
+                                      border: '1px solid #d4d4d8',
+                                      borderRadius: '8px',
+                                      backgroundColor: 'white',
+                                      color: '#525252',
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
+                                <div
+                                  style={{
+                                    ...metaPillStyles,
+                                    backgroundColor: p.curated_role ? '#f0fdf4' : p.predicted_role ? '#eef2ff' : '#f7f7f8',
+                                    border: `1px solid ${p.curated_role ? '#bbf7d0' : p.predicted_role ? '#c7d2fe' : '#ececec'}`,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s',
+                                  }}
+                                  onClick={() => handleRoleEdit(p)}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.1)';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.boxShadow = 'none';
+                                  }}
+                                  title="Click to change role"
+                                >
+                                  <span style={{ color: '#737373' }}>Role:</span>
+                                  <span style={{
+                                    color: p.curated_role ? '#166534' : p.predicted_role ? '#3730a3' : '#a3a3a3',
+                                    fontWeight: '700',
+                                  }}>
+                                    {p.curated_role || p.predicted_role || 'Not set'}
+                                  </span>
+                                  {!p.curated_role && p.predicted_role && p.predicted_role_confidence != null && (
+                                    <span style={{
+                                      fontSize: '12px',
+                                      color: '#6366f1',
+                                      fontWeight: '600',
+                                    }}>
+                                      {Math.round(p.predicted_role_confidence * 100)}%
+                                    </span>
+                                  )}
+                                  <span style={{ fontSize: '11px', color: '#a3a3a3' }}>✎</span>
+                                </div>
+                              )}
+
                               <div style={metaPillStyles}>
                                 <span style={{ color: '#737373' }}>Language:</span>
                                 <span style={{ color: '#171717', fontWeight: '700' }}>
