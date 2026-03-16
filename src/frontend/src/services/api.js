@@ -323,6 +323,21 @@ export const curationAPI = {
     });
     return response.data;
   },
+
+  // Get available developer roles
+  getAvailableRoles: async () => {
+    const response = await api.get('/curation/roles');
+    return response.data;
+  },
+
+  // Save curated role for a project
+  saveRole: async (projectId, curatedRole) => {
+    const response = await api.post('/curation/role', {
+      project_id: projectId,
+      curated_role: curatedRole || null,
+    });
+    return response.data;
+  },
 };
 
 export default api;

@@ -14,6 +14,7 @@ from backend.curation import (ATTRIBUTE_DESCRIPTIONS,
                               get_user_curation_settings, get_user_projects,
                               save_chronology_correction,
                               save_comparison_attributes,
+                              save_curated_role,
                               save_highlighted_skills, save_project_order,
                               save_showcase_projects, validate_date_format)
 
@@ -87,6 +88,13 @@ class SkillsRequest(BaseModel):
     """Request to set highlighted skills."""
 
     skills: List[str] = Field(..., min_length=0, max_length=10)
+
+
+class RoleRequest(BaseModel):
+    """Request to set a curated role for a project."""
+
+    project_id: int
+    curated_role: Optional[str] = Field(None, max_length=100)
 
 
 class MessageResponse(BaseModel):
@@ -305,3 +313,55 @@ async def set_highlighted_skills(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
+
+
+# Available developer roles for the frontend dropdown
+AVAILABLE_ROLES = [
+    "Senior Software Engineer",
+    "Full Stack Developer",
+    "Backend Developer",
+    "Frontend Developer",
+    "DevOps Engineer",
+    "Data Engineer",
+    "Mobile Developer",
+    "Game Developer",
+    "Systems Engineer",
+    "Junior Developer",
+    "Team Lead/Architect",
+    "Machine Learning Engineer",
+]
+
+
+@router.get("/roles", response_model=List[str])
+async def get_available_roles(username: str = Depends(verify_token)):
+    """Get the list of available developer roles for curation."""
+    return AVAILABLE_ROLES
+
+
+@router.post("/role", response_model=MessageResponse)
+async def set_curated_role(
+    request: RoleRequest,
+    username: str = Depends(verify_token),
+):
+    """Set or clear a curated role for a project.
+
+    Send curated_role as null/empty to clear the curated role (revert to predicted).
+    """
+    curated_role = request.curated_role.strip() if request.curated_role else None
+
+    if curated_role is None or curated_role == "":
+        # Clear curated role
+        success = save_curated_role(username, request.project_id, None)
+    else:
+        success = save_curated_role(username, request.project_id, curated_role)
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to save curated role. Project may not exist or you don't have access.",
+        )
+
+    return MessageResponse(
+        message=f"Role updated for project {request.project_id}" if curated_role else f"Role cleared for project {request.project_id}",
+        success=True,
+    )
