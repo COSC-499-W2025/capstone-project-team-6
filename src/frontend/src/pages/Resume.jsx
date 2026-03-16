@@ -40,7 +40,6 @@ const Resume = () => {
     education_start_date: '',
     education_end_date: '',
     education_awards: '',
-  });
   };
   const [personalInfo, setPersonalInfo] = useState(emptyPersonal);
   const [originalPersonalInfo, setOriginalPersonalInfo] = useState(emptyPersonal);
@@ -563,7 +562,7 @@ const Resume = () => {
                     color: '#1a1a1a',
                     margin: 0,
                   }}
-                />
+                >Personal Information</h2>
                 <div style={{ marginTop: '8px', paddingTop: '12px', borderTop: '1px solid #e5e7eb' }}>
                   <div style={{ fontSize: '13px', fontWeight: '600', color: '#525252', marginBottom: '8px' }}>Education Section</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -612,9 +611,7 @@ const Resume = () => {
                       style={{ padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }}
                     />
                   </div>
-                >
-                  Personal Information
-                </h2>
+                </div>
                 {hasOriginalPersonalInfo && hasPersonalInfoChanges() && (
                   <button
                     type="button"
