@@ -787,6 +787,23 @@ const Resume = () => {
                           Project ID: <span style={{ fontFamily: 'monospace' }}>{project.id}</span>
                           {project.primary_language ? ` • ${project.primary_language}` : ''}
                           {typeof project.total_files === 'number' ? ` • ${project.total_files} files` : ''}
+                          {(project.curated_role || project.predicted_role) && (
+                            <span style={{
+                              marginLeft: '6px',
+                              padding: '1px 8px',
+                              borderRadius: '999px',
+                              backgroundColor: project.curated_role ? '#f0fdf4' : '#eef2ff',
+                              color: project.curated_role ? '#166534' : '#3730a3',
+                              fontSize: '11px',
+                              fontWeight: '600',
+                              border: `1px solid ${project.curated_role ? '#bbf7d0' : '#c7d2fe'}`,
+                            }}>
+                              {project.curated_role || project.predicted_role}
+                              {!project.curated_role && project.predicted_role_confidence != null
+                                ? ` (${Math.round(project.predicted_role_confidence * 100)}%)`
+                                : ''}
+                            </span>
+                          )}
                           {correction && correction.project_start_date ? (
                             <span style={{ color: '#16a34a' }}>
                               {' '}• {correction.project_start_date}
