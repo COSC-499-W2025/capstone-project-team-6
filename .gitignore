@@ -17,3 +17,4 @@ analysis_report.json
 
 __pycache__/
 *.pyc
+src/frontend/.vite
