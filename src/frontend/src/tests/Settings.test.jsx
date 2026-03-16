@@ -5,6 +5,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Mock useNavigate
 const mockNavigate = vi.fn();
 
+// Mock AuthContext
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: vi.fn(),
+}));
+
 // Mock react-router-dom
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
@@ -42,8 +47,10 @@ vi.mock('../services/api', () => {
 // Import after mocks
 import Settings from '../pages/Settings';
 import { authAPI, consentAPI, resumeAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 const renderSettings = () => {
+  useAuth.mockReturnValue({ logout: vi.fn() });
   return render(
     <BrowserRouter>
       <Settings />
@@ -316,7 +323,9 @@ describe('Settings Page', () => {
 
     it('clicking save calls savePersonalInfo and shows success message', async () => {
       consentAPI.getConsent.mockResolvedValue({ has_consented: false });
-      resumeAPI.getPersonalInfo.mockResolvedValue({ personal_info: { name: 'Harjot' } });
+      resumeAPI.getPersonalInfo.mockResolvedValue({
+        personal_info: { name: 'Harjot', email: 'h@h.com' },
+      });
       resumeAPI.savePersonalInfo.mockResolvedValue({ ok: true });
 
       renderSettings();
@@ -440,13 +449,147 @@ describe('Settings Page', () => {
       fireEvent.click(screen.getByRole('button', { name: /remove info/i }));
       expect(screen.getByText('Remove personal info?')).toBeInTheDocument();
 
-      fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+      fireEvent.click(screen.getByRole('button', { name: /^cancel$/i }));
 
       await waitFor(() => {
         expect(screen.queryByText('Remove personal info?')).not.toBeInTheDocument();
       });
 
       expect(resumeAPI.deletePersonalInfo).not.toHaveBeenCalled();
+    });
+
+    it('validation blocks save when email is invalid', async () => {
+      consentAPI.getConsent.mockResolvedValue({ has_consented: false });
+      resumeAPI.getPersonalInfo.mockResolvedValue({
+        personal_info: { name: 'Harjot', email: 'h@h.com' },
+      });
+
+      renderSettings();
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Harjot')).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByPlaceholderText('Email Address'), {
+        target: { value: 'not-an-email' },
+      });
+
+      const saveBtn = screen.getByRole('button', { name: /update personal info|save personal info/i });
+      fireEvent.click(saveBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText(/enter a valid email address/i)).toBeInTheDocument();
+      });
+
+      expect(resumeAPI.savePersonalInfo).not.toHaveBeenCalled();
+    });
+
+    it('validation blocks save when phone contains letters', async () => {
+      consentAPI.getConsent.mockResolvedValue({ has_consented: false });
+      resumeAPI.getPersonalInfo.mockResolvedValue({
+        personal_info: { name: 'Harjot', email: 'h@h.com', phone: '5551234567' },
+      });
+
+      renderSettings();
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Harjot')).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByPlaceholderText('Phone Number'), {
+        target: { value: '555-abc-1234' },
+      });
+
+      const saveBtn = screen.getByRole('button', { name: /update personal info|save personal info/i });
+      fireEvent.click(saveBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText(/phone may only contain digits/i)).toBeInTheDocument();
+      });
+
+      expect(resumeAPI.savePersonalInfo).not.toHaveBeenCalled();
+    });
+
+    it('validation blocks save when name is empty', async () => {
+      consentAPI.getConsent.mockResolvedValue({ has_consented: false });
+      resumeAPI.getPersonalInfo.mockResolvedValue({
+        personal_info: { name: 'Harjot', email: 'h@h.com' },
+      });
+
+      renderSettings();
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Harjot')).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByPlaceholderText('Full Name'), {
+        target: { value: '' },
+      });
+
+      const saveBtn = screen.getByRole('button', { name: /update personal info|save personal info/i });
+      fireEvent.click(saveBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText(/full name is required/i)).toBeInTheDocument();
+      });
+
+      expect(resumeAPI.savePersonalInfo).not.toHaveBeenCalled();
+    });
+
+    it('Cancel button reverts to original when user has unsaved changes', async () => {
+      consentAPI.getConsent.mockResolvedValue({ has_consented: false });
+      resumeAPI.getPersonalInfo.mockResolvedValue({
+        personal_info: { name: 'Harjot', email: 'h@h.com' },
+      });
+
+      renderSettings();
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Harjot')).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByPlaceholderText('Full Name'), {
+        target: { value: 'Harjot Sahota' },
+      });
+
+      expect(screen.getByDisplayValue('Harjot Sahota')).toBeInTheDocument();
+
+      const cancelBtn = screen.getByRole('button', { name: /^cancel$/i });
+      fireEvent.click(cancelBtn);
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Harjot')).toBeInTheDocument();
+      });
+
+      expect(screen.getByPlaceholderText('Full Name')).toHaveValue('Harjot');
+    });
+
+    it('Cancel button does not show when no saved data', async () => {
+      consentAPI.getConsent.mockResolvedValue({ has_consented: false });
+      resumeAPI.getPersonalInfo.mockResolvedValue({ personal_info: {} });
+
+      renderSettings();
+
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('Full Name')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByRole('button', { name: /^cancel$/i })).not.toBeInTheDocument();
+    });
+
+    it('Cancel button does not show when no changes', async () => {
+      consentAPI.getConsent.mockResolvedValue({ has_consented: false });
+      resumeAPI.getPersonalInfo.mockResolvedValue({
+        personal_info: { name: 'Harjot', email: 'h@h.com' },
+      });
+
+      renderSettings();
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Harjot')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByRole('button', { name: /^cancel$/i })).not.toBeInTheDocument();
     });
   });
 
