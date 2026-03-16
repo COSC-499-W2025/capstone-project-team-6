@@ -1,22 +1,26 @@
 # Mandira Samarasekara
 
 ## Date Ranges
+
 March 9 - March 15
 ![Maddy Week 10](../images/MaddyW10T2.png)
 
-
 ## Goals for this week (planned last sprint)
+
 - Incorporated role prediction into resume and portfolio generation
 - Change the loading animation in the Analyze page to better account for multi-project analysis
 
 ## What went well
+
 This week went well overall because I was able to complete the role prediction frontend feature end-to-end across all three project-facing pages. One of the more satisfying parts was tracing the existing backend role data through multiple query paths and getting it to flow consistently to the frontend, so users can now see predicted roles on the Projects, Resume, and Portfolio pages and override them directly from the Projects page. Manual testing went smoothly across the full stack and I was also able to review and test two teammate PRs and confirm both sets of fixes were working.
 
 ## What could have been done better
+
 - The role data already existed in parts of the backend but was not flowing consistently through every query path the frontend needed. It would have been more efficient to map all affected paths before starting the UI work rather than discovering gaps during development.
 - I did not get to the Analyze page loading animation update this week. The role prediction curation flow ended up requiring more backend and frontend coordination than anticipated, which pushed that task to next week.
 
 ## Coding tasks
+
 - Implemented the **role prediction frontend feature** in PR [#444](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/444)
   - Surfaced role prediction across all three project-facing pages: **Projects**, **Resume**, and **Portfolio**
   - Enriched backend query paths so `predicted_role`, `predicted_role_confidence`, and `curated_role` are included where needed for frontend rendering
@@ -29,6 +33,7 @@ This week went well overall because I was able to complete the role prediction f
   - Used distinct visual states for curated roles, predicted roles, and projects with no role data
 
 ## Testing or debugging tasks
+
 - Manually tested the full stack locally for PR [#444](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/444)
   - Verified predicted roles display on Projects, Resume, and Portfolio pages after analysis
   - Verified clicking the role pill on the Projects page opens the inline editor
@@ -40,8 +45,11 @@ This week went well overall because I was able to complete the role prediction f
   - Verified projects with no role prediction display **Not set** gracefully
 
 ## Document tasks
+
 - Wrote a detailed guide for the TA so she can veriy the role prediction feature on the backend
+
 ## Reviewing or collaboration tasks
+
 - Reviewed **duplicate file analysis detection bug fix** PR [#431](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/431)
   - Verified that the deleted-project re-upload fix works correctly
   - Confirmed deduplication is now analysis-type agnostic
@@ -54,70 +62,98 @@ This week went well overall because I was able to complete the role prediction f
   - Approved the PR after verifying the app compiles and runs successfully
 
 ## Issues / Blockers
+
 No major blockers this week.
 
 ## PR's initiated
+
 - Feature/role prediction frontend [#444](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/444)
 
 ## PR's reviewed
+
 - duplicate file analysis detection bug fix [#431](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/431) : approved after testing duplicate handling scenarios and confirming the major fixes worked as expected
 - Fixed syntax errors [#439](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/439) : approved after verifying the frontend and Docker build issues were resolved
 
 ## Plan for next week
+
 - Continue milestone 3 frontend integration work
 - Return to the Analyze page loading animation update for multi-project analysis
 - Support testing and review for related frontend/backend integration PRs
 
 # Aakash Tirithdas
+![](../images/aakashlogst2w10.png)
 
 ## Date Ranges
+
 March 9 - March 15
 
 ## Goals for this week (planned last sprint)
+- fix the 2 new bugs that i found
+  - 1 duplication in mult-analysis is not implemented
+  - duplicatio of deleted projects is still found meaning there is a logical error in the duplication identification
 
 ## What went well
+There was good communication and another teamate picked up on the goals from last week and I did a smaller task since my free time was significatntly less. 
+
+- I finished on the feature that i planned to complete this week
+
 
 ## What could have been done better
+- We need to have more team meetings outside of the Monday class
+- last week was busy for everyone, but from this week onwards need to have meetings.
 
 ## Coding tasks
+- Personal information is now validated and only what is expected can be input and saved. 
+- resume page and settings page both validate personal information
+- changes in the resume page does not update the settings page saved information
 
 ## Testing or debugging tasks
-
-## Document tasks
+updated and created the tests for the settings and resume page in relation to the personal information
 
 ## Reviewing or collaboration tasks
+- made sure docker worked well on windows laptop and the documenation was upto date. 
 
 ## Issues / Blockers
 
 ## PR's initiated
+- Aakash/validate settings #443  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/443
 
 ## PR's reviewed
+- Projects page LLM analysis integration #446 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/446
+- Resolved CORS and thumbnail 500 error in projects page #450 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/450
+- updated resume page to include specified showcase projects #452 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/452
+- Docker documentation #441 https://github.com/COSC-499-W2025/capstone-project-team-6/pull/441
 
 ## Plan for next week
+- How a full system test and fix any and all bugs before next week so that we can focus on our selling point adn implement any excess features from week after.
 
 # Mithish Ravisankar Geetha
 
 ## Date Ranges
+
 March 9 - March 15
 ![Mithish Week 10](../images/MithishT2W10.png)
 
 ## Goals for this week (planned last sprint)
+
 - Verify Docker functionality on Windows environments.
 - Begin implementation of Milestone 3 core requirements based on team discussion.
 - Complete docker documentation
-- Fix any bugs related to milestone 2 
+- Fix any bugs related to milestone 2
 - Modify resume format for milestone 3 requirements
 - Complete documentation for docker
 
 ## What went well
 
-This week saw significant progress in refining the core user experience, particularly concerning the Resume and Project management features. Successfully implementing the Education section allows for a much more comprehensive professional profile, and resolving the persistent project deletion bug was a major win for system reliability. By ensuring that deleted projects are truly scrubbed from the database, we've enabled users to re-analyze repositories without encountering stale data errors. 
+This week saw significant progress in refining the core user experience, particularly concerning the Resume and Project management features. Successfully implementing the Education section allows for a much more comprehensive professional profile, and resolving the persistent project deletion bug was a major win for system reliability. By ensuring that deleted projects are truly scrubbed from the database, we've enabled users to re-analyze repositories without encountering stale data errors.
 Additionally, completing the Docker documentation ensures that the unified environment we built last week is now accessible and reproducible for the entire team.
 
 ## What could have been done better
+
 While the Docker documentation is complete, the actual verification on Windows environments remains an ongoing task that needs more rigorous cross-platform testing to ensure no edge cases exist with volume mounting. There was also a slight delay in beginning the core Milestone 3 implementation as the focus shifted toward fixing frontend syntax issues and API regressions introduced in earlier merges, which required immediate attention to restore build stability.
 
 ## Coding tasks
+
 - **Resume Enhancement:** Implemented the Education and Awards section to support detailed academic credentials.
 - **Database Logic Refinement:** Fixed a critical bug in the project deletion flow to allow for clean re-analysis of previously deleted projects.
 - **System Stability:** Resolved various JSX and API service syntax errors on the Settings page to restore successful frontend compilation.
@@ -128,31 +164,34 @@ While the Docker documentation is complete, the actual verification on Windows e
 - **Frontend Build Validation:** Used Vite/Docker build logs to identify and resolve mismatched JSX structures in settings.
 - **API Connectivity:** Tested the delete project method and validated personal information update flows.
 
-
 ## Document tasks
+
 - **Docker System Guide:** Authored detailed instructions for setting up and running containers, including environment-specific configurations.
 
-
 ## Reviewing or collaboration tasks
+
 - **Feature Review:** Evaluated the new role prediction frontend, focusing on the interactive UI for overriding predicted developer roles.
 - **Validation Oversight:** Reviewed changes to the personal information validation logic to ensure consistency across both the Resume and Settings pages.
 
 ## Issues / Blockers
+
 No major blockers this week
 
 ## PR's initiated
+
 - Delete project bug fix and Education Section for Resume #440 (https://github.com/COSC-499-W2025/capstone-project-team-6/pull/440)
 - Docker documentation #441 (https://github.com/COSC-499-W2025/capstone-project-team-6/pull/441)
 
 ## PR's reviewed
+
 - Fixed syntax errors #439 (https://github.com/COSC-499-W2025/capstone-project-team-6/pull/439)
 - Feature/role prediction frontend #444 (https://github.com/COSC-499-W2025/capstone-project-team-6/pull/444)
 - Aakash/validate settings #443 (https://github.com/COSC-499-W2025/capstone-project-team-6/pull/443)
 
 ## Plan for next week
+
 - Attend peer testing and receive feedback, work on the same
 - Finalize M3 requirements including heatmap generation
-
 
 # Harjot Sahota
 
@@ -193,8 +232,10 @@ Next week I plan to continue incorporating the showcase feature into other parts
 # Mohamed Sakr
 
 ## Date Ranges
+
 March 9 - March 15
 ![Mohamed Week 10](../term2/mohamedw10t2.png)
+
 ## Goals for this week (planned last sprint)
 
 - Continue working on Milestone 3 features
@@ -247,14 +288,19 @@ The LLM analysis feature is now fully end-to-end functional. After a methodical 
 - Diagnosed database corruption by running direct SQL queries confirming `total_projects = 0` and empty `projects` table; cleared corrupted rows and re-ran a clean upload to verify the full pipeline end-to-end
 
 ## Reviewing or collaboration tasks
+
 - Reviewed role prediciton frontend edits, validation settings, and docker documentation
 
 ## Issues / Blockers
+
 - No blockers
+
 ## PR's initiated
+
 -https://github.com/COSC-499-W2025/capstone-project-team-6/pull/446
 
 ## PR's reviewed
+
 - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/444 (first review)
 - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/443
 - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/441
@@ -268,26 +314,65 @@ The LLM analysis feature is now fully end-to-end functional. After a methodical 
 # Ansh Rastogi
 
 ## Date Ranges
-March 9 - March 15
+
+March 9 – March 15
+![Ansh Week 10 Term 2](../images/AnshRastogi_PeerEval_SS_W10T2.png)
 
 ## Goals for this week (planned last sprint)
 
+- Begin working on a Milestone 3 feature task
+- Continue supporting teammates with frontend integration and review work
+- Address any remaining polish or bugs identified during testing
+
 ## What went well
+
+This week went well overall. I tracked down and fixed two bugs that were silently breaking the project thumbnail feature end-to-end. The CORS issue was caused by the axios `baseURL` being hardcoded to the backend port directly, bypassing the Vite dev proxy entirely. Once identified, the fix was a one-line change that also improves the production setup since a relative `/api` base URL resolves correctly regardless of where the app is hosted. The 500 error was a missing `Response` import in the thumbnail endpoint, subtle but straightforward once the backend error was surfaced by routing requests through the proxy. I also reviewed PR [#440](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/440) and confirmed the education section and project deletion fixes worked correctly end-to-end.
 
 ## What could have been done better
 
+- The CORS issue could have been caught earlier if the `baseURL` had been set to a relative path from the start of the project. Hardcoding the backend port made development appear to work in some configurations while silently failing in others.
+- I did not get to starting the Milestone 3 feature task this week as the debugging work took priority.
+
 ## Coding tasks
+
+- Fixed **CORS errors on the thumbnail endpoint** by changing the axios `baseURL` in `src/frontend/src/services/api.js` from `http://localhost:8000/api` to `/api`
+  - Requests now go through the Vite dev proxy, eliminating the cross-origin mismatch between port 5173 and port 8000
+  - Also corrects production behavior: a relative base URL resolves against whatever origin serves the frontend, rather than a hardcoded localhost address
+- Fixed **500 Internal Server Error on the thumbnail GET endpoint** in `src/backend/api/projects.py`
+  - `Response` was used to return a 204 No Content for projects with no thumbnail set but was never imported
+  - Added `Response` to the `fastapi.responses` import, resolving the `NameError` that caused every request for a project with no thumbnail to crash
 
 ## Testing or debugging tasks
 
+- Reproduced the CORS failure in the browser console by loading the Projects page and observing blocked XMLHttpRequest errors for the thumbnail endpoint
+- Confirmed the fix by verifying thumbnail requests go through `localhost:5173/api/...` after changing the base URL, with no CORS errors in the console
+- Reproduced the 500 by confirming the endpoint crashed for a project with no thumbnail set, then verified it returns 204 correctly after adding the missing import
+- Confirmed thumbnail loading works correctly for both projects with and without thumbnails after both fixes were applied
+
 ## Document tasks
+
+- Wrote PR description for [#450](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/450) detailing the two bugs, their root causes, and how each fix addresses them
 
 ## Reviewing or collaboration tasks
 
+- Reviewed **Delete project bug fix and Education Section for Resume** PR [#440](https://github.com/COSC-499-W2025/capstone-project-team-6/pull/440)
+  - Verified that deleting a project fully clears associated data and allows clean re-analysis
+  - Confirmed the Education section renders correctly on the Resume page
+  - Approved after testing both fixes locally
+
 ## Issues / Blockers
+
+No major blockers this week.
 
 ## PR's initiated
 
+- #450: Fix CORS and thumbnail 500 error – https://github.com/COSC-499-W2025/capstone-project-team-6/pull/450
+
 ## PR's reviewed
 
+- #440: Delete project bug fix and Education Section for Resume – https://github.com/COSC-499-W2025/capstone-project-team-6/pull/440
+
 ## Plan for next week
+
+- Begin working on the assigned Milestone 3 feature task
+- Continue supporting teammates with frontend integration and review work
