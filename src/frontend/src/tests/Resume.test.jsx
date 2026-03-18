@@ -28,6 +28,7 @@ vi.mock('../services/api', () => ({
   },
 }));
 
+// react-markdown and remark-gfm are heavy; replace with a plain renderer
 vi.mock('react-markdown', () => ({
   default: ({ children }) => <div data-testid="markdown">{children}</div>,
 }));
@@ -67,6 +68,13 @@ const MOCK_VALID_PERSONAL_INFO = {
   linkedIn: '',
   github: '',
   website: '',
+  education: '',
+  education_university: '',
+  education_location: '',
+  education_degree: '',
+  education_start_date: '',
+  education_end_date: '',
+  education_awards: '',
 };
 
 function setupDefaultMocks() {
@@ -105,21 +113,18 @@ describe('Resume Page', () => {
     it('renders the page heading', async () => {
       setupDefaultMocks();
       renderResume();
-
       expect(await screen.findByText('Resume Generator')).toBeInTheDocument();
     });
 
     it('renders the Generate Resume button', async () => {
       setupDefaultMocks();
       renderResume();
-
       expect(await screen.findByRole('button', { name: /generate resume/i })).toBeInTheDocument();
     });
 
     it('loads and displays projects', async () => {
       setupDefaultMocks();
       renderResume();
-
       expect(await screen.findByText('CapstoneApp')).toBeInTheDocument();
       expect(await screen.findByText('FrontendUI')).toBeInTheDocument();
       expect(await screen.findByText('DataPipeline')).toBeInTheDocument();
@@ -133,7 +138,6 @@ describe('Resume Page', () => {
       curationAPI.getProjects.mockResolvedValue([]);
 
       renderResume();
-
       expect(await screen.findByText(/no projects found/i)).toBeInTheDocument();
     });
   });
@@ -143,8 +147,8 @@ describe('Resume Page', () => {
       setupDefaultMocks();
       renderResume();
 
+      const btn = await screen.findByRole('button', { name: /generate resume/i });
       await screen.findByText('CapstoneApp');
-      const btn = screen.getByRole('button', { name: /generate resume/i });
       expect(btn).toBeDisabled();
     });
 
@@ -153,9 +157,8 @@ describe('Resume Page', () => {
       renderResume();
 
       await screen.findByText('CapstoneApp');
-
-      const checkbox = screen.getByLabelText(/frontendui/i);
-      fireEvent.click(checkbox);
+      const checkboxes = screen.getAllByRole('checkbox');
+      fireEvent.click(checkboxes[1]);
 
       const btn = screen.getByRole('button', { name: /generate resume/i });
       expect(btn).not.toBeDisabled();
@@ -163,7 +166,7 @@ describe('Resume Page', () => {
   });
 
   describe('Resume generation — success path', () => {
-    it('calls generateResume with project ids', async () => {
+    it('calls generateResume with project_ids (not portfolio_ids)', async () => {
       setupDefaultMocks();
       resumeAPI.generateResume.mockResolvedValue({
         resume_id: 'abc-123',
@@ -175,7 +178,8 @@ describe('Resume Page', () => {
       renderResume();
       await screen.findByText('CapstoneApp');
 
-      fireEvent.click(screen.getByLabelText(/capstoneapp/i));
+      const checkboxes = screen.getAllByRole('checkbox');
+      fireEvent.click(checkboxes[1]);
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
       await waitFor(() => {
@@ -200,7 +204,8 @@ describe('Resume Page', () => {
       renderResume();
       await screen.findByText('CapstoneApp');
 
-      fireEvent.click(screen.getByLabelText(/capstoneapp/i));
+      const checkboxes = screen.getAllByRole('checkbox');
+      fireEvent.click(checkboxes[1]);
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
       await waitFor(() => {
@@ -215,7 +220,8 @@ describe('Resume Page', () => {
       renderResume();
       await screen.findByText('CapstoneApp');
 
-      fireEvent.click(screen.getByLabelText(/capstoneapp/i));
+      const checkboxes = screen.getAllByRole('checkbox');
+      fireEvent.click(checkboxes[1]);
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
       await waitFor(() => {
@@ -224,8 +230,8 @@ describe('Resume Page', () => {
     });
   });
 
-  describe('Resume generation — error path', () => {
-    it('shows API detail error message when generation fails', async () => {
+  describe('Resume generation — error path (Bug: white screen on failure)', () => {
+    it('shows an error message instead of crashing when the API fails', async () => {
       setupDefaultMocks();
       resumeAPI.generateResume.mockRejectedValue({
         response: { data: { detail: 'No valid projects found for the provided IDs' } },
@@ -234,26 +240,28 @@ describe('Resume Page', () => {
       renderResume();
       await screen.findByText('CapstoneApp');
 
-      fireEvent.click(screen.getByLabelText(/capstoneapp/i));
+      const checkboxes = screen.getAllByRole('checkbox');
+      fireEvent.click(checkboxes[1]);
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
       await waitFor(() => {
-        expect(screen.getByText(/no valid projects found for the provided ids/i)).toBeInTheDocument();
+        expect(screen.getByRole('alert')).toHaveTextContent(/no valid projects found/i);
       });
     });
 
-    it('shows fallback error message when API returns no detail', async () => {
+    it('shows a fallback error message when the API returns no detail', async () => {
       setupDefaultMocks();
       resumeAPI.generateResume.mockRejectedValue(new Error('Network Error'));
 
       renderResume();
       await screen.findByText('CapstoneApp');
 
-      fireEvent.click(screen.getByLabelText(/capstoneapp/i));
+      const checkboxes = screen.getAllByRole('checkbox');
+      fireEvent.click(checkboxes[1]);
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
       await waitFor(() => {
-        expect(screen.getByText(/failed to generate resume/i)).toBeInTheDocument();
+        expect(screen.getByRole('alert')).toHaveTextContent(/failed to generate resume/i);
       });
     });
 
@@ -264,7 +272,9 @@ describe('Resume Page', () => {
       renderResume();
       await screen.findByText('CapstoneApp');
 
-      fireEvent.click(screen.getByLabelText(/capstoneapp/i));
+      const checkboxes = screen.getAllByRole('checkbox');
+      fireEvent.click(checkboxes[1]);
+
       const btn = screen.getByRole('button', { name: /generate resume/i });
       fireEvent.click(btn);
 
@@ -274,37 +284,168 @@ describe('Resume Page', () => {
     });
   });
 
-  describe('Project selection actions', () => {
+  describe('Select All / Deselect All', () => {
     it('selects all projects when "Select All" is clicked', async () => {
       setupDefaultMocks();
       renderResume();
 
       await screen.findByText('CapstoneApp');
-      fireEvent.click(screen.getByRole('button', { name: /^select all$/i }));
+      fireEvent.click(screen.getByRole('button', { name: /select all/i }));
 
       const btn = screen.getByRole('button', { name: /generate resume/i });
       expect(btn).not.toBeDisabled();
     });
+  });
 
-    it('clears all selections when "Clear Selection" is clicked', async () => {
+  describe('Personal info validation', () => {
+    it('blocks generate when personal info has invalid email', async () => {
       setupDefaultMocks();
+      resumeAPI.getPersonalInfo.mockResolvedValue({
+        personal_info: { ...MOCK_VALID_PERSONAL_INFO, email: 'not-an-email' },
+      });
+
       renderResume();
-
       await screen.findByText('CapstoneApp');
-      fireEvent.click(screen.getByRole('button', { name: /^select all$/i }));
 
-      let btn = screen.getByRole('button', { name: /generate resume/i });
-      expect(btn).not.toBeDisabled();
+      const checkboxes = screen.getAllByRole('checkbox');
+      fireEvent.click(checkboxes[1]);
+      fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
-      fireEvent.click(screen.getByRole('button', { name: /clear selection/i }));
+      await waitFor(() => {
+        expect(screen.getByText(/enter a valid email address/i)).toBeInTheDocument();
+      });
 
-      btn = screen.getByRole('button', { name: /generate resume/i });
-      expect(btn).toBeDisabled();
+      expect(resumeAPI.generateResume).not.toHaveBeenCalled();
+    });
+
+    it('blocks generate when phone contains letters', async () => {
+      setupDefaultMocks();
+      resumeAPI.getPersonalInfo.mockResolvedValue({
+        personal_info: { ...MOCK_VALID_PERSONAL_INFO, phone: '555-abc-1234' },
+      });
+
+      renderResume();
+      await screen.findByText('CapstoneApp');
+
+      const checkboxes = screen.getAllByRole('checkbox');
+      fireEvent.click(checkboxes[1]);
+      fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/phone may only contain digits/i)).toBeInTheDocument();
+      });
+
+      expect(resumeAPI.generateResume).not.toHaveBeenCalled();
+    });
+
+    it('blocks generate when phone has fewer than 7 digits', async () => {
+      setupDefaultMocks();
+      resumeAPI.getPersonalInfo.mockResolvedValue({
+        personal_info: { ...MOCK_VALID_PERSONAL_INFO, phone: '123456' },
+      });
+
+      renderResume();
+      await screen.findByText('CapstoneApp');
+
+      const checkboxes = screen.getAllByRole('checkbox');
+      fireEvent.click(checkboxes[1]);
+      fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/minimum of 7 digits required/i)).toBeInTheDocument();
+      });
+
+      expect(resumeAPI.generateResume).not.toHaveBeenCalled();
+    });
+
+    it('shows error in toast at top when generate fails validation', async () => {
+      setupDefaultMocks();
+      resumeAPI.getPersonalInfo.mockResolvedValue({
+        personal_info: { ...MOCK_VALID_PERSONAL_INFO, name: '' },
+      });
+
+      renderResume();
+      await screen.findByText('CapstoneApp');
+
+      const checkboxes = screen.getAllByRole('checkbox');
+      fireEvent.click(checkboxes[1]);
+      fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toHaveTextContent(/please fix the personal information errors/i);
+      });
+    });
+
+    it('blocks generate when name is empty', async () => {
+      setupDefaultMocks();
+      resumeAPI.getPersonalInfo.mockResolvedValue({
+        personal_info: { ...MOCK_VALID_PERSONAL_INFO, name: '' },
+      });
+
+      renderResume();
+      await screen.findByText('CapstoneApp');
+
+      const checkboxes = screen.getAllByRole('checkbox');
+      fireEvent.click(checkboxes[1]);
+      fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/full name is required/i)).toBeInTheDocument();
+      });
+
+      expect(resumeAPI.generateResume).not.toHaveBeenCalled();
     });
   });
 
-  describe('Showcase project quick selection', () => {
-    it('preselects showcase projects on load when showcase ids exist', async () => {
+  describe('Personal info Cancel Changes', () => {
+    it('Cancel Changes button reverts to loaded values when user has changes', async () => {
+      setupDefaultMocks();
+
+      renderResume();
+      await screen.findByText('CapstoneApp');
+
+      expect(screen.getByDisplayValue('Jane Doe')).toBeInTheDocument();
+
+      fireEvent.change(screen.getByPlaceholderText('Full Name'), {
+        target: { value: 'Jane Smith' },
+      });
+
+      expect(screen.getByDisplayValue('Jane Smith')).toBeInTheDocument();
+
+      const cancelBtn = screen.getByRole('button', { name: /cancel changes/i });
+      fireEvent.click(cancelBtn);
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Jane Doe')).toBeInTheDocument();
+      });
+    });
+
+    it('Cancel Changes button does not show when no loaded data', async () => {
+      projectsAPI.getProjects.mockResolvedValue(MOCK_PROJECTS);
+      resumeAPI.listStoredResumes.mockResolvedValue([]);
+      resumeAPI.getPersonalInfo.mockResolvedValue({ personal_info: {} });
+      curationAPI.getSettings.mockResolvedValue(MOCK_CURATION_SETTINGS);
+      curationAPI.getProjects.mockResolvedValue([]);
+
+      renderResume();
+      await screen.findByText('CapstoneApp');
+
+      expect(screen.queryByRole('button', { name: /cancel changes/i })).not.toBeInTheDocument();
+    });
+
+    it('Cancel Changes button does not show when no changes', async () => {
+      setupDefaultMocks();
+
+      renderResume();
+      await screen.findByText('CapstoneApp');
+
+      expect(screen.getByDisplayValue('Jane Doe')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /cancel changes/i })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Showcase project selection', () => {
+    it('preselects showcase projects on load when showcase projects exist', async () => {
       setupShowcaseMocks();
       renderResume();
 
@@ -314,7 +455,7 @@ describe('Resume Page', () => {
       expect(btn).not.toBeDisabled();
     });
 
-    it('selects only showcase projects when "Select Showcase Projects" is clicked', async () => {
+    it('selects showcase projects when "Select Showcase Projects" is clicked', async () => {
       setupShowcaseMocks();
       renderResume();
 
@@ -328,16 +469,31 @@ describe('Resume Page', () => {
       expect(screen.getByRole('button', { name: /generate resume/i })).not.toBeDisabled();
     });
 
-    it('disables showcase button when no showcase projects exist', async () => {
+    it('clears all selected projects when "Clear Selection" is clicked', async () => {
       setupDefaultMocks();
       renderResume();
 
       await screen.findByText('CapstoneApp');
 
-      expect(screen.getByRole('button', { name: /select showcase projects/i })).toBeDisabled();
+      fireEvent.click(screen.getByRole('button', { name: /select all/i }));
+      expect(screen.getByRole('button', { name: /generate resume/i })).not.toBeDisabled();
+
+      fireEvent.click(screen.getByRole('button', { name: /clear selection/i }));
+      expect(screen.getByRole('button', { name: /generate resume/i })).toBeDisabled();
     });
 
-    it('shows only showcase projects when "Show showcase projects only" is checked', async () => {
+    it('disables "Select Showcase Projects" when there are no showcase projects', async () => {
+      setupDefaultMocks();
+      renderResume();
+
+      await screen.findByText('CapstoneApp');
+
+      expect(
+        screen.getByRole('button', { name: /select showcase projects/i })
+      ).toBeDisabled();
+    });
+
+    it('shows only showcase projects when "Show showcase projects only" is enabled', async () => {
       setupShowcaseMocks();
       renderResume();
 
@@ -350,7 +506,7 @@ describe('Resume Page', () => {
       expect(screen.queryByText('FrontendUI')).not.toBeInTheDocument();
     });
 
-    it('shows empty showcase message when showcase filter is on and no showcase projects exist', async () => {
+    it('shows empty message when showcase-only filter is enabled and no showcase projects exist', async () => {
       setupDefaultMocks();
       renderResume();
 
@@ -358,7 +514,19 @@ describe('Resume Page', () => {
 
       fireEvent.click(screen.getByLabelText(/show showcase projects only/i));
 
-      expect(screen.getByText(/no showcase projects selected in curation yet/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/no showcase projects selected in curation yet/i)
+      ).toBeInTheDocument();
+    });
+
+    it('keeps Select Showcase Projects enabled even after selections change when showcase ids exist', async () => {
+      setupShowcaseMocks();
+      renderResume();
+
+      await screen.findByText('CapstoneApp');
+
+      fireEvent.click(screen.getByRole('button', { name: /clear selection/i }));
+      expect(screen.getByRole('button', { name: /select showcase projects/i })).not.toBeDisabled();
     });
   });
 });
