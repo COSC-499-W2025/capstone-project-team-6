@@ -708,14 +708,50 @@ def generate_latex_resume(
     github_display = github.replace("https://", "").replace("http://", "")
     website_display = website.replace("https://", "").replace("http://", "") if website else ""
 
-    contact_parts = [phone]
-    contact_parts.append(rf"\href{{mailto:{email}}}{{\underline{{{email}}}}}")
+    def _safe(s: str) -> str:
+        # Normalize common unicode punctuation into ASCII so pdflatex can compile reliably.
+        s = (s or "").replace("•", "-")
+        s = s.replace("–", "-").replace("—", "-").replace("−", "-")
+        s = s.replace("’", "'").replace("‘", "'")
+        s = s.replace("“", '"').replace("”", '"')
+        s = s.replace("…", "...")
+        s = s.replace("\n", " ").replace("\r", " ")
+
+        # Ensure ASCII compatibility for this pdflatex toolchain.
+        s = s.encode("ascii", errors="replace").decode("ascii")
+
+        # Escape LaTeX special characters used in our template.
+        return (
+            s.replace("\\", "\\textbackslash ")
+            .replace("&", "\\&")
+            .replace("%", "\\%")
+            .replace("_", "\\_")
+            .replace("#", "\\#")
+            .replace("$", "\\$")
+            .replace("{", "\\{")
+            .replace("}", "\\}")
+            .replace("~", "\\textasciitilde ")
+            .replace("^", "\\textasciicircum ")
+        )
+
+    safe_phone = _safe(phone)
+    safe_email = _safe(email)
+    safe_location = _safe(location)
+    safe_linkedin = _safe(linkedin)
+    safe_github = _safe(github)
+    safe_website = _safe(website)
+    safe_linkedin_display = _safe(linkedin_display)
+    safe_github_display = _safe(github_display)
+    safe_website_display = _safe(website_display)
+
+    contact_parts = [safe_phone]
+    contact_parts.append(rf"\href{{mailto:{safe_email}}}{{\underline{{{safe_email}}}}}")
     if location:
-        contact_parts.append(location)
-    contact_parts.append(rf"\href{{{linkedin}}}{{\underline{{{linkedin_display}}}}}")
-    contact_parts.append(rf"\href{{{github}}}{{\underline{{{github_display}}}}}")
+        contact_parts.append(safe_location)
+    contact_parts.append(rf"\href{{{safe_linkedin}}}{{\underline{{{safe_linkedin_display}}}}}")
+    contact_parts.append(rf"\href{{{safe_github}}}{{\underline{{{safe_github_display}}}}}")
     if website:
-        contact_parts.append(rf"\href{{{website}}}{{\underline{{{website_display}}}}}")
+        contact_parts.append(rf"\href{{{safe_website}}}{{\underline{{{safe_website_display}}}}}")
 
     contact_line = " $|$ ".join(contact_parts)
 
@@ -728,8 +764,6 @@ def generate_latex_resume(
 """
 
     # 2. Education Section (Jake's format: subheading + date + awards list)
-    def _safe(s: str) -> str:
-        return (s or "").replace("&", "\\&").replace("%", "\\%").replace("_", "\\_").replace("#", "\\#")
 
     university = (info.get("education_university") or info.get("university") or "").strip()
     location = (info.get("education_location") or info.get("location") or "").strip()
@@ -796,8 +830,8 @@ def generate_latex_resume(
             tech_stack = (langs + fws + notable_deps[:3])[:6]  # Limit to 6 items
             tech_str = ", ".join(tech_stack)
 
-            safe_name = project_name.replace("&", "\\&").replace("%", "\\%").replace("_", "\\_").replace("#", "\\#")
-            safe_tech = tech_str.replace("&", "\\&").replace("%", "\\%").replace("_", "\\_").replace("#", "\\#")
+            safe_name = _safe(project_name)
+            safe_tech = _safe(tech_str)
 
             latex += f"    \\resumeProjectHeading{{\\textbf{{{safe_name}}} $|$ \\emph{{{safe_tech}}}}}{{{timeline}}}\n"
             latex += "      \\resumeItemListStart\n"
@@ -808,18 +842,7 @@ def generate_latex_resume(
             else:
                 bullets = _generate_project_items(project)
             for bullet in bullets[:4]:
-                safe_bullet = (
-                    bullet.replace("\\", "\\textbackslash ")
-                    .replace("%", "\\%")
-                    .replace("$", "\\$")
-                    .replace("&", "\\&")
-                    .replace("_", "\\_")
-                    .replace("#", "\\#")
-                    .replace("{", "\\{")
-                    .replace("}", "\\}")
-                    .replace("~", "\\textasciitilde ")
-                    .replace("^", "\\textasciicircum ")
-                )
+                safe_bullet = _safe(bullet)
                 latex += f"        \\resumeItem{{{safe_bullet}}}\n"
 
             latex += "      \\resumeItemListEnd\n"
@@ -853,13 +876,13 @@ def generate_latex_resume(
 
         latex += r"\section{Technical Skills}" + "\n\\begin{itemize}[leftmargin=0.15in, label={}]\n  \\small{\\item{\n"
         if langs:
-            safe_langs = ", ".join(langs).replace("&", "\\&").replace("%", "\\%").replace("_", "\\_").replace("#", "\\#")
+            safe_langs = _safe(", ".join(langs))
             latex += f"    \\textbf{{Languages}}{{: {safe_langs}}} \\\\\n"
         if fws:
-            safe_fws = ", ".join(fws).replace("&", "\\&").replace("%", "\\%").replace("_", "\\_").replace("#", "\\#")
+            safe_fws = _safe(", ".join(fws))
             latex += f"    \\textbf{{Frameworks}}{{: {safe_fws}}} \\\\\n"
         if tools:
-            safe_tools = ", ".join(tools[:10]).replace("&", "\\&").replace("%", "\\%").replace("_", "\\_").replace("#", "\\#")
+            safe_tools = _safe(", ".join(tools[:10]))
             latex += f"    \\textbf{{Developer Tools}}{{: {safe_tools}}}\n"
         latex += "  }}\n\\end{itemize}\n\n"
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Navigation from '../components/Navigation';
 import { projectsAPI, resumeAPI, curationAPI } from '../services/api';
 import ReactMarkdown from 'react-markdown';
@@ -23,6 +23,10 @@ const Resume = () => {
   const [storedResumeFormat, setStoredResumeFormat] = useState('markdown');
   const [storedResumeLoading, setStoredResumeLoading] = useState(false);
   const [storedResumeSaving, setStoredResumeSaving] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState('');
+  const pdfUrlRef = useRef(null);
 
   // Personal information
   const emptyPersonal = {
@@ -127,6 +131,60 @@ const Resume = () => {
     loadStoredResumes();
     loadPersonalInfo();
     loadCurationSettings();
+  }, []);
+
+  useEffect(() => {
+    // Render generated PDF inline by converting the base64 payload into a Blob URL.
+    if (resumeFormat !== 'pdf' || !generatedResume?.content) {
+      if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
+      pdfUrlRef.current = null;
+      setPdfUrl(null);
+      setPdfError('');
+      setPdfLoading(false);
+      return;
+    }
+
+    let nextUrl = null;
+    try {
+      setPdfLoading(true);
+      setPdfError('');
+
+      // Backend encodes PDF bytes as base64 for JSON transport.
+      const binaryString = atob(generatedResume.content);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      // Quick sanity check: most PDFs start with ASCII "%PDF".
+      const looksLikePdf =
+        bytes.length >= 4 && bytes[0] === 37 && bytes[1] === 80 && bytes[2] === 68 && bytes[3] === 70;
+      if (!looksLikePdf) {
+        throw new Error('Decoded content does not start with a valid %PDF signature.');
+      }
+
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      nextUrl = URL.createObjectURL(blob);
+      if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
+      pdfUrlRef.current = nextUrl;
+      setPdfUrl(nextUrl);
+    } catch (e) {
+      console.error('Error decoding PDF:', e);
+      setPdfError('Failed to decode the generated PDF for preview.');
+      if (nextUrl) URL.revokeObjectURL(nextUrl);
+      setPdfUrl(null);
+    } finally {
+      setPdfLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generatedResume, resumeFormat]);
+
+  useEffect(() => {
+    // Revoke Blob URL on unmount to avoid memory leaks.
+    return () => {
+      if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
+      pdfUrlRef.current = null;
+    };
   }, []);
 
   const loadProjects = async () => {
@@ -1367,48 +1425,40 @@ const Resume = () => {
                 }}
               >
                 {resumeFormat === 'pdf' ? (
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '48px',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <svg
-                      style={{ marginBottom: '16px' }}
-                      width="64"
-                      height="64"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="#2563eb"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                      <polyline points="14 2 14 8 20 8"></polyline>
-                      <line x1="16" y1="13" x2="8" y2="13"></line>
-                      <line x1="16" y1="17" x2="8" y2="17"></line>
-                      <polyline points="10 9 9 9 8 9"></polyline>
-                    </svg>
-
-                    <h3
-                      style={{
-                        fontSize: '18px',
-                        fontWeight: '600',
-                        color: '#1a1a1a',
-                        marginBottom: '8px',
-                      }}
-                    >
-                      PDF Resume Generated Successfully
-                    </h3>
-
-                    <p style={{ color: '#737373', marginBottom: '16px' }}>
-                      Your resume has been generated as a professional PDF file. Click the Download button above to save it.
-                    </p>
+                  <div style={{ width: '100%' }}>
+                    {pdfLoading && (
+                      <div style={{ padding: '24px', color: '#737373' }}>
+                        Decoding PDF preview...
+                      </div>
+                    )}
+                    {pdfError && (
+                      <div
+                        style={{
+                          padding: '16px',
+                          backgroundColor: '#fee',
+                          border: '1px solid #fcc',
+                          color: '#c33',
+                          borderRadius: '8px',
+                          marginBottom: '16px',
+                        }}
+                      >
+                        {pdfError}
+                      </div>
+                    )}
+                    {pdfUrl && (
+                      <iframe
+                        key={pdfUrl}
+                        title="Generated resume PDF"
+                        src={pdfUrl}
+                        style={{
+                          width: '100%',
+                          height: '560px',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '8px',
+                          backgroundColor: 'white',
+                        }}
+                      />
+                    )}
                   </div>
                 ) : isEditing ? (
                   <textarea
