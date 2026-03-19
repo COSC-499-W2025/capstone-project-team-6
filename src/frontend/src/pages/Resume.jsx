@@ -621,55 +621,6 @@ const Resume = () => {
                     margin: 0,
                   }}
                 >Personal Information</h2>
-                <div style={{ marginTop: '8px', paddingTop: '12px', borderTop: '1px solid #e5e7eb' }}>
-                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#525252', marginBottom: '8px' }}>Education Section</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <input
-                      type="text"
-                      placeholder="University Name"
-                      value={personalInfo.education_university}
-                      onChange={(e) => setPersonalInfo({ ...personalInfo, education_university: e.target.value })}
-                      style={{ padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Location (e.g., City, State)"
-                      value={personalInfo.education_location}
-                      onChange={(e) => setPersonalInfo({ ...personalInfo, education_location: e.target.value })}
-                      style={{ padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Degree (e.g., B.S. Computer Science)"
-                      value={personalInfo.education_degree}
-                      onChange={(e) => setPersonalInfo({ ...personalInfo, education_degree: e.target.value })}
-                      style={{ padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }}
-                    />
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <input
-                        type="text"
-                        placeholder="Start date (e.g., Aug 2020)"
-                        value={personalInfo.education_start_date}
-                        onChange={(e) => setPersonalInfo({ ...personalInfo, education_start_date: e.target.value })}
-                        style={{ flex: 1, padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }}
-                      />
-                      <input
-                        type="text"
-                        placeholder="End date (e.g., May 2024)"
-                        value={personalInfo.education_end_date}
-                        onChange={(e) => setPersonalInfo({ ...personalInfo, education_end_date: e.target.value })}
-                        style={{ flex: 1, padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }}
-                      />
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Awards (e.g., Dean's List, Scholarship Name)"
-                      value={personalInfo.education_awards}
-                      onChange={(e) => setPersonalInfo({ ...personalInfo, education_awards: e.target.value })}
-                      style={{ padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }}
-                    />
-                  </div>
-                </div>
                 {hasOriginalPersonalInfo && hasPersonalInfoChanges() && (
                   <button
                     type="button"
@@ -861,7 +812,7 @@ const Resume = () => {
                 </div>
               </div>
             </div>
-            {/* Stored Resume */}
+            {/* Education */}
             <div
               style={{
                 backgroundColor: 'white',
@@ -880,15 +831,15 @@ const Resume = () => {
                   marginBottom: '16px',
                 }}
               >
-                Stored Resume
+                Education
               </h2>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <input
                   type="text"
-                  placeholder="Resume Title"
-                  value={storedResumeTitle}
-                  onChange={(e) => setStoredResumeTitle(e.target.value)}
+                  placeholder="University Name"
+                  value={personalInfo.education_university}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, education_university: e.target.value })}
                   style={{
                     padding: '10px 12px',
                     border: '1px solid #e5e7eb',
@@ -899,80 +850,85 @@ const Resume = () => {
                   }}
                 />
 
-                <select
-                  value={storedResumeFormat}
-                  onChange={(e) => setStoredResumeFormat(e.target.value)}
+                <input
+                  type="text"
+                  placeholder="Location (e.g., City, State)"
+                  value={personalInfo.education_location}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, education_location: e.target.value })}
                   style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    fontSize: '14px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    backgroundColor: 'white',
-                  }}
-                >
-                  <option value="markdown">Markdown</option>
-                  <option value="text">Plain text</option>
-                </select>
-
-                <textarea
-                  value={storedResumeContent}
-                  onChange={(e) => setStoredResumeContent(e.target.value)}
-                  placeholder="Paste your existing resume here..."
-                  style={{
-                    width: '100%',
-                    minHeight: '180px',
-                    padding: '12px',
+                    padding: '10px 12px',
                     border: '1px solid #e5e7eb',
                     borderRadius: '6px',
-                    fontSize: '13px',
-                    fontFamily: 'monospace',
-                    lineHeight: '1.5',
-                    resize: 'vertical',
+                    fontSize: '14px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
+
+                <input
+                  type="text"
+                  placeholder="Degree (e.g., B.S. Computer Science)"
+                  value={personalInfo.education_degree}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, education_degree: e.target.value })}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    width: '100%',
                     boxSizing: 'border-box',
                   }}
                 />
 
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <button
-                    onClick={handleCreateStoredResume}
-                    disabled={storedResumeSaving || storedResumeLoading}
+                  <input
+                    type="text"
+                    placeholder="Start date (e.g., Aug 2020)"
+                    value={personalInfo.education_start_date}
+                    onChange={(e) =>
+                      setPersonalInfo({ ...personalInfo, education_start_date: e.target.value })
+                    }
                     style={{
                       flex: 1,
                       padding: '10px 12px',
-                      fontSize: '14px',
-                      color: 'white',
-                      backgroundColor: '#2563eb',
-                      border: 'none',
+                      border: '1px solid #e5e7eb',
                       borderRadius: '6px',
-                      cursor: 'pointer',
+                      fontSize: '14px',
+                      boxSizing: 'border-box',
                     }}
-                  >
-                    {storedResumeSaving ? 'Saving...' : 'Save New Resume'}
-                  </button>
-                  <button
-                    onClick={handleUpdateStoredResume}
-                    disabled={storedResumeSaving || !storedResumeId}
+                  />
+                  <input
+                    type="text"
+                    placeholder="End date (e.g., May 2024)"
+                    value={personalInfo.education_end_date}
+                    onChange={(e) =>
+                      setPersonalInfo({ ...personalInfo, education_end_date: e.target.value })
+                    }
                     style={{
                       flex: 1,
                       padding: '10px 12px',
-                      fontSize: '14px',
-                      color: '#2563eb',
-                      backgroundColor: 'white',
-                      border: '1px solid #2563eb',
+                      border: '1px solid #e5e7eb',
                       borderRadius: '6px',
-                      cursor: storedResumeId ? 'pointer' : 'not-allowed',
+                      fontSize: '14px',
+                      boxSizing: 'border-box',
                     }}
-                  >
-                    Update Resume
-                  </button>
+                  />
                 </div>
 
-                {storedResumeLoading && (
-                  <div style={{ fontSize: '12px', color: '#737373' }}>
-                    Loading stored resumes...
-                  </div>
-                )}
+                <input
+                  type="text"
+                  placeholder="Awards (e.g., Dean's List, Scholarship Name)"
+                  value={personalInfo.education_awards}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, education_awards: e.target.value })}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
               </div>
             </div>
 
@@ -1601,6 +1557,120 @@ const Resume = () => {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+        </div>
+      </div>
+      {/* Stored Resume */}
+      <div
+        style={{
+          backgroundColor: 'white',
+          borderRadius: '12px',
+          padding: '24px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          marginBottom: '24px',
+        }}
+      >
+        <h2
+          style={{
+            fontSize: '20px',
+            fontWeight: '600',
+            color: '#1a1a1a',
+            margin: 0,
+            marginBottom: '16px',
+          }}
+        >
+          Stored Resume
+        </h2>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <input
+            type="text"
+            placeholder="Resume Title"
+            value={storedResumeTitle}
+            onChange={(e) => setStoredResumeTitle(e.target.value)}
+            style={{
+              padding: '10px 12px',
+              border: '1px solid #e5e7eb',
+              borderRadius: '6px',
+              fontSize: '14px',
+              width: '100%',
+              boxSizing: 'border-box',
+            }}
+          />
+
+          <select
+            value={storedResumeFormat}
+            onChange={(e) => setStoredResumeFormat(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              fontSize: '14px',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              backgroundColor: 'white',
+            }}
+          >
+            <option value="markdown">Markdown</option>
+            <option value="text">Plain text</option>
+          </select>
+
+          <textarea
+            value={storedResumeContent}
+            onChange={(e) => setStoredResumeContent(e.target.value)}
+            placeholder="Paste your existing resume here..."
+            style={{
+              width: '100%',
+              minHeight: '180px',
+              padding: '12px',
+              border: '1px solid #e5e7eb',
+              borderRadius: '6px',
+              fontSize: '13px',
+              fontFamily: 'monospace',
+              lineHeight: '1.5',
+              resize: 'vertical',
+              boxSizing: 'border-box',
+            }}
+          />
+
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={handleCreateStoredResume}
+              disabled={storedResumeSaving || storedResumeLoading}
+              style={{
+                flex: 1,
+                padding: '10px 12px',
+                fontSize: '14px',
+                color: 'white',
+                backgroundColor: '#2563eb',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+              }}
+            >
+              {storedResumeSaving ? 'Saving...' : 'Save New Resume'}
+            </button>
+            <button
+              onClick={handleUpdateStoredResume}
+              disabled={storedResumeSaving || !storedResumeId}
+              style={{
+                flex: 1,
+                padding: '10px 12px',
+                fontSize: '14px',
+                color: '#2563eb',
+                backgroundColor: 'white',
+                border: '1px solid #2563eb',
+                borderRadius: '6px',
+                cursor: storedResumeId ? 'pointer' : 'not-allowed',
+              }}
+            >
+              Update Resume
+            </button>
+          </div>
+
+          {storedResumeLoading && (
+            <div style={{ fontSize: '12px', color: '#737373' }}>
+              Loading stored resumes...
             </div>
           )}
         </div>
