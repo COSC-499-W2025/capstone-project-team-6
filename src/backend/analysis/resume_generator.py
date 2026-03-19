@@ -764,29 +764,63 @@ def generate_latex_resume(
 """
 
     # 2. Education Section (Jake's format: subheading + date + awards list)
-
-    university = (info.get("education_university") or info.get("university") or "").strip()
-    location = (info.get("education_location") or info.get("location") or "").strip()
-    degree = (info.get("education_degree") or info.get("degree") or "").strip()
-    start_date = (info.get("education_start_date") or "").strip()
-    end_date = (info.get("education_end_date") or info.get("grad_date") or "").strip()
-    date_range = f"{start_date} -- {end_date}" if (start_date and end_date) else (end_date or start_date or " ")
-    awards = (info.get("education_awards") or "").strip()
-
-    if university or degree or (info.get("education") or "").strip():
+    education_entries = info.get("education_entries")
+    if isinstance(education_entries, list) and len(education_entries) > 0:
         latex += r"\section{Education}" + "\n\\resumeSubHeadingListStart\n"
-        if university or degree:
-            latex += "  \\resumeSubheading{"
-            latex += _safe(university or " ") + "}{" + _safe(location) + "}{"
-            latex += _safe(degree) + "}{\\textnormal{" + _safe(date_range) + "}}\n"
-            if awards:
-                latex += "  \\resumeItemListStart\n"
-                latex += "    \\resumeItem{\\textbf{Awards}: " + _safe(awards) + "}\n"
-                latex += "  \\resumeItemListEnd\n"
-        else:
-            education_text = (info.get("education") or "").strip().replace("\n", " ")
-            latex += f"  \\item \\small{{{_safe(education_text)}}}\n"
+        for entry in education_entries:
+            if not isinstance(entry, dict):
+                continue
+
+            university = (entry.get("education_university") or entry.get("university") or "").strip()
+            location = (entry.get("education_location") or entry.get("location") or "").strip()
+            degree = (entry.get("education_degree") or entry.get("degree") or "").strip()
+            start_date = (
+                entry.get("education_start_date") or entry.get("start_date") or ""
+            ).strip()
+            end_date = (entry.get("education_end_date") or entry.get("end_date") or entry.get("grad_date") or "").strip()
+            date_range = (
+                f"{start_date} -- {end_date}" if (start_date and end_date) else (end_date or start_date or " ")
+            )
+            awards = (entry.get("education_awards") or entry.get("awards") or "").strip()
+            education_text = (entry.get("education_text") or entry.get("education") or "").strip()
+            # Keep education text on one line for LaTeX safety.
+            education_text_single_line = education_text.replace(chr(10), ' ').replace(chr(13), ' ')
+
+            if university or degree:
+                latex += "  \\resumeSubheading{"
+                latex += _safe(university or " ") + "}{" + _safe(location) + "}{"
+                latex += _safe(degree) + "}{\\textnormal{" + _safe(date_range) + "}}\n"
+                if awards:
+                    latex += "  \\resumeItemListStart\n"
+                    latex += "    \\resumeItem{\\textbf{Awards}: " + _safe(awards) + "}\n"
+                    latex += "  \\resumeItemListEnd\n"
+            elif education_text:
+                latex += f"  \\item \\small{{{_safe(education_text_single_line)}}}\n"
+
         latex += "\\resumeSubHeadingListEnd\n\n"
+    else:
+        university = (info.get("education_university") or info.get("university") or "").strip()
+        location = (info.get("education_location") or info.get("location") or "").strip()
+        degree = (info.get("education_degree") or info.get("degree") or "").strip()
+        start_date = (info.get("education_start_date") or "").strip()
+        end_date = (info.get("education_end_date") or info.get("grad_date") or "").strip()
+        date_range = f"{start_date} -- {end_date}" if (start_date and end_date) else (end_date or start_date or " ")
+        awards = (info.get("education_awards") or "").strip()
+
+        if university or degree or (info.get("education") or "").strip():
+            latex += r"\section{Education}" + "\n\\resumeSubHeadingListStart\n"
+            if university or degree:
+                latex += "  \\resumeSubheading{"
+                latex += _safe(university or " ") + "}{" + _safe(location) + "}{"
+                latex += _safe(degree) + "}{\\textnormal{" + _safe(date_range) + "}}\n"
+                if awards:
+                    latex += "  \\resumeItemListStart\n"
+                    latex += "    \\resumeItem{\\textbf{Awards}: " + _safe(awards) + "}\n"
+                    latex += "  \\resumeItemListEnd\n"
+            else:
+                education_text = (info.get("education") or "").strip().replace("\n", " ")
+                latex += f"  \\item \\small{{{_safe(education_text)}}}\n"
+            latex += "\\resumeSubHeadingListEnd\n\n"
 
     # 3. Projects Section
     if include_projects and all_projects:
@@ -1115,23 +1149,56 @@ def generate_resume(
         if contact_bits:
             md_parts.append(" • ".join(contact_bits))
 
-        education = (personal_info.get("education") or "").strip()
-        u = (personal_info.get("education_university") or personal_info.get("university") or "").strip()
-        d = (personal_info.get("education_degree") or personal_info.get("degree") or "").strip()
-        if u or d:
-            line = ", ".join(x for x in [d, u, (personal_info.get("education_location") or "").strip()] if x)
-            start_d = (personal_info.get("education_start_date") or "").strip()
-            end_d = (personal_info.get("education_end_date") or personal_info.get("grad_date") or "").strip()
-            if start_d or end_d:
-                line += f" ({start_d} -- {end_d})"
-            awards = (personal_info.get("education_awards") or "").strip()
-            if awards:
-                line += f"\n- **Awards**: {awards}"
+        education_entries = personal_info.get("education_entries")
+        if isinstance(education_entries, list) and len(education_entries) > 0:
             md_parts.append("## Education")
-            md_parts.append(line)
-        elif education:
-            md_parts.append("## Education")
-            md_parts.append(education)
+            for entry in education_entries:
+                if not isinstance(entry, dict):
+                    continue
+
+                education_text = (entry.get("education_text") or entry.get("education") or "").strip()
+                u = (entry.get("education_university") or entry.get("university") or "").strip()
+                d = (entry.get("education_degree") or entry.get("degree") or "").strip()
+
+                if u or d:
+                    loc = (entry.get("education_location") or entry.get("location") or "").strip()
+                    line = ", ".join(x for x in [d, u, loc] if x)
+
+                    start_d = (entry.get("education_start_date") or entry.get("start_date") or "").strip()
+                    end_d = (
+                        entry.get("education_end_date")
+                        or entry.get("end_date")
+                        or entry.get("grad_date")
+                        or ""
+                    ).strip()
+                    if start_d or end_d:
+                        line += f" ({start_d} -- {end_d})"
+
+                    awards = (entry.get("education_awards") or entry.get("awards") or "").strip()
+                    if awards:
+                        line += f"\n- **Awards**: {awards}"
+
+                    md_parts.append(line)
+                elif education_text:
+                    md_parts.append(education_text)
+        else:
+            education = (personal_info.get("education") or "").strip()
+            u = (personal_info.get("education_university") or personal_info.get("university") or "").strip()
+            d = (personal_info.get("education_degree") or personal_info.get("degree") or "").strip()
+            if u or d:
+                line = ", ".join(x for x in [d, u, (personal_info.get("education_location") or "").strip()] if x)
+                start_d = (personal_info.get("education_start_date") or "").strip()
+                end_d = (personal_info.get("education_end_date") or personal_info.get("grad_date") or "").strip()
+                if start_d or end_d:
+                    line += f" ({start_d} -- {end_d})"
+                awards = (personal_info.get("education_awards") or "").strip()
+                if awards:
+                    line += f"\n- **Awards**: {awards}"
+                md_parts.append("## Education")
+                md_parts.append(line)
+            elif education:
+                md_parts.append("## Education")
+                md_parts.append(education)
 
     # Skills section
     if include_skills and skills_set:

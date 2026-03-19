@@ -28,6 +28,21 @@ const Resume = () => {
   const [pdfError, setPdfError] = useState('');
   const pdfUrlRef = useRef(null);
 
+  // Education entries (stored separately from personal info)
+  const emptyEducation = {
+    education_text: '',
+    university: '',
+    location: '',
+    degree: '',
+    start_date: '',
+    end_date: '',
+    awards: '',
+  };
+  const [educationEntries, setEducationEntries] = useState([]);
+  const [educationForm, setEducationForm] = useState(emptyEducation);
+  const [educationEditingId, setEducationEditingId] = useState(null);
+  const [educationSaving, setEducationSaving] = useState(false);
+
   // Personal information
   const emptyPersonal = {
     name: '',
@@ -130,6 +145,7 @@ const Resume = () => {
     loadProjects();
     loadStoredResumes();
     loadPersonalInfo();
+    loadEducationEntries();
     loadCurationSettings();
   }, []);
 
@@ -269,6 +285,96 @@ const Resume = () => {
     }
   };
 
+  const loadEducationEntries = async () => {
+    try {
+      const entries = await resumeAPI.listEducation();
+      setEducationEntries(Array.isArray(entries) ? entries : []);
+
+      // If not currently editing an existing entry, clear the form on load.
+      setEducationForm((prev) => {
+        if (educationEditingId) return prev;
+        return { ...emptyEducation };
+      });
+      if (!educationEditingId) setEducationEditingId(null);
+    } catch (err) {
+      console.error('Error loading education entries:', err);
+    }
+  };
+
+  const cancelEducationEdit = () => {
+    setEducationEditingId(null);
+    setEducationForm({ ...emptyEducation });
+  };
+
+  const startEditEducation = (entry) => {
+    if (!entry) return;
+    setEducationEditingId(entry.id);
+    setEducationForm({
+      education_text: entry.education_text || '',
+      university: entry.university || '',
+      location: entry.location || '',
+      degree: entry.degree || '',
+      start_date: entry.start_date || '',
+      end_date: entry.end_date || '',
+      awards: entry.awards || '',
+    });
+  };
+
+  const deleteEducationEntry = async (entryId) => {
+    if (!entryId) return;
+    const ok = window.confirm('Delete this education entry?');
+    if (!ok) return;
+
+    try {
+      setEducationSaving(true);
+      await resumeAPI.deleteEducation(entryId);
+      await loadEducationEntries();
+      if (educationEditingId === entryId) cancelEducationEdit();
+    } catch (err) {
+      console.error('Error deleting education entry:', err);
+      setError(err.response?.data?.detail || 'Failed to delete education entry');
+    } finally {
+      setEducationSaving(false);
+    }
+  };
+
+  const saveEducationEntry = async () => {
+    const payload = {
+      education_text: educationForm.education_text || null,
+      university: educationForm.university || null,
+      location: educationForm.location || null,
+      degree: educationForm.degree || null,
+      start_date: educationForm.start_date || null,
+      end_date: educationForm.end_date || null,
+      awards: educationForm.awards || null,
+    };
+
+    const hasAnyValue = Object.values(payload).some((v) => typeof v === 'string' && v.trim().length > 0);
+    if (!hasAnyValue) {
+      setError('Please fill at least one education field before saving.');
+      return;
+    }
+
+    try {
+      setEducationSaving(true);
+      setError('');
+
+      if (educationEditingId) {
+        await resumeAPI.updateEducation(educationEditingId, payload);
+      } else {
+        await resumeAPI.createEducation(payload);
+      }
+
+      cancelEducationEdit();
+      await loadEducationEntries();
+    } catch (err) {
+      console.error('Error saving education entry:', err);
+      setError(err.response?.data?.detail || 'Failed to save education entry');
+    } finally {
+      setEducationSaving(false);
+    }
+  };
+
   const handleCreateStoredResume = async () => {
     if (!storedResumeTitle.trim() || !storedResumeContent.trim()) {
       setError('Please add a resume title and content to save.');
@@ -370,11 +476,24 @@ const Resume = () => {
       setGenerating(true);
       setError('');
 
+      // Education is stored separately now; strip legacy education fields
+      // from personal_info so the backend only uses saved `user_education`.
+      const personalInfoForResume = { ...(personalInfo || {}) };
+      [
+        'education',
+        'education_university',
+        'education_location',
+        'education_degree',
+        'education_start_date',
+        'education_end_date',
+        'education_awards',
+      ].forEach((k) => delete personalInfoForResume[k]);
+
       const resume = await resumeAPI.generateResume(selectedProjectIds, {
         format: resumeFormat,
         include_skills: includeSkills,
         include_projects: includeProjects,
-        personal_info: personalInfo,
+        personal_info: personalInfoForResume,
         stored_resume_id: resumeFormat === 'markdown' ? (storedResumeId || null) : null,
         highlighted_skills: curationSettings?.highlighted_skills?.length > 0
           ? curationSettings.highlighted_skills
@@ -835,100 +954,218 @@ const Resume = () => {
               </h2>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <input
-                  type="text"
-                  placeholder="University Name"
-                  value={personalInfo.education_university}
-                  onChange={(e) => setPersonalInfo({ ...personalInfo, education_university: e.target.value })}
-                  style={{
-                    padding: '10px 12px',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    width: '100%',
-                    boxSizing: 'border-box',
-                  }}
-                />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#525252', marginBottom: '4px' }}>
+                    Saved Education
+                  </div>
 
-                <input
-                  type="text"
-                  placeholder="Location (e.g., City, State)"
-                  value={personalInfo.education_location}
-                  onChange={(e) => setPersonalInfo({ ...personalInfo, education_location: e.target.value })}
-                  style={{
-                    padding: '10px 12px',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    width: '100%',
-                    boxSizing: 'border-box',
-                  }}
-                />
+                  {educationEntries.length === 0 ? (
+                    <div style={{ fontSize: '12px', color: '#737373' }}>No saved education yet.</div>
+                  ) : (
+                    educationEntries.map((entry) => {
+                      const hasAnyMeta = entry.location || entry.start_date || entry.end_date || entry.awards;
+                      return (
+                        <div
+                          key={entry.id}
+                          style={{
+                            padding: '12px',
+                            borderRadius: '8px',
+                            backgroundColor: '#f9fafb',
+                            border: '1px solid #e5e7eb',
+                          }}
+                        >
+                          <div style={{ fontSize: '14px', fontWeight: '700', color: '#1a1a1a', marginBottom: '6px' }}>
+                            {entry.degree && entry.university ? `${entry.degree} - ${entry.university}` : entry.degree || entry.university || 'Education'}
+                          </div>
 
-                <input
-                  type="text"
-                  placeholder="Degree (e.g., B.S. Computer Science)"
-                  value={personalInfo.education_degree}
-                  onChange={(e) => setPersonalInfo({ ...personalInfo, education_degree: e.target.value })}
-                  style={{
-                    padding: '10px 12px',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    width: '100%',
-                    boxSizing: 'border-box',
-                  }}
-                />
+                          {hasAnyMeta && (
+                            <div style={{ fontSize: '13px', color: '#525252', lineHeight: '1.4', marginBottom: '10px' }}>
+                              {entry.location ? <div>{entry.location}</div> : null}
+                              {(entry.start_date || entry.end_date) && (
+                                <div>
+                                  {(entry.start_date || '')}
+                                  {entry.end_date ? ` -- ${entry.end_date}` : ''}
+                                </div>
+                              )}
+                              {entry.awards ? (
+                                <div style={{ marginTop: '4px', color: '#2563eb', fontSize: '12px', fontWeight: '600' }}>
+                                  Awards: {entry.awards}
+                                </div>
+                              ) : null}
+                            </div>
+                          )}
 
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input
-                    type="text"
-                    placeholder="Start date (e.g., Aug 2020)"
-                    value={personalInfo.education_start_date}
-                    onChange={(e) =>
-                      setPersonalInfo({ ...personalInfo, education_start_date: e.target.value })
-                    }
-                    style={{
-                      flex: 1,
-                      padding: '10px 12px',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                  <input
-                    type="text"
-                    placeholder="End date (e.g., May 2024)"
-                    value={personalInfo.education_end_date}
-                    onChange={(e) =>
-                      setPersonalInfo({ ...personalInfo, education_end_date: e.target.value })
-                    }
-                    style={{
-                      flex: 1,
-                      padding: '10px 12px',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      boxSizing: 'border-box',
-                    }}
-                  />
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              type="button"
+                              onClick={() => startEditEducation(entry)}
+                              disabled={educationSaving}
+                              style={{
+                                padding: '6px 10px',
+                                fontSize: '13px',
+                                color: '#2563eb',
+                                backgroundColor: 'white',
+                                border: '1px solid #2563eb',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteEducationEntry(entry.id)}
+                              disabled={educationSaving}
+                              style={{
+                                padding: '6px 10px',
+                                fontSize: '13px',
+                                color: '#dc2626',
+                                backgroundColor: 'white',
+                                border: '1px solid #dc2626',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
 
-                <input
-                  type="text"
-                  placeholder="Awards (e.g., Dean's List, Scholarship Name)"
-                  value={personalInfo.education_awards}
-                  onChange={(e) => setPersonalInfo({ ...personalInfo, education_awards: e.target.value })}
-                  style={{
-                    padding: '10px 12px',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    width: '100%',
-                    boxSizing: 'border-box',
-                  }}
-                />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <input
+                    type="text"
+                    placeholder="University Name"
+                    value={educationForm.university}
+                    onChange={(e) => setEducationForm((prev) => ({ ...prev, university: e.target.value }))}
+                    style={{
+                      padding: '10px 12px',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+
+                  <input
+                    type="text"
+                    placeholder="Location (e.g., City, State)"
+                    value={educationForm.location}
+                    onChange={(e) => setEducationForm((prev) => ({ ...prev, location: e.target.value }))}
+                    style={{
+                      padding: '10px 12px',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+
+                  <input
+                    type="text"
+                    placeholder="Degree (e.g., B.S. Computer Science)"
+                    value={educationForm.degree}
+                    onChange={(e) => setEducationForm((prev) => ({ ...prev, degree: e.target.value }))}
+                    style={{
+                      padding: '10px 12px',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      placeholder="Start date (e.g., Aug 2020)"
+                      value={educationForm.start_date}
+                      onChange={(e) => setEducationForm((prev) => ({ ...prev, start_date: e.target.value }))}
+                      style={{
+                        flex: 1,
+                        padding: '10px 12px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="End date (e.g., May 2024)"
+                      value={educationForm.end_date}
+                      onChange={(e) => setEducationForm((prev) => ({ ...prev, end_date: e.target.value }))}
+                      style={{
+                        flex: 1,
+                        padding: '10px 12px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+
+                  <input
+                    type="text"
+                    placeholder="Awards (e.g., Dean's List, Scholarship Name)"
+                    value={educationForm.awards}
+                    onChange={(e) => setEducationForm((prev) => ({ ...prev, awards: e.target.value }))}
+                    style={{
+                      padding: '10px 12px',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={saveEducationEntry}
+                      disabled={educationSaving}
+                      style={{
+                        flex: 1,
+                        padding: '10px 12px',
+                        fontSize: '14px',
+                        color: 'white',
+                        backgroundColor: '#2563eb',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {educationSaving ? 'Saving...' : educationEditingId ? 'Update Education' : 'Save Education'}
+                    </button>
+
+                    {educationEditingId && (
+                      <button
+                        type="button"
+                        onClick={cancelEducationEdit}
+                        disabled={educationSaving}
+                        style={{
+                          padding: '10px 12px',
+                          fontSize: '14px',
+                          color: '#737373',
+                          backgroundColor: 'white',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
