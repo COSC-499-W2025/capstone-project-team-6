@@ -102,6 +102,23 @@ def init_db() -> None:
             """
         )
 
+        # Per-user work experience entries (separate from personal profile)
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_work_experience (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+                company TEXT,
+                job_title TEXT,
+                location TEXT,
+                start_date TEXT,
+                end_date TEXT,
+                responsibilities_text TEXT,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS uploads (
@@ -2328,6 +2345,164 @@ def delete_user_education(username: str, education_id: int) -> bool:
         res = conn.execute(
             "DELETE FROM user_education WHERE username = ? AND id = ?",
             (username, education_id),
+        )
+        conn.commit()
+        return int(res.rowcount) > 0
+
+
+def list_user_work_experience(username: str) -> List[Dict[str, Any]]:
+    """List saved work experience entries for a user."""
+    if not username:
+        return []
+
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                company,
+                job_title,
+                location,
+                start_date,
+                end_date,
+                responsibilities_text,
+                updated_at
+            FROM user_work_experience
+            WHERE username = ?
+            ORDER BY id DESC
+            """,
+            (username,),
+        ).fetchall()
+
+        return [dict(r) for r in rows]
+
+
+def create_user_work_experience(username: str, work: Dict[str, Any]) -> int:
+    """Create a new work experience entry for a user."""
+    if not username:
+        raise ValueError("username is required")
+
+    cleaned: Dict[str, Any] = {}
+    for key in (
+        "company",
+        "job_title",
+        "location",
+        "start_date",
+        "end_date",
+        "responsibilities_text",
+    ):
+        val = (work or {}).get(key)
+        if val is None:
+            continue
+        if isinstance(val, str):
+            cleaned[key] = val.strip()
+        else:
+            cleaned[key] = str(val).strip()
+
+    with get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+        conn.execute("INSERT OR IGNORE INTO users (username) VALUES (?)", (username,))
+        res = conn.execute(
+            """
+            INSERT INTO user_work_experience (
+                username,
+                company,
+                job_title,
+                location,
+                start_date,
+                end_date,
+                responsibilities_text
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                username,
+                cleaned.get("company"),
+                cleaned.get("job_title"),
+                cleaned.get("location"),
+                cleaned.get("start_date"),
+                cleaned.get("end_date"),
+                cleaned.get("responsibilities_text"),
+            ),
+        )
+        conn.commit()
+        return int(res.lastrowid)
+
+
+def update_user_work_experience(username: str, work_id: int, work: Dict[str, Any]) -> bool:
+    """Update an existing work experience entry."""
+    if not username:
+        raise ValueError("username is required")
+    if work_id is None:
+        raise ValueError("work_id is required")
+    if not work:
+        return False
+
+    cleaned: Dict[str, Any] = {}
+    for key in (
+        "company",
+        "job_title",
+        "location",
+        "start_date",
+        "end_date",
+        "responsibilities_text",
+    ):
+        if key in work and work[key] is not None:
+            val = work[key]
+            if isinstance(val, str):
+                cleaned[key] = val.strip()
+            else:
+                cleaned[key] = str(val).strip()
+
+    if not cleaned:
+        return False
+
+    allowed_keys = set(
+        ["company", "job_title", "location", "start_date", "end_date", "responsibilities_text"]
+    )
+    set_parts: List[str] = []
+    values: List[Any] = []
+    for k, v in cleaned.items():
+        if k not in allowed_keys:
+            continue
+        set_parts.append(f"{k} = ?")
+        values.append(v)
+
+    if not set_parts:
+        return False
+
+    values.extend([username, work_id])
+
+    with get_connection() as conn:
+        conn.execute(
+            f"""
+            UPDATE user_work_experience
+            SET {", ".join(set_parts)}, updated_at = CURRENT_TIMESTAMP
+            WHERE username = ? AND id = ?
+            """,
+            (*values,),
+        )
+        conn.commit()
+
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM user_work_experience WHERE username = ? AND id = ?",
+            (username, work_id),
+        ).fetchone()
+        return bool(row)
+
+
+def delete_user_work_experience(username: str, work_id: int) -> bool:
+    """Delete a work experience entry."""
+    if not username:
+        raise ValueError("username is required")
+    if work_id is None:
+        raise ValueError("work_id is required")
+
+    with get_connection() as conn:
+        res = conn.execute(
+            "DELETE FROM user_work_experience WHERE username = ? AND id = ?",
+            (username, work_id),
         )
         conn.commit()
         return int(res.rowcount) > 0

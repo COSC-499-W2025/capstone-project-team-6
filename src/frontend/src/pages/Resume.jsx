@@ -43,6 +43,20 @@ const Resume = () => {
   const [educationEditingId, setEducationEditingId] = useState(null);
   const [educationSaving, setEducationSaving] = useState(false);
 
+  // Work experience entries (stored separately from personal info)
+  const emptyWorkExperience = {
+    company: '',
+    job_title: '',
+    location: '',
+    start_date: '',
+    end_date: '',
+    responsibilities_text: '',
+  };
+  const [workEntries, setWorkEntries] = useState([]);
+  const [workForm, setWorkForm] = useState(emptyWorkExperience);
+  const [workEditingId, setWorkEditingId] = useState(null);
+  const [workSaving, setWorkSaving] = useState(false);
+
   // Personal information
   const emptyPersonal = {
     name: '',
@@ -146,6 +160,7 @@ const Resume = () => {
     loadStoredResumes();
     loadPersonalInfo();
     loadEducationEntries();
+    loadWorkExperienceEntries();
     loadCurationSettings();
   }, []);
 
@@ -298,6 +313,93 @@ const Resume = () => {
       if (!educationEditingId) setEducationEditingId(null);
     } catch (err) {
       console.error('Error loading education entries:', err);
+    }
+  };
+
+  const loadWorkExperienceEntries = async () => {
+    try {
+      const entries = await resumeAPI.listWorkExperience();
+      setWorkEntries(Array.isArray(entries) ? entries : []);
+
+      setWorkForm((prev) => {
+        if (workEditingId) return prev;
+        return { ...emptyWorkExperience };
+      });
+      if (!workEditingId) setWorkEditingId(null);
+    } catch (err) {
+      console.error('Error loading work experience entries:', err);
+    }
+  };
+
+  const cancelWorkEdit = () => {
+    setWorkEditingId(null);
+    setWorkForm({ ...emptyWorkExperience });
+  };
+
+  const startEditWorkExperience = (entry) => {
+    if (!entry) return;
+    setWorkEditingId(entry.id);
+    setWorkForm({
+      company: entry.company || '',
+      job_title: entry.job_title || '',
+      location: entry.location || '',
+      start_date: entry.start_date || '',
+      end_date: entry.end_date || '',
+      responsibilities_text: entry.responsibilities_text || '',
+    });
+  };
+
+  const deleteWorkExperienceEntry = async (entryId) => {
+    if (!entryId) return;
+    const ok = window.confirm('Delete this work experience entry?');
+    if (!ok) return;
+
+    try {
+      setWorkSaving(true);
+      await resumeAPI.deleteWorkExperience(entryId);
+      await loadWorkExperienceEntries();
+      if (workEditingId === entryId) cancelWorkEdit();
+    } catch (err) {
+      console.error('Error deleting work experience entry:', err);
+      setError(err.response?.data?.detail || 'Failed to delete work experience entry');
+    } finally {
+      setWorkSaving(false);
+    }
+  };
+
+  const saveWorkExperienceEntry = async () => {
+    const payload = {
+      company: workForm.company || null,
+      job_title: workForm.job_title || null,
+      location: workForm.location || null,
+      start_date: workForm.start_date || null,
+      end_date: workForm.end_date || null,
+      responsibilities_text: workForm.responsibilities_text || null,
+    };
+
+    const hasAnyValue = Object.values(payload).some((v) => typeof v === 'string' && v.trim().length > 0);
+    if (!hasAnyValue) {
+      setError('Please fill at least one work experience field before saving.');
+      return;
+    }
+
+    try {
+      setWorkSaving(true);
+      setError('');
+
+      if (workEditingId) {
+        await resumeAPI.updateWorkExperience(workEditingId, payload);
+      } else {
+        await resumeAPI.createWorkExperience(payload);
+      }
+
+      cancelWorkEdit();
+      await loadWorkExperienceEntries();
+    } catch (err) {
+      console.error('Error saving work experience entry:', err);
+      setError(err.response?.data?.detail || 'Failed to save work experience entry');
+    } finally {
+      setWorkSaving(false);
     }
   };
 
@@ -1151,6 +1253,256 @@ const Resume = () => {
                         type="button"
                         onClick={cancelEducationEdit}
                         disabled={educationSaving}
+                        style={{
+                          padding: '10px 12px',
+                          fontSize: '14px',
+                          color: '#737373',
+                          backgroundColor: 'white',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Work Experience */}
+            <div
+              style={{
+                backgroundColor: 'white',
+                borderRadius: '12px',
+                padding: '24px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                marginBottom: '24px',
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: '20px',
+                  fontWeight: '600',
+                  color: '#1a1a1a',
+                  margin: 0,
+                  marginBottom: '16px',
+                }}
+              >
+                Work Experience
+              </h2>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#525252', marginBottom: '4px' }}>
+                    Saved Work
+                  </div>
+
+                  {workEntries.length === 0 ? (
+                    <div style={{ fontSize: '12px', color: '#737373' }}>No saved work experience yet.</div>
+                  ) : (
+                    workEntries.map((entry) => {
+                      const responsibilities =
+                        typeof entry.responsibilities_text === 'string' ? entry.responsibilities_text.trim() : '';
+                      const firstResp = responsibilities
+                        ? responsibilities
+                            .split(/\r?\n/)
+                            .map((l) => l.trim().replace(/^[-*•]\s*/, ''))
+                            .filter(Boolean)[0]
+                        : '';
+                      const hasAnyMeta = entry.company || entry.job_title || entry.location || firstResp;
+
+                      return (
+                        <div
+                          key={entry.id}
+                          style={{
+                            padding: '12px',
+                            borderRadius: '8px',
+                            backgroundColor: '#f9fafb',
+                            border: '1px solid #e5e7eb',
+                          }}
+                        >
+                          <div style={{ fontSize: '14px', fontWeight: '700', color: '#1a1a1a', marginBottom: '6px' }}>
+                            {(entry.job_title && entry.company) ? `${entry.job_title} - ${entry.company}` : entry.job_title || entry.company || 'Work'}
+                          </div>
+                          {hasAnyMeta && (
+                            <div style={{ fontSize: '13px', color: '#525252', lineHeight: '1.4', marginBottom: '10px' }}>
+                              {entry.location ? <div>{entry.location}</div> : null}
+                              {(entry.start_date || entry.end_date) && (
+                                <div>
+                                  {(entry.start_date || '')}
+                                  {entry.end_date ? ` -- ${entry.end_date}` : ''}
+                                </div>
+                              )}
+                              {firstResp ? (
+                                <div style={{ marginTop: '4px', color: '#2563eb', fontSize: '12px', fontWeight: '600' }}>
+                                  {firstResp}
+                                </div>
+                              ) : null}
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              type="button"
+                              onClick={() => startEditWorkExperience(entry)}
+                              disabled={workSaving}
+                              style={{
+                                padding: '6px 10px',
+                                fontSize: '13px',
+                                color: '#2563eb',
+                                backgroundColor: 'white',
+                                border: '1px solid #2563eb',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteWorkExperienceEntry(entry.id)}
+                              disabled={workSaving}
+                              style={{
+                                padding: '6px 10px',
+                                fontSize: '13px',
+                                color: '#dc2626',
+                                backgroundColor: 'white',
+                                border: '1px solid #dc2626',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <input
+                    type="text"
+                    placeholder="Company / Organization"
+                    value={workForm.company}
+                    onChange={(e) => setWorkForm((prev) => ({ ...prev, company: e.target.value }))}
+                    style={{
+                      padding: '10px 12px',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+
+                  <input
+                    type="text"
+                    placeholder="Job Title"
+                    value={workForm.job_title}
+                    onChange={(e) => setWorkForm((prev) => ({ ...prev, job_title: e.target.value }))}
+                    style={{
+                      padding: '10px 12px',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+
+                  <input
+                    type="text"
+                    placeholder="Location (e.g., Remote / City, State)"
+                    value={workForm.location}
+                    onChange={(e) => setWorkForm((prev) => ({ ...prev, location: e.target.value }))}
+                    style={{
+                      padding: '10px 12px',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      placeholder="Start date (e.g., Aug 2020)"
+                      value={workForm.start_date}
+                      onChange={(e) => setWorkForm((prev) => ({ ...prev, start_date: e.target.value }))}
+                      style={{
+                        flex: 1,
+                        padding: '10px 12px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="End date (e.g., May 2024)"
+                      value={workForm.end_date}
+                      onChange={(e) => setWorkForm((prev) => ({ ...prev, end_date: e.target.value }))}
+                      style={{
+                        flex: 1,
+                        padding: '10px 12px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+
+                  <textarea
+                    value={workForm.responsibilities_text}
+                    onChange={(e) =>
+                      setWorkForm((prev) => ({ ...prev, responsibilities_text: e.target.value }))
+                    }
+                      placeholder="Responsibilities (type one per line with '-' prefix). Example:\n- Built APIs with FastAPI\n- Improved performance"
+                    style={{
+                      width: '100%',
+                      minHeight: '120px',
+                      padding: '12px',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      fontFamily: 'monospace',
+                      lineHeight: '1.5',
+                      resize: 'vertical',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={saveWorkExperienceEntry}
+                      disabled={workSaving}
+                      style={{
+                        flex: 1,
+                        padding: '10px 12px',
+                        fontSize: '14px',
+                        color: 'white',
+                        backgroundColor: '#2563eb',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {workSaving ? 'Saving...' : workEditingId ? 'Update Work' : 'Save Work'}
+                    </button>
+
+                    {workEditingId && (
+                      <button
+                        type="button"
+                        onClick={cancelWorkEdit}
+                        disabled={workSaving}
                         style={{
                           padding: '10px 12px',
                           fontSize: '14px',
