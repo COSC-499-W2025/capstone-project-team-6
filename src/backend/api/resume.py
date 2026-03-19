@@ -284,7 +284,7 @@ async def list_education(username: str = Depends(verify_token)):
 
 @router.post("/resume/education", response_model=EducationEntryResponse)
 async def create_education(request: EducationEntrySaveRequest, username: str = Depends(verify_token)):
-    edu_id = create_user_education(username, request.dict())
+    edu_id = create_user_education(username, request.model_dump())
     entries = list_user_education(username)
     # Fetch the created entry by id for a stable response shape.
     created = next((e for e in entries if e.get("id") == edu_id), None)
@@ -300,7 +300,7 @@ async def update_education(
     request: EducationEntrySaveRequest,
     username: str = Depends(verify_token),
 ):
-    ok = update_user_education(username, education_id, request.dict())
+    ok = update_user_education(username, education_id, request.model_dump())
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Education entry not found")
     entries = list_user_education(username)
