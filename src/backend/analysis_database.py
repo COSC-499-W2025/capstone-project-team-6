@@ -2287,9 +2287,12 @@ def update_user_education(username: str, education_id: int, education: Dict[str,
         "end_date",
         "awards",
     ):
-        if key in education and education[key] is not None:
+        if key in education:
             val = education[key]
-            if isinstance(val, str):
+            # Allow explicit clears (null) during updates, e.g. removing awards.
+            if val is None:
+                cleaned[key] = None
+            elif isinstance(val, str):
                 cleaned[key] = val.strip()
             else:
                 cleaned[key] = str(val).strip()

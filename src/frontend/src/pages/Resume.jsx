@@ -3,6 +3,8 @@ import Navigation from '../components/Navigation';
 import { projectsAPI, resumeAPI, curationAPI } from '../services/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 const Resume = () => {
   const [projects, setProjects] = useState([]);
@@ -27,6 +29,65 @@ const Resume = () => {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState('');
   const pdfUrlRef = useRef(null);
+
+  const formatMonthYear = (value) => {
+    // HTML <input type="month"> returns "YYYY-MM".
+    if (typeof value !== 'string') return '';
+    const m = value.match(/^(\d{4})-(\d{2})$/);
+    if (!m) return value;
+    const year = Number(m[1]);
+    const monthIdx = Number(m[2]) - 1;
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    if (monthIdx < 0 || monthIdx > 11) return value;
+    return `${monthNames[monthIdx]} ${year}`;
+  };
+
+  const MonthYearPicker = ({ value, onChange, placeholder }) => {
+    const parseMonthValue = (monthValue) => {
+      if (typeof monthValue !== 'string') return null;
+      const m = monthValue.match(/^(\d{4})-(\d{2})$/);
+      if (!m) return null;
+      const year = Number(m[1]);
+      const month = Number(m[2]);
+      if (month < 1 || month > 12) return null;
+      return new Date(year, month - 1, 1);
+    };
+
+    const toMonthValue = (dateObj) => {
+      if (!(dateObj instanceof Date) || Number.isNaN(dateObj.getTime())) return '';
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      return `${y}-${m}`;
+    };
+
+    return (
+      <DatePicker
+        selected={parseMonthValue(value)}
+        onChange={(date) => onChange(toMonthValue(date))}
+        showMonthYearPicker
+        dateFormat="MMM yyyy"
+        placeholderText={placeholder || 'Select month/year'}
+        isClearable
+        customInput={
+          <input
+            style={{
+              flex: 1,
+              padding: '10px 12px',
+              border: '1px solid #e5e7eb',
+              borderRadius: '6px',
+              fontSize: '14px',
+              boxSizing: 'border-box',
+              backgroundColor: 'white',
+              width: '100%',
+              cursor: 'pointer',
+            }}
+            aria-label={placeholder || 'Select month/year'}
+            readOnly
+          />
+        }
+      />
+    );
+  };
 
   // Education entries (stored separately from personal info)
   const emptyEducation = {
@@ -166,7 +227,7 @@ const Resume = () => {
 
   useEffect(() => {
     // Render generated PDF inline by converting the base64 payload into a Blob URL.
-    if (resumeFormat !== 'pdf' || !generatedResume?.content) {
+    if (generatedResume?.format !== 'pdf' || !generatedResume?.content) {
       if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
       pdfUrlRef.current = null;
       setPdfUrl(null);
@@ -368,6 +429,23 @@ const Resume = () => {
   };
 
   const saveWorkExperienceEntry = async () => {
+    const requiredWorkFields = [
+      ['company', 'Company / Organization'],
+      ['job_title', 'Job Title'],
+      ['location', 'Location'],
+      ['start_date', 'Start month/year'],
+      ['end_date', 'End month/year'],
+      ['responsibilities_text', 'Responsibilities'],
+    ];
+    const missingWorkFields = requiredWorkFields
+      .filter(([key]) => !(workForm[key] || '').trim())
+      .map(([, label]) => label);
+    if (missingWorkFields.length > 0) {
+      const message = `Please fill all required work experience fields:\n- ${missingWorkFields.join('\n- ')}`;
+      window.alert(message);
+      return;
+    }
+
     const payload = {
       company: workForm.company || null,
       job_title: workForm.job_title || null,
@@ -376,12 +454,6 @@ const Resume = () => {
       end_date: workForm.end_date || null,
       responsibilities_text: workForm.responsibilities_text || null,
     };
-
-    const hasAnyValue = Object.values(payload).some((v) => typeof v === 'string' && v.trim().length > 0);
-    if (!hasAnyValue) {
-      setError('Please fill at least one work experience field before saving.');
-      return;
-    }
 
     try {
       setWorkSaving(true);
@@ -441,6 +513,22 @@ const Resume = () => {
   };
 
   const saveEducationEntry = async () => {
+    const requiredEducationFields = [
+      ['university', 'University Name'],
+      ['location', 'Location'],
+      ['degree', 'Degree'],
+      ['start_date', 'Start month/year'],
+      ['end_date', 'End month/year'],
+    ];
+    const missingEducationFields = requiredEducationFields
+      .filter(([key]) => !(educationForm[key] || '').trim())
+      .map(([, label]) => label);
+    if (missingEducationFields.length > 0) {
+      const message = `Please fill all required education fields:\n- ${missingEducationFields.join('\n- ')}`;
+      window.alert(message);
+      return;
+    }
+
     const payload = {
       education_text: educationForm.education_text || null,
       university: educationForm.university || null,
@@ -450,12 +538,6 @@ const Resume = () => {
       end_date: educationForm.end_date || null,
       awards: educationForm.awards || null,
     };
-
-    const hasAnyValue = Object.values(payload).some((v) => typeof v === 'string' && v.trim().length > 0);
-    if (!hasAnyValue) {
-      setError('Please fill at least one education field before saving.');
-      return;
-    }
 
     try {
       setEducationSaving(true);
@@ -634,7 +716,7 @@ const Resume = () => {
   const downloadResume = () => {
     if (!generatedResume) return;
 
-    if (resumeFormat === 'pdf') {
+    if (generatedResume.format === 'pdf') {
       // Decode base64 PDF
       const binaryString = atob(generatedResume.content);
       const bytes = new Uint8Array(binaryString.length);
@@ -650,7 +732,7 @@ const Resume = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } else if (resumeFormat === 'latex') {
+    } else if (generatedResume.format === 'latex') {
       try {
         const binaryString = atob(generatedResume.content);
         const bytes = new Uint8Array(binaryString.length);
@@ -1085,8 +1167,8 @@ const Resume = () => {
                               {entry.location ? <div>{entry.location}</div> : null}
                               {(entry.start_date || entry.end_date) && (
                                 <div>
-                                  {(entry.start_date || '')}
-                                  {entry.end_date ? ` -- ${entry.end_date}` : ''}
+                                  {formatMonthYear(entry.start_date || '')}
+                                  {entry.end_date ? ` -- ${formatMonthYear(entry.end_date)}` : ''}
                                 </div>
                               )}
                               {entry.awards ? (
@@ -1184,34 +1266,20 @@ const Resume = () => {
                   />
 
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <input
-                      type="text"
-                      placeholder="Start date (e.g., Aug 2020)"
-                      value={educationForm.start_date}
-                      onChange={(e) => setEducationForm((prev) => ({ ...prev, start_date: e.target.value }))}
-                      style={{
-                        flex: 1,
-                        padding: '10px 12px',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '6px',
-                        fontSize: '14px',
-                        boxSizing: 'border-box',
-                      }}
-                    />
-                    <input
-                      type="text"
-                      placeholder="End date (e.g., May 2024)"
-                      value={educationForm.end_date}
-                      onChange={(e) => setEducationForm((prev) => ({ ...prev, end_date: e.target.value }))}
-                      style={{
-                        flex: 1,
-                        padding: '10px 12px',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '6px',
-                        fontSize: '14px',
-                        boxSizing: 'border-box',
-                      }}
-                    />
+                    <div style={{ flex: 1 }}>
+                      <MonthYearPicker
+                        value={educationForm.start_date}
+                        onChange={(v) => setEducationForm((prev) => ({ ...prev, start_date: v }))}
+                        placeholder="Start month/year"
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <MonthYearPicker
+                        value={educationForm.end_date}
+                        onChange={(v) => setEducationForm((prev) => ({ ...prev, end_date: v }))}
+                        placeholder="End month/year"
+                      />
+                    </div>
                   </div>
 
                   <input
@@ -1331,8 +1399,8 @@ const Resume = () => {
                               {entry.location ? <div>{entry.location}</div> : null}
                               {(entry.start_date || entry.end_date) && (
                                 <div>
-                                  {(entry.start_date || '')}
-                                  {entry.end_date ? ` -- ${entry.end_date}` : ''}
+                                  {formatMonthYear(entry.start_date || '')}
+                                  {entry.end_date ? ` -- ${formatMonthYear(entry.end_date)}` : ''}
                                 </div>
                               )}
                               {firstResp ? (
@@ -1429,34 +1497,20 @@ const Resume = () => {
                   />
 
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <input
-                      type="text"
-                      placeholder="Start date (e.g., Aug 2020)"
-                      value={workForm.start_date}
-                      onChange={(e) => setWorkForm((prev) => ({ ...prev, start_date: e.target.value }))}
-                      style={{
-                        flex: 1,
-                        padding: '10px 12px',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '6px',
-                        fontSize: '14px',
-                        boxSizing: 'border-box',
-                      }}
-                    />
-                    <input
-                      type="text"
-                      placeholder="End date (e.g., May 2024)"
-                      value={workForm.end_date}
-                      onChange={(e) => setWorkForm((prev) => ({ ...prev, end_date: e.target.value }))}
-                      style={{
-                        flex: 1,
-                        padding: '10px 12px',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '6px',
-                        fontSize: '14px',
-                        boxSizing: 'border-box',
-                      }}
-                    />
+                    <div style={{ flex: 1 }}>
+                      <MonthYearPicker
+                        value={workForm.start_date}
+                        onChange={(v) => setWorkForm((prev) => ({ ...prev, start_date: v }))}
+                        placeholder="Start month/year"
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <MonthYearPicker
+                        value={workForm.end_date}
+                        onChange={(v) => setWorkForm((prev) => ({ ...prev, end_date: v }))}
+                        placeholder="End month/year"
+                      />
+                    </div>
                   </div>
 
                   <textarea
@@ -1969,7 +2023,7 @@ const Resume = () => {
                   overflowY: 'auto',
                 }}
               >
-                {resumeFormat === 'pdf' ? (
+                {generatedResume?.format === 'pdf' ? (
                   <div style={{ width: '100%' }}>
                     {pdfLoading && (
                       <div style={{ padding: '24px', color: '#737373' }}>
