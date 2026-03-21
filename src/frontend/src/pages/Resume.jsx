@@ -151,7 +151,7 @@ const Resume = () => {
 
   useEffect(() => {
     // Render generated PDF inline by converting the base64 payload into a Blob URL.
-    if (resumeFormat !== 'pdf' || !generatedResume?.content) {
+    if (generatedResume?.format !== 'pdf' || !generatedResume?.content) {
       if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
       pdfUrlRef.current = null;
       setPdfUrl(null);
