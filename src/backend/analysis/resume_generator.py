@@ -811,11 +811,12 @@ def generate_latex_resume(
             end_date = (entry.get("education_end_date") or entry.get("end_date") or entry.get("grad_date") or "").strip()
             start_date_fmt = _format_month_year(start_date)
             end_date_fmt = _format_month_year(end_date)
-            date_range = (
-                f"{start_date_fmt} -- {end_date_fmt}"
-                if (start_date_fmt and end_date_fmt)
-                else (end_date_fmt or start_date_fmt or " ")
-            )
+            if start_date_fmt and end_date_fmt:
+                date_range = f"{start_date_fmt} -- {end_date_fmt}"
+            elif start_date_fmt and not end_date_fmt:
+                date_range = f"{start_date_fmt} -- Present"
+            else:
+                date_range = end_date_fmt or start_date_fmt or " "
             awards = (entry.get("education_awards") or entry.get("awards") or "").strip()
             education_text = (entry.get("education_text") or entry.get("education") or "").strip()
             # Keep education text on one line for LaTeX safety.
@@ -850,11 +851,12 @@ def generate_latex_resume(
         end_date = (info.get("education_end_date") or info.get("grad_date") or "").strip()
         start_date_fmt = _format_month_year(start_date)
         end_date_fmt = _format_month_year(end_date)
-        date_range = (
-            f"{start_date_fmt} -- {end_date_fmt}"
-            if (start_date_fmt and end_date_fmt)
-            else (end_date_fmt or start_date_fmt or " ")
-        )
+        if start_date_fmt and end_date_fmt:
+            date_range = f"{start_date_fmt} -- {end_date_fmt}"
+        elif start_date_fmt and not end_date_fmt:
+            date_range = f"{start_date_fmt} -- Present"
+        else:
+            date_range = end_date_fmt or start_date_fmt or " "
         awards = (info.get("education_awards") or "").strip()
 
         if university or degree or (info.get("education") or "").strip():
@@ -901,11 +903,12 @@ def generate_latex_resume(
             end_date = (entry.get("end_date") or entry.get("work_end_date") or entry.get("work_grad_date") or "").strip()
             start_date_fmt = _format_month_year(start_date)
             end_date_fmt = _format_month_year(end_date)
-            date_range = (
-                f"{start_date_fmt} -- {end_date_fmt}"
-                if (start_date_fmt and end_date_fmt)
-                else (end_date_fmt or start_date_fmt or " ")
-            )
+            if start_date_fmt and end_date_fmt:
+                date_range = f"{start_date_fmt} -- {end_date_fmt}"
+            elif start_date_fmt and not end_date_fmt:
+                date_range = f"{start_date_fmt} -- Present"
+            else:
+                date_range = end_date_fmt or start_date_fmt or " "
 
             responsibilities_text = (
                 entry.get("responsibilities_text")
@@ -1311,6 +1314,8 @@ def generate_resume(
                     if start_d_fmt or end_d_fmt:
                         if start_d_fmt and end_d_fmt:
                             line += f" ({start_d_fmt} -- {end_d_fmt})"
+                        elif start_d_fmt and not end_d_fmt:
+                            line += f" ({start_d_fmt} -- Present)"
                         else:
                             line += f" ({start_d_fmt or end_d_fmt})"
 
@@ -1334,6 +1339,8 @@ def generate_resume(
                 if start_d_fmt or end_d_fmt:
                     if start_d_fmt and end_d_fmt:
                         line += f" ({start_d_fmt} -- {end_d_fmt})"
+                    elif start_d_fmt and not end_d_fmt:
+                        line += f" ({start_d_fmt} -- Present)"
                     else:
                         line += f" ({start_d_fmt or end_d_fmt})"
                 awards = (personal_info.get("education_awards") or "").strip()
@@ -1372,11 +1379,12 @@ def generate_resume(
                 start_d_fmt = _format_month_year(start_d)
                 end_d_fmt = _format_month_year(end_d)
 
-                date_range = (
-                    f"{start_d_fmt} -- {end_d_fmt}"
-                    if (start_d_fmt and end_d_fmt)
-                    else (end_d_fmt or start_d_fmt or "")
-                )
+                if start_d_fmt and end_d_fmt:
+                    date_range = f"{start_d_fmt} -- {end_d_fmt}"
+                elif start_d_fmt and not end_d_fmt:
+                    date_range = f"{start_d_fmt} -- Present"
+                else:
+                    date_range = end_d_fmt or start_d_fmt or ""
                 line_bits = []
                 if job_title:
                     line_bits.append(f"**{job_title}**")

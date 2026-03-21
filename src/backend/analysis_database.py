@@ -7,6 +7,7 @@ import logging
 import os
 import sqlite3
 import uuid
+from datetime import datetime
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Union
@@ -2353,6 +2354,37 @@ def delete_user_education(username: str, education_id: int) -> bool:
         return int(res.rowcount) > 0
 
 
+def _parse_year_month_sort_key(value: Any) -> Optional[int]:
+    """Map 'YYYY-MM' to a comparable int, or None if invalid."""
+    if value is None:
+        return None
+    s = str(value).strip()
+    if len(s) != 7 or s[4] != "-":
+        return None
+    try:
+        y = int(s[0:4])
+        mo = int(s[5:7])
+    except ValueError:
+        return None
+    if mo < 1 or mo > 12:
+        return None
+    return y * 12 + (mo - 1)
+
+
+def _work_experience_reverse_chronological(entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Most recent first: by effective end date (ongoing = current month), then by start date."""
+    now_m = datetime.now().year * 12 + datetime.now().month - 1
+
+    def sort_key(entry: Dict[str, Any]) -> tuple:
+        end = _parse_year_month_sort_key(entry.get("end_date"))
+        start = _parse_year_month_sort_key(entry.get("start_date"))
+        eff_end = end if end is not None else now_m
+        eff_start = start if start is not None else -1
+        return (-eff_end, -eff_start)
+
+    return sorted(entries, key=sort_key)
+
+
 def list_user_work_experience(username: str) -> List[Dict[str, Any]]:
     """List saved work experience entries for a user."""
     if not username:
@@ -2372,12 +2404,12 @@ def list_user_work_experience(username: str) -> List[Dict[str, Any]]:
                 updated_at
             FROM user_work_experience
             WHERE username = ?
-            ORDER BY id DESC
             """,
             (username,),
         ).fetchall()
 
-        return [dict(r) for r in rows]
+        out = [dict(r) for r in rows]
+        return _work_experience_reverse_chronological(out)
 
 
 def create_user_work_experience(username: str, work: Dict[str, Any]) -> int:
