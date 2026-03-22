@@ -8,8 +8,7 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       "/api": {
-        // Force IPv4 to avoid localhost resolving to ::1 on some machines.
-        target: "http://127.0.0.1:8000",
+        target: "http://localhost:8000",
         changeOrigin: true,
       },
     },

@@ -251,27 +251,6 @@ export const resumeAPI = {
     const response = await api.delete('/resume/personal-info');
     return response.data;
   },
-
-  // Education entries (separate from personal info)
-  listEducation: async () => {
-    const response = await api.get('/resume/education');
-    return response.data;
-  },
-
-  createEducation: async (payload) => {
-    const response = await api.post('/resume/education', payload);
-    return response.data;
-  },
-
-  updateEducation: async (educationId, payload) => {
-    const response = await api.patch(`/resume/education/${educationId}`, payload);
-    return response.data;
-  },
-
-  deleteEducation: async (educationId) => {
-    const response = await api.delete(`/resume/education/${educationId}`);
-    return response.data;
-  },
 };
 
 // Curation API calls
