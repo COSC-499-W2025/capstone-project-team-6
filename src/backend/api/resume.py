@@ -6,7 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from backend.analysis_database import (add_items_to_user_resume,
+                                       create_user_education,
                                        create_user_resume,
+                                       delete_user_education,
                                        delete_user_personal_info,
                                        get_all_analyses_for_user,
                                        get_analysis_by_uuid, get_connection,
@@ -15,7 +17,8 @@ from backend.analysis_database import (add_items_to_user_resume,
                                        get_resume_items_for_project_id,
                                        get_user_personal_info, get_user_resume,
                                        get_user_resume_items,
-                                       list_user_resumes,
+                                       list_user_education, list_user_resumes,
+                                       update_user_education,
                                        update_user_resume_content,
                                        upsert_user_personal_info)
 from backend.analysis.job_match_analyzer import analyze_job_match
@@ -116,6 +119,32 @@ class PersonalInfoUpsertRequest(BaseModel):
 
 class PersonalInfoResponse(BaseModel):
     personal_info: Optional[Dict[str, str]] = None
+
+
+class EducationEntrySaveRequest(BaseModel):
+    """Request body for creating/updating an education entry."""
+
+    education_text: Optional[str] = None
+    university: Optional[str] = None
+    location: Optional[str] = None
+    degree: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    awards: Optional[str] = None
+
+
+class EducationEntryResponse(BaseModel):
+    """Response model for an education entry."""
+
+    id: int
+    education_text: Optional[str] = None
+    university: Optional[str] = None
+    location: Optional[str] = None
+    degree: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    awards: Optional[str] = None
+    updated_at: Optional[str] = None
 
 
 def _append_markdown_bullets(content: str, bullets: List[str]) -> str:
@@ -312,6 +341,84 @@ async def delete_personal_info(username: str = Depends(verify_token)):
     }
 
 
+def _seed_education_from_personal_info(username: str) -> None:
+    """One-time migration from legacy `personal_info.education_*` into `user_education`."""
+    personal_info = get_user_personal_info(username) or {}
+
+    # Prefer explicit education text if present.
+    education_text = (personal_info.get("education") or "").strip()
+
+    university = (personal_info.get("education_university") or personal_info.get("university") or "").strip()
+    location = (personal_info.get("education_location") or personal_info.get("location") or "").strip()
+    degree = (personal_info.get("education_degree") or personal_info.get("degree") or "").strip()
+    start_date = (personal_info.get("education_start_date") or personal_info.get("start_date") or "").strip()
+    end_date = (
+        personal_info.get("education_end_date") or personal_info.get("grad_date") or personal_info.get("end_date") or ""
+    ).strip()
+    awards = (personal_info.get("education_awards") or "").strip()
+
+    if not any([education_text, university, location, degree, start_date, end_date, awards]):
+        return
+
+    create_user_education(
+        username,
+        {
+            "education_text": education_text or None,
+            "university": university or None,
+            "location": location or None,
+            "degree": degree or None,
+            "start_date": start_date or None,
+            "end_date": end_date or None,
+            "awards": awards or None,
+        },
+    )
+
+
+@router.get("/resume/education", response_model=List[EducationEntryResponse])
+async def list_education(username: str = Depends(verify_token)):
+    entries = list_user_education(username)
+    if not entries:
+        _seed_education_from_personal_info(username)
+        entries = list_user_education(username)
+    return entries
+
+
+@router.post("/resume/education", response_model=EducationEntryResponse)
+async def create_education(request: EducationEntrySaveRequest, username: str = Depends(verify_token)):
+    edu_id = create_user_education(username, request.model_dump())
+    entries = list_user_education(username)
+    # Fetch the created entry by id for a stable response shape.
+    created = next((e for e in entries if e.get("id") == edu_id), None)
+    if not created:
+        # Fallback: return minimal
+        return EducationEntryResponse(id=edu_id, updated_at=None)
+    return created
+
+
+@router.patch("/resume/education/{education_id}", response_model=EducationEntryResponse)
+async def update_education(
+    education_id: int,
+    request: EducationEntrySaveRequest,
+    username: str = Depends(verify_token),
+):
+    ok = update_user_education(username, education_id, request.model_dump())
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Education entry not found")
+    entries = list_user_education(username)
+    updated = next((e for e in entries if e.get("id") == education_id), None)
+    if not updated:
+        return EducationEntryResponse(id=education_id, updated_at=None)
+    return updated
+
+
+@router.delete("/resume/education/{education_id}")
+async def delete_education(education_id: int, username: str = Depends(verify_token)):
+    ok = delete_user_education(username, education_id)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Education entry not found")
+    return {"ok": True, "deleted": True}
+
+
 @router.post("/resume/generate", response_model=ResumeResponse)
 async def generate_resume(
     request: ResumeRequest,
@@ -397,6 +504,53 @@ async def generate_resume(
                 detail="No valid projects found for the provided IDs",
             )
 
+        education_entries = list_user_education(username)
+        if not education_entries:
+            _seed_education_from_personal_info(username)
+            education_entries = list_user_education(username)
+
+        # Pass education entries to the resume generator. We keep personal_info as provided
+        # but augment it with `education_entries` so the generator can render multiple schools.
+        personal_info_for_gen: Dict[str, Any] = dict(request.personal_info or {})
+        personal_info_for_gen["education_entries"] = education_entries or []
+        if education_entries:
+            first = education_entries[0] or {}
+            # Backward-compat fields (in case the generator falls back to legacy keys).
+            personal_info_for_gen.setdefault(
+                "education_university",
+                first.get("university")
+                or personal_info_for_gen.get("education_university")
+                or personal_info_for_gen.get("university"),
+            )
+            personal_info_for_gen.setdefault(
+                "education_location",
+                first.get("location") or personal_info_for_gen.get("education_location") or personal_info_for_gen.get("location"),
+            )
+            personal_info_for_gen.setdefault(
+                "education_degree",
+                first.get("degree") or personal_info_for_gen.get("education_degree") or personal_info_for_gen.get("degree"),
+            )
+            personal_info_for_gen.setdefault(
+                "education_start_date",
+                first.get("start_date")
+                or personal_info_for_gen.get("education_start_date")
+                or personal_info_for_gen.get("start_date"),
+            )
+            personal_info_for_gen.setdefault(
+                "education_end_date",
+                first.get("end_date")
+                or personal_info_for_gen.get("education_end_date")
+                or personal_info_for_gen.get("grad_date"),
+            )
+            personal_info_for_gen.setdefault(
+                "education_awards",
+                first.get("awards") or personal_info_for_gen.get("education_awards"),
+            )
+            personal_info_for_gen.setdefault(
+                "education",
+                first.get("education_text") or personal_info_for_gen.get("education"),
+            )
+
         # Generate the resume content
         resume_content = generate_resume_impl(
             projects=bundles,
@@ -404,7 +558,7 @@ async def generate_resume(
             include_skills=request.include_skills,
             include_projects=request.include_projects,
             max_projects=request.max_projects,
-            personal_info=request.personal_info,
+            personal_info=personal_info_for_gen,
             highlighted_skills=request.highlighted_skills,
         )
 

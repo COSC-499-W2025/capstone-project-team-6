@@ -84,6 +84,24 @@ def init_db() -> None:
             """
         )
 
+        # Per-user education entries (separate from personal profile)
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_education (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+                education_text TEXT,
+                university TEXT,
+                location TEXT,
+                degree TEXT,
+                start_date TEXT,
+                end_date TEXT,
+                awards TEXT,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS uploads (
@@ -2147,3 +2165,168 @@ def upsert_user_personal_info(username: str, personal_info: Dict[str, str]) -> N
             (username, json.dumps(cleaned, separators=(",", ":"))),
         )
         conn.commit()
+
+
+def list_user_education(username: str) -> List[Dict[str, Any]]:
+    """List saved education entries for a user."""
+    if not username:
+        return []
+
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                education_text,
+                university,
+                location,
+                degree,
+                start_date,
+                end_date,
+                awards,
+                updated_at
+            FROM user_education
+            WHERE username = ?
+            ORDER BY id DESC
+            """,
+            (username,),
+        ).fetchall()
+
+        return [dict(r) for r in rows]
+
+
+def create_user_education(username: str, education: Dict[str, Any]) -> int:
+    """Create a new education entry for a user."""
+    if not username:
+        raise ValueError("username is required")
+
+    cleaned: Dict[str, Any] = {}
+    for key in (
+        "education_text",
+        "university",
+        "location",
+        "degree",
+        "start_date",
+        "end_date",
+        "awards",
+    ):
+        val = (education or {}).get(key)
+        if val is None:
+            continue
+        if isinstance(val, str):
+            cleaned[key] = val.strip()
+        else:
+            cleaned[key] = str(val).strip()
+
+    with get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+        conn.execute("INSERT OR IGNORE INTO users (username) VALUES (?)", (username,))
+        res = conn.execute(
+            """
+            INSERT INTO user_education (
+                username,
+                education_text,
+                university,
+                location,
+                degree,
+                start_date,
+                end_date,
+                awards
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                username,
+                cleaned.get("education_text"),
+                cleaned.get("university"),
+                cleaned.get("location"),
+                cleaned.get("degree"),
+                cleaned.get("start_date"),
+                cleaned.get("end_date"),
+                cleaned.get("awards"),
+            ),
+        )
+        conn.commit()
+        return int(res.lastrowid)
+
+
+def update_user_education(username: str, education_id: int, education: Dict[str, Any]) -> bool:
+    """Update an existing education entry."""
+    if not username:
+        raise ValueError("username is required")
+    if education_id is None:
+        raise ValueError("education_id is required")
+
+    if not education:
+        return False
+
+    cleaned: Dict[str, Any] = {}
+    for key in (
+        "education_text",
+        "university",
+        "location",
+        "degree",
+        "start_date",
+        "end_date",
+        "awards",
+    ):
+        if key in education and education[key] is not None:
+            val = education[key]
+            if isinstance(val, str):
+                cleaned[key] = val.strip()
+            else:
+                cleaned[key] = str(val).strip()
+
+    if not cleaned:
+        return False
+
+    # Build dynamic SET clause
+    allowed_keys = set(["education_text", "university", "location", "degree", "start_date", "end_date", "awards"])
+    set_parts = []
+    values = []
+    for k, v in cleaned.items():
+        if k not in allowed_keys:
+            continue
+        set_parts.append(f"{k} = ?")
+        values.append(v)
+
+    if not set_parts:
+        return False
+
+    values.extend([username, education_id])
+
+    with get_connection() as conn:
+        conn.execute(
+            f"""
+            UPDATE user_education
+            SET {", ".join(set_parts)}, updated_at = CURRENT_TIMESTAMP
+            WHERE username = ? AND id = ?
+            """,
+            (*values,),
+        )
+        res = conn.total_changes
+        conn.commit()
+
+    # We can't rely on total_changes reliably across drivers; do a simple existence check.
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM user_education WHERE username = ? AND id = ?",
+            (username, education_id),
+        ).fetchone()
+        return bool(row)
+
+
+def delete_user_education(username: str, education_id: int) -> bool:
+    """Delete an education entry."""
+    if not username:
+        raise ValueError("username is required")
+    if education_id is None:
+        raise ValueError("education_id is required")
+
+    with get_connection() as conn:
+        res = conn.execute(
+            "DELETE FROM user_education WHERE username = ? AND id = ?",
+            (username, education_id),
+        )
+        conn.commit()
+        return int(res.rowcount) > 0
