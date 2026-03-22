@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/Navigation';
 import { useAuth } from '../contexts/AuthContext';
@@ -17,6 +17,311 @@ const formatTimestamp = (value) => {
   });
 };
 
+const ActivityHeatmap = ({ portfolios, projectList }) => {
+  const CELL = 13;
+  const GAP  = 2;
+  const [tooltip, setTooltip] = useState(null);   // { day, x, y }
+  const [selectedYear, setSelectedYear] = useState(null);
+  const scrollRef = useRef(null);
+
+  const toLocalKey = (d) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+  const parseDate = (val) => {
+    if (!val) return null;
+    if (val instanceof Date) return Number.isNaN(val.getTime()) ? null : val;
+    const s = String(val);
+    const d = /^\d{4}-\d{2}-\d{2}/.test(s) ? new Date(`${s.slice(0, 10)}T00:00:00`) : new Date(s);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  // Dynamic window: go back to the earliest project date, capped at 2 years
+  const gridStart = useMemo(() => {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const maxBack = new Date(today); maxBack.setFullYear(maxBack.getFullYear() - 3);
+    let earliest = new Date(today);
+    for (const p of portfolios) {
+      const d = parseDate(p.analysis_timestamp);
+      if (d && d < earliest) earliest = new Date(d);
+    }
+    for (const proj of projectList) {
+      for (const field of ['project_start_date', 'last_commit_date', 'last_modified_date']) {
+        const d = parseDate(proj[field]);
+        if (d && d < earliest) earliest = new Date(d);
+      }
+    }
+    if (earliest < maxBack) earliest = new Date(maxBack);
+    earliest.setDate(earliest.getDate() - earliest.getDay());
+    return earliest;
+  }, [portfolios, projectList]);
+
+  const WEEKS = useMemo(() => {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    return Math.min(156, Math.ceil((today - gridStart) / (7 * 86400000)) + 1);
+  }, [gridStart]);
+
+  // Build activity map + per-day project map from all temporal signals
+  const { activityMap, dayProjectsMap } = useMemo(() => {
+    const map     = new Map();
+    const projMap = new Map(); // key -> Set<projectName>
+    const today   = new Date(); today.setHours(0, 0, 0, 0);
+
+    const addDay = (dateVal, weight, projName) => {
+      const d = parseDate(dateVal);
+      if (!d || d < gridStart || d > today) return;
+      const key = toLocalKey(d);
+      map.set(key, (map.get(key) ?? 0) + weight);
+      if (projName) {
+        if (!projMap.has(key)) projMap.set(key, new Set());
+        projMap.get(key).add(projName);
+      }
+    };
+
+    for (const p of portfolios) addDay(p.analysis_timestamp, 10, 'Portfolio analysis');
+
+    for (const proj of projectList) {
+      const name        = proj.name || proj.repo_name || proj.repository || 'Project';
+      const userCommits = Math.max(1,
+        proj.target_user_stats?.commit_count ??
+        proj.target_user_stats?.commits ??
+        proj.total_commits ?? 1);
+
+      addDay(proj.project_start_date,      7, name);
+      addDay(proj.project_end_date,        7, name);
+      addDay(proj.last_commit_date,        6, name);
+      addDay(proj.target_user_last_commit, 6, name);
+      addDay(proj.last_modified_date,      3, name);
+
+      for (const c of (Array.isArray(proj.contributors) ? proj.contributors : [])) {
+        addDay(c.first_commit_date, 4, name);
+        addDay(c.last_commit_date,  4, name);
+      }
+
+      const start = parseDate(proj.project_start_date);
+      const end   = parseDate(proj.project_end_date ?? proj.last_commit_date);
+
+      if (start && end && end >= start) {
+        const spanDays       = Math.max(1, Math.round((end - start) / 86400000));
+        const activeFrac     = Math.min(1, (proj.project_active_days ?? spanDays) / spanDays);
+        const skipDays       = Math.max(1, Math.round(spanDays / Math.max(userCommits * activeFrac, 1)));
+        const perDayWeight   = Math.max(2, userCommits / Math.max(spanDays / skipDays, 1));
+        const effectiveStart = start < gridStart ? new Date(gridStart) : new Date(start);
+        const dt = new Date(effectiveStart);
+        let i = 0;
+        while (dt <= end && dt <= today) {
+          if (i % skipDays === 0) addDay(new Date(dt), perDayWeight, name);
+          i++;
+          dt.setDate(dt.getDate() + 1);
+        }
+      } else if (proj.last_commit_date) {
+        addDay(proj.last_commit_date, Math.min(userCommits, 8), name);
+      }
+    }
+    return { activityMap: map, dayProjectsMap: projMap };
+  }, [portfolios, projectList, gridStart]);
+
+  const { weeks, monthLabels, yearStarts } = useMemo(() => {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const weeksArr      = [];
+    const months        = [];
+    const yearStartsArr = [];
+    const cur           = new Date(gridStart);
+    let lastLabel = null, lastYear = -1, wi = 0;
+    while (wi < WEEKS) {
+      const week = [];
+      for (let d = 0; d < 7; d++) {
+        const key     = toLocalKey(cur);
+        const inRange = cur >= gridStart && cur <= today;
+        week.push({ date: new Date(cur), key, count: inRange ? (activityMap.get(key) ?? 0) : -1 });
+        cur.setDate(cur.getDate() + 1);
+      }
+      const mon  = week[0].date.toLocaleString('en-US', { month: 'short' });
+      const year = week[0].date.getFullYear();
+      const lbl  = `${mon}-${year}`;
+      if (lbl !== lastLabel && week[0].date <= today) {
+        months.push({ weekIdx: wi, label: mon, year, showYear: mon === 'Jan' || wi === 0 });
+        lastLabel = lbl;
+      }
+      if (year !== lastYear && week[0].date <= today) {
+        yearStartsArr.push({ year, weekIdx: wi });
+        lastYear = year;
+      }
+      weeksArr.push(week);
+      wi++;
+    }
+    return { weeks: weeksArr, monthLabels: months, yearStarts: yearStartsArr };
+  }, [activityMap, gridStart, WEEKS]);
+
+  const maxCount = useMemo(
+    () => activityMap.size === 0 ? 1 : Math.max(1, ...activityMap.values()),
+    [activityMap]
+  );
+
+  const { longestStreak, currentStreak, totalCommits } = useMemo(() => {
+    let best = 0, run = 0, cur2 = 0;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const dt = new Date(gridStart);
+    while (dt <= today) {
+      const key = toLocalKey(dt);
+      if (activityMap.has(key)) { run++; best = Math.max(best, run); } else { run = 0; }
+      dt.setDate(dt.getDate() + 1);
+    }
+    const dt2 = new Date(today);
+    while (activityMap.has(toLocalKey(dt2))) { cur2++; dt2.setDate(dt2.getDate() - 1); }
+    const tc = projectList.reduce((s, p) => {
+      // target_user_commits is computed in task_manager but NOT stored in raw_json;
+      // try every known location in priority order
+      const fromUserStats   = p.target_user_stats?.commit_count ?? p.target_user_stats?.commits ?? 0;
+      const fromContribs    = Array.isArray(p.contributors)
+        ? p.contributors.reduce((a, c) => a + (c.commit_count ?? c.commits ?? 0), 0)
+        : 0;
+      const fromTotal       = p.total_commits ?? 0;
+      return s + Math.max(fromUserStats, fromContribs, fromTotal);
+    }, 0);
+    return { longestStreak: best, currentStreak: cur2, totalCommits: tc };
+  }, [activityMap, gridStart, projectList]);
+
+  const activeDays  = activityMap.size;
+  const spanMonths  = Math.round((new Date() - gridStart) / (30 * 86400000));
+  const spanLabel   = spanMonths >= 18 ? `${(spanMonths / 12).toFixed(1)} yrs` : `${spanMonths} months`;
+  const renderCell = (day) => {
+    if (day.count === -1) return <div key={day.key} style={{ width: CELL, height: CELL, flexShrink: 0 }} />;
+    const { count, key, date } = day;
+    const level   = count > 0 ? count / maxCount : 0;
+    const dotSize = count === 0 ? 0 : Math.max(4, Math.round(level * (CELL - 3)));
+    let dotColor = 'transparent', glow = 'none';
+    if (level > 0) {
+      if      (level < 0.25) dotColor = '#a5b4fc';
+      else if (level < 0.5)  dotColor = '#818cf8';
+      else if (level < 0.75) dotColor = '#6366f1';
+      else                  { dotColor = '#4338ca'; glow = '0 0 6px 2px rgba(99,102,241,0.45)'; }
+    }
+    const label = count === 0
+      ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : `${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}: ${Math.round(count)} contributions`;
+    return (
+      <div
+        key={key}
+        title={label}
+        style={{
+          width: CELL, height: CELL, borderRadius: 3,
+          backgroundColor: '#f1f5f9', flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: count > 0 ? 'crosshair' : 'default',
+        }}
+      >
+        {dotSize > 0 && (
+          <div style={{
+            width: dotSize, height: dotSize, borderRadius: '50%',
+            backgroundColor: dotColor, boxShadow: glow,
+          }} />
+        )}
+      </div>
+    );
+  };
+
+  if (activeDays === 0) {
+    return (
+      <div style={{ backgroundColor: 'white', padding: '32px', borderRadius: '20px',
+        boxShadow: '0 20px 40px rgba(15,23,42,0.06)', marginBottom: '24px', textAlign: 'center' }}>
+        <p style={{ color: '#9ca3af', fontSize: '14px', margin: 0 }}>
+          No activity data yet. Upload and analyse projects to populate the heatmap.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ backgroundColor: 'white', padding: '32px', borderRadius: '20px',
+      boxShadow: '0 20px 40px rgba(15, 23, 42, 0.06)', marginBottom: '24px' }}>
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+        marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <div style={{ fontSize: '13px', fontWeight: '600', letterSpacing: '0.18em',
+            textTransform: 'uppercase', color: '#6366f1', marginBottom: '6px' }}>Productivity</div>
+          <h3 style={{ margin: '0 0 4px', fontSize: '20px', fontWeight: '700', color: '#0f172a' }}>
+            Activity Heatmap
+          </h3>
+          <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>
+            Full project activity history · {spanLabel}
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+          {[
+            { value: activeDays,         label: 'Active Days'    },
+            { value: currentStreak,      label: 'Current Streak' },
+            { value: longestStreak,      label: 'Best Streak'    },
+            { value: totalCommits,       label: 'Total Commits'  },
+            { value: projectList.length, label: 'Projects'       },
+          ].map(({ value, label }) => (
+            <div key={label} style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '22px', fontWeight: '700', color: '#4f46e5' }}>{value}</div>
+              <div style={{ fontSize: '10px', color: '#9ca3af', textTransform: 'uppercase',
+                letterSpacing: '0.1em', marginTop: '2px' }}>{label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Grid */}
+      <div style={{ overflowX: 'auto' }}>
+        <div style={{ display: 'inline-flex', minWidth: 'max-content' }}>
+          {/* Day-of-week labels */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: GAP,
+            paddingTop: 22, marginRight: 4, width: 26 }}>
+            {['', 'Mon', '', 'Wed', '', 'Fri', ''].map((lbl, i) => (
+              <div key={i} style={{ height: CELL, fontSize: 10, color: '#94a3b8',
+                display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 2 }}>
+                {lbl}
+              </div>
+            ))}
+          </div>
+
+          <div>
+            {/* Month labels */}
+            <div style={{ display: 'flex', gap: GAP, height: 20, marginBottom: 2 }}>
+              {weeks.map((_, wi) => {
+                const ml = monthLabels.find((m) => m.weekIdx === wi);
+                return (
+                  <div key={wi} style={{ width: CELL, flexShrink: 0, fontSize: 10, overflow: 'visible',
+                    whiteSpace: 'nowrap', color: ml?.showYear ? '#4f46e5' : '#64748b',
+                    fontWeight: ml?.showYear ? '700' : 'normal' }}>
+                    {ml ? (ml.showYear ? `${ml.label} ${ml.year}` : ml.label) : ''}
+                  </div>
+                );
+              })}
+            </div>
+            {/* Cells */}
+            <div style={{ display: 'flex', gap: GAP }}>
+              {weeks.map((week, wi) => (
+                <div key={wi} style={{ display: 'flex', flexDirection: 'column', gap: GAP }}>
+                  {week.map((day) => renderCell(day))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '14px', justifyContent: 'flex-end' }}>
+        <span style={{ fontSize: '11px', color: '#9ca3af' }}>Low</span>
+        {[null, '#c7d2fe', '#a5b4fc', '#818cf8', '#6366f1', '#4338ca'].map((color, i) => (
+          <div key={i} style={{ width: CELL, height: CELL, borderRadius: 3, backgroundColor: '#f1f5f9',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            {color && <div style={{ width: 2 + i * 2, height: 2 + i * 2, borderRadius: '50%',
+              backgroundColor: color,
+              boxShadow: i === 5 ? '0 0 6px 2px rgba(99,102,241,0.5)' : 'none' }} />}
+          </div>
+        ))}
+        <span style={{ fontSize: '11px', color: '#9ca3af' }}>High</span>
+      </div>
+    </div>
+  );
+};
+
 const Portfolio = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
@@ -28,6 +333,8 @@ const Portfolio = () => {
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState('');
   const [detailError, setDetailError] = useState('');
+  // Cache of all fetched portfolio details (uuid → detail) for the heatmap
+  const [allDetails, setAllDetails] = useState(new Map());
 
   // Curation settings
   const [curationSettings, setCurationSettings] = useState(null);
@@ -80,6 +387,8 @@ const Portfolio = () => {
       .then((detail) => {
         if (!cancelled) {
           setSelectedPortfolioDetail(detail);
+          // Cache this detail for the heatmap
+          setAllDetails((prev) => new Map(prev).set(selectedPortfolioId, detail));
         }
       })
       .catch((err) => {
@@ -99,6 +408,21 @@ const Portfolio = () => {
       cancelled = true;
     };
   }, [selectedPortfolioId]);
+
+  // Background-fetch details for all other portfolios so the heatmap shows ALL activity
+  useEffect(() => {
+    if (portfolios.length === 0) return;
+    let cancelled = false;
+    const uuids = portfolios.map((p) => p.analysis_uuid).filter(Boolean);
+    uuids.forEach((uuid) => {
+      if (allDetails.has(uuid)) return; // already cached
+      portfoliosAPI.getPortfolioDetail(uuid).then((detail) => {
+        if (!cancelled) setAllDetails((prev) => new Map(prev).set(uuid, detail));
+      }).catch(() => {}); // silently ignore failures for background fetches
+    });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [portfolios]);
 
   const selectedSummaryEntry = useMemo(
     () => portfolios.find((portfolio) => portfolio.analysis_uuid === selectedPortfolioId) ?? null,
@@ -188,6 +512,18 @@ const Portfolio = () => {
     });
     return listCopy;
   }, [projectList, curationSettings]);
+
+  const allProjectsForHeatmap = useMemo(() => {
+    const seen = new Set();
+    const result = [];
+    for (const detail of allDetails.values()) {
+      for (const proj of (detail?.projects ?? [])) {
+        const uid = proj.id ?? proj.name ?? JSON.stringify(proj);
+        if (!seen.has(uid)) { seen.add(uid); result.push(proj); }
+      }
+    }
+    return result;
+  }, [allDetails]);
 
   // Showcase project IDs → rank (1, 2, 3)
   const showcaseRanks = useMemo(() => {
@@ -288,14 +624,16 @@ const Portfolio = () => {
             </p>
           </div>
         ) : (
-          <div
-            style={{
-              display: 'grid',
-              gap: '24px',
-              gridTemplateColumns: '2fr 1fr',
-              alignItems: 'stretch',
-            }}
-          >
+          <>
+            <ActivityHeatmap portfolios={portfolios} projectList={allProjectsForHeatmap} />
+            <div
+              style={{
+                display: 'grid',
+                gap: '24px',
+                gridTemplateColumns: '2fr 1fr',
+                alignItems: 'stretch',
+              }}
+            >
             <section
               style={{
                 backgroundColor: 'white',
@@ -678,7 +1016,8 @@ const Portfolio = () => {
                 })}
               </div>
             </section>
-          </div>
+            </div>
+          </>
         )}
       </div>
     </div>
