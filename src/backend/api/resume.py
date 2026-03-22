@@ -18,6 +18,7 @@ from backend.analysis_database import (add_items_to_user_resume,
                                        list_user_resumes,
                                        update_user_resume_content,
                                        upsert_user_personal_info)
+from backend.analysis.job_match_analyzer import analyze_job_match
 from backend.api.auth import verify_token
 
 router = APIRouter(prefix="/api", tags=["Resume"])
@@ -84,6 +85,26 @@ class StoredResumeResponse(BaseModel):
     items: List[Dict[str, Any]]
     created_at: str
     updated_at: str
+
+
+class JobMatchRequest(BaseModel):
+    """Request to match a job description against user's profile."""
+
+    job_description: str = Field(..., min_length=50, description="The job description text to match against")
+
+
+class JobMatchResponse(BaseModel):
+    """Job description match result."""
+
+    overall_score: int
+    skills_score: int
+    experience_score: int
+    matched_skills: List[str]
+    missing_skills: List[str]
+    matched_requirements: List[str]
+    unmet_requirements: List[str]
+    recommendations: List[str]
+    summary: str
 
 
 class PersonalInfoUpsertRequest(BaseModel):
@@ -179,6 +200,60 @@ def _merge_resume_content(base_content: str, generated_content: str) -> str:
 
     merged_lines = base_lines[:insert_idx] + [generated_projects, ""] + base_lines[insert_idx:]
     return "\n".join(merged_lines).rstrip() + "\n"
+
+
+@router.post("/resume/job-match", response_model=JobMatchResponse)
+async def job_match(request: JobMatchRequest, username: str = Depends(verify_token)):
+    """Match a job description against the user's skills and projects."""
+    try:
+        user_projects = get_projects_for_user(username)
+        project_ids = [p["id"] for p in user_projects]
+
+        user_skills: list[str] = []
+        project_summaries: list[dict] = []
+
+        if project_ids:
+            with get_connection() as conn:
+                placeholders = ",".join("?" for _ in project_ids)
+                skill_rows = conn.execute(
+                    f"SELECT DISTINCT skill FROM project_skills WHERE project_id IN ({placeholders})",
+                    tuple(project_ids),
+                ).fetchall()
+                user_skills = [row["skill"] for row in skill_rows]
+
+                framework_rows = conn.execute(
+                    f"SELECT project_id, framework FROM project_frameworks WHERE project_id IN ({placeholders})",
+                    tuple(project_ids),
+                ).fetchall()
+
+            frameworks_by_project: dict[int, list[str]] = {}
+            for row in framework_rows:
+                frameworks_by_project.setdefault(row["project_id"], []).append(row["framework"])
+
+            for p in user_projects:
+                project_summaries.append(
+                    {
+                        "name": p.get("project_name", "Unknown"),
+                        "primary_language": p.get("primary_language", "unknown"),
+                        "predicted_role": p.get("predicted_role", "unknown"),
+                        "frameworks": frameworks_by_project.get(p["id"], []),
+                    }
+                )
+
+        result = analyze_job_match(
+            job_description=request.job_description,
+            user_skills=user_skills,
+            project_summaries=project_summaries,
+        )
+        return JobMatchResponse(**result)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Job match analysis failed: {str(e)}",
+        )
 
 
 @router.get("/resume/personal-info")
