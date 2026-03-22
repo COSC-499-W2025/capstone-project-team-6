@@ -300,7 +300,7 @@ async def job_match(request: JobMatchRequest, username: str = Depends(verify_tok
         stored_resumes = [
             {"title": r["title"], "content": r["content_text"]}
             for r in list_user_resumes(username)
-            if r.get("content_text")
+            if r["content_text"]
         ]
 
         result = analyze_job_match(
