@@ -419,9 +419,11 @@ const Upload = () => {
       // Navigate to analyze page after successful upload
       if (activeTab === 'multiple' && taskIdsForAnalyze.length > 0) {
         sessionStorage.setItem("analyze_task_ids", JSON.stringify(taskIdsForAnalyze));
+        sessionStorage.setItem("analyze_analysis_type", effectiveAnalysisType);
         navigate("/analyze", {
           state: {
             taskIds: taskIdsForAnalyze,
+            analysisType: effectiveAnalysisType,
             skippedDuplicates: multipleSkippedDuplicates,
             totalFiles: multipleTotalFiles,
           },

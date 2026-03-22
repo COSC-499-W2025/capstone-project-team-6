@@ -200,6 +200,121 @@ describe('AnalyzePage', () => {
     });
   });
 
+  describe('Analysis type badge', () => {
+    it('shows LLM Analysis badge when analysisType is llm', async () => {
+      getTaskStatus.mockResolvedValue({ status: 'running', progress: 10 });
+      render(
+        <MemoryRouter
+          initialEntries={[{ pathname: '/analyze', state: { taskId: 'task-1', analysisType: 'llm' } }]}
+        >
+          <AnalyzePage />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(getTaskStatus).toHaveBeenCalled();
+      });
+      expect(screen.getByText(/LLM Analysis/)).toBeInTheDocument();
+    });
+
+    it('shows Non-LLM Analysis badge when analysisType is non_llm', async () => {
+      getTaskStatus.mockResolvedValue({ status: 'running', progress: 10 });
+      render(
+        <MemoryRouter
+          initialEntries={[
+            { pathname: '/analyze', state: { taskId: 'task-1', analysisType: 'non_llm' } },
+          ]}
+        >
+          <AnalyzePage />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(getTaskStatus).toHaveBeenCalled();
+      });
+      expect(screen.getByText(/Non-LLM Analysis/)).toBeInTheDocument();
+    });
+
+    it('defaults to Non-LLM Analysis badge when no analysisType is provided', async () => {
+      sessionStorage.removeItem('analyze_analysis_type');
+      getTaskStatus.mockResolvedValue({ status: 'running', progress: 10 });
+      render(
+        <MemoryRouter
+          initialEntries={[{ pathname: '/analyze', state: { taskId: 'task-1' } }]}
+        >
+          <AnalyzePage />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(getTaskStatus).toHaveBeenCalled();
+      });
+      expect(screen.getByText(/Non-LLM Analysis/)).toBeInTheDocument();
+    });
+
+    it('shows Running LLM analysis phase message when server reports llm phase', async () => {
+      getTaskStatus.mockResolvedValue({
+        status: 'running',
+        progress: 50,
+        analysis_phase: 'llm',
+      });
+      render(
+        <MemoryRouter
+          initialEntries={[{ pathname: '/analyze', state: { taskId: 'task-1', analysisType: 'llm' } }]}
+        >
+          <AnalyzePage />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/Running LLM analysis/)).toBeInTheDocument();
+      });
+    });
+
+    it('shows Running non-LLM analysis phase message when server reports non_llm phase', async () => {
+      getTaskStatus.mockResolvedValue({
+        status: 'running',
+        progress: 50,
+        analysis_phase: 'non_llm',
+      });
+      render(
+        <MemoryRouter
+          initialEntries={[
+            { pathname: '/analyze', state: { taskId: 'task-1', analysisType: 'non_llm' } },
+          ]}
+        >
+          <AnalyzePage />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/Running non-LLM analysis/)).toBeInTheDocument();
+      });
+    });
+
+    it('does NOT show Running LLM analysis when server reports llm phase but user chose non_llm', async () => {
+      getTaskStatus.mockResolvedValue({
+        status: 'running',
+        progress: 50,
+        analysis_phase: 'llm',
+      });
+      render(
+        <MemoryRouter
+          initialEntries={[
+            { pathname: '/analyze', state: { taskId: 'task-1', analysisType: 'non_llm' } },
+          ]}
+        >
+          <AnalyzePage />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(getTaskStatus).toHaveBeenCalled();
+      });
+      expect(screen.queryByText(/Running LLM analysis/)).not.toBeInTheDocument();
+    });
+  });
+
   describe('Multi-task polling', () => {
     it('polls all task IDs when taskIds is passed', async () => {
       getTaskStatus.mockResolvedValue({ status: 'running', progress: 50 });

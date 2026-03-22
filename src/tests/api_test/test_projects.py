@@ -67,6 +67,43 @@ class TestProjectsEndpoints:
         assert len(data["projects"]) == 1
         mock_get_projects.assert_called_once_with(username)
 
+    @patch("backend.api.projects.get_user_projects")
+    def test_list_projects_includes_analysis_type(self, mock_get_projects, auth_token):
+        """Test that each project in the listing exposes analysis_type."""
+        token, username = auth_token
+
+        mock_get_projects.return_value = [
+            {
+                "id": 1,
+                "project_name": "llm_project",
+                "primary_language": "python",
+                "total_files": 10,
+                "analysis_type": "llm",
+            },
+            {
+                "id": 2,
+                "project_name": "non_llm_project",
+                "primary_language": "javascript",
+                "total_files": 5,
+                "analysis_type": "non_llm",
+            },
+        ]
+
+        response = client.get(
+            "/api/projects",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 200
+        projects = response.json()["projects"]
+        assert len(projects) == 2
+
+        llm_project = next(p for p in projects if p["project_name"] == "llm_project")
+        non_llm_project = next(p for p in projects if p["project_name"] == "non_llm_project")
+
+        assert llm_project["analysis_type"] == "llm"
+        assert non_llm_project["analysis_type"] == "non_llm"
+
     def test_list_projects_unauthorized(self):
         """Test listing projects without auth fails."""
         response = client.get("/api/projects")

@@ -26,7 +26,7 @@ vi.mock('../services/api', () => ({
 }));
 
 import Upload from '../pages/Upload';
-import api from '../services/api';
+import api, { consentAPI } from '../services/api';
 
 describe('Upload', () => {
   beforeEach(() => {
@@ -181,8 +181,147 @@ describe('Upload', () => {
         expect(api.post).toHaveBeenCalledTimes(2);
       });
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/analyze', { state: { taskIds: [taskId1, taskId2] } });
+        expect(mockNavigate).toHaveBeenCalledWith(
+          '/analyze',
+          expect.objectContaining({
+            state: expect.objectContaining({ taskIds: [taskId1, taskId2] }),
+          })
+        );
       });
+    });
+  });
+
+  describe('LLM analysis type gating', () => {
+    it('sends non_llm analysis_type when user has not consented', async () => {
+      // Default mock: has_consented: false
+      const taskId = 'task-no-consent';
+      api.post.mockResolvedValue({
+        data: { task_id: taskId },
+      });
+
+      const file = new File(['content'], 'project.zip', { type: 'application/zip' });
+      const { container } = render(
+        <BrowserRouter>
+          <Upload />
+        </BrowserRouter>
+      );
+
+      const input = container.querySelector('input[type="file"]');
+      fireEvent.change(input, { target: { files: [file] } });
+      fireEvent.change(screen.getByPlaceholderText('My Awesome Project'), {
+        target: { value: 'My Project' },
+      });
+
+      fireEvent.click(screen.getByText('Analyze Project'));
+
+      await waitFor(() => {
+        const formData = api.post.mock.calls[0][1];
+        expect(formData.get('analysis_type')).toBe('non_llm');
+      });
+    });
+
+    it('sends non_llm analysis_type when consent given but checkbox is unchecked', async () => {
+      consentAPI.getConsent.mockResolvedValueOnce({ has_consented: true });
+      const taskId = 'task-unchecked';
+      api.post.mockResolvedValue({
+        data: { task_id: taskId },
+      });
+
+      const file = new File(['content'], 'project.zip', { type: 'application/zip' });
+      const { container } = render(
+        <BrowserRouter>
+          <Upload />
+        </BrowserRouter>
+      );
+
+      // Wait for the consent fetch to resolve so the checkbox becomes enabled
+      await waitFor(() => {
+        expect(container.querySelector('input[type="checkbox"]')).not.toBeDisabled();
+      });
+
+      // Uncheck the LLM analysis checkbox
+      const checkbox = container.querySelector('input[type="checkbox"]');
+      fireEvent.click(checkbox);
+
+      const input = container.querySelector('input[type="file"]');
+      fireEvent.change(input, { target: { files: [file] } });
+      fireEvent.change(screen.getByPlaceholderText('My Awesome Project'), {
+        target: { value: 'My Project' },
+      });
+
+      fireEvent.click(screen.getByText('Analyze Project'));
+
+      await waitFor(() => {
+        const formData = api.post.mock.calls[0][1];
+        expect(formData.get('analysis_type')).toBe('non_llm');
+      });
+    });
+
+    it('includes analysisType in navigate state for multiple uploads', async () => {
+      // Default mock: has_consented: false → effectiveAnalysisType = 'non_llm'
+      const taskId1 = 'task-multi-1';
+      const taskId2 = 'task-multi-2';
+      api.post
+        .mockResolvedValueOnce({
+          data: { details: { task_id: taskId1 } },
+        })
+        .mockResolvedValueOnce({
+          data: { details: { task_id: taskId2 } },
+        });
+
+      const file1 = new File(['a'], 'p1.zip', { type: 'application/zip' });
+      const file2 = new File(['b'], 'p2.zip', { type: 'application/zip' });
+      const { container } = render(
+        <BrowserRouter>
+          <Upload />
+        </BrowserRouter>
+      );
+
+      fireEvent.click(screen.getByText('Multiple Projects'));
+      const input = container.querySelector('input[type="file"]');
+      fireEvent.change(input, { target: { files: [file1, file2] } });
+
+      await waitFor(() => {
+        expect(screen.getByText('Analyze Projects')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Analyze Projects'));
+
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith(
+          '/analyze',
+          expect.objectContaining({
+            state: expect.objectContaining({
+              taskIds: [taskId1, taskId2],
+              analysisType: 'non_llm',
+            }),
+          })
+        );
+      });
+    });
+
+    it('stores analysisType in sessionStorage for multiple uploads', async () => {
+      const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
+      const taskId = 'task-storage';
+      api.post.mockResolvedValue({ data: { details: { task_id: taskId } } });
+
+      const file = new File(['a'], 'p.zip', { type: 'application/zip' });
+      const { container } = render(
+        <BrowserRouter>
+          <Upload />
+        </BrowserRouter>
+      );
+
+      fireEvent.click(screen.getByText('Multiple Projects'));
+      const input = container.querySelector('input[type="file"]');
+      fireEvent.change(input, { target: { files: [file] } });
+
+      await waitFor(() => expect(screen.getByText('Analyze Projects')).toBeInTheDocument());
+      fireEvent.click(screen.getByText('Analyze Projects'));
+
+      await waitFor(() => {
+        expect(setItemSpy).toHaveBeenCalledWith('analyze_analysis_type', 'non_llm');
+      });
+      setItemSpy.mockRestore();
     });
   });
 });
