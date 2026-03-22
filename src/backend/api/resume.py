@@ -6,20 +6,18 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from backend.analysis_database import (add_items_to_user_resume,
-                                       create_user_resume,
                                        create_user_education,
-                                       delete_user_personal_info,
+                                       create_user_resume,
                                        delete_user_education,
+                                       delete_user_personal_info,
                                        get_all_analyses_for_user,
                                        get_analysis_by_uuid, get_connection,
                                        get_portfolio_item_for_project,
                                        get_projects_for_user,
-                                       get_user_personal_info,
                                        get_resume_items_for_project_id,
-                                       get_user_resume,
-                                       list_user_education,
+                                       get_user_personal_info, get_user_resume,
                                        get_user_resume_items,
-                                       list_user_resumes,
+                                       list_user_education, list_user_resumes,
                                        update_user_education,
                                        update_user_resume_content,
                                        upsert_user_personal_info)
@@ -243,16 +241,9 @@ def _seed_education_from_personal_info(username: str) -> None:
     university = (personal_info.get("education_university") or personal_info.get("university") or "").strip()
     location = (personal_info.get("education_location") or personal_info.get("location") or "").strip()
     degree = (personal_info.get("education_degree") or personal_info.get("degree") or "").strip()
-    start_date = (
-        personal_info.get("education_start_date")
-        or personal_info.get("start_date")
-        or ""
-    ).strip()
+    start_date = (personal_info.get("education_start_date") or personal_info.get("start_date") or "").strip()
     end_date = (
-        personal_info.get("education_end_date")
-        or personal_info.get("grad_date")
-        or personal_info.get("end_date")
-        or ""
+        personal_info.get("education_end_date") or personal_info.get("grad_date") or personal_info.get("end_date") or ""
     ).strip()
     awards = (personal_info.get("education_awards") or "").strip()
 
@@ -417,7 +408,9 @@ async def generate_resume(
             # Backward-compat fields (in case the generator falls back to legacy keys).
             personal_info_for_gen.setdefault(
                 "education_university",
-                first.get("university") or personal_info_for_gen.get("education_university") or personal_info_for_gen.get("university"),
+                first.get("university")
+                or personal_info_for_gen.get("education_university")
+                or personal_info_for_gen.get("university"),
             )
             personal_info_for_gen.setdefault(
                 "education_location",
@@ -429,11 +422,15 @@ async def generate_resume(
             )
             personal_info_for_gen.setdefault(
                 "education_start_date",
-                first.get("start_date") or personal_info_for_gen.get("education_start_date") or personal_info_for_gen.get("start_date"),
+                first.get("start_date")
+                or personal_info_for_gen.get("education_start_date")
+                or personal_info_for_gen.get("start_date"),
             )
             personal_info_for_gen.setdefault(
                 "education_end_date",
-                first.get("end_date") or personal_info_for_gen.get("education_end_date") or personal_info_for_gen.get("grad_date"),
+                first.get("end_date")
+                or personal_info_for_gen.get("education_end_date")
+                or personal_info_for_gen.get("grad_date"),
             )
             personal_info_for_gen.setdefault(
                 "education_awards",

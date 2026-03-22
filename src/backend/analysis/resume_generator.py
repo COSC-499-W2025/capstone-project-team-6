@@ -774,17 +774,13 @@ def generate_latex_resume(
             university = (entry.get("education_university") or entry.get("university") or "").strip()
             location = (entry.get("education_location") or entry.get("location") or "").strip()
             degree = (entry.get("education_degree") or entry.get("degree") or "").strip()
-            start_date = (
-                entry.get("education_start_date") or entry.get("start_date") or ""
-            ).strip()
+            start_date = (entry.get("education_start_date") or entry.get("start_date") or "").strip()
             end_date = (entry.get("education_end_date") or entry.get("end_date") or entry.get("grad_date") or "").strip()
-            date_range = (
-                f"{start_date} -- {end_date}" if (start_date and end_date) else (end_date or start_date or " ")
-            )
+            date_range = f"{start_date} -- {end_date}" if (start_date and end_date) else (end_date or start_date or " ")
             awards = (entry.get("education_awards") or entry.get("awards") or "").strip()
             education_text = (entry.get("education_text") or entry.get("education") or "").strip()
             # Keep education text on one line for LaTeX safety.
-            education_text_single_line = education_text.replace(chr(10), ' ').replace(chr(13), ' ')
+            education_text_single_line = education_text.replace(chr(10), " ").replace(chr(13), " ")
 
             if university or degree:
                 latex += "  \\resumeSubheading{"
@@ -1165,12 +1161,7 @@ def generate_resume(
                     line = ", ".join(x for x in [d, u, loc] if x)
 
                     start_d = (entry.get("education_start_date") or entry.get("start_date") or "").strip()
-                    end_d = (
-                        entry.get("education_end_date")
-                        or entry.get("end_date")
-                        or entry.get("grad_date")
-                        or ""
-                    ).strip()
+                    end_d = (entry.get("education_end_date") or entry.get("end_date") or entry.get("grad_date") or "").strip()
                     if start_d or end_d:
                         line += f" ({start_d} -- {end_d})"
 
