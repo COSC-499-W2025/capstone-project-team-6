@@ -15,7 +15,7 @@ JOB_MATCH_PROMPT = """You are an expert career advisor and technical recruiter. 
 
 ## Candidate Profile
 
-**Skills:** {skills}
+**Skills & Technologies:** {skills}
 
 **Projects:**
 {projects}
@@ -42,7 +42,7 @@ Return ONLY a valid JSON object (no markdown, no explanation) with this exact st
 Scoring guidelines:
 - overall_score: weighted average (skills 50%, experience 50%)
 - skills_score: percentage of required/preferred skills the candidate has
-- experience_score: how well their project experience maps to the role requirements
+- experience_score: how well their project descriptions, portfolio summaries, and resume bullets map to the role requirements
 """
 
 
@@ -81,10 +81,16 @@ def analyze_job_match(
     projects_lines = []
     for p in project_summaries:
         frameworks = ", ".join(p.get("frameworks", [])) or "none"
-        projects_lines.append(
+        lines = [
             f"- **{p['name']}** ({p.get('primary_language', 'unknown')}): "
-            f"role={p.get('predicted_role', 'unknown')}, frameworks=[{frameworks}]"
-        )
+            f"role={p.get('predicted_role', 'unknown')}, tech=[{frameworks}]"
+        ]
+        if p.get("portfolio_summary"):
+            lines.append(f"  Summary: {p['portfolio_summary']}")
+        if p.get("resume_bullets"):
+            for bullet in p["resume_bullets"]:
+                lines.append(f"  • {bullet}")
+        projects_lines.append("\n".join(lines))
     projects_str = "\n".join(projects_lines) if projects_lines else "No projects uploaded yet."
 
     prompt = JOB_MATCH_PROMPT.format(

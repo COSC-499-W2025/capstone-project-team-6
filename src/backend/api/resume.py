@@ -204,7 +204,9 @@ def _merge_resume_content(base_content: str, generated_content: str) -> str:
 
 @router.post("/resume/job-match", response_model=JobMatchResponse)
 async def job_match(request: JobMatchRequest, username: str = Depends(verify_token)):
-    """Match a job description against the user's skills and projects."""
+    """Match a job description against the user's skills, portfolio, and resume bullets."""
+    import json as _json
+
     try:
         user_projects = get_projects_for_user(username)
         project_ids = [p["id"] for p in user_projects]
@@ -213,8 +215,8 @@ async def job_match(request: JobMatchRequest, username: str = Depends(verify_tok
         project_summaries: list[dict] = []
 
         if project_ids:
+            placeholders = ",".join("?" for _ in project_ids)
             with get_connection() as conn:
-                placeholders = ",".join("?" for _ in project_ids)
                 skill_rows = conn.execute(
                     f"SELECT DISTINCT skill FROM project_skills WHERE project_id IN ({placeholders})",
                     tuple(project_ids),
@@ -231,12 +233,37 @@ async def job_match(request: JobMatchRequest, username: str = Depends(verify_tok
                 frameworks_by_project.setdefault(row["project_id"], []).append(row["framework"])
 
             for p in user_projects:
+                pid = p["id"]
+
+                # Portfolio item: richer LLM-generated description + skills
+                portfolio = get_portfolio_item_for_project(pid) or {}
+                portfolio_skills: list[str] = []
+                portfolio_tech: list[str] = []
+                for key, target in (("skills_exercised", portfolio_skills), ("tech_stack", portfolio_tech)):
+                    raw = portfolio.get(key)
+                    if isinstance(raw, str):
+                        try:
+                            parsed = _json.loads(raw)
+                            target.extend(parsed if isinstance(parsed, list) else [])
+                        except (_json.JSONDecodeError, TypeError):
+                            pass
+                    elif isinstance(raw, list):
+                        target.extend(raw)
+
+                # Merge portfolio skills into the global skill set
+                user_skills = list(dict.fromkeys(user_skills + portfolio_skills))
+
+                # Resume bullets for this project
+                bullets = [row["resume_text"] for row in get_resume_items_for_project_id(pid)]
+
                 project_summaries.append(
                     {
                         "name": p.get("project_name", "Unknown"),
                         "primary_language": p.get("primary_language", "unknown"),
                         "predicted_role": p.get("predicted_role", "unknown"),
-                        "frameworks": frameworks_by_project.get(p["id"], []),
+                        "frameworks": frameworks_by_project.get(pid, []) + portfolio_tech,
+                        "portfolio_summary": portfolio.get("text_summary") or "",
+                        "resume_bullets": bullets,
                     }
                 )
 
