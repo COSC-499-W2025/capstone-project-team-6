@@ -37,6 +37,11 @@ const Navigation = () => {
       icon: '📄'
     },
     {
+      label: 'Job Match',
+      path: '/job-match',
+      icon: '🎯'
+    },
+    {
       label: 'Settings',
       path: '/settings',
       icon: '⚙️'
