@@ -3,7 +3,7 @@
 import json
 import logging
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
 
@@ -19,6 +19,9 @@ JOB_MATCH_PROMPT = """You are an expert career advisor and technical recruiter. 
 
 **Projects:**
 {projects}
+
+**Uploaded Resumes:**
+{resumes}
 
 ## Job Description
 
@@ -59,6 +62,7 @@ def analyze_job_match(
     job_description: str,
     user_skills: List[str],
     project_summaries: List[Dict[str, Any]],
+    stored_resumes: Optional[List[Dict[str, str]]] = None,
 ) -> Dict[str, Any]:
     """
     Compare a job description against the user's skills and projects.
@@ -93,9 +97,18 @@ def analyze_job_match(
         projects_lines.append("\n".join(lines))
     projects_str = "\n".join(projects_lines) if projects_lines else "No projects uploaded yet."
 
+    if stored_resumes:
+        resume_parts = []
+        for r in stored_resumes:
+            resume_parts.append(f"### {r['title']}\n{r['content']}")
+        resumes_str = "\n\n".join(resume_parts)
+    else:
+        resumes_str = "No resumes uploaded."
+
     prompt = JOB_MATCH_PROMPT.format(
         skills=skills_str,
         projects=projects_str,
+        resumes=resumes_str,
         job_description=job_description,
     )
 

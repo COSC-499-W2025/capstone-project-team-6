@@ -267,10 +267,18 @@ async def job_match(request: JobMatchRequest, username: str = Depends(verify_tok
                     }
                 )
 
+        # Stored resumes (user-uploaded or saved markdown/text)
+        stored_resumes = [
+            {"title": r["title"], "content": r["content_text"]}
+            for r in list_user_resumes(username)
+            if r.get("content_text")
+        ]
+
         result = analyze_job_match(
             job_description=request.job_description,
             user_skills=user_skills,
             project_summaries=project_summaries,
+            stored_resumes=stored_resumes,
         )
         return JobMatchResponse(**result)
 
