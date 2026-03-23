@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
+from backend.analysis.job_match_analyzer import analyze_job_match
 from backend.analysis_database import (add_items_to_user_resume,
                                        create_user_education,
                                        create_user_resume,
@@ -21,7 +22,6 @@ from backend.analysis_database import (add_items_to_user_resume,
                                        update_user_education,
                                        update_user_resume_content,
                                        upsert_user_personal_info)
-from backend.analysis.job_match_analyzer import analyze_job_match
 from backend.api.auth import verify_token
 
 router = APIRouter(prefix="/api", tags=["Resume"])
@@ -298,9 +298,7 @@ async def job_match(request: JobMatchRequest, username: str = Depends(verify_tok
 
         # Stored resumes (user-uploaded or saved markdown/text)
         stored_resumes = [
-            {"title": r["title"], "content": r["content_text"]}
-            for r in list_user_resumes(username)
-            if r["content_text"]
+            {"title": r["title"], "content": r["content_text"]} for r in list_user_resumes(username) if r["content_text"]
         ]
 
         result = analyze_job_match(
