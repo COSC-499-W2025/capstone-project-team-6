@@ -1,9 +1,11 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 const Navigation = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, logout } = useAuth();
 
   const navItems = [
     {
@@ -115,6 +117,44 @@ const Navigation = () => {
           ))}
         </div>
       </div>
+
+      {!!user && (
+        <button
+          onClick={async () => {
+            try {
+              await logout();
+            } finally {
+              navigate('/login');
+            }
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '10px 16px',
+            backgroundColor: 'transparent',
+            color: '#666',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '500',
+            transition: 'all 0.2s',
+            whiteSpace: 'nowrap',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#f5f5f5';
+            e.currentTarget.style.color = '#1a1a1a';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.color = '#666';
+          }}
+        >
+          <span>↗</span>
+          <span>Logout</span>
+        </button>
+      )}
     </nav>
   );
 };
