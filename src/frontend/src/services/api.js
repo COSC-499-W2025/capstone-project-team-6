@@ -272,6 +272,15 @@ export const resumeAPI = {
     const response = await api.delete(`/resume/education/${educationId}`);
     return response.data;
   },
+
+  analyzeJobMatch: async (jobDescription) => {
+    const response = await api.post(
+      '/resume/job-match',
+      { job_description: jobDescription },
+      { timeout: 60000 }
+    );
+    return response.data;
+  },
 };
 
 // Curation API calls
