@@ -89,6 +89,16 @@ def init_db() -> None:
             );
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS tokens (
+                token TEXT PRIMARY KEY,
+                username TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL
+            );
+            """
+        )
         _migrate_user_consent(conn)
         conn.commit()
 
@@ -113,6 +123,56 @@ def reset_db() -> None:
     if db_path.exists():
         db_path.unlink()
     init_db()
+
+
+
+def save_token_to_db(token: str, username: str, created_at: str, expires_at: str) -> None:
+    """Upsert a token record into the tokens table."""
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO tokens (token, username, created_at, expires_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (token, username, created_at, expires_at),
+        )
+        conn.commit()
+
+
+def delete_token_from_db(token: str) -> None:
+    """Remove a single token from the tokens table."""
+    with get_connection() as conn:
+        conn.execute("DELETE FROM tokens WHERE token = ?", (token,))
+        conn.commit()
+
+
+def clear_tokens_from_db() -> None:
+    """Remove all tokens from the tokens table."""
+    with get_connection() as conn:
+        conn.execute("DELETE FROM tokens")
+        conn.commit()
+
+
+def load_active_tokens_from_db() -> dict:
+    """Load all non-expired tokens from the DB into a plain dict."""
+    from datetime import datetime
+
+    result = {}
+    with get_connection() as conn:
+        rows = conn.execute("SELECT token, username, created_at, expires_at FROM tokens").fetchall()
+    for row in rows:
+        try:
+            expires_at = datetime.fromisoformat(row["expires_at"])
+            created_at = datetime.fromisoformat(row["created_at"])
+        except (ValueError, TypeError):
+            continue
+        if datetime.now() < expires_at:
+            result[row["token"]] = {
+                "username": row["username"],
+                "created_at": created_at,
+                "expires_at": expires_at,
+            }
+    return result
 
 
 def hash_password(password: str) -> str:
