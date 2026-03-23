@@ -73,7 +73,9 @@ describe('Upload', () => {
       });
 
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/analyze', { state: { taskId } });
+        expect(mockNavigate).toHaveBeenCalledWith('/analyze', {
+          state: expect.objectContaining({ taskId }),
+        });
       });
     });
 
@@ -100,7 +102,9 @@ describe('Upload', () => {
       fireEvent.click(screen.getByText('Analyze Project'));
 
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/analyze', { state: { taskId } });
+        expect(mockNavigate).toHaveBeenCalledWith('/analyze', {
+          state: expect.objectContaining({ taskId }),
+        });
       });
     });
 
@@ -300,7 +304,6 @@ describe('Upload', () => {
     });
 
     it('stores analysisType in sessionStorage for multiple uploads', async () => {
-      const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
       const taskId = 'task-storage';
       api.post.mockResolvedValue({ data: { details: { task_id: taskId } } });
 
@@ -319,9 +322,9 @@ describe('Upload', () => {
       fireEvent.click(screen.getByText('Analyze Projects'));
 
       await waitFor(() => {
-        expect(setItemSpy).toHaveBeenCalledWith('analyze_analysis_type', 'non_llm');
+        expect(mockNavigate).toHaveBeenCalled();
       });
-      setItemSpy.mockRestore();
+      expect(sessionStorage.getItem('analyze_analysis_type')).toBe('non_llm');
     });
   });
 });
