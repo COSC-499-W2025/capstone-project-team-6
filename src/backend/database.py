@@ -125,7 +125,6 @@ def reset_db() -> None:
     init_db()
 
 
-
 def save_token_to_db(token: str, username: str, created_at: str, expires_at: str) -> None:
     """Upsert a token record into the tokens table."""
     with get_connection() as conn:

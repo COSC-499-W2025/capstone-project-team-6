@@ -6,8 +6,7 @@ from typing import Any, Dict, Iterator, Tuple
 
 
 class _PersistentTokenStorage:
-    """Dict-like token store backed by SQLite.
-    """
+    """Dict-like token store backed by SQLite."""
 
     def __init__(self) -> None:
         self._data: Dict[str, Dict[str, Any]] = {}
@@ -16,7 +15,8 @@ class _PersistentTokenStorage:
     def _ensure_loaded(self) -> None:
         if not self._loaded:
             try:
-                from backend.database import init_db, load_active_tokens_from_db
+                from backend.database import (init_db,
+                                              load_active_tokens_from_db)
 
                 init_db()
                 self._data = load_active_tokens_from_db()
@@ -45,7 +45,7 @@ class _PersistentTokenStorage:
                 data["expires_at"].isoformat() if isinstance(data["expires_at"], datetime) else str(data["expires_at"]),
             )
         except Exception:
-            pass  
+            pass
 
     def __delitem__(self, token: str) -> None:
         self._ensure_loaded()
