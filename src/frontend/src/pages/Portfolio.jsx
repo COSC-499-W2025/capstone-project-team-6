@@ -35,17 +35,18 @@ const ActivityHeatmap = ({ portfolios, projectList }) => {
     return Number.isNaN(d.getTime()) ? null : d;
   };
 
-  // Dynamic window: go back to the earliest project date, capped at 2 years
+  // Dynamic window: go back to the earliest project date, minimum 1 year, capped at 3 years
   const gridStart = useMemo(() => {
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const maxBack = new Date(today); maxBack.setFullYear(maxBack.getFullYear() - 3);
-    let earliest = new Date(today);
+    const maxBack  = new Date(today); maxBack.setFullYear(maxBack.getFullYear() - 3);
+    const minBack  = new Date(today); minBack.setFullYear(minBack.getFullYear() - 1);
+    let earliest = new Date(minBack); // always show at least 1 year
     for (const p of portfolios) {
       const d = parseDate(p.analysis_timestamp);
       if (d && d < earliest) earliest = new Date(d);
     }
     for (const proj of projectList) {
-      for (const field of ['project_start_date', 'last_commit_date', 'last_modified_date']) {
+      for (const field of ['project_start_date', 'last_commit_date']) {
         const d = parseDate(proj[field]);
         if (d && d < earliest) earliest = new Date(d);
       }
@@ -77,8 +78,6 @@ const ActivityHeatmap = ({ portfolios, projectList }) => {
       }
     };
 
-    for (const p of portfolios) addDay(p.analysis_timestamp, 10, 'Portfolio analysis');
-
     for (const proj of projectList) {
       const name        = proj.name || proj.repo_name || proj.repository || 'Project';
       const userCommits = Math.max(1,
@@ -90,7 +89,6 @@ const ActivityHeatmap = ({ portfolios, projectList }) => {
       addDay(proj.project_end_date,        7, name);
       addDay(proj.last_commit_date,        6, name);
       addDay(proj.target_user_last_commit, 6, name);
-      addDay(proj.last_modified_date,      3, name);
 
       for (const c of (Array.isArray(proj.contributors) ? proj.contributors : [])) {
         addDay(c.first_commit_date, 4, name);
@@ -220,7 +218,7 @@ const ActivityHeatmap = ({ portfolios, projectList }) => {
     );
   };
 
-  if (activeDays === 0) {
+  if (portfolios.length === 0) {
     return (
       <div style={{ backgroundColor: 'white', padding: '32px', borderRadius: '20px',
         boxShadow: '0 20px 40px rgba(15,23,42,0.06)', marginBottom: '24px', textAlign: 'center' }}>
