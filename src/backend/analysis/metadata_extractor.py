@@ -671,7 +671,7 @@ class MetadataExtractor:
                     analyzer = GitAnalyzer(str(extracted_path))
 
                     git_avail = analyzer.check_git_available()
-                    git_repo  = analyzer.check_git_repo()
+                    git_repo = analyzer.check_git_repo()
                     print(f"[git_analysis] path={extracted_path} git_available={git_avail} git_repo={git_repo}")
 
                     if git_avail and git_repo:
@@ -680,9 +680,7 @@ class MetadataExtractor:
                             print(f"[git_analysis] error: {git_result.error_message}")
                         git_details = git_result.to_dict()
                         total_commits = git_result.total_commits
-                        last_commit_date = (
-                            git_result.project_end_date or git_result.project_start_date
-                        )
+                        last_commit_date = git_result.project_end_date or git_result.project_start_date
 
                         # Normalize contributors for downstream compatibility
                         for contributor in git_result.contributors or []:
