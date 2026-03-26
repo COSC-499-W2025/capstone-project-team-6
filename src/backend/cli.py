@@ -292,12 +292,18 @@ def analyze_folder(path: Path, target_user_email: Optional[str] = None, quick_mo
                 print(f"Warning: Role prediction failed for {project.get('project_name', 'Unknown')}: {e}")
                 # Add minimal role data to prevent issues
                 report["projects"][i]["role_prediction"] = {
-                    "predicted_role": "Junior Developer",
+                    "predicted_role": "Junior Developer", 
                     "confidence_score": 0.1,
                     "alternative_roles": [],
                     "reasoning": ["Role prediction failed"],
                     "key_indicators": {},
                 }
+
+        # Extract collaborative project classification from git analysis
+        for i, project in enumerate(report["projects"]):
+            git_analysis = project.get("git_analysis", {})
+            is_collaborative = git_analysis.get("is_collaborative", False)
+            report["projects"][i]["is_collaborative_project"] = is_collaborative
 
         # Add analysis metadata - use original path, not temp zip path
         _report(95, "Finalizing…")

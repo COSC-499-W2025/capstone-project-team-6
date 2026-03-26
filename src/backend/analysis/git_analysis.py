@@ -232,9 +232,9 @@ class GitAnalyzer:
         except Exception as e:
             print(f"Warning: Could not get code ownership stats: {e}")
 
-        # solo or collaborative project
+        # solo or collaborative project - collaborative requires more than 2 people  
         result.is_solo_project = result.total_contributors == 1
-        result.is_collaborative = result.total_contributors > 1
+        result.is_collaborative = result.total_contributors > 2
 
         # target user stats if email provided
         if target_user_email and result.contributors:
@@ -375,8 +375,8 @@ class GitAnalyzer:
                 email_to_data[normalized_email]["names"].append(name)
                 email_to_data[normalized_email]["commit_count"] += commit_count
 
-        # make list
-        contributors = []
+        # make raw contributor list
+        raw_contributors = []
         total_commits = 0
 
         for normalized_email, data in email_to_data.items():
@@ -389,7 +389,7 @@ class GitAnalyzer:
 
             first_date, last_date = self.get_author_commit_dates(original_email)
 
-            contributors.append(
+            raw_contributors.append(
                 ContributorStats(
                     name=best_name,
                     email=original_email,
@@ -399,6 +399,12 @@ class GitAnalyzer:
                     last_commit_date=last_date,
                 )
             )
+
+        # Apply smart contributor deduplication
+        contributors = self.deduplicate_contributors(raw_contributors)
+        
+        # Recalculate total commits after deduplication
+        total_commits = sum(c.commit_count for c in contributors)
 
         # calc percent
         if total_commits > 0:
@@ -543,6 +549,206 @@ class GitAnalyzer:
             return max(capitalized, key=len)
 
         return max(top_names, key=len)
+
+    def deduplicate_contributors(self, contributors: List[ContributorStats]) -> List[ContributorStats]:
+        """
+        Smart deduplication to merge contributors who are likely the same person.
+        Handles cases like:
+        - john.smith@example.com vs j.smith@example.com  
+        - John Smith vs john smith vs jsmith
+        - personal@gmail.com vs work@company.com for same person
+        """
+        if len(contributors) <= 1:
+            return contributors
+
+        # Debug output
+        print(f"[DEDUP] Starting with {len(contributors)} contributors:")
+        for c in contributors:
+            print(f"  - {c.name} <{c.email}> ({c.commit_count} commits)")
+
+        # Group contributors that might be the same person
+        groups = []
+        
+        for contrib in contributors:
+            matched_group = None
+            
+            # Check if this contributor matches any existing group
+            for group in groups:
+                if self.contributors_likely_same_person(contrib, group[0]):
+                    print(f"[DEDUP] Merging {contrib.name} <{contrib.email}> with group led by {group[0].name} <{group[0].email}>")
+                    matched_group = group
+                    break
+            
+            if matched_group:
+                matched_group.append(contrib)
+            else:
+                print(f"[DEDUP] Starting new group with {contrib.name} <{contrib.email}>")
+                groups.append([contrib])
+        
+        print(f"[DEDUP] Created {len(groups)} groups")
+        
+        # Merge each group into a single contributor
+        merged_contributors = []
+        
+        for i, group in enumerate(groups):
+            if len(group) == 1:
+                print(f"[DEDUP] Group {i+1}: Single contributor {group[0].name}")
+                merged_contributors.append(group[0])
+            else:
+                # Merge multiple contributors in this group
+                merged = self.merge_contributors(group)
+                print(f"[DEDUP] Group {i+1}: Merged {len(group)} contributors into {merged.name} <{merged.email}> ({merged.commit_count} commits)")
+                merged_contributors.append(merged)
+        
+        print(f"[DEDUP] Final result: {len(merged_contributors)} contributors")
+        
+        return merged_contributors
+
+    def contributors_likely_same_person(self, contrib1: ContributorStats, contrib2: ContributorStats) -> bool:
+        """
+        Determine if two contributors are likely the same person based on name/email similarities.
+        """
+        print(f"[DEDUP] Comparing: '{contrib1.name}' <{contrib1.email}> vs '{contrib2.name}' <{contrib2.email}>")
+        
+        # Extract domains and username parts
+        domain1 = contrib1.email.split('@')[1] if '@' in contrib1.email else ''
+        domain2 = contrib2.email.split('@')[1] if '@' in contrib2.email else ''
+        user1 = contrib1.email.split('@')[0] if '@' in contrib1.email else contrib1.email
+        user2 = contrib2.email.split('@')[0] if '@' in contrib2.email else contrib2.email
+        
+        print(f"[DEDUP]   Domains: '{domain1}' vs '{domain2}'")
+        print(f"[DEDUP]   Users: '{user1}' vs '{user2}'")
+        
+        # Normalize names for comparison
+        name1_norm = self.normalize_name(contrib1.name)
+        name2_norm = self.normalize_name(contrib2.name)
+        
+        print(f"[DEDUP]   Normalized names: '{name1_norm}' vs '{name2_norm}'")
+        
+        # Same domain + similar usernames (e.g., john.smith vs j.smith)
+        if domain1 == domain2 and domain1:
+            if self.usernames_likely_same(user1, user2):
+                print(f"[DEDUP]   ✅ Match: Same domain + similar usernames")
+                return True
+        
+        # Very similar names regardless of email
+        if self.names_likely_same(name1_norm, name2_norm):
+            print(f"[DEDUP]   ✅ Match: Similar names")
+            return True
+            
+        # Same normalized name + usernames contain similar patterns
+        if name1_norm == name2_norm:
+            print(f"[DEDUP]   ✅ Match: Exact normalized names")
+            return True
+            
+        # Username matches name pattern (e.g., john.smith email with John Smith name)
+        if self.username_matches_name(user1, name2_norm) or self.username_matches_name(user2, name1_norm):
+            print(f"[DEDUP]   ✅ Match: Username matches name pattern")
+            return True
+        
+        print(f"[DEDUP]   ❌ No match")
+        return False
+
+    def normalize_name(self, name: str) -> str:
+        """Normalize name for comparison."""
+        return re.sub(r'[^a-z]', '', name.lower())
+
+    def usernames_likely_same(self, user1: str, user2: str) -> bool:
+        """Check if usernames likely belong to same person."""
+        user1_norm = user1.lower().replace('.', '').replace('_', '').replace('-', '')
+        user2_norm = user2.lower().replace('.', '').replace('_', '').replace('-', '')
+        
+        # Exact match after normalization
+        if user1_norm == user2_norm:
+            return True
+            
+        # One is substring of other (j.smith vs john.smith)
+        if user1_norm in user2_norm or user2_norm in user1_norm:
+            # Only if the shorter one is at least 3 chars to avoid false positives
+            min_len = min(len(user1_norm), len(user2_norm))
+            if min_len >= 3:
+                return True
+                
+        return False
+
+    def names_likely_same(self, name1: str, name2: str) -> bool:
+        """Check if normalized names are likely the same person."""
+        if name1 == name2:
+            return True
+            
+        # Handle initials vs full names (e.g., "j smith" vs "john smith") 
+        words1 = name1.split()
+        words2 = name2.split() 
+        
+        if len(words1) == len(words2):
+            matches = 0
+            for w1, w2 in zip(words1, words2):
+                if w1 == w2 or (len(w1) == 1 and w2.startswith(w1)) or (len(w2) == 1 and w1.startswith(w2)):
+                    matches += 1
+            
+            # All words match (accounting for initials)
+            if matches == len(words1):
+                return True
+        
+        return False
+
+    def username_matches_name(self, username: str, name: str) -> bool:
+        """Check if username pattern matches the name."""
+        username_norm = username.lower().replace('.', '').replace('_', '').replace('-', '')
+        
+        # Extract first and last name initials/parts
+        words = name.split()
+        if len(words) >= 2:
+            first_name = words[0]
+            last_name = words[-1]
+            
+            # Common patterns: jsmith, j.smith, john.smith, etc.
+            patterns = [
+                first_name[0] + last_name,  # jsmith
+                first_name + last_name,     # johnsmith
+                first_name + first_name[0] + last_name,  # johnjsmith (less common)
+            ]
+            
+            for pattern in patterns:
+                if username_norm == pattern:
+                    return True
+        
+        return False
+
+    def merge_contributors(self, contributors: List[ContributorStats]) -> ContributorStats:
+        """Merge multiple contributors into one, combining their statistics."""
+        if not contributors:
+            raise ValueError("Cannot merge empty contributor list")
+            
+        if len(contributors) == 1:
+            return contributors[0]
+        
+        # Choose the best name and email
+        best_name = self.choose_best_name([c.name for c in contributors])
+        
+        # Prefer non-noreply emails, then longer emails
+        emails = [c.email for c in contributors]
+        non_noreply = [e for e in emails if not self.is_noreply_email(e.lower())]
+        best_email = max(non_noreply if non_noreply else emails, key=len)
+        
+        # Sum commit counts
+        total_commits = sum(c.commit_count for c in contributors)
+        
+        # Use earliest first commit and latest last commit
+        first_commits = [c.first_commit_date for c in contributors if c.first_commit_date]
+        last_commits = [c.last_commit_date for c in contributors if c.last_commit_date]
+        
+        earliest_first = min(first_commits) if first_commits else None
+        latest_last = max(last_commits) if last_commits else None
+        
+        return ContributorStats(
+            name=best_name,
+            email=best_email,
+            commit_count=total_commits,
+            percentage=0.0,  # Will be recalculated
+            first_commit_date=earliest_first,
+            last_commit_date=latest_last,
+        )
 
     def get_language_from_filename(self, filename: str) -> str:
         """

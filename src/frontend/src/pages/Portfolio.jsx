@@ -25,6 +25,8 @@ const UserProfileSummary = ({
   totalProjects,
   analysisType,
   isPrivateMode,
+  isPublicMode,
+  addLanguageFilter,
   updateSettings,
   portfolioSettings 
 }) => {
@@ -363,16 +365,29 @@ const UserProfileSummary = ({
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {topLanguages.map((lang, index) => (
-                    <div key={lang.language} style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '8px 12px',
-                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                      borderRadius: '8px'
-                    }}>
+                    <div 
+                      key={lang.language} 
+                      onClick={isPublicMode ? () => addLanguageFilter(lang.language) : undefined}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '8px 12px',
+                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                        borderRadius: '8px',
+                        cursor: isPublicMode ? 'pointer' : 'default',
+                        transition: isPublicMode ? 'all 0.2s' : 'none',
+                        ...(isPublicMode && {
+                          ':hover': {
+                            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                            transform: 'scale(1.02)'
+                          }
+                        })
+                      }}
+                      title={isPublicMode ? `Click to filter by ${lang.language}` : undefined}
+                    >
                       <span style={{ fontSize: '14px', fontWeight: '500' }}>
-                        {lang.language}
+                        {isPublicMode ? '💻 ' : ''}{lang.language}
                       </span>
                       <span style={{
                         fontSize: '12px',
@@ -743,6 +758,15 @@ const Portfolio = () => {
   // Private Mode State for Portfolio Customization
   const [isPrivateMode, setIsPrivateMode] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  
+  // Public Mode State for restricted interaction
+  const [isPublicMode, setIsPublicMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilters, setActiveFilters] = useState({
+    skills: [],
+    languages: [],
+    projectType: 'all'
+  });
   const [portfolioSettings, setPortfolioSettings] = useState({
     showHeatmap: true,
     showSkills: true,
@@ -824,6 +848,64 @@ const Portfolio = () => {
       setHasUnsavedChanges(false);
     }
     setIsPrivateMode(!isPrivateMode);
+  };
+
+  const togglePublicMode = () => {
+    // Exit private mode when entering public mode
+    if (!isPublicMode && isPrivateMode) {
+      setIsPrivateMode(false);
+    }
+    setIsPublicMode(!isPublicMode);
+    // Reset search and filters when exiting public mode
+    if (isPublicMode) {
+      setSearchQuery('');
+      setActiveFilters({
+        skills: [],
+        languages: [],
+        projectType: 'all'
+      });
+    }
+  };
+
+  const resetSearchAndFilters = () => {
+    setSearchQuery('');
+    setActiveFilters({
+      skills: [],
+      languages: [],
+      projectType: 'all'
+    });
+  };
+
+  const addSkillFilter = (skill) => {
+    if (!activeFilters.skills.includes(skill)) {
+      setActiveFilters(prev => ({
+        ...prev,
+        skills: [...prev.skills, skill]
+      }));
+    }
+  };
+
+  const removeSkillFilter = (skill) => {
+    setActiveFilters(prev => ({
+      ...prev,
+      skills: prev.skills.filter(s => s !== skill)
+    }));
+  };
+
+  const addLanguageFilter = (language) => {
+    if (!activeFilters.languages.includes(language)) {
+      setActiveFilters(prev => ({
+        ...prev,
+        languages: [...prev.languages, language]
+      }));
+    }
+  };
+
+  const removeLanguageFilter = (language) => {
+    setActiveFilters(prev => ({
+      ...prev,
+      languages: prev.languages.filter(l => l !== language)
+    }));
   };
 
   const updateSettings = (newSettings) => {
@@ -1047,6 +1129,128 @@ const Portfolio = () => {
     return allProjectsForHeatmap.length;
   }, [allProjectsForHeatmap]);
 
+  // Filtered portfolios and projects for public mode
+  const filteredPortfolios = useMemo(() => {
+    if (!isPublicMode) return portfolios;
+    
+    return portfolios.filter(portfolio => {
+      const matchesSearch = !searchQuery || 
+        portfolio.analysis_uuid?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        portfolio.analysis_type?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        portfolio.project_names?.some(name => 
+          name?.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+      
+      return matchesSearch;
+    });
+  }, [portfolios, searchQuery, isPublicMode]);
+  
+  const filteredProjectList = useMemo(() => {
+    if (!isPublicMode) return orderedProjectList;
+    
+    // Use allProjectsForHeatmap in public mode to show ALL projects across portfolios
+    const sourceProjects = allProjectsForHeatmap;
+    
+    return sourceProjects.filter(project => {
+      // Search filter - only apply if searchQuery exists
+      const matchesSearch = !searchQuery || 
+        (project.name && project.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (project.primary_language && project.primary_language.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (project.description && project.description.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      // Skill filter - only apply if skills are selected
+      const matchesSkillFilter = activeFilters.skills.length === 0 || 
+        activeFilters.skills.some(skill => {
+          // Handle different skill data formats
+          const skillsExercised = project.skills_exercised;
+          const technologies = project.technologies;
+          
+          // Check skills_exercised (could be array or string)
+          const hasSkillInExercised = Array.isArray(skillsExercised) 
+            ? skillsExercised.includes(skill)
+            : typeof skillsExercised === 'string' 
+              ? skillsExercised.toLowerCase().includes(skill.toLowerCase())
+              : false;
+          
+          // Check technologies (could be array or string)  
+          const hasSkillInTechnologies = Array.isArray(technologies)
+            ? technologies.includes(skill)
+            : typeof technologies === 'string'
+              ? technologies.toLowerCase().includes(skill.toLowerCase())
+              : false;
+              
+          return hasSkillInExercised || hasSkillInTechnologies;
+        });
+      
+      // Language filter - only apply if languages are selected
+      const matchesLanguageFilter = activeFilters.languages.length === 0 ||
+        (project.primary_language && activeFilters.languages.includes(project.primary_language));
+      
+      // Project type filter - default to 'all' means no filtering
+      const matchesProjectType = activeFilters.projectType === 'all' ||
+        (activeFilters.projectType === 'individual' && !project.is_collaborative_project) ||
+        (activeFilters.projectType === 'collaborative' && Boolean(project.is_collaborative_project));
+      
+      return matchesSearch && matchesSkillFilter && matchesLanguageFilter && matchesProjectType;
+    });
+  }, [allProjectsForHeatmap, orderedProjectList, searchQuery, activeFilters, isPublicMode]);
+  
+  const filteredPortfolioItems = useMemo(() => {
+    if (!isPublicMode) return orderedPortfolioItems;
+    
+    return orderedPortfolioItems.filter(item => {
+      // Search filter - only apply if searchQuery exists
+      const matchesSearch = !searchQuery || 
+        (item.project_name && item.project_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (Array.isArray(item.skills_exercised) && item.skills_exercised.some(skill => 
+          skill && skill.toLowerCase().includes(searchQuery.toLowerCase())
+        )) ||
+        (typeof item.skills_exercised === 'string' && 
+          item.skills_exercised.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      // Skill filter - only apply if skills are selected
+      const matchesSkillFilter = activeFilters.skills.length === 0 || 
+        activeFilters.skills.some(skill => {
+          const skillsExercised = item.skills_exercised;
+          
+          // Handle different skill data formats
+          if (Array.isArray(skillsExercised)) {
+            return skillsExercised.includes(skill);
+          } else if (typeof skillsExercised === 'string') {
+            return skillsExercised.toLowerCase().includes(skill.toLowerCase());
+          }
+          return false;
+        });
+      
+      return matchesSearch && matchesSkillFilter;
+    });
+  }, [orderedPortfolioItems, searchQuery, activeFilters, isPublicMode]);
+  
+  // Update skill tags to reflect filtered data in public mode
+  const displaySkillTags = useMemo(() => {
+    if (!isPublicMode) return aggregatedSkillTags;
+    
+    // Recalculate skills from filtered items
+    const skillCounts = new Map();
+    for (const item of filteredPortfolioItems) {
+      const skills = item?.skills_exercised;
+      const normalizedSkills = Array.isArray(skills)
+        ? skills
+        : typeof skills === 'string'
+          ? skills.split(',').map((skill) => skill.trim())
+          : [];
+      for (const skill of normalizedSkills) {
+        if (!skill) continue;
+        skillCounts.set(skill, (skillCounts.get(skill) ?? 0) + 1);
+      }
+    }
+    
+    return [...skillCounts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 10)
+      .map(([skill, count]) => ({ skill, count }));
+  }, [aggregatedSkillTags, filteredPortfolioItems, isPublicMode]);
+
   // Showcase project IDs → rank (1, 2, 3)
   const showcaseRanks = useMemo(() => {
     const ids = curationSettings?.showcase_project_ids ?? [];
@@ -1061,6 +1265,8 @@ const Portfolio = () => {
   }, [curationSettings]);
 
   const handleSelectPortfolio = (portfolioId) => {
+    // Disable portfolio selection in public mode
+    if (isPublicMode) return;
     if (portfolioId === selectedPortfolioId) return;
     setSelectedPortfolioId(portfolioId);
   };
@@ -1125,6 +1331,29 @@ const Portfolio = () => {
         </div>
       )}
       
+      {/* Public Mode Indicator */}
+      {isPublicMode && (
+        <div style={{
+          position: 'fixed',
+          top: '16px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: '#059669',
+          color: 'white',
+          padding: '8px 16px',
+          borderRadius: '20px',
+          fontSize: '14px',
+          fontWeight: '600',
+          zIndex: 1000,
+          boxShadow: '0 4px 12px rgba(5, 150, 105, 0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          🔍 Public View Mode - Search & Filter Only
+        </div>
+      )}
+      
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '32px 24px 48px' }}>
         {/* Portfolio Header with Private Mode Controls */}
         <div style={{
@@ -1151,7 +1380,7 @@ const Portfolio = () => {
               color: '#6b7280',
               fontSize: '14px'
             }}>
-              {isPrivateMode ? 'Customize your portfolio presentation' : 'Your professional project showcase'}
+              {isPublicMode ? 'Public view - search and filter to explore data' : (isPrivateMode ? 'Customize your portfolio presentation' : 'Your professional project showcase')}
             </p>
           </div>
           
@@ -1193,13 +1422,14 @@ const Portfolio = () => {
             
             <button
               onClick={togglePrivateMode}
+              disabled={isPublicMode}
               style={{
                 padding: '10px 20px',
                 borderRadius: '8px',
                 border: isPrivateMode ? '2px solid #8b5cf6' : '1px solid #e5e5e5',
-                backgroundColor: isPrivateMode ? '#f3f4f6' : 'white',
-                color: isPrivateMode ? '#8b5cf6' : '#1a1a1a',
-                cursor: 'pointer',
+                backgroundColor: isPrivateMode ? '#f3f4f6' : isPublicMode ? '#f3f4f6' : 'white',
+                color: isPrivateMode ? '#8b5cf6' : isPublicMode ? '#737373' : '#1a1a1a',
+                cursor: isPublicMode ? 'not-allowed' : 'pointer',
                 fontSize: '14px',
                 fontWeight: '600',
                 display: 'flex',
@@ -1209,8 +1439,195 @@ const Portfolio = () => {
             >
               {isPrivateMode ? '🔒 Preview Mode' : '🎨 Customize Portfolio'}
             </button>
+            
+            <button
+              onClick={togglePublicMode}
+              style={{
+                padding: '10px 20px',
+                borderRadius: '8px',
+                border: isPublicMode ? '2px solid #059669' : '1px solid #e5e5e5',
+                backgroundColor: isPublicMode ? '#f0fdf4' : 'white',
+                color: isPublicMode ? '#059669' : '#1a1a1a',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              {isPublicMode ? '🔍 Exit Public View' : '🌐 Public View'}
+            </button>
           </div>
         </div>
+        
+        {/* Search and Filter Controls for Public Mode */}
+        {isPublicMode && (
+          <div style={{
+            backgroundColor: 'white',
+            padding: '20px 24px',
+            borderRadius: '12px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            marginBottom: '24px',
+            border: '2px solid #059669'
+          }}>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{
+                display: 'block',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#059669',
+                marginBottom: '8px'
+              }}>
+                🔍 Search Projects & Skills
+              </label>
+              <input
+                type="text"
+                placeholder="Search by project name, language, or description..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  borderRadius: '8px',
+                  border: '2px solid #059669',
+                  fontSize: '14px',
+                  outline: 'none',
+                  transition: 'border-color 0.2s'
+                }}
+              />
+            </div>
+            
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '16px'
+            }}>
+              {/* Project Type Filter */}
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: '#374151',
+                  marginBottom: '4px'
+                }}>
+                  Project Type
+                </label>
+                <select
+                  value={activeFilters.projectType}
+                  onChange={(e) => setActiveFilters(prev => ({ ...prev, projectType: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid #d1d5db',
+                    fontSize: '14px'
+                  }}
+                >
+                  <option value="all">All Projects</option>
+                  <option value="individual">Individual Projects</option>
+                  <option value="collaborative">Collaborative Projects</option>
+                </select>
+              </div>
+              
+              {/* Active Filters Display */}
+              <div style={{ gridColumn: '1 / -1' }}>
+                {(activeFilters.skills.length > 0 || activeFilters.languages.length > 0) && (
+                  <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '8px',
+                    marginTop: '8px'
+                  }}>
+                    <span style={{ fontSize: '12px', fontWeight: '600', color: '#374151' }}>
+                      Active Filters:
+                    </span>
+                    {activeFilters.skills.map(skill => (
+                      <span
+                        key={skill}
+                        style={{
+                          padding: '4px 8px',
+                          backgroundColor: '#fef3c7',
+                          color: '#92400e',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          fontWeight: '500',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        Skill: {skill}
+                        <button
+                          onClick={() => removeSkillFilter(skill)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#92400e',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            padding: 0,
+                            marginLeft: '2px'
+                          }}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                    {activeFilters.languages.map(language => (
+                      <span
+                        key={language}
+                        style={{
+                          padding: '4px 8px',
+                          backgroundColor: '#dbeafe',
+                          color: '#1e40af',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          fontWeight: '500',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        Language: {language}
+                        <button
+                          onClick={() => removeLanguageFilter(language)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#1e40af',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            padding: 0,
+                            marginLeft: '2px'
+                          }}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                    <button
+                      onClick={resetSearchAndFilters}
+                      style={{
+                        padding: '4px 8px',
+                        backgroundColor: '#fee2e2',
+                        color: '#dc2626',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                        fontWeight: '500',
+                        border: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         {loading ? (
           <div
             style={{
@@ -1273,12 +1690,14 @@ const Portfolio = () => {
             {/* Interactive User Profile Summary */}
             <UserProfileSummary 
               selectedPortfolioDetail={selectedPortfolioDetail}
-              orderedProjectList={allProjectsForHeatmap}  // Use ALL projects
-              skillTags={aggregatedSkillTags}  // Use aggregated skills
+              orderedProjectList={isPublicMode ? filteredProjectList : allProjectsForHeatmap}  // Use filtered projects in public mode
+              skillTags={displaySkillTags}  // Use display skills (filtered in public mode)
               auth={{ user }}
-              totalProjects={totalAggregatedProjects}  // Use total from all portfolios
+              totalProjects={isPublicMode ? filteredProjectList.length : totalAggregatedProjects}  // Use filtered count in public mode
               analysisType={analysisType}
               isPrivateMode={isPrivateMode}
+              isPublicMode={isPublicMode}
+              addLanguageFilter={addLanguageFilter}
               updateSettings={updateSettings}
               portfolioSettings={portfolioSettings}
             />
@@ -1287,10 +1706,10 @@ const Portfolio = () => {
             {portfolioSettings.showHeatmap && (
               <div style={{ 
                 position: 'relative',
-                border: isPrivateMode ? '2px dashed #8b5cf6' : 'none',
-                borderRadius: isPrivateMode ? '12px' : '0',
-                padding: isPrivateMode ? '12px' : '0',
-                backgroundColor: isPrivateMode ? 'rgba(139, 92, 246, 0.02)' : 'transparent'
+                border: isPrivateMode ? '2px dashed #8b5cf6' : isPublicMode ? '2px dashed #059669' : 'none',
+                borderRadius: isPrivateMode || isPublicMode ? '12px' : '0',
+                padding: isPrivateMode || isPublicMode ? '12px' : '0',
+                backgroundColor: isPrivateMode ? 'rgba(139, 92, 246, 0.02)' : isPublicMode ? 'rgba(5, 150, 105, 0.02)' : 'transparent'
               }}>
                 {isPrivateMode && (
                   <div style={{
@@ -1317,7 +1736,10 @@ const Portfolio = () => {
                     </label>
                   </div>
                 )}
-                <ActivityHeatmap portfolios={portfolios} projectList={allProjectsForHeatmap} />
+                <ActivityHeatmap 
+                  portfolios={isPublicMode ? filteredPortfolios : portfolios} 
+                  projectList={isPublicMode ? filteredProjectList : allProjectsForHeatmap} 
+                />
               </div>
             )}
             
@@ -1335,7 +1757,7 @@ const Portfolio = () => {
                 padding: '32px',
                 borderRadius: '20px',
                 boxShadow: '0 20px 40px rgba(15, 23, 42, 0.06)',
-                border: isPrivateMode ? '2px dashed #8b5cf6' : 'none',
+                border: isPrivateMode ? '2px dashed #8b5cf6' : isPublicMode ? '2px solid #059669' : 'none',
               }}
             >
               <div>
@@ -1474,7 +1896,7 @@ const Portfolio = () => {
                   )}
                 </div>
                 
-                {portfolioSettings.showSkills && skillTags.length > 0 ? (
+                {portfolioSettings.showSkills && displaySkillTags.length > 0 ? (
                   <div
                     style={{
                       display: 'flex',
@@ -1483,9 +1905,10 @@ const Portfolio = () => {
                       marginTop: '12px',
                     }}
                   >
-                    {skillTags.map((skill) => (
+                    {displaySkillTags.map((skill) => (
                       <span
                         key={skill.skill || skill.name}
+                        onClick={isPublicMode ? () => addSkillFilter(skill.skill || skill.name) : undefined}
                         style={{
                           padding: '6px 12px',
                           borderRadius: '999px',
@@ -1494,9 +1917,19 @@ const Portfolio = () => {
                           fontSize: '13px',
                           fontWeight: '600',
                           border: skill.curated ? '1px solid #bbf7d0' : 'none',
+                          cursor: isPublicMode ? 'pointer' : 'default',
+                          transition: isPublicMode ? 'all 0.2s' : 'none',
+                          transform: isPublicMode ? 'scale(1)' : 'none',
+                          ...(isPublicMode && {
+                            ':hover': {
+                              transform: 'scale(1.05)',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                            }
+                          })
                         }}
+                        title={isPublicMode ? `Click to filter by ${skill.skill || skill.name}` : undefined}
                       >
-                        {skill.skill || skill.name}
+                        {isPublicMode ? '🏷️ ' : ''}{skill.skill || skill.name}
                       </span>
                     ))}
                   </div>
@@ -1507,15 +1940,34 @@ const Portfolio = () => {
                       : 'No skill highlights were captured for this run yet.'}
                   </p>
                 )}
+                
+                {/* Show filtering summary in public mode */}
+                {isPublicMode && (searchQuery || activeFilters.skills.length > 0 || activeFilters.languages.length > 0 || activeFilters.projectType !== 'all') && (
+                  <div style={{
+                    marginTop: '16px',
+                    padding: '8px 12px',
+                    backgroundColor: '#f0fdf4',
+                    border: '1px solid #bbf7d0',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    color: '#166534'
+                  }}>
+                    📊 Showing {filteredPortfolioItems.length} filtered items
+                    {searchQuery && ` matching "${searchQuery}"`}
+                    {activeFilters.skills.length > 0 && ` with skills: ${activeFilters.skills.join(', ')}`}
+                    {activeFilters.languages.length > 0 && ` using languages: ${activeFilters.languages.join(', ')}`}
+                    {activeFilters.projectType !== 'all' && ` (${activeFilters.projectType} projects only)`}
+                  </div>
+                )}
               </div>
 
               <div style={{ 
                 marginTop: '32px',
                 position: 'relative',
-                border: isPrivateMode ? '2px dashed #8b5cf6' : 'none',
-                borderRadius: isPrivateMode ? '12px' : '0',
-                padding: isPrivateMode ? '12px' : '0',
-                backgroundColor: isPrivateMode ? 'rgba(139, 92, 246, 0.02)' : 'transparent'
+                border: isPrivateMode ? '2px dashed #8b5cf6' : isPublicMode ? '2px dashed #059669' : 'none',
+                borderRadius: isPrivateMode || isPublicMode ? '12px' : '0',
+                padding: isPrivateMode || isPublicMode ? '12px' : '0',
+                backgroundColor: isPrivateMode ? 'rgba(139, 92, 246, 0.02)' : isPublicMode ? 'rgba(5, 150, 105, 0.02)' : 'transparent'
               }}>
                 <div style={{ 
                   display: 'flex', 
@@ -1524,6 +1976,18 @@ const Portfolio = () => {
                   marginBottom: '8px'
                 }}>
                   <h3 style={{ margin: 0, fontSize: '18px', color: '#0f172a' }}>Portfolio Items</h3>
+                  {isPublicMode && (
+                    <div style={{
+                      fontSize: '12px',
+                      color: '#059669',
+                      backgroundColor: '#f0fdf4',
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      border: '1px solid #bbf7d0'
+                    }}>
+                      ℹ️ Click skills and languages to filter
+                    </div>
+                  )}
                   
                   {isPrivateMode && (
                     <div style={{
@@ -1548,7 +2012,7 @@ const Portfolio = () => {
                   )}
                 </div>
                 
-                {portfolioSettings.showPortfolioItems && Array.isArray(orderedPortfolioItems) && orderedPortfolioItems.length > 0 ? (
+                {portfolioSettings.showPortfolioItems && Array.isArray(isPublicMode ? filteredPortfolioItems : orderedPortfolioItems) && (isPublicMode ? filteredPortfolioItems : orderedPortfolioItems).length > 0 ? (
                   <div
                     style={{
                       marginTop: '16px',
@@ -1557,7 +2021,7 @@ const Portfolio = () => {
                       gap: '16px',
                     }}
                   >
-                    {orderedPortfolioItems.map((item, idx) => (
+                    {(isPublicMode ? filteredPortfolioItems : orderedPortfolioItems).map((item, idx) => (
                       (() => {
                         const itemId = item.project_id ?? item.id;
                         const showcaseRank = showcaseRanks.get(itemId);
