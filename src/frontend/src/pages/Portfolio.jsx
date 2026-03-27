@@ -765,6 +765,7 @@ const Portfolio = () => {
     setError('');
     setLoading(true);
     setSelectedPortfolioDetail(null);
+    setDetailError('');
     setAllDetails(new Map());
     try {
       const data = await portfoliosAPI.listPortfolios();
@@ -819,6 +820,15 @@ const Portfolio = () => {
     } catch (error) {
       console.error('Error saving portfolio settings:', error);
       showNotification('Error saving portfolio settings. Please try again.', 'error');
+    }
+  };
+
+  const refreshPortfolios = async () => {
+    try {
+      await loadPortfolios();
+      showNotification('Portfolio data refreshed successfully!', 'success');
+    } catch (error) {
+      showNotification('Failed to refresh portfolio data', 'error');
     }
   };
 
@@ -914,19 +924,39 @@ const Portfolio = () => {
     };
   }, [isAuthenticated, loadPortfolios]);
 
-  // Background-fetch details for all other portfolios so the heatmap shows ALL activity
   useEffect(() => {
-    if (portfolios.length === 0) return;
+    if (portfolios.length === 0) {
+      setAllDetails(new Map());
+      return;
+    }
+    
     let cancelled = false;
-    const uuids = portfolios.map((p) => p.analysis_uuid).filter(Boolean);
-    uuids.forEach((uuid) => {
-      if (allDetails.has(uuid)) return; // already cached
-      portfoliosAPI.getPortfolioDetail(uuid).then((detail) => {
-        if (!cancelled) setAllDetails((prev) => new Map(prev).set(uuid, detail));
-      }).catch(() => {}); // silently ignore failures for background fetches
+    const currentUuids = new Set(portfolios.map((p) => p.analysis_uuid).filter(Boolean));
+    
+    setAllDetails((prev) => {
+      const cleaned = new Map();
+      for (const [uuid, detail] of prev.entries()) {
+        if (currentUuids.has(uuid)) {
+          cleaned.set(uuid, detail);
+        }
+      }
+      return cleaned;
     });
+    
+    const uuidsArray = Array.from(currentUuids);
+    uuidsArray.forEach((uuid) => {
+      setAllDetails((prev) => {
+        if (prev.has(uuid)) return prev; // already cached
+        portfoliosAPI.getPortfolioDetail(uuid).then((detail) => {
+          if (!cancelled) {
+            setAllDetails((current) => new Map(current).set(uuid, detail));
+          }
+        }).catch(() => {}); 
+        return prev;
+      });
+    });
+    
     return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [portfolios]);
 
   const selectedSummaryEntry = useMemo(
@@ -1289,7 +1319,7 @@ const Portfolio = () => {
             )}
             
             <button
-              onClick={loadPortfolios}
+              onClick={refreshPortfolios}
               style={{
                 padding: '10px 16px',
                 borderRadius: '8px',
@@ -1354,7 +1384,7 @@ const Portfolio = () => {
             <p style={{ margin: '8px 0 0' }}>{error}</p>
             <button
               type="button"
-              onClick={loadPortfolios}
+              onClick={refreshPortfolios}
               style={{
                 marginTop: '12px',
                 padding: '8px 16px',
