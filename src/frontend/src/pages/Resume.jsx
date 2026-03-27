@@ -3,6 +3,8 @@ import Navigation from '../components/Navigation';
 import { projectsAPI, resumeAPI, curationAPI } from '../services/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 const Resume = () => {
   const [projects, setProjects] = useState([]);
@@ -28,6 +30,124 @@ const Resume = () => {
   const [pdfError, setPdfError] = useState('');
   const pdfUrlRef = useRef(null);
 
+  const formatMonthYear = (value) => {
+    // HTML <input type="month"> returns "YYYY-MM".
+    if (typeof value !== 'string') return '';
+    const m = value.match(/^(\d{4})-(\d{2})$/);
+    if (!m) return value;
+    const year = Number(m[1]);
+    const monthIdx = Number(m[2]) - 1;
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    if (monthIdx < 0 || monthIdx > 11) return value;
+    return `${monthNames[monthIdx]} ${year}`;
+  };
+
+  /** True if YYYY-MM is strictly after the current calendar month. */
+  const isFutureYearMonth = (yyyyMm) => {
+    if (typeof yyyyMm !== 'string' || !yyyyMm.trim()) return false;
+    const m = yyyyMm.match(/^(\d{4})-(\d{2})$/);
+    if (!m) return false;
+    const y = Number(m[1]);
+    const monthIndex = Number(m[2]) - 1;
+    if (monthIndex < 0 || monthIndex > 11) return false;
+    const now = new Date();
+    if (y > now.getFullYear()) return true;
+    if (y === now.getFullYear() && monthIndex > now.getMonth()) return true;
+    return false;
+  };
+
+  /** Convert YYYY-MM to comparable month key (year*12 + monthIndex). */
+  const toYearMonthKey = (yyyyMm) => {
+    if (typeof yyyyMm !== 'string' || !yyyyMm.trim()) return null;
+    const m = yyyyMm.match(/^(\d{4})-(\d{2})$/);
+    if (!m) return null;
+    const y = Number(m[1]);
+    const monthIndex = Number(m[2]) - 1;
+    if (monthIndex < 0 || monthIndex > 11) return null;
+    return y * 12 + monthIndex;
+  };
+
+  /** Calendar helper: disallow months after the current month (used by react-datepicker). */
+  const isCalendarMonthNotInFuture = (date) => {
+    const now = new Date();
+    return (
+      date.getFullYear() < now.getFullYear() ||
+      (date.getFullYear() === now.getFullYear() && date.getMonth() <= now.getMonth())
+    );
+  };
+
+  const MonthYearPicker = ({ value, onChange, placeholder, disabled = false }) => {
+    const parseMonthValue = (monthValue) => {
+      if (typeof monthValue !== 'string') return null;
+      const m = monthValue.match(/^(\d{4})-(\d{2})$/);
+      if (!m) return null;
+      const year = Number(m[1]);
+      const month = Number(m[2]);
+      if (month < 1 || month > 12) return null;
+      return new Date(year, month - 1, 1);
+    };
+
+    const toMonthValue = (dateObj) => {
+      if (!(dateObj instanceof Date) || Number.isNaN(dateObj.getTime())) return '';
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      return `${y}-${m}`;
+    };
+
+    return (
+      <DatePicker
+        selected={parseMonthValue(value)}
+        onChange={(date) => {
+          if (disabled) return;
+          if (!date) {
+            onChange('');
+            return;
+          }
+          if (!isCalendarMonthNotInFuture(date)) {
+            window.alert('You cannot select a future month. Please choose this month or earlier.');
+            return;
+          }
+          onChange(toMonthValue(date));
+        }}
+        disabled={disabled}
+        showMonthYearPicker
+        dateFormat="MMM yyyy"
+        placeholderText={placeholder || 'Select month/year'}
+        isClearable={!disabled}
+        maxDate={new Date()}
+        filterDate={isCalendarMonthNotInFuture}
+        customInput={
+          <input
+            style={{
+              flex: 1,
+              padding: '10px 12px',
+              border: '1px solid #e5e7eb',
+              borderRadius: '6px',
+              fontSize: '14px',
+              boxSizing: 'border-box',
+              backgroundColor: disabled ? '#f3f4f6' : 'white',
+              width: '100%',
+              cursor: disabled ? 'not-allowed' : 'pointer',
+              color: disabled ? '#6b7280' : 'inherit',
+            }}
+            aria-label={placeholder || 'Select month/year'}
+            readOnly
+          />
+        }
+      />
+    );
+  };
+
+  /** One-line label for education/work date range (end empty => Current). */
+  const formatExperienceDateRange = (start, end) => {
+    const s = typeof start === 'string' ? start.trim() : '';
+    const e = typeof end === 'string' ? end.trim() : '';
+    if (!s && !e) return '';
+    if (s && e) return `${formatMonthYear(s)} -- ${formatMonthYear(e)}`;
+    if (s && !e) return `${formatMonthYear(s)} -- Current`;
+    return formatMonthYear(e);
+  };
+
   // Education entries (stored separately from personal info)
   const emptyEducation = {
     education_text: '',
@@ -42,6 +162,49 @@ const Resume = () => {
   const [educationForm, setEducationForm] = useState(emptyEducation);
   const [educationEditingId, setEducationEditingId] = useState(null);
   const [educationSaving, setEducationSaving] = useState(false);
+  /** When true, end_date is omitted (ongoing education). */
+  const [educationEndCurrent, setEducationEndCurrent] = useState(false);
+
+  // Work experience entries (stored separately from personal info)
+  const emptyWorkExperience = {
+    company: '',
+    job_title: '',
+    location: '',
+    start_date: '',
+    end_date: '',
+    responsibilities_text: '',
+  };
+  const [workEntries, setWorkEntries] = useState([]);
+  const [workForm, setWorkForm] = useState(emptyWorkExperience);
+  const [workEditingId, setWorkEditingId] = useState(null);
+  const [workSaving, setWorkSaving] = useState(false);
+  /** When true, end_date is omitted (current job). */
+  const [workEndCurrent, setWorkEndCurrent] = useState(false);
+
+  /** Work experience: newest / most relevant first (matches backend resume generation order). */
+  const workEntriesReverseChronological = useMemo(() => {
+    const now = new Date();
+    const nowKey = now.getFullYear() * 12 + now.getMonth();
+    const parseYm = (s) => {
+      if (typeof s !== 'string') return null;
+      const m = s.match(/^(\d{4})-(\d{2})$/);
+      if (!m) return null;
+      const y = Number(m[1]);
+      const mo = Number(m[2]);
+      if (mo < 1 || mo > 12) return null;
+      return y * 12 + (mo - 1);
+    };
+    return [...workEntries].sort((a, b) => {
+      const endA = parseYm(a.end_date);
+      const endB = parseYm(b.end_date);
+      const effA = endA != null ? endA : nowKey;
+      const effB = endB != null ? endB : nowKey;
+      if (effB !== effA) return effB - effA;
+      const startA = parseYm(a.start_date) ?? -1;
+      const startB = parseYm(b.start_date) ?? -1;
+      return startB - startA;
+    });
+  }, [workEntries]);
 
   // Personal information
   const emptyPersonal = {
@@ -147,6 +310,7 @@ const Resume = () => {
     loadStoredResumes();
     loadPersonalInfo();
     loadEducationEntries();
+    loadWorkExperienceEntries();
     loadCurationSettings();
   }, []);
 
@@ -296,27 +460,157 @@ const Resume = () => {
         if (educationEditingId) return prev;
         return { ...emptyEducation };
       });
-      if (!educationEditingId) setEducationEditingId(null);
+      if (!educationEditingId) {
+        setEducationEditingId(null);
+        setEducationEndCurrent(false);
+      }
     } catch (err) {
       console.error('Error loading education entries:', err);
+    }
+  };
+
+  const loadWorkExperienceEntries = async () => {
+    try {
+      const entries = await resumeAPI.listWorkExperience();
+      setWorkEntries(Array.isArray(entries) ? entries : []);
+
+      setWorkForm((prev) => {
+        if (workEditingId) return prev;
+        return { ...emptyWorkExperience };
+      });
+      if (!workEditingId) {
+        setWorkEditingId(null);
+        setWorkEndCurrent(false);
+      }
+    } catch (err) {
+      console.error('Error loading work experience entries:', err);
+    }
+  };
+
+  const cancelWorkEdit = () => {
+    setWorkEditingId(null);
+    setWorkForm({ ...emptyWorkExperience });
+    setWorkEndCurrent(false);
+  };
+
+  const startEditWorkExperience = (entry) => {
+    if (!entry) return;
+    setWorkEditingId(entry.id);
+    const end = (entry.end_date || '').trim();
+    setWorkEndCurrent(!end);
+    setWorkForm({
+      company: entry.company || '',
+      job_title: entry.job_title || '',
+      location: entry.location || '',
+      start_date: entry.start_date || '',
+      end_date: end,
+      responsibilities_text: entry.responsibilities_text || '',
+    });
+  };
+
+  const deleteWorkExperienceEntry = async (entryId) => {
+    if (!entryId) return;
+    const ok = window.confirm('Delete this work experience entry?');
+    if (!ok) return;
+
+    try {
+      setWorkSaving(true);
+      await resumeAPI.deleteWorkExperience(entryId);
+      await loadWorkExperienceEntries();
+      if (workEditingId === entryId) cancelWorkEdit();
+    } catch (err) {
+      console.error('Error deleting work experience entry:', err);
+      setError(err.response?.data?.detail || 'Failed to delete work experience entry');
+    } finally {
+      setWorkSaving(false);
+    }
+  };
+
+  const saveWorkExperienceEntry = async () => {
+    const requiredWorkFields = [
+      ['company', 'Company / Organization'],
+      ['job_title', 'Job Title'],
+      ['location', 'Location'],
+      ['start_date', 'Start month/year'],
+      ['responsibilities_text', 'Responsibilities'],
+    ];
+    const missingWorkFields = requiredWorkFields
+      .filter(([key]) => !(workForm[key] || '').trim())
+      .map(([, label]) => label);
+    if (missingWorkFields.length > 0) {
+      const message = `Please fill all required work experience fields:\n- ${missingWorkFields.join('\n- ')}`;
+      window.alert(message);
+      return;
+    }
+
+    if (!workEndCurrent && !(workForm.end_date || '').trim()) {
+      window.alert('Choose an end month/year, or check “Current” if you still work here.');
+      return;
+    }
+
+    if (
+      isFutureYearMonth(workForm.start_date) ||
+      (!workEndCurrent && isFutureYearMonth(workForm.end_date))
+    ) {
+      window.alert('Start and end dates cannot be in a future month.');
+      return;
+    }
+    if (!workEndCurrent) {
+      const startKey = toYearMonthKey(workForm.start_date);
+      const endKey = toYearMonthKey(workForm.end_date);
+      if (startKey != null && endKey != null && endKey < startKey) {
+        window.alert('End month/year cannot be earlier than start month/year.');
+        return;
+      }
+    }
+
+    const payload = {
+      company: workForm.company || null,
+      job_title: workForm.job_title || null,
+      location: workForm.location || null,
+      start_date: workForm.start_date || null,
+      end_date: workEndCurrent ? null : workForm.end_date || null,
+      responsibilities_text: workForm.responsibilities_text || null,
+    };
+
+    try {
+      setWorkSaving(true);
+      setError('');
+
+      if (workEditingId) {
+        await resumeAPI.updateWorkExperience(workEditingId, payload);
+      } else {
+        await resumeAPI.createWorkExperience(payload);
+      }
+
+      cancelWorkEdit();
+      await loadWorkExperienceEntries();
+    } catch (err) {
+      console.error('Error saving work experience entry:', err);
+      setError(err.response?.data?.detail || 'Failed to save work experience entry');
+    } finally {
+      setWorkSaving(false);
     }
   };
 
   const cancelEducationEdit = () => {
     setEducationEditingId(null);
     setEducationForm({ ...emptyEducation });
+    setEducationEndCurrent(false);
   };
 
   const startEditEducation = (entry) => {
     if (!entry) return;
     setEducationEditingId(entry.id);
+    const end = (entry.end_date || '').trim();
+    setEducationEndCurrent(!end);
     setEducationForm({
       education_text: entry.education_text || '',
       university: entry.university || '',
       location: entry.location || '',
       degree: entry.degree || '',
       start_date: entry.start_date || '',
-      end_date: entry.end_date || '',
+      end_date: end,
       awards: entry.awards || '',
     });
   };
@@ -340,21 +634,51 @@ const Resume = () => {
   };
 
   const saveEducationEntry = async () => {
+    const requiredEducationFields = [
+      ['university', 'University Name'],
+      ['location', 'Location'],
+      ['degree', 'Degree'],
+      ['start_date', 'Start month/year'],
+    ];
+    const missingEducationFields = requiredEducationFields
+      .filter(([key]) => !(educationForm[key] || '').trim())
+      .map(([, label]) => label);
+    if (missingEducationFields.length > 0) {
+      const message = `Please fill all required education fields:\n- ${missingEducationFields.join('\n- ')}`;
+      window.alert(message);
+      return;
+    }
+
+    if (!educationEndCurrent && !(educationForm.end_date || '').trim()) {
+      window.alert('Choose an end month/year, or check “Current” if you are still enrolled.');
+      return;
+    }
+
+    if (
+      isFutureYearMonth(educationForm.start_date) ||
+      (!educationEndCurrent && isFutureYearMonth(educationForm.end_date))
+    ) {
+      window.alert('Start and end dates cannot be in a future month.');
+      return;
+    }
+    if (!educationEndCurrent) {
+      const startKey = toYearMonthKey(educationForm.start_date);
+      const endKey = toYearMonthKey(educationForm.end_date);
+      if (startKey != null && endKey != null && endKey < startKey) {
+        window.alert('End month/year cannot be earlier than start month/year.');
+        return;
+      }
+    }
+
     const payload = {
       education_text: educationForm.education_text || null,
       university: educationForm.university || null,
       location: educationForm.location || null,
       degree: educationForm.degree || null,
       start_date: educationForm.start_date || null,
-      end_date: educationForm.end_date || null,
+      end_date: educationEndCurrent ? null : educationForm.end_date || null,
       awards: educationForm.awards || null,
     };
-
-    const hasAnyValue = Object.values(payload).some((v) => typeof v === 'string' && v.trim().length > 0);
-    if (!hasAnyValue) {
-      setError('Please fill at least one education field before saving.');
-      return;
-    }
 
     try {
       setEducationSaving(true);
@@ -588,7 +912,7 @@ const Resume = () => {
   const downloadResume = () => {
     if (!generatedResume) return;
 
-    if (resumeFormat === 'pdf') {
+    if (generatedResume.format === 'pdf') {
       // Decode base64 PDF
       const binaryString = atob(generatedResume.content);
       const bytes = new Uint8Array(binaryString.length);
@@ -604,7 +928,7 @@ const Resume = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } else if (resumeFormat === 'latex') {
+    } else if (generatedResume.format === 'latex') {
       try {
         const binaryString = atob(generatedResume.content);
         const bytes = new Uint8Array(binaryString.length);
@@ -1060,10 +1384,7 @@ const Resume = () => {
                             >
                               {entry.location ? <div>{entry.location}</div> : null}
                               {(entry.start_date || entry.end_date) && (
-                                <div>
-                                  {(entry.start_date || '')}
-                                  {entry.end_date ? ` -- ${entry.end_date}` : ''}
-                                </div>
+                                <div>{formatExperienceDateRange(entry.start_date, entry.end_date)}</div>
                               )}
                               {entry.awards ? (
                                 <div style={{ marginTop: '4px', color: '#2563eb', fontSize: '12px', fontWeight: '600' }}>
@@ -1158,46 +1479,47 @@ const Resume = () => {
                       boxSizing: 'border-box',
                     }}
                   />
-
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
-                      gap: '8px',
-                      width: '100%',
-                      minWidth: 0,
-                    }}
-                  >
-                    <input
-                      type="text"
-                      placeholder="Start date (e.g., Aug 2020)"
-                      value={educationForm.start_date}
-                      onChange={(e) => setEducationForm((prev) => ({ ...prev, start_date: e.target.value }))}
-                      style={{
-                        minWidth: 0,
-                        width: '100%',
-                        padding: '10px 12px',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '6px',
-                        fontSize: '14px',
-                        boxSizing: 'border-box',
-                      }}
-                    />
-                    <input
-                      type="text"
-                      placeholder="End date (e.g., May 2024)"
-                      value={educationForm.end_date}
-                      onChange={(e) => setEducationForm((prev) => ({ ...prev, end_date: e.target.value }))}
-                      style={{
-                        minWidth: 0,
-                        width: '100%',
-                        padding: '10px 12px',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '6px',
-                        fontSize: '14px',
-                        boxSizing: 'border-box',
-                      }}
-                    />
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                  <div style={{ flex: 1 }}>
+                      <MonthYearPicker
+                        value={educationForm.start_date}
+                        onChange={(v) => setEducationForm((prev) => ({ ...prev, start_date: v }))}
+                        placeholder="Start month/year"
+                      />
+                    </div>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <MonthYearPicker
+                        disabled={educationEndCurrent}
+                        value={educationEndCurrent ? '' : educationForm.end_date}
+                        onChange={(v) => {
+                          setEducationEndCurrent(false);
+                          setEducationForm((prev) => ({ ...prev, end_date: v }));
+                        }}
+                        placeholder="End month/year"
+                      />
+                      <label
+                        style={{
+                          fontSize: '13px',
+                          color: '#525252',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          cursor: 'pointer',
+                          userSelect: 'none',
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={educationEndCurrent}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setEducationEndCurrent(checked);
+                            if (checked) setEducationForm((prev) => ({ ...prev, end_date: '' }));
+                          }}
+                        />
+                        Current (still enrolled)
+                      </label>
+                    </div>
                   </div>
 
                   <input
@@ -1239,6 +1561,265 @@ const Resume = () => {
                         type="button"
                         onClick={cancelEducationEdit}
                         disabled={educationSaving}
+                        style={{
+                          padding: '10px 12px',
+                          fontSize: '14px',
+                          color: '#737373',
+                          backgroundColor: 'white',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Work Experience */}
+            <div
+              style={{
+                backgroundColor: 'white',
+                borderRadius: '12px',
+                padding: '24px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                marginBottom: '24px',
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: '20px',
+                  fontWeight: '600',
+                  color: '#1a1a1a',
+                  margin: 0,
+                  marginBottom: '16px',
+                }}
+              >
+                Work Experience
+              </h2>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#525252', marginBottom: '4px' }}>
+                    Saved Work
+                  </div>
+
+                  {workEntriesReverseChronological.length === 0 ? (
+                    <div style={{ fontSize: '12px', color: '#737373' }}>No saved work experience yet.</div>
+                  ) : (
+                    workEntriesReverseChronological.map((entry) => {
+                      const responsibilities =
+                        typeof entry.responsibilities_text === 'string' ? entry.responsibilities_text.trim() : '';
+                      const firstResp = responsibilities
+                        ? responsibilities
+                            .split(/\r?\n/)
+                            .map((l) => l.trim().replace(/^[-*•]\s*/, ''))
+                            .filter(Boolean)[0]
+                        : '';
+                      const hasAnyMeta = entry.company || entry.job_title || entry.location || firstResp;
+
+                      return (
+                        <div
+                          key={entry.id}
+                          style={{
+                            padding: '12px',
+                            borderRadius: '8px',
+                            backgroundColor: '#f9fafb',
+                            border: '1px solid #e5e7eb',
+                          }}
+                        >
+                          <div style={{ fontSize: '14px', fontWeight: '700', color: '#1a1a1a', marginBottom: '6px' }}>
+                            {(entry.job_title && entry.company) ? `${entry.job_title} - ${entry.company}` : entry.job_title || entry.company || 'Work'}
+                          </div>
+                          {hasAnyMeta && (
+                            <div style={{ fontSize: '13px', color: '#525252', lineHeight: '1.4', marginBottom: '10px' }}>
+                              {entry.location ? <div>{entry.location}</div> : null}
+                              {(entry.start_date || entry.end_date) && (
+                                <div>{formatExperienceDateRange(entry.start_date, entry.end_date)}</div>
+                              )}
+                              {firstResp ? (
+                                <div style={{ marginTop: '4px', color: '#2563eb', fontSize: '12px', fontWeight: '600' }}>
+                                  {firstResp}
+                                </div>
+                              ) : null}
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              type="button"
+                              onClick={() => startEditWorkExperience(entry)}
+                              disabled={workSaving}
+                              style={{
+                                padding: '6px 10px',
+                                fontSize: '13px',
+                                color: '#2563eb',
+                                backgroundColor: 'white',
+                                border: '1px solid #2563eb',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteWorkExperienceEntry(entry.id)}
+                              disabled={workSaving}
+                              style={{
+                                padding: '6px 10px',
+                                fontSize: '13px',
+                                color: '#dc2626',
+                                backgroundColor: 'white',
+                                border: '1px solid #dc2626',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <input
+                    type="text"
+                    placeholder="Company / Organization"
+                    value={workForm.company}
+                    onChange={(e) => setWorkForm((prev) => ({ ...prev, company: e.target.value }))}
+                    style={{
+                      padding: '10px 12px',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+
+                  <input
+                    type="text"
+                    placeholder="Job Title"
+                    value={workForm.job_title}
+                    onChange={(e) => setWorkForm((prev) => ({ ...prev, job_title: e.target.value }))}
+                    style={{
+                      padding: '10px 12px',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+
+                  <input
+                    type="text"
+                    placeholder="Location (e.g., Remote / City, State)"
+                    value={workForm.location}
+                    onChange={(e) => setWorkForm((prev) => ({ ...prev, location: e.target.value }))}
+                    style={{
+                      padding: '10px 12px',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <MonthYearPicker
+                        value={workForm.start_date}
+                        onChange={(v) => setWorkForm((prev) => ({ ...prev, start_date: v }))}
+                        placeholder="Start month/year"
+                      />
+                    </div>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <MonthYearPicker
+                        disabled={workEndCurrent}
+                        value={workEndCurrent ? '' : workForm.end_date}
+                        onChange={(v) => {
+                          setWorkEndCurrent(false);
+                          setWorkForm((prev) => ({ ...prev, end_date: v }));
+                        }}
+                        placeholder="End month/year"
+                      />
+                      <label
+                        style={{
+                          fontSize: '13px',
+                          color: '#525252',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          cursor: 'pointer',
+                          userSelect: 'none',
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={workEndCurrent}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setWorkEndCurrent(checked);
+                            if (checked) setWorkForm((prev) => ({ ...prev, end_date: '' }));
+                          }}
+                        />
+                        Current (still employed here)
+                      </label>
+                    </div>
+                  </div>
+
+                  <textarea
+                    value={workForm.responsibilities_text}
+                    onChange={(e) =>
+                      setWorkForm((prev) => ({ ...prev, responsibilities_text: e.target.value }))
+                    }
+                      placeholder="Responsibilities (type one per line with '-' prefix). Example:\n- Built APIs with FastAPI\n- Improved performance"
+                    style={{
+                      width: '100%',
+                      minHeight: '120px',
+                      padding: '12px',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      fontFamily: 'monospace',
+                      lineHeight: '1.5',
+                      resize: 'vertical',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={saveWorkExperienceEntry}
+                      disabled={workSaving}
+                      style={{
+                        flex: 1,
+                        padding: '10px 12px',
+                        fontSize: '14px',
+                        color: 'white',
+                        backgroundColor: '#2563eb',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {workSaving ? 'Saving...' : workEditingId ? 'Update Work' : 'Save Work'}
+                    </button>
+
+                    {workEditingId && (
+                      <button
+                        type="button"
+                        onClick={cancelWorkEdit}
+                        disabled={workSaving}
                         style={{
                           padding: '10px 12px',
                           fontSize: '14px',
@@ -1775,7 +2356,7 @@ const Resume = () => {
                   minWidth: 0,
                 }}
               >
-                {resumeFormat === 'pdf' ? (
+                {generatedResume?.format === 'pdf' ? (
                   <div style={{ width: '100%' }}>
                     {pdfLoading && (
                       <div style={{ padding: '24px', color: '#737373' }}>
