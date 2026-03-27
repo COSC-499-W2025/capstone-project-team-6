@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Navigation from '../components/Navigation';
 import { projectsAPI, resumeAPI, curationAPI } from '../services/api';
 import ReactMarkdown from 'react-markdown';
@@ -140,6 +140,7 @@ const Resume = () => {
   // Curation settings
   const [curationSettings, setCurationSettings] = useState(null);
   const [chronologyCorrections, setChronologyCorrections] = useState({});
+  const [showShowcaseOnly, setShowShowcaseOnly] = useState(false);
 
   useEffect(() => {
     loadProjects();
@@ -456,6 +457,46 @@ const Resume = () => {
     }
   };
 
+  const handleClearSelection = () => {
+    setSelectedProjectIds([]);
+  };
+
+  const handleSelectShowcaseProjects = () => {
+    const showcaseIds = curationSettings?.showcase_project_ids ?? [];
+    if (!Array.isArray(showcaseIds) || showcaseIds.length === 0) {
+      return;
+    }
+
+    const projectIdSet = new Set(projects.map((project) => project.id));
+    const validShowcaseIds = showcaseIds.filter((id) => projectIdSet.has(id));
+    setSelectedProjectIds(validShowcaseIds);
+  };
+
+  const showcaseProjectIds = curationSettings?.showcase_project_ids ?? [];
+  const showcaseProjectIdSet = useMemo(() => new Set(showcaseProjectIds), [showcaseProjectIds]);
+
+  const displayedProjects = useMemo(() => {
+    const orderIds = curationSettings?.custom_project_order;
+    const sortedProjects = [...projects];
+
+    if (Array.isArray(orderIds) && orderIds.length > 0) {
+      sortedProjects.sort((a, b) => {
+        const aIdx = orderIds.indexOf(a.id);
+        const bIdx = orderIds.indexOf(b.id);
+        if (aIdx === -1 && bIdx === -1) return 0;
+        if (aIdx === -1) return 1;
+        if (bIdx === -1) return -1;
+        return aIdx - bIdx;
+      });
+    }
+
+    if (showShowcaseOnly) {
+      return sortedProjects.filter((project) => showcaseProjectIdSet.has(project.id));
+    }
+
+    return sortedProjects;
+  }, [projects, curationSettings, showShowcaseOnly, showcaseProjectIdSet]);
+
   const handleGenerateResume = async () => {
     if (selectedProjectIds.length === 0) {
       setError('Please select at least one project');
@@ -612,6 +653,8 @@ const Resume = () => {
     meta.total_projects ??
     meta.projects_total ??
     selectedProjectIds.length;
+
+  const showcaseButtonDisabled = showcaseProjectIds.length === 0;
 
   return (
     <div
@@ -1182,8 +1225,10 @@ const Resume = () => {
                 style={{
                   display: 'flex',
                   justifyContent: 'space-between',
-                  alignItems: 'center',
+                  alignItems: 'flex-start',
                   marginBottom: '16px',
+                  gap: '12px',
+                  flexWrap: 'wrap',
                 }}
               >
                 <h2
@@ -1197,21 +1242,76 @@ const Resume = () => {
                   Select Projects
                 </h2>
 
-                <button
-                  onClick={selectAll}
-                  style={{
-                    padding: '6px 12px',
-                    fontSize: '14px',
-                    color: '#2563eb',
-                    backgroundColor: 'transparent',
-                    border: '1px solid #2563eb',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {selectedProjectIds.length === projects.length ? 'Deselect All' : 'Select All'}
-                </button>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={handleSelectShowcaseProjects}
+                    disabled={showcaseButtonDisabled}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '14px',
+                      color: showcaseButtonDisabled ? '#9ca3af' : '#b45309',
+                      backgroundColor: showcaseButtonDisabled ? '#f5f5f5' : '#fffbeb',
+                      border: showcaseButtonDisabled ? '1px solid #e5e7eb' : '1px solid #f59e0b',
+                      borderRadius: '6px',
+                      cursor: showcaseButtonDisabled ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    Select Showcase Projects
+                  </button>
+
+                  <button
+                    onClick={selectAll}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '14px',
+                      color: '#2563eb',
+                      backgroundColor: 'transparent',
+                      border: '1px solid #2563eb',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {selectedProjectIds.length === projects.length ? 'Deselect All' : 'Select All'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleClearSelection}
+                    disabled={selectedProjectIds.length === 0}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '14px',
+                      color: selectedProjectIds.length === 0 ? '#9ca3af' : '#6b7280',
+                      backgroundColor: 'transparent',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      cursor: selectedProjectIds.length === 0 ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    Clear Selection
+                  </button>
+                </div>
               </div>
+
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '14px',
+                  color: '#525252',
+                  marginBottom: '16px',
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={showShowcaseOnly}
+                  onChange={(e) => setShowShowcaseOnly(e.target.checked)}
+                />
+                Show showcase projects only
+              </label>
 
               {loading ? (
                 <div style={{ textAlign: 'center', padding: '20px', color: '#737373' }}>
@@ -1221,119 +1321,112 @@ const Resume = () => {
                 <div style={{ textAlign: 'center', padding: '20px', color: '#737373' }}>
                   No projects found. Upload a project first.
                 </div>
+              ) : displayedProjects.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '20px', color: '#737373' }}>
+                  {showShowcaseOnly
+                    ? 'No showcase projects selected in curation yet.'
+                    : 'No projects found. Upload a project first.'}
+                </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {(() => {
-                    // Sort projects by curation order if available
-                    const orderIds = curationSettings?.custom_project_order;
+                  {displayedProjects.map((project) => {
                     const showcaseIdsList = curationSettings?.showcase_project_ids ?? [];
                     const showcaseRanks = new Map();
                     showcaseIdsList.forEach((id, i) => showcaseRanks.set(id, i + 1));
-                    let sortedProjects = [...projects];
-                    if (Array.isArray(orderIds) && orderIds.length > 0) {
-                      sortedProjects.sort((a, b) => {
-                        const aIdx = orderIds.indexOf(a.id);
-                        const bIdx = orderIds.indexOf(b.id);
-                        if (aIdx === -1 && bIdx === -1) return 0;
-                        if (aIdx === -1) return 1;
-                        if (bIdx === -1) return -1;
-                        return aIdx - bIdx;
-                      });
-                    }
-                    return sortedProjects.map((project) => {
-                      const showcaseRank = showcaseRanks.get(project.id);
-                      const isShowcase = !!showcaseRank;
-                      const correction = chronologyCorrections[project.id];
-                      return (
-                        <label
-                          key={project.id}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            padding: '12px',
-                            backgroundColor: selectedProjectIds.includes(project.id)
-                              ? isShowcase ? '#fefce8' : '#eff6ff'
-                              : isShowcase ? '#fffbeb' : '#f9fafb',
-                            border: `2px solid ${
-                              selectedProjectIds.includes(project.id)
-                                ? isShowcase ? '#f59e0b' : '#2563eb'
-                                : isShowcase ? '#fcd34d' : '#e5e7eb'
-                            }`,
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedProjectIds.includes(project.id)}
-                            onChange={() => toggleProject(project.id)}
-                            style={{
-                              width: '18px',
-                              height: '18px',
-                              marginRight: '12px',
-                              cursor: 'pointer',
-                            }}
-                          />
-                          <div style={{ flex: 1 }}>
-                            <div
-                              style={{
-                                fontSize: '14px',
-                                fontWeight: '600',
-                                color: '#1a1a1a',
-                                marginBottom: '4px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                              }}
-                            >
-                              {project.project_name || 'Unnamed Project'}
-                              {isShowcase && (
-                                <span style={{
-                                  padding: '1px 6px',
-                                  borderRadius: '999px',
-                                  backgroundColor: '#fef3c7',
-                                  color: '#b45309',
-                                  fontSize: '10px',
-                                  fontWeight: '700',
-                                }}>⭐ Top {showcaseRank}</span>
-                              )}
-                            </div>
 
-                        <div style={{ fontSize: '12px', color: '#737373' }}>
-                          Project ID: <span style={{ fontFamily: 'monospace' }}>{project.id}</span>
-                          {project.primary_language ? ` • ${project.primary_language}` : ''}
-                          {typeof project.total_files === 'number' ? ` • ${project.total_files} files` : ''}
-                          {(project.curated_role || project.predicted_role) && (
-                            <span style={{
-                              marginLeft: '6px',
-                              padding: '1px 8px',
-                              borderRadius: '999px',
-                              backgroundColor: project.curated_role ? '#f0fdf4' : '#eef2ff',
-                              color: project.curated_role ? '#166534' : '#3730a3',
-                              fontSize: '11px',
+                    const showcaseRank = showcaseRanks.get(project.id);
+                    const isShowcase = !!showcaseRank;
+                    const correction = chronologyCorrections[project.id];
+                    return (
+                      <label
+                        key={project.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          padding: '12px',
+                          backgroundColor: selectedProjectIds.includes(project.id)
+                            ? isShowcase ? '#fefce8' : '#eff6ff'
+                            : isShowcase ? '#fffbeb' : '#f9fafb',
+                          border: `2px solid ${
+                            selectedProjectIds.includes(project.id)
+                              ? isShowcase ? '#f59e0b' : '#2563eb'
+                              : isShowcase ? '#fcd34d' : '#e5e7eb'
+                          }`,
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedProjectIds.includes(project.id)}
+                          onChange={() => toggleProject(project.id)}
+                          style={{
+                            width: '18px',
+                            height: '18px',
+                            marginRight: '12px',
+                            cursor: 'pointer',
+                          }}
+                        />
+                        <div style={{ flex: 1 }}>
+                          <div
+                            style={{
+                              fontSize: '14px',
                               fontWeight: '600',
-                              border: `1px solid ${project.curated_role ? '#bbf7d0' : '#c7d2fe'}`,
-                            }}>
-                              {project.curated_role || project.predicted_role}
-                              {!project.curated_role && project.predicted_role_confidence != null
-                                ? ` (${Math.round(project.predicted_role_confidence * 100)}%)`
-                                : ''}
-                            </span>
-                          )}
-                          {correction && correction.project_start_date ? (
-                            <span style={{ color: '#16a34a' }}>
-                              {' '}• {correction.project_start_date}
-                              {correction.project_end_date ? ` – ${correction.project_end_date}` : ''}
-                              {' '}(corrected)
-                            </span>
-                          ) : null}
+                              color: '#1a1a1a',
+                              marginBottom: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              flexWrap: 'wrap',
+                            }}
+                          >
+                            {project.project_name || 'Unnamed Project'}
+                            {isShowcase && (
+                              <span style={{
+                                padding: '1px 6px',
+                                borderRadius: '999px',
+                                backgroundColor: '#fef3c7',
+                                color: '#b45309',
+                                fontSize: '10px',
+                                fontWeight: '700',
+                              }}>⭐ Top {showcaseRank}</span>
+                            )}
+                          </div>
+
+                          <div style={{ fontSize: '12px', color: '#737373' }}>
+                            Project ID: <span style={{ fontFamily: 'monospace' }}>{project.id}</span>
+                            {project.primary_language ? ` • ${project.primary_language}` : ''}
+                            {typeof project.total_files === 'number' ? ` • ${project.total_files} files` : ''}
+                            {(project.curated_role || project.predicted_role) && (
+                              <span style={{
+                                marginLeft: '6px',
+                                padding: '1px 8px',
+                                borderRadius: '999px',
+                                backgroundColor: project.curated_role ? '#f0fdf4' : '#eef2ff',
+                                color: project.curated_role ? '#166534' : '#3730a3',
+                                fontSize: '11px',
+                                fontWeight: '600',
+                                border: `1px solid ${project.curated_role ? '#bbf7d0' : '#c7d2fe'}`,
+                              }}>
+                                {project.curated_role || project.predicted_role}
+                                {!project.curated_role && project.predicted_role_confidence != null
+                                  ? ` (${Math.round(project.predicted_role_confidence * 100)}%)`
+                                  : ''}
+                              </span>
+                            )}
+                            {correction && correction.project_start_date ? (
+                              <span style={{ color: '#16a34a' }}>
+                                {' '}• {correction.project_start_date}
+                                {correction.project_end_date ? ` – ${correction.project_end_date}` : ''}
+                                {' '}(corrected)
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
-                      </div>
-                    </label>
-                  );
-                    });
-                  })()}
+                      </label>
+                    );
+                  })}
                 </div>
               )}
 
