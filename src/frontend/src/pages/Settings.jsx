@@ -2,11 +2,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/Navigation';
 import { consentAPI, resumeAPI, authAPI } from '../services/api';
-import { useAuth } from '../contexts/AuthContext';
 
 const Settings = () => {
   const navigate = useNavigate();
-  const { logout } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -366,18 +364,6 @@ const Settings = () => {
     }
   };
 
-  // --- Logout Handler ---
-  const onLogout = async () => {
-    try {
-      await logout();
-      navigate('/login');
-    } catch (err) {
-      console.error('Logout error:', err);
-      // Even if logout fails, still redirect to login
-      navigate('/login');
-    }
-  };
-
   const onClickDeleteAccount = () => {
     setErrorMsg('');
     setStatusMsg('');
@@ -516,33 +502,6 @@ const Settings = () => {
           </div>
 
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <button
-              onClick={onLogout}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '10px 20px',
-                backgroundColor: '#dc2626',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                transition: 'all 0.2s',
-                whiteSpace: 'nowrap',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#b91c1c';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#dc2626';
-              }}
-            >
-              Logout
-            </button>
-
             <button
               onClick={() => navigate('/dashboard')}
               style={{
