@@ -814,8 +814,9 @@ const Portfolio = () => {
   };
 
   const togglePrivateMode = () => {
+    // If exiting preview mode and there are unsaved changes, ask for confirmation
     if (isPrivateMode && hasUnsavedChanges) {
-      const confirm = window.confirm('You have unsaved changes. Do you want to discard them?');
+      const confirm = window.confirm('You have unsaved changes. Do you want to discard them and exit preview mode?');
       if (!confirm) return;
       // Revert to live settings
       if (livePortfolioSettings) {
@@ -824,6 +825,18 @@ const Portfolio = () => {
       setHasUnsavedChanges(false);
     }
     setIsPrivateMode(!isPrivateMode);
+  };
+
+  const exitPreviewMode = () => {
+    if (hasUnsavedChanges) {
+      const confirm = window.confirm('You have unsaved changes. Do you want to discard them and exit preview mode?');
+      if (!confirm) return;
+      if (livePortfolioSettings) {
+        setPortfolioSettings(prev => ({ ...prev, ...livePortfolioSettings }));
+      }
+      setHasUnsavedChanges(false);
+    }
+    setIsPrivateMode(false);
   };
 
   const updateSettings = (newSettings) => {
@@ -1151,7 +1164,7 @@ const Portfolio = () => {
               color: '#6b7280',
               fontSize: '14px'
             }}>
-              {isPrivateMode ? 'Customize your portfolio presentation' : 'Your professional project showcase'}
+              {isPrivateMode ? 'Preview your changes - make edits and see how they look before publishing' : 'Your professional project showcase'}
             </p>
           </div>
           
@@ -1159,7 +1172,7 @@ const Portfolio = () => {
             {isPrivateMode && (
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
-                  onClick={() => setIsPrivateMode(false)}
+                  onClick={exitPreviewMode}
                   style={{
                     padding: '8px 16px',
                     borderRadius: '8px',
@@ -1170,7 +1183,7 @@ const Portfolio = () => {
                     fontSize: '14px'
                   }}
                 >
-                  Cancel
+                  Discard Changes
                 </button>
                 <button
                   onClick={savePortfolioSettings}
@@ -1207,7 +1220,7 @@ const Portfolio = () => {
                 gap: '8px'
               }}
             >
-              {isPrivateMode ? '🔒 Preview Mode' : '🎨 Customize Portfolio'}
+              {isPrivateMode ? 'Exit Preview' : '🎨 Preview Changes'}
             </button>
           </div>
         </div>
