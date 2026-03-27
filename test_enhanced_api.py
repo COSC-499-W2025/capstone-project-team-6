@@ -80,7 +80,7 @@ if __name__ == "__main__":
         response = client.get("/")
         assert response.status_code == 200
         data = response.json()
-        assert data["name"] == "MDA Portfolio API"
+        assert data["name"] == "Blume API"
         assert "version" in data
     
     def test_auth_flow(self):

@@ -72,8 +72,8 @@ const Navigation = () => {
           fontSize: '18px',
           fontWeight: '600',
         }}>
-          <span>📁</span>
-          <span>MDA Portfolio</span>
+          <span></span>
+          <span>Blume</span>
         </div>
 
         <div style={{

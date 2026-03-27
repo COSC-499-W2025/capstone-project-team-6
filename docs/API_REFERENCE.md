@@ -1,4 +1,4 @@
-# MDA Portfolio API - Reference
+# Blume API - Reference
 
 **Base URL:** `http://localhost:8000/api`  
 **Version:** 2.0.0
@@ -36,7 +36,7 @@
 - **GET /**
   - Root API information.
   - Auth: Not required.
-  - Response: `{ "name": "MDA Portfolio API", "version": "2.0.0", "docs": "/docs", "health": "/api/health" }`
+  - Response: `{ "name": "Blume API", "version": "2.0.0", "docs": "/docs", "health": "/api/health" }`
 
 ---
 

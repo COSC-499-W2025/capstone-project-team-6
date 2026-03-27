@@ -1,4 +1,4 @@
-# Setup Instructions — MDA Portfolio & Resume Generator
+# Setup Instructions — Blume & Resume Generator
 
 This guide walks you through setting up and running the project from scratch.
 
