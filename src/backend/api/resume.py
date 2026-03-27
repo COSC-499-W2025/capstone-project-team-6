@@ -6,22 +6,30 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from backend.analysis.job_match_analyzer import analyze_job_match
+
 from backend.analysis_database import (add_items_to_user_resume,
-                                       create_user_education,
-                                       create_user_resume,
-                                       delete_user_education,
-                                       delete_user_personal_info,
-                                       get_all_analyses_for_user,
-                                       get_analysis_by_uuid, get_connection,
-                                       get_portfolio_item_for_project,
-                                       get_projects_for_user,
-                                       get_resume_items_for_project_id,
-                                       get_user_personal_info, get_user_resume,
-                                       get_user_resume_items,
-                                       list_user_education, list_user_resumes,
-                                       update_user_education,
-                                       update_user_resume_content,
-                                       upsert_user_personal_info)
+                                      create_user_resume,
+                                      create_user_education,
+                                      create_user_work_experience,
+                                      delete_user_personal_info,
+                                      delete_user_education,
+                                      delete_user_work_experience,
+                                      get_all_analyses_for_user,
+                                      get_analysis_by_uuid,
+                                      get_connection,
+                                      get_portfolio_item_for_project,
+                                      get_projects_for_user,
+                                      get_user_personal_info,
+                                      get_resume_items_for_project_id,
+                                      get_user_resume,
+                                      list_user_education,
+                                      list_user_work_experience,
+                                      get_user_resume_items,
+                                      list_user_resumes,
+                                      update_user_education,
+                                      update_user_work_experience,
+                                      update_user_resume_content,
+                                      upsert_user_personal_info)       
 from backend.api.auth import verify_token
 
 router = APIRouter(prefix="/api", tags=["Resume"])
@@ -144,6 +152,30 @@ class EducationEntryResponse(BaseModel):
     start_date: Optional[str] = None
     end_date: Optional[str] = None
     awards: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class WorkExperienceEntrySaveRequest(BaseModel):
+    """Request body for creating/updating a work experience entry."""
+
+    company: Optional[str] = None
+    job_title: Optional[str] = None
+    location: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    responsibilities_text: Optional[str] = None
+
+
+class WorkExperienceEntryResponse(BaseModel):
+    """Response model for a work experience entry."""
+
+    id: int
+    company: Optional[str] = None
+    job_title: Optional[str] = None
+    location: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    responsibilities_text: Optional[str] = None
     updated_at: Optional[str] = None
 
 
@@ -417,6 +449,84 @@ async def delete_education(education_id: int, username: str = Depends(verify_tok
     return {"ok": True, "deleted": True}
 
 
+def _seed_work_experience_from_personal_info(username: str) -> None:
+    """One-time migration from legacy `personal_info.work_*` into `user_work_experience`."""
+    personal_info = get_user_personal_info(username) or {}
+
+    company = (personal_info.get("work_company") or personal_info.get("company") or "").strip()
+    job_title = (personal_info.get("work_job_title") or personal_info.get("job_title") or "").strip()
+    location = (personal_info.get("work_location") or personal_info.get("location") or "").strip()
+    start_date = (personal_info.get("work_start_date") or "").strip()
+    end_date = (personal_info.get("work_end_date") or "").strip()
+    responsibilities_text = (
+        personal_info.get("work_responsibilities_text")
+        or personal_info.get("work_responsibilities")
+        or personal_info.get("responsibilities_text")
+        or ""
+    ).strip()
+
+    if not any([company, job_title, location, start_date, end_date, responsibilities_text]):
+        return
+
+    create_user_work_experience(
+        username,
+        {
+            "company": company or None,
+            "job_title": job_title or None,
+            "location": location or None,
+            "start_date": start_date or None,
+            "end_date": end_date or None,
+            "responsibilities_text": responsibilities_text or None,
+        },
+    )
+
+
+@router.get("/resume/work-experience", response_model=List[WorkExperienceEntryResponse])
+async def list_work_experience(username: str = Depends(verify_token)):
+    entries = list_user_work_experience(username)
+    if not entries:
+        _seed_work_experience_from_personal_info(username)
+        entries = list_user_work_experience(username)
+    return entries
+
+
+@router.post("/resume/work-experience", response_model=WorkExperienceEntryResponse)
+async def create_work_experience(
+    request: WorkExperienceEntrySaveRequest,
+    username: str = Depends(verify_token),
+):
+    work_id = create_user_work_experience(username, request.model_dump())
+    entries = list_user_work_experience(username)
+    created = next((e for e in entries if e.get("id") == work_id), None)
+    if not created:
+        return WorkExperienceEntryResponse(id=work_id, updated_at=None)
+    return created
+
+
+@router.patch("/resume/work-experience/{work_id}", response_model=WorkExperienceEntryResponse)
+async def update_work_experience(
+    work_id: int,
+    request: WorkExperienceEntrySaveRequest,
+    username: str = Depends(verify_token),
+):
+    ok = update_user_work_experience(username, work_id, request.model_dump())
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Work experience entry not found")
+    entries = list_user_work_experience(username)
+    updated = next((e for e in entries if e.get("id") == work_id), None)
+    if not updated:
+        return WorkExperienceEntryResponse(id=work_id, updated_at=None)
+    return updated
+
+
+@router.delete("/resume/work-experience/{work_id}")
+async def delete_work_experience(work_id: int, username: str = Depends(verify_token)):
+    ok = delete_user_work_experience(username, work_id)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Work experience entry not found")
+    return {"ok": True, "deleted": True}
+
+
 @router.post("/resume/generate", response_model=ResumeResponse)
 async def generate_resume(
     request: ResumeRequest,
@@ -547,6 +657,26 @@ async def generate_resume(
             personal_info_for_gen.setdefault(
                 "education",
                 first.get("education_text") or personal_info_for_gen.get("education"),
+            )
+
+        work_entries = list_user_work_experience(username)
+        if not work_entries:
+            _seed_work_experience_from_personal_info(username)
+            work_entries = list_user_work_experience(username)
+
+        personal_info_for_gen["work_experience_entries"] = work_entries or []
+
+        # Backward-compat fields (if generator falls back to legacy keys).
+        if work_entries:
+            first_w = work_entries[0] or {}
+            personal_info_for_gen.setdefault("work_company", first_w.get("company") or personal_info_for_gen.get("work_company") or personal_info_for_gen.get("company"))
+            personal_info_for_gen.setdefault("work_job_title", first_w.get("job_title") or personal_info_for_gen.get("work_job_title") or personal_info_for_gen.get("job_title"))
+            personal_info_for_gen.setdefault("work_location", first_w.get("location") or personal_info_for_gen.get("work_location") or personal_info_for_gen.get("location"))
+            personal_info_for_gen.setdefault("work_start_date", first_w.get("start_date") or personal_info_for_gen.get("work_start_date") or personal_info_for_gen.get("start_date"))
+            personal_info_for_gen.setdefault("work_end_date", first_w.get("end_date") or personal_info_for_gen.get("work_end_date") or personal_info_for_gen.get("end_date"))
+            personal_info_for_gen.setdefault(
+                "work_responsibilities_text",
+                first_w.get("responsibilities_text") or personal_info_for_gen.get("work_responsibilities_text") or personal_info_for_gen.get("responsibilities_text"),
             )
 
         # Generate the resume content

@@ -734,6 +734,37 @@ def generate_latex_resume(
             .replace("^", "\\textasciicircum ")
         )
 
+    def _format_month_year(value: Any) -> str:
+        """
+        Convert stored month values (from <input type="month"> => "YYYY-MM")
+        into a readable "Mon YYYY" string.
+        """
+        if value is None:
+            return ""
+        s = str(value).strip()
+        m = re.match(r"^(\d{4})-(\d{2})$", s)
+        if not m:
+            return s
+        year = int(m.group(1))
+        month = int(m.group(2))
+        if month < 1 or month > 12:
+            return s
+        month_names = [
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "May",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Oct",
+            "Nov",
+            "Dec",
+        ]
+        return f"{month_names[month - 1]} {year}"
+
     safe_phone = _safe(phone)
     safe_email = _safe(email)
     safe_location = _safe(location)
@@ -766,7 +797,7 @@ def generate_latex_resume(
     # 2. Education Section (Jake's format: subheading + date + awards list)
     education_entries = info.get("education_entries")
     if isinstance(education_entries, list) and len(education_entries) > 0:
-        latex += r"\section{Education}" + "\n\\resumeSubHeadingListStart\n"
+        education_blocks: List[str] = []
         for entry in education_entries:
             if not isinstance(entry, dict):
                 continue
@@ -776,31 +807,55 @@ def generate_latex_resume(
             degree = (entry.get("education_degree") or entry.get("degree") or "").strip()
             start_date = (entry.get("education_start_date") or entry.get("start_date") or "").strip()
             end_date = (entry.get("education_end_date") or entry.get("end_date") or entry.get("grad_date") or "").strip()
-            date_range = f"{start_date} -- {end_date}" if (start_date and end_date) else (end_date or start_date or " ")
+            start_date_fmt = _format_month_year(start_date)
+            end_date_fmt = _format_month_year(end_date)
+            if start_date_fmt and end_date_fmt:
+                date_range = f"{start_date_fmt} -- {end_date_fmt}"
+            elif start_date_fmt and not end_date_fmt:
+                date_range = f"{start_date_fmt} -- Present"
+            else:
+                date_range = end_date_fmt or start_date_fmt or " "
+            
             awards = (entry.get("education_awards") or entry.get("awards") or "").strip()
             education_text = (entry.get("education_text") or entry.get("education") or "").strip()
             # Keep education text on one line for LaTeX safety.
             education_text_single_line = education_text.replace(chr(10), " ").replace(chr(13), " ")
 
             if university or degree:
-                latex += "  \\resumeSubheading{"
-                latex += _safe(university or " ") + "}{" + _safe(location) + "}{"
-                latex += _safe(degree) + "}{\\textnormal{" + _safe(date_range) + "}}\n"
+                block = "  \\resumeSubheading{"
+                block += _safe(university or " ") + "}{" + _safe(location) + "}{"
+                block += _safe(degree) + "}{\\textnormal{" + _safe(date_range) + "}}\n"
                 if awards:
-                    latex += "  \\resumeItemListStart\n"
-                    latex += "    \\resumeItem{\\textbf{Awards}: " + _safe(awards) + "}\n"
-                    latex += "  \\resumeItemListEnd\n"
+                    block += "  \\resumeItemListStart\n"
+                    block += "    \\resumeItem{\\textbf{Awards}: " + _safe(awards) + "}\n"
+                    block += "  \\resumeItemListEnd\n"
+                education_blocks.append(block)
             elif education_text:
-                latex += f"  \\item \\small{{{_safe(education_text_single_line)}}}\n"
+                education_blocks.append(f"  \\item \\small{{{_safe(education_text_single_line)}}}\n")
+            elif date_range.strip():
+                # Keep list non-empty even when user only saved date fields.
+                education_blocks.append(f"  \\item \\small{{{_safe(date_range)}}}\n")
 
-        latex += "\\resumeSubHeadingListEnd\n\n"
+        if education_blocks:
+            latex += r"\section{Education}" + "\n\\resumeSubHeadingListStart\n"
+            for block in education_blocks:
+                latex += block
+            latex += "\\resumeSubHeadingListEnd\n\n"
+
     else:
         university = (info.get("education_university") or info.get("university") or "").strip()
         location = (info.get("education_location") or info.get("location") or "").strip()
         degree = (info.get("education_degree") or info.get("degree") or "").strip()
         start_date = (info.get("education_start_date") or "").strip()
         end_date = (info.get("education_end_date") or info.get("grad_date") or "").strip()
-        date_range = f"{start_date} -- {end_date}" if (start_date and end_date) else (end_date or start_date or " ")
+        start_date_fmt = _format_month_year(start_date)
+        end_date_fmt = _format_month_year(end_date)
+        if start_date_fmt and end_date_fmt:
+            date_range = f"{start_date_fmt} -- {end_date_fmt}"
+        elif start_date_fmt and not end_date_fmt:
+            date_range = f"{start_date_fmt} -- Present"
+        else:
+            date_range = end_date_fmt or start_date_fmt or " "
         awards = (info.get("education_awards") or "").strip()
 
         if university or degree or (info.get("education") or "").strip():
@@ -817,6 +872,61 @@ def generate_latex_resume(
                 education_text = (info.get("education") or "").strip().replace("\n", " ")
                 latex += f"  \\item \\small{{{_safe(education_text)}}}\n"
             latex += "\\resumeSubHeadingListEnd\n\n"
+
+    # 3. Work Experience Section
+    # Supports multiple entries via `work_experience_entries`.
+    def _parse_responsibility_bullets(raw_text: Any) -> List[str]:
+        """Normalize responsibility text into clean bullet items."""
+        if raw_text is None:
+            return []
+        text = str(raw_text).replace("\r", "\n")
+        bullets: List[str] = []
+        for line in text.split("\n"):
+            # Allow users to type with '-' bullets or plain lines.
+            cleaned = line.strip().lstrip("-*•").strip()
+            if cleaned:
+                bullets.append(cleaned)
+        return bullets
+
+    work_entries = info.get("work_experience_entries")
+    if isinstance(work_entries, list) and len(work_entries) > 0:
+        latex += r"\section{Work Experience}" + "\n\\resumeSubHeadingListStart\n"
+        for entry in work_entries:
+            if not isinstance(entry, dict):
+                continue
+
+            job_title = (entry.get("job_title") or entry.get("work_job_title") or "").strip()
+            company = (entry.get("company") or entry.get("work_company") or "").strip()
+            location = (entry.get("location") or entry.get("work_location") or "").strip()
+            start_date = (entry.get("start_date") or entry.get("work_start_date") or "").strip()
+            end_date = (entry.get("end_date") or entry.get("work_end_date") or entry.get("work_grad_date") or "").strip()
+            start_date_fmt = _format_month_year(start_date)
+            end_date_fmt = _format_month_year(end_date)
+            if start_date_fmt and end_date_fmt:
+                date_range = f"{start_date_fmt} -- {end_date_fmt}"
+            elif start_date_fmt and not end_date_fmt:
+                date_range = f"{start_date_fmt} -- Present"
+            else:
+                date_range = end_date_fmt or start_date_fmt or " "
+
+            responsibilities_text = (
+                entry.get("responsibilities_text")
+                or entry.get("work_responsibilities_text")
+                or entry.get("responsibilities")
+                or ""
+            )
+            responsibilities = _parse_responsibility_bullets(responsibilities_text)
+
+            latex += "  \\resumeSubheading{"
+            latex += _safe(job_title or " ") + "}{" + _safe(company or " ") + "}{" + _safe(location or " ") + "}{" + _safe(date_range) + "}\n"
+
+            if responsibilities:
+                latex += "  \\resumeItemListStart\n"
+                for bullet in responsibilities[:4]:
+                    latex += f"    \\resumeItem{{{_safe(bullet)}}}\n"
+                latex += "  \\resumeItemListEnd\n"
+
+        latex += "\\resumeSubHeadingListEnd\n\n"
 
     # 3. Projects Section
     if include_projects and all_projects:
@@ -1081,6 +1191,37 @@ def generate_resume(
                                 if isinstance(s, str) and s.strip():
                                     skills_set.add(s.strip())
 
+    def _format_month_year(value: Any) -> str:
+        """
+        Convert stored month values (from <input type="month"> => "YYYY-MM")
+        into a readable "Mon YYYY" string.
+        """
+        if value is None:
+            return ""
+        s = str(value).strip()
+        m = re.match(r"^(\d{4})-(\d{2})$", s)
+        if not m:
+            return s
+        year = int(m.group(1))
+        month = int(m.group(2))
+        if month < 1 or month > 12:
+            return s
+        month_names = [
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "May",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Oct",
+            "Nov",
+            "Dec",
+        ]
+        return f"{month_names[month - 1]} {year}"
+
     def _extract_bullet_text(row: Dict[str, Any]) -> Optional[str]:
         """Extract resume bullet text from a resume_items database row."""
         for key in ("resume_text", "content", "bullet", "text", "description"):
@@ -1161,9 +1302,21 @@ def generate_resume(
                     line = ", ".join(x for x in [d, u, loc] if x)
 
                     start_d = (entry.get("education_start_date") or entry.get("start_date") or "").strip()
-                    end_d = (entry.get("education_end_date") or entry.get("end_date") or entry.get("grad_date") or "").strip()
-                    if start_d or end_d:
-                        line += f" ({start_d} -- {end_d})"
+                    end_d = (
+                        entry.get("education_end_date")
+                        or entry.get("end_date")
+                        or entry.get("grad_date")
+                        or ""
+                    ).strip()
+                    start_d_fmt = _format_month_year(start_d)
+                    end_d_fmt = _format_month_year(end_d)
+                    if start_d_fmt or end_d_fmt:
+                        if start_d_fmt and end_d_fmt:
+                            line += f" ({start_d_fmt} -- {end_d_fmt})"
+                        elif start_d_fmt and not end_d_fmt:
+                            line += f" ({start_d_fmt} -- Present)"
+                        else:
+                            line += f" ({start_d_fmt or end_d_fmt})"
 
                     awards = (entry.get("education_awards") or entry.get("awards") or "").strip()
                     if awards:
@@ -1180,8 +1333,15 @@ def generate_resume(
                 line = ", ".join(x for x in [d, u, (personal_info.get("education_location") or "").strip()] if x)
                 start_d = (personal_info.get("education_start_date") or "").strip()
                 end_d = (personal_info.get("education_end_date") or personal_info.get("grad_date") or "").strip()
-                if start_d or end_d:
-                    line += f" ({start_d} -- {end_d})"
+                start_d_fmt = _format_month_year(start_d)
+                end_d_fmt = _format_month_year(end_d)
+                if start_d_fmt or end_d_fmt:
+                    if start_d_fmt and end_d_fmt:
+                        line += f" ({start_d_fmt} -- {end_d_fmt})"
+                    elif start_d_fmt and not end_d_fmt:
+                        line += f" ({start_d_fmt} -- Present)"
+                    else:
+                        line += f" ({start_d_fmt or end_d_fmt})"
                 awards = (personal_info.get("education_awards") or "").strip()
                 if awards:
                     line += f"\n- **Awards**: {awards}"
@@ -1190,6 +1350,65 @@ def generate_resume(
             elif education:
                 md_parts.append("## Education")
                 md_parts.append(education)
+
+        def _parse_responsibility_bullets(raw_text: Any) -> List[str]:
+            """Normalize responsibility text into clean bullet items."""
+            if raw_text is None:
+                return []
+            text = str(raw_text).replace("\r", "\n")
+            bullets: List[str] = []
+            for line in text.split("\n"):
+                cleaned = line.strip().lstrip("-*•").strip()
+                if cleaned:
+                    bullets.append(cleaned)
+            return bullets
+
+        work_entries = personal_info.get("work_experience_entries")
+        if isinstance(work_entries, list) and len(work_entries) > 0:
+            md_parts.append("## Work Experience")
+            for entry in work_entries:
+                if not isinstance(entry, dict):
+                    continue
+
+                job_title = (entry.get("job_title") or entry.get("work_job_title") or "").strip()
+                company = (entry.get("company") or entry.get("work_company") or "").strip()
+                location = (entry.get("location") or entry.get("work_location") or "").strip()
+                start_d = (entry.get("start_date") or entry.get("work_start_date") or "").strip()
+                end_d = (entry.get("end_date") or entry.get("work_end_date") or "").strip()
+                start_d_fmt = _format_month_year(start_d)
+                end_d_fmt = _format_month_year(end_d)
+
+                if start_d_fmt and end_d_fmt:
+                    date_range = f"{start_d_fmt} -- {end_d_fmt}"
+                elif start_d_fmt and not end_d_fmt:
+                    date_range = f"{start_d_fmt} -- Present"
+                else:
+                    date_range = end_d_fmt or start_d_fmt or ""
+                line_bits = []
+                if job_title:
+                    line_bits.append(f"**{job_title}**")
+                if company:
+                    line_bits.append(f"at **{company}**")
+                line = " ".join(line_bits) if line_bits else "Work Experience"
+
+                if location:
+                    line += f" ({location})"
+                if date_range:
+                    line += f" ({date_range})"
+
+                responsibilities_text = (
+                    entry.get("responsibilities_text")
+                    or entry.get("work_responsibilities_text")
+                    or entry.get("responsibilities")
+                    or ""
+                )
+                bullets = _parse_responsibility_bullets(responsibilities_text)
+
+                if bullets:
+                    block = line + "\n" + "\n".join([f"- {b}" for b in bullets[:4]])
+                    md_parts.append(block)
+                else:
+                    md_parts.append(line)
 
     # Skills section
     if include_skills and skills_set:

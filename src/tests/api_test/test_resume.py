@@ -708,3 +708,146 @@ class TestResumeEndpoints:
         assert metadata["project_count"] == 1
         assert "total_projects" in metadata
         assert "generated_at" in metadata
+
+
+class TestResumeWorkExperienceEndpoints:
+    def test_work_experience_unauthorized(self):
+        response = client.get("/api/resume/work-experience")
+        assert response.status_code == 403
+
+    def test_create_list_update_delete_work_experience(self, auth_token):
+        token, _ = auth_token
+        headers = {"Authorization": f"Bearer {token}"}
+
+        create_response = client.post(
+            "/api/resume/work-experience",
+            headers=headers,
+            json={
+                "company": "Acme Corp",
+                "job_title": "Software Engineer",
+                "location": "Remote",
+                "start_date": "Jan 2020",
+                "end_date": "Dec 2021",
+                "responsibilities_text": "Built APIs\nImproved performance",
+            },
+        )
+        assert create_response.status_code == 200
+        created = create_response.json()
+        assert "id" in created
+        work_id = created["id"]
+
+        list_response = client.get("/api/resume/work-experience", headers=headers)
+        assert list_response.status_code == 200
+        entries = list_response.json()
+        assert isinstance(entries, list)
+        assert len(entries) == 1
+        assert entries[0]["id"] == work_id
+        assert entries[0]["company"] == "Acme Corp"
+
+        update_response = client.patch(
+            f"/api/resume/work-experience/{work_id}",
+            headers=headers,
+            json={
+                "company": "Acme Corp",
+                "job_title": "Senior Software Engineer",
+                "location": "Remote",
+                "start_date": "Jan 2020",
+                "end_date": "Dec 2021",
+                "responsibilities_text": "Led API redesign",
+            },
+        )
+        assert update_response.status_code == 200
+        updated = update_response.json()
+        assert updated["id"] == work_id
+        assert updated["job_title"] == "Senior Software Engineer"
+
+        delete_response = client.delete(f"/api/resume/work-experience/{work_id}", headers=headers)
+        assert delete_response.status_code == 200
+        assert delete_response.json()["ok"] is True
+
+        list_response_after = client.get("/api/resume/work-experience", headers=headers)
+        assert list_response_after.status_code == 200
+        assert list_response_after.json() == []
+
+    def test_work_experience_user_scoping(self, auth_token, second_auth_token):
+        token1, _ = auth_token
+        token2, _ = second_auth_token
+
+        headers1 = {"Authorization": f"Bearer {token1}"}
+        headers2 = {"Authorization": f"Bearer {token2}"}
+
+        create_response = client.post(
+            "/api/resume/work-experience",
+            headers=headers1,
+            json={"company": "Acme Corp", "job_title": "Engineer"},
+        )
+        assert create_response.status_code == 200
+
+        list_response_1 = client.get("/api/resume/work-experience", headers=headers1)
+        list_response_2 = client.get("/api/resume/work-experience", headers=headers2)
+        assert len(list_response_1.json()) == 1
+        assert len(list_response_2.json()) == 0
+
+    def test_work_experience_auto_seed_from_personal_info(self, auth_token):
+        token, _ = auth_token
+        headers = {"Authorization": f"Bearer {token}"}
+
+        put_personal_info = client.put(
+            "/api/resume/personal-info",
+            headers=headers,
+            json={
+                "personal_info": {
+                    "work_company": "Globex",
+                    "work_job_title": "Data Analyst",
+                    "work_location": "Boston, MA",
+                    "work_start_date": "Aug 2019",
+                    "work_end_date": "May 2020",
+                    "work_responsibilities_text": "Analyzed datasets\nCreated dashboards",
+                }
+            },
+        )
+        assert put_personal_info.status_code == 200
+
+        # No work entries yet; GET should seed.
+        list_response = client.get("/api/resume/work-experience", headers=headers)
+        assert list_response.status_code == 200
+        entries = list_response.json()
+        assert len(entries) == 1
+        assert entries[0]["company"] == "Globex"
+        assert entries[0]["job_title"] == "Data Analyst"
+
+    @patch("backend.api.resume.get_projects_for_user")
+    @patch("backend.api.resume.get_resume_items_for_project_id")
+    @patch("backend.api.resume.get_portfolio_item_for_project")
+    @patch("backend.analysis.resume_generator.generate_resume")
+    def test_generate_resume_includes_work_experience_entries(
+        self, mock_generate, mock_portfolio, mock_items, mock_projects, auth_token
+    ):
+        token, _ = auth_token
+        headers = {"Authorization": f"Bearer {token}"}
+
+        mock_projects.return_value = [{"id": 1, "project_name": "TestProject", "primary_language": "Python"}]
+        mock_items.return_value = []
+        mock_portfolio.return_value = {}
+        mock_generate.return_value = "## Projects\n\n"
+
+        create_response = client.post(
+            "/api/resume/work-experience",
+            headers=headers,
+            json={"company": "Acme Corp", "job_title": "Engineer", "location": "Remote"},
+        )
+        assert create_response.status_code == 200
+
+        generate_response = client.post(
+            "/api/resume/generate",
+            headers=headers,
+            json={"project_ids": [1], "format": "markdown"},
+        )
+        assert generate_response.status_code == 200
+
+        call_kwargs = mock_generate.call_args[1]
+        personal_info_passed = call_kwargs["personal_info"]
+        assert "work_experience_entries" in personal_info_passed
+        assert isinstance(personal_info_passed["work_experience_entries"], list)
+        assert len(personal_info_passed["work_experience_entries"]) == 1
+        assert personal_info_passed["work_experience_entries"][0]["company"] == "Acme Corp"

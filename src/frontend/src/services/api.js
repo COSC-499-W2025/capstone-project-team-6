@@ -189,7 +189,6 @@ export const portfoliosAPI = {
 };
 
 // Resume API calls
-// Resume API calls
 export const resumeAPI = {
   generateResume: async (projectIds, options = {}) => {
     const payload = {
@@ -270,6 +269,27 @@ export const resumeAPI = {
 
   deleteEducation: async (educationId) => {
     const response = await api.delete(`/resume/education/${educationId}`);
+    return response.data;
+  },
+
+  // Work experience entries (separate from personal info)
+  listWorkExperience: async () => {
+    const response = await api.get('/resume/work-experience');
+    return response.data;
+  },
+
+  createWorkExperience: async (payload) => {
+    const response = await api.post('/resume/work-experience', payload);
+    return response.data;
+  },
+
+  updateWorkExperience: async (workId, payload) => {
+    const response = await api.patch(`/resume/work-experience/${workId}`, payload);
+    return response.data;
+  },
+
+  deleteWorkExperience: async (workId) => {
+    const response = await api.delete(`/resume/work-experience/${workId}`);
     return response.data;
   },
 
