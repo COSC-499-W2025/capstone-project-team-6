@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Navigation from '../components/Navigation';
 import { projectsAPI, resumeAPI, curationAPI } from '../services/api';
 import ReactMarkdown from 'react-markdown';
@@ -24,6 +23,25 @@ const Resume = () => {
   const [storedResumeFormat, setStoredResumeFormat] = useState('markdown');
   const [storedResumeLoading, setStoredResumeLoading] = useState(false);
   const [storedResumeSaving, setStoredResumeSaving] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState('');
+  const pdfUrlRef = useRef(null);
+
+  // Education entries (stored separately from personal info)
+  const emptyEducation = {
+    education_text: '',
+    university: '',
+    location: '',
+    degree: '',
+    start_date: '',
+    end_date: '',
+    awards: '',
+  };
+  const [educationEntries, setEducationEntries] = useState([]);
+  const [educationForm, setEducationForm] = useState(emptyEducation);
+  const [educationEditingId, setEducationEditingId] = useState(null);
+  const [educationSaving, setEducationSaving] = useState(false);
 
   // Personal information
   const emptyPersonal = {
@@ -128,7 +146,62 @@ const Resume = () => {
     loadProjects();
     loadStoredResumes();
     loadPersonalInfo();
+    loadEducationEntries();
     loadCurationSettings();
+  }, []);
+
+  useEffect(() => {
+    // Render generated PDF inline by converting the base64 payload into a Blob URL.
+    if (generatedResume?.format !== 'pdf' || !generatedResume?.content) {
+      if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
+      pdfUrlRef.current = null;
+      setPdfUrl(null);
+      setPdfError('');
+      setPdfLoading(false);
+      return;
+    }
+
+    let nextUrl = null;
+    try {
+      setPdfLoading(true);
+      setPdfError('');
+
+      // Backend encodes PDF bytes as base64 for JSON transport.
+      const binaryString = atob(generatedResume.content);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      // Quick sanity check: most PDFs start with ASCII "%PDF".
+      const looksLikePdf =
+        bytes.length >= 4 && bytes[0] === 37 && bytes[1] === 80 && bytes[2] === 68 && bytes[3] === 70;
+      if (!looksLikePdf) {
+        throw new Error('Decoded content does not start with a valid %PDF signature.');
+      }
+
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      nextUrl = URL.createObjectURL(blob);
+      if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
+      pdfUrlRef.current = nextUrl;
+      setPdfUrl(nextUrl);
+    } catch (e) {
+      console.error('Error decoding PDF:', e);
+      setPdfError('Failed to decode the generated PDF for preview.');
+      if (nextUrl) URL.revokeObjectURL(nextUrl);
+      setPdfUrl(null);
+    } finally {
+      setPdfLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generatedResume, resumeFormat]);
+
+  useEffect(() => {
+    // Revoke Blob URL on unmount to avoid memory leaks.
+    return () => {
+      if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
+      pdfUrlRef.current = null;
+    };
   }, []);
 
   const loadProjects = async () => {
@@ -210,6 +283,96 @@ const Resume = () => {
       }
     } catch (err) {
       console.error('Error loading personal info:', err);
+    }
+  };
+
+  const loadEducationEntries = async () => {
+    try {
+      const entries = await resumeAPI.listEducation();
+      setEducationEntries(Array.isArray(entries) ? entries : []);
+
+      // If not currently editing an existing entry, clear the form on load.
+      setEducationForm((prev) => {
+        if (educationEditingId) return prev;
+        return { ...emptyEducation };
+      });
+      if (!educationEditingId) setEducationEditingId(null);
+    } catch (err) {
+      console.error('Error loading education entries:', err);
+    }
+  };
+
+  const cancelEducationEdit = () => {
+    setEducationEditingId(null);
+    setEducationForm({ ...emptyEducation });
+  };
+
+  const startEditEducation = (entry) => {
+    if (!entry) return;
+    setEducationEditingId(entry.id);
+    setEducationForm({
+      education_text: entry.education_text || '',
+      university: entry.university || '',
+      location: entry.location || '',
+      degree: entry.degree || '',
+      start_date: entry.start_date || '',
+      end_date: entry.end_date || '',
+      awards: entry.awards || '',
+    });
+  };
+
+  const deleteEducationEntry = async (entryId) => {
+    if (!entryId) return;
+    const ok = window.confirm('Delete this education entry?');
+    if (!ok) return;
+
+    try {
+      setEducationSaving(true);
+      await resumeAPI.deleteEducation(entryId);
+      await loadEducationEntries();
+      if (educationEditingId === entryId) cancelEducationEdit();
+    } catch (err) {
+      console.error('Error deleting education entry:', err);
+      setError(err.response?.data?.detail || 'Failed to delete education entry');
+    } finally {
+      setEducationSaving(false);
+    }
+  };
+
+  const saveEducationEntry = async () => {
+    const payload = {
+      education_text: educationForm.education_text || null,
+      university: educationForm.university || null,
+      location: educationForm.location || null,
+      degree: educationForm.degree || null,
+      start_date: educationForm.start_date || null,
+      end_date: educationForm.end_date || null,
+      awards: educationForm.awards || null,
+    };
+
+    const hasAnyValue = Object.values(payload).some((v) => typeof v === 'string' && v.trim().length > 0);
+    if (!hasAnyValue) {
+      setError('Please fill at least one education field before saving.');
+      return;
+    }
+
+    try {
+      setEducationSaving(true);
+      setError('');
+
+      if (educationEditingId) {
+        await resumeAPI.updateEducation(educationEditingId, payload);
+      } else {
+        await resumeAPI.createEducation(payload);
+      }
+
+      cancelEducationEdit();
+      await loadEducationEntries();
+    } catch (err) {
+      console.error('Error saving education entry:', err);
+      setError(err.response?.data?.detail || 'Failed to save education entry');
+    } finally {
+      setEducationSaving(false);
     }
   };
 
@@ -354,11 +517,24 @@ const Resume = () => {
       setGenerating(true);
       setError('');
 
+      // Education is stored separately now; strip legacy education fields
+      // from personal_info so the backend only uses saved `user_education`.
+      const personalInfoForResume = { ...(personalInfo || {}) };
+      [
+        'education',
+        'education_university',
+        'education_location',
+        'education_degree',
+        'education_start_date',
+        'education_end_date',
+        'education_awards',
+      ].forEach((k) => delete personalInfoForResume[k]);
+
       const resume = await resumeAPI.generateResume(selectedProjectIds, {
         format: resumeFormat,
         include_skills: includeSkills,
         include_projects: includeProjects,
-        personal_info: personalInfo,
+        personal_info: personalInfoForResume,
         stored_resume_id: resumeFormat === 'markdown' ? (storedResumeId || null) : null,
         highlighted_skills: curationSettings?.highlighted_skills?.length > 0
           ? curationSettings.highlighted_skills
@@ -607,55 +783,6 @@ const Resume = () => {
                     margin: 0,
                   }}
                 >Personal Information</h2>
-                <div style={{ marginTop: '8px', paddingTop: '12px', borderTop: '1px solid #e5e7eb' }}>
-                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#525252', marginBottom: '8px' }}>Education Section</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <input
-                      type="text"
-                      placeholder="University Name"
-                      value={personalInfo.education_university}
-                      onChange={(e) => setPersonalInfo({ ...personalInfo, education_university: e.target.value })}
-                      style={{ padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Location (e.g., City, State)"
-                      value={personalInfo.education_location}
-                      onChange={(e) => setPersonalInfo({ ...personalInfo, education_location: e.target.value })}
-                      style={{ padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Degree (e.g., B.S. Computer Science)"
-                      value={personalInfo.education_degree}
-                      onChange={(e) => setPersonalInfo({ ...personalInfo, education_degree: e.target.value })}
-                      style={{ padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }}
-                    />
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <input
-                        type="text"
-                        placeholder="Start date (e.g., Aug 2020)"
-                        value={personalInfo.education_start_date}
-                        onChange={(e) => setPersonalInfo({ ...personalInfo, education_start_date: e.target.value })}
-                        style={{ flex: 1, padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }}
-                      />
-                      <input
-                        type="text"
-                        placeholder="End date (e.g., May 2024)"
-                        value={personalInfo.education_end_date}
-                        onChange={(e) => setPersonalInfo({ ...personalInfo, education_end_date: e.target.value })}
-                        style={{ flex: 1, padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }}
-                      />
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Awards (e.g., Dean's List, Scholarship Name)"
-                      value={personalInfo.education_awards}
-                      onChange={(e) => setPersonalInfo({ ...personalInfo, education_awards: e.target.value })}
-                      style={{ padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }}
-                    />
-                  </div>
-                </div>
                 {hasOriginalPersonalInfo && hasPersonalInfoChanges() && (
                   <button
                     type="button"
@@ -847,7 +974,7 @@ const Resume = () => {
                 </div>
               </div>
             </div>
-            {/* Stored Resume */}
+            {/* Education */}
             <div
               style={{
                 backgroundColor: 'white',
@@ -866,99 +993,222 @@ const Resume = () => {
                   marginBottom: '16px',
                 }}
               >
-                Stored Resume
+                Education
               </h2>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <input
-                  type="text"
-                  placeholder="Resume Title"
-                  value={storedResumeTitle}
-                  onChange={(e) => setStoredResumeTitle(e.target.value)}
-                  style={{
-                    padding: '10px 12px',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    width: '100%',
-                    boxSizing: 'border-box',
-                  }}
-                />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#525252', marginBottom: '4px' }}>
+                    Saved Education
+                  </div>
 
-                <select
-                  value={storedResumeFormat}
-                  onChange={(e) => setStoredResumeFormat(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    fontSize: '14px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    backgroundColor: 'white',
-                  }}
-                >
-                  <option value="markdown">Markdown</option>
-                  <option value="text">Plain text</option>
-                </select>
+                  {educationEntries.length === 0 ? (
+                    <div style={{ fontSize: '12px', color: '#737373' }}>No saved education yet.</div>
+                  ) : (
+                    educationEntries.map((entry) => {
+                      const hasAnyMeta = entry.location || entry.start_date || entry.end_date || entry.awards;
+                      return (
+                        <div
+                          key={entry.id}
+                          style={{
+                            padding: '12px',
+                            borderRadius: '8px',
+                            backgroundColor: '#f9fafb',
+                            border: '1px solid #e5e7eb',
+                          }}
+                        >
+                          <div style={{ fontSize: '14px', fontWeight: '700', color: '#1a1a1a', marginBottom: '6px' }}>
+                            {entry.degree && entry.university ? `${entry.degree} - ${entry.university}` : entry.degree || entry.university || 'Education'}
+                          </div>
 
-                <textarea
-                  value={storedResumeContent}
-                  onChange={(e) => setStoredResumeContent(e.target.value)}
-                  placeholder="Paste your existing resume here..."
-                  style={{
-                    width: '100%',
-                    minHeight: '180px',
-                    padding: '12px',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    fontFamily: 'monospace',
-                    lineHeight: '1.5',
-                    resize: 'vertical',
-                    boxSizing: 'border-box',
-                  }}
-                />
+                          {hasAnyMeta && (
+                            <div style={{ fontSize: '13px', color: '#525252', lineHeight: '1.4', marginBottom: '10px' }}>
+                              {entry.location ? <div>{entry.location}</div> : null}
+                              {(entry.start_date || entry.end_date) && (
+                                <div>
+                                  {(entry.start_date || '')}
+                                  {entry.end_date ? ` -- ${entry.end_date}` : ''}
+                                </div>
+                              )}
+                              {entry.awards ? (
+                                <div style={{ marginTop: '4px', color: '#2563eb', fontSize: '12px', fontWeight: '600' }}>
+                                  Awards: {entry.awards}
+                                </div>
+                              ) : null}
+                            </div>
+                          )}
 
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button
-                    onClick={handleCreateStoredResume}
-                    disabled={storedResumeSaving || storedResumeLoading}
-                    style={{
-                      flex: 1,
-                      padding: '10px 12px',
-                      fontSize: '14px',
-                      color: 'white',
-                      backgroundColor: '#2563eb',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {storedResumeSaving ? 'Saving...' : 'Save New Resume'}
-                  </button>
-                  <button
-                    onClick={handleUpdateStoredResume}
-                    disabled={storedResumeSaving || !storedResumeId}
-                    style={{
-                      flex: 1,
-                      padding: '10px 12px',
-                      fontSize: '14px',
-                      color: '#2563eb',
-                      backgroundColor: 'white',
-                      border: '1px solid #2563eb',
-                      borderRadius: '6px',
-                      cursor: storedResumeId ? 'pointer' : 'not-allowed',
-                    }}
-                  >
-                    Update Resume
-                  </button>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              type="button"
+                              onClick={() => startEditEducation(entry)}
+                              disabled={educationSaving}
+                              style={{
+                                padding: '6px 10px',
+                                fontSize: '13px',
+                                color: '#2563eb',
+                                backgroundColor: 'white',
+                                border: '1px solid #2563eb',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteEducationEntry(entry.id)}
+                              disabled={educationSaving}
+                              style={{
+                                padding: '6px 10px',
+                                fontSize: '13px',
+                                color: '#dc2626',
+                                backgroundColor: 'white',
+                                border: '1px solid #dc2626',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
 
-                {storedResumeLoading && (
-                  <div style={{ fontSize: '12px', color: '#737373' }}>
-                    Loading stored resumes...
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <input
+                    type="text"
+                    placeholder="University Name"
+                    value={educationForm.university}
+                    onChange={(e) => setEducationForm((prev) => ({ ...prev, university: e.target.value }))}
+                    style={{
+                      padding: '10px 12px',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+
+                  <input
+                    type="text"
+                    placeholder="Location (e.g., City, State)"
+                    value={educationForm.location}
+                    onChange={(e) => setEducationForm((prev) => ({ ...prev, location: e.target.value }))}
+                    style={{
+                      padding: '10px 12px',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+
+                  <input
+                    type="text"
+                    placeholder="Degree (e.g., B.S. Computer Science)"
+                    value={educationForm.degree}
+                    onChange={(e) => setEducationForm((prev) => ({ ...prev, degree: e.target.value }))}
+                    style={{
+                      padding: '10px 12px',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      placeholder="Start date (e.g., Aug 2020)"
+                      value={educationForm.start_date}
+                      onChange={(e) => setEducationForm((prev) => ({ ...prev, start_date: e.target.value }))}
+                      style={{
+                        flex: 1,
+                        padding: '10px 12px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="End date (e.g., May 2024)"
+                      value={educationForm.end_date}
+                      onChange={(e) => setEducationForm((prev) => ({ ...prev, end_date: e.target.value }))}
+                      style={{
+                        flex: 1,
+                        padding: '10px 12px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        boxSizing: 'border-box',
+                      }}
+                    />
                   </div>
-                )}
+
+                  <input
+                    type="text"
+                    placeholder="Awards (e.g., Dean's List, Scholarship Name)"
+                    value={educationForm.awards}
+                    onChange={(e) => setEducationForm((prev) => ({ ...prev, awards: e.target.value }))}
+                    style={{
+                      padding: '10px 12px',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={saveEducationEntry}
+                      disabled={educationSaving}
+                      style={{
+                        flex: 1,
+                        padding: '10px 12px',
+                        fontSize: '14px',
+                        color: 'white',
+                        backgroundColor: '#2563eb',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {educationSaving ? 'Saving...' : educationEditingId ? 'Update Education' : 'Save Education'}
+                    </button>
+
+                    {educationEditingId && (
+                      <button
+                        type="button"
+                        onClick={cancelEducationEdit}
+                        disabled={educationSaving}
+                        style={{
+                          padding: '10px 12px',
+                          fontSize: '14px',
+                          color: '#737373',
+                          backgroundColor: 'white',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1461,48 +1711,40 @@ const Resume = () => {
                 }}
               >
                 {resumeFormat === 'pdf' ? (
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '48px',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <svg
-                      style={{ marginBottom: '16px' }}
-                      width="64"
-                      height="64"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="#2563eb"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                      <polyline points="14 2 14 8 20 8"></polyline>
-                      <line x1="16" y1="13" x2="8" y2="13"></line>
-                      <line x1="16" y1="17" x2="8" y2="17"></line>
-                      <polyline points="10 9 9 9 8 9"></polyline>
-                    </svg>
-
-                    <h3
-                      style={{
-                        fontSize: '18px',
-                        fontWeight: '600',
-                        color: '#1a1a1a',
-                        marginBottom: '8px',
-                      }}
-                    >
-                      PDF Resume Generated Successfully
-                    </h3>
-
-                    <p style={{ color: '#737373', marginBottom: '16px' }}>
-                      Your resume has been generated as a professional PDF file. Click the Download button above to save it.
-                    </p>
+                  <div style={{ width: '100%' }}>
+                    {pdfLoading && (
+                      <div style={{ padding: '24px', color: '#737373' }}>
+                        Decoding PDF preview...
+                      </div>
+                    )}
+                    {pdfError && (
+                      <div
+                        style={{
+                          padding: '16px',
+                          backgroundColor: '#fee',
+                          border: '1px solid #fcc',
+                          color: '#c33',
+                          borderRadius: '8px',
+                          marginBottom: '16px',
+                        }}
+                      >
+                        {pdfError}
+                      </div>
+                    )}
+                    {pdfUrl && (
+                      <iframe
+                        key={pdfUrl}
+                        title="Generated resume PDF"
+                        src={pdfUrl}
+                        style={{
+                          width: '100%',
+                          height: '560px',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '8px',
+                          backgroundColor: 'white',
+                        }}
+                      />
+                    )}
                   </div>
                 ) : isEditing ? (
                   <textarea
@@ -1645,6 +1887,120 @@ const Resume = () => {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+        </div>
+      </div>
+      {/* Stored Resume */}
+      <div
+        style={{
+          backgroundColor: 'white',
+          borderRadius: '12px',
+          padding: '24px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          marginBottom: '24px',
+        }}
+      >
+        <h2
+          style={{
+            fontSize: '20px',
+            fontWeight: '600',
+            color: '#1a1a1a',
+            margin: 0,
+            marginBottom: '16px',
+          }}
+        >
+          Stored Resume
+        </h2>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <input
+            type="text"
+            placeholder="Resume Title"
+            value={storedResumeTitle}
+            onChange={(e) => setStoredResumeTitle(e.target.value)}
+            style={{
+              padding: '10px 12px',
+              border: '1px solid #e5e7eb',
+              borderRadius: '6px',
+              fontSize: '14px',
+              width: '100%',
+              boxSizing: 'border-box',
+            }}
+          />
+
+          <select
+            value={storedResumeFormat}
+            onChange={(e) => setStoredResumeFormat(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              fontSize: '14px',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              backgroundColor: 'white',
+            }}
+          >
+            <option value="markdown">Markdown</option>
+            <option value="text">Plain text</option>
+          </select>
+
+          <textarea
+            value={storedResumeContent}
+            onChange={(e) => setStoredResumeContent(e.target.value)}
+            placeholder="Paste your existing resume here..."
+            style={{
+              width: '100%',
+              minHeight: '180px',
+              padding: '12px',
+              border: '1px solid #e5e7eb',
+              borderRadius: '6px',
+              fontSize: '13px',
+              fontFamily: 'monospace',
+              lineHeight: '1.5',
+              resize: 'vertical',
+              boxSizing: 'border-box',
+            }}
+          />
+
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={handleCreateStoredResume}
+              disabled={storedResumeSaving || storedResumeLoading}
+              style={{
+                flex: 1,
+                padding: '10px 12px',
+                fontSize: '14px',
+                color: 'white',
+                backgroundColor: '#2563eb',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+              }}
+            >
+              {storedResumeSaving ? 'Saving...' : 'Save New Resume'}
+            </button>
+            <button
+              onClick={handleUpdateStoredResume}
+              disabled={storedResumeSaving || !storedResumeId}
+              style={{
+                flex: 1,
+                padding: '10px 12px',
+                fontSize: '14px',
+                color: '#2563eb',
+                backgroundColor: 'white',
+                border: '1px solid #2563eb',
+                borderRadius: '6px',
+                cursor: storedResumeId ? 'pointer' : 'not-allowed',
+              }}
+            >
+              Update Resume
+            </button>
+          </div>
+
+          {storedResumeLoading && (
+            <div style={{ fontSize: '12px', color: '#737373' }}>
+              Loading stored resumes...
             </div>
           )}
         </div>

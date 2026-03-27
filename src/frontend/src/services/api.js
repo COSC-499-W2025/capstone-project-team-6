@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance with base configuration
 const api = axios.create({
-  baseURL: 'http://localhost:8000/api',
+  baseURL: '/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -153,6 +153,11 @@ export const projectsAPI = {
     const response = await api.delete(`/projects/${encodedId}/thumbnail`);
     return response.data;
   },
+
+  getLlmAnalysis: async (projectId) => {
+    const response = await api.get(`/projects/${projectId}/llm-analysis`);
+    return response.data;
+  },
 };
 
 export const portfoliosAPI = {
@@ -244,6 +249,36 @@ export const resumeAPI = {
 
   deletePersonalInfo: async () => {
     const response = await api.delete('/resume/personal-info');
+    return response.data;
+  },
+
+  // Education entries (separate from personal info)
+  listEducation: async () => {
+    const response = await api.get('/resume/education');
+    return response.data;
+  },
+
+  createEducation: async (payload) => {
+    const response = await api.post('/resume/education', payload);
+    return response.data;
+  },
+
+  updateEducation: async (educationId, payload) => {
+    const response = await api.patch(`/resume/education/${educationId}`, payload);
+    return response.data;
+  },
+
+  deleteEducation: async (educationId) => {
+    const response = await api.delete(`/resume/education/${educationId}`);
+    return response.data;
+  },
+
+  analyzeJobMatch: async (jobDescription) => {
+    const response = await api.post(
+      '/resume/job-match',
+      { job_description: jobDescription },
+      { timeout: 60000 }
+    );
     return response.data;
   },
 };

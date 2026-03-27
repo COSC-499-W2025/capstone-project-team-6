@@ -193,8 +193,11 @@ def run_gemini_analysis(
         else:
             logger.info(msg)
 
-    # Temporarily silence INFO logging if using progress bar to avoid interfering with it
-    # This prevents the "bar per log" issue where logs break the progress bar display
+    import os
+
+    api_key = os.getenv("GOOGLE_API_KEY")
+    logger.info(f"LLM pipeline: GOOGLE_API_KEY={'set (' + str(len(api_key)) + ' chars)' if api_key else 'NOT SET'}")
+
     original_log_level = logging.getLogger().getEffectiveLevel()
     if progress_callback:
         logging.getLogger().setLevel(logging.ERROR)
@@ -254,8 +257,7 @@ def run_gemini_analysis(
         # Check if Gemini client is available
         if GeminiFileSearchClient is None:
             error_msg = "Google Cloud AI Platform libraries not installed. Install with: pip install google-cloud-aiplatform google-auth google-generativeai"
-            if not progress_callback:
-                logger.error(error_msg)
+            logger.error(error_msg)
             report["llm_error"] = error_msg
             return report
 
@@ -263,8 +265,7 @@ def run_gemini_analysis(
         try:
             client = GeminiFileSearchClient()
         except Exception as e:
-            if not progress_callback:
-                logger.error(f"Failed to initialize Gemini Client: {e}")
+            logger.error(f"Failed to initialize Gemini Client: {e}", exc_info=True)
             report["llm_error"] = f"Client Initialization Error: {str(e)}"
             return report
 
@@ -374,8 +375,7 @@ def run_gemini_analysis(
             report["analysis_mode"] = f"Base + {', '.join(active_features)}" if active_features else "Standard"
 
         except Exception as e:
-            if not progress_callback:
-                logger.error(f"Error during Gemini analysis: {e}")
+            logger.error(f"Error during Gemini analysis: {e}", exc_info=True)
             report["llm_error"] = str(e)
 
         finally:

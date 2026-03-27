@@ -4,6 +4,703 @@ import { useAuth } from './contexts/AuthContext';
 import { projectsAPI, curationAPI } from './services/api';
 import Navigation from './components/Navigation';
 
+const ANALYSIS_MODULES = {
+  architecture: 'Architecture & Patterns',
+  complexity: 'Complexity & Algorithms',
+  security: 'Security & Defensive Coding',
+  skills: 'Soft Skills & Maturity',
+  domain: 'Domain-Specific Competency',
+  resume: 'Resume & Portfolio Artifacts',
+};
+
+function parseLlmSections(markdown) {
+  if (!markdown) return [];
+  const sections = [];
+  const lines = markdown.split('\n');
+  let currentSection = null;
+
+  for (const line of lines) {
+    // Match numbered headers like: ## 1. Title or ### 2. Title
+    const numberedMatch = line.match(/^#{1,3}\s+(\d+)\.\s+(.*)/);
+    // Match top-level section headers like: ## Title (h1 or h2, not h3/h4)
+    const plainMatch = !numberedMatch && line.match(/^#{1,2}\s+(.*)/);
+
+    if (numberedMatch) {
+      if (currentSection) sections.push(currentSection);
+      currentSection = {
+        number: parseInt(numberedMatch[1], 10),
+        title: numberedMatch[2].trim(),
+        content: line + '\n',
+      };
+    } else if (plainMatch) {
+      if (currentSection) sections.push(currentSection);
+      currentSection = {
+        number: sections.length + 1,
+        title: plainMatch[1].trim(),
+        content: line + '\n',
+      };
+    } else if (currentSection) {
+      currentSection.content += line + '\n';
+    } else if (line.trim()) {
+      currentSection = { number: 0, title: 'Overview', content: line + '\n' };
+    }
+  }
+  if (currentSection) sections.push(currentSection);
+  return sections;
+}
+
+function SimpleMarkdown({ text }) {
+  if (!text) return null;
+  const lines = text.split('\n');
+  const elements = [];
+  let listItems = [];
+  let listType = null;
+  let codeBlock = null;
+  let key = 0;
+
+  const flushList = () => {
+    if (listItems.length > 0) {
+      if (listType === 'ul') {
+        elements.push(
+          <ul key={key++} style={{ margin: '8px 0', paddingLeft: '24px' }}>
+            {listItems.map((li, i) => (
+              <li key={i} style={{ lineHeight: 1.7, fontSize: '15px', marginBottom: '4px' }}>
+                {renderInline(li)}
+              </li>
+            ))}
+          </ul>
+        );
+      } else {
+        elements.push(
+          <ol key={key++} style={{ margin: '8px 0', paddingLeft: '24px' }}>
+            {listItems.map((li, i) => (
+              <li key={i} style={{ lineHeight: 1.7, fontSize: '15px', marginBottom: '4px' }}>
+                {renderInline(li)}
+              </li>
+            ))}
+          </ol>
+        );
+      }
+      listItems = [];
+      listType = null;
+    }
+  };
+
+  const renderInline = (str) => {
+    const parts = [];
+    let remaining = str;
+    let idx = 0;
+
+    while (remaining.length > 0) {
+      const boldMatch = remaining.match(/\*\*(.+?)\*\*/);
+      const codeMatch = remaining.match(/`([^`]+)`/);
+
+      let firstMatch = null;
+      let firstIndex = remaining.length;
+
+      if (boldMatch && boldMatch.index < firstIndex) {
+        firstMatch = { type: 'bold', match: boldMatch };
+        firstIndex = boldMatch.index;
+      }
+      if (codeMatch && codeMatch.index < firstIndex) {
+        firstMatch = { type: 'code', match: codeMatch };
+        firstIndex = codeMatch.index;
+      }
+
+      if (!firstMatch) {
+        parts.push(remaining);
+        break;
+      }
+
+      if (firstIndex > 0) {
+        parts.push(remaining.substring(0, firstIndex));
+      }
+
+      if (firstMatch.type === 'bold') {
+        parts.push(
+          <strong key={idx++}>{firstMatch.match[1]}</strong>
+        );
+        remaining = remaining.substring(firstIndex + firstMatch.match[0].length);
+      } else {
+        parts.push(
+          <code
+            key={idx++}
+            style={{
+              backgroundColor: '#f0f0f0',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              fontSize: '13px',
+              fontFamily: 'monospace',
+            }}
+          >
+            {firstMatch.match[1]}
+          </code>
+        );
+        remaining = remaining.substring(firstIndex + firstMatch.match[0].length);
+      }
+    }
+
+    return parts;
+  };
+
+  for (const line of lines) {
+    if (codeBlock !== null) {
+      if (line.startsWith('```')) {
+        elements.push(
+          <pre
+            key={key++}
+            style={{
+              backgroundColor: '#1e1e1e',
+              color: '#d4d4d4',
+              padding: '16px',
+              borderRadius: '8px',
+              overflow: 'auto',
+              fontSize: '13px',
+              lineHeight: 1.5,
+              margin: '12px 0',
+            }}
+          >
+            <code>{codeBlock}</code>
+          </pre>
+        );
+        codeBlock = null;
+      } else {
+        codeBlock += line + '\n';
+      }
+      continue;
+    }
+
+    if (line.startsWith('```')) {
+      flushList();
+      codeBlock = '';
+      continue;
+    }
+
+    const h4Match = line.match(/^####\s+(.*)/);
+    if (h4Match) {
+      flushList();
+      elements.push(
+        <h4
+          key={key++}
+          style={{
+            fontSize: '15px',
+            fontWeight: '700',
+            color: '#262626',
+            margin: '20px 0 8px 0',
+          }}
+        >
+          {renderInline(h4Match[1])}
+        </h4>
+      );
+      continue;
+    }
+
+    const h3Match = line.match(/^###\s+(.*)/);
+    if (h3Match) {
+      flushList();
+      elements.push(
+        <h3
+          key={key++}
+          style={{
+            fontSize: '17px',
+            fontWeight: '700',
+            color: '#171717',
+            margin: '24px 0 10px 0',
+            borderBottom: '1px solid #e5e5e5',
+            paddingBottom: '8px',
+          }}
+        >
+          {renderInline(h3Match[1])}
+        </h3>
+      );
+      continue;
+    }
+
+    const h2Match = line.match(/^##\s+(.*)/);
+    if (h2Match) {
+      flushList();
+      elements.push(
+        <h2
+          key={key++}
+          style={{
+            fontSize: '20px',
+            fontWeight: '700',
+            color: '#171717',
+            margin: '28px 0 12px 0',
+          }}
+        >
+          {renderInline(h2Match[1])}
+        </h2>
+      );
+      continue;
+    }
+
+    const ulMatch = line.match(/^[-*]\s+(.*)/);
+    if (ulMatch) {
+      if (listType !== 'ul') flushList();
+      listType = 'ul';
+      listItems.push(ulMatch[1]);
+      continue;
+    }
+
+    const olMatch = line.match(/^\d+\.\s+(.*)/);
+    if (olMatch) {
+      if (listType !== 'ol') flushList();
+      listType = 'ol';
+      listItems.push(olMatch[1]);
+      continue;
+    }
+
+    flushList();
+
+    if (line.trim() === '') {
+      continue;
+    }
+
+    elements.push(
+      <p key={key++} style={{ lineHeight: 1.7, fontSize: '15px', margin: '8px 0', color: '#262626' }}>
+        {renderInline(line)}
+      </p>
+    );
+  }
+
+  flushList();
+  return <>{elements}</>;
+}
+
+function LlmAnalysisPanel({ projectId }) {
+  const [llmData, setLlmData] = useState(null);
+  const [llmLoading, setLlmLoading] = useState(false);
+  const [llmError, setLlmError] = useState(null);
+  const [sections, setSections] = useState([]);
+  const [selectedModules, setSelectedModules] = useState(new Set());
+  const [displayedModules, setDisplayedModules] = useState(new Set());
+  const [expanded, setExpanded] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const fetchAnalysis = async () => {
+    if (llmData !== null) return;
+    setLlmLoading(true);
+    setLlmError(null);
+    try {
+      const data = await projectsAPI.getLlmAnalysis(projectId);
+      setLlmData(data);
+      const parsed = parseLlmSections(data.llm_summary || '');
+      setSections(parsed);
+    } catch (err) {
+      if (err?.response?.status === 404) {
+        setLlmError('No LLM analysis available for this project.');
+      } else {
+        setLlmError(err?.response?.data?.detail || err?.message || 'Failed to load analysis');
+      }
+    } finally {
+      setLlmLoading(false);
+    }
+  };
+
+  const toggleExpanded = () => {
+    if (!expanded && llmData === null && !llmLoading) {
+      fetchAnalysis();
+    }
+    setExpanded(!expanded);
+  };
+
+  const toggleModule = (mod) => {
+    setSelectedModules((prev) => {
+      const next = new Set(prev);
+      if (next.has(mod)) next.delete(mod);
+      else next.add(mod);
+      return next;
+    });
+  };
+
+  const handleDisplay = () => {
+    setDisplayedModules(new Set(selectedModules));
+    setDropdownOpen(false);
+  };
+
+  const baseSection = sections.find((s) => s.number <= 1);
+  const otherSections = sections.filter((s) => s.number > 1);
+
+  const moduleSectionMap = {};
+  for (const s of otherSections) {
+    const titleLower = s.title.toLowerCase();
+    if (titleLower.includes('architect') || titleLower.includes('pattern') || titleLower.includes('data flow')) {
+      moduleSectionMap['architecture'] = moduleSectionMap['architecture'] || [];
+      moduleSectionMap['architecture'].push(s);
+    } else if (titleLower.includes('complex') || titleLower.includes('algorithm') || titleLower.includes('concurren')) {
+      moduleSectionMap['complexity'] = moduleSectionMap['complexity'] || [];
+      moduleSectionMap['complexity'].push(s);
+    } else if (titleLower.includes('secur') || titleLower.includes('defensive')) {
+      moduleSectionMap['security'] = moduleSectionMap['security'] || [];
+      moduleSectionMap['security'].push(s);
+    } else if (titleLower.includes('skill') || titleLower.includes('maturity') || titleLower.includes('soft')) {
+      moduleSectionMap['skills'] = moduleSectionMap['skills'] || [];
+      moduleSectionMap['skills'].push(s);
+    } else if (titleLower.includes('domain') || titleLower.includes('competenc')) {
+      moduleSectionMap['domain'] = moduleSectionMap['domain'] || [];
+      moduleSectionMap['domain'].push(s);
+    } else if (titleLower.includes('resume') || titleLower.includes('career') || titleLower.includes('portfolio artifact')) {
+      moduleSectionMap['resume'] = moduleSectionMap['resume'] || [];
+      moduleSectionMap['resume'].push(s);
+    } else {
+      moduleSectionMap['_other'] = moduleSectionMap['_other'] || [];
+      moduleSectionMap['_other'].push(s);
+    }
+  }
+
+  const availableModules = Object.keys(ANALYSIS_MODULES).filter((k) => moduleSectionMap[k]);
+
+  return (
+    <div
+      style={{
+        backgroundColor: '#f0f7ff',
+        border: '1px solid #bfdbfe',
+        borderRadius: '16px',
+      }}
+    >
+      <button
+        onClick={toggleExpanded}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '18px 20px',
+          border: 'none',
+          backgroundColor: 'transparent',
+          cursor: 'pointer',
+          textAlign: 'left',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '18px' }}>🤖</span>
+          <span
+            style={{
+              fontSize: '13px',
+              fontWeight: '700',
+              color: '#1e40af',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+            }}
+          >
+            AI Analysis
+          </span>
+        </div>
+        <span
+          style={{
+            fontSize: '18px',
+            color: '#3b82f6',
+            transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 0.2s ease',
+          }}
+        >
+          ▼
+        </span>
+      </button>
+
+      {expanded && (
+        <div style={{ padding: '0 20px 20px 20px' }}>
+          {llmLoading && (
+            <div style={{ textAlign: 'center', padding: '24px', color: '#3b82f6' }}>
+              Loading AI analysis...
+            </div>
+          )}
+
+          {llmError && (
+            <div
+              style={{
+                padding: '12px 16px',
+                backgroundColor: '#fef2f2',
+                border: '1px solid #fecaca',
+                borderRadius: '10px',
+                color: '#991b1b',
+                fontSize: '14px',
+              }}
+            >
+              {llmError}
+            </div>
+          )}
+
+          {!llmLoading && !llmError && llmData && !llmData.llm_summary && (
+            <div
+              style={{
+                padding: '16px',
+                backgroundColor: '#fffbeb',
+                border: '1px solid #fde68a',
+                borderRadius: '10px',
+                color: '#78350f',
+                fontSize: '14px',
+                textAlign: 'center',
+              }}
+            >
+              No AI analysis available for this project. Re-upload with LLM analysis enabled to generate insights.
+            </div>
+          )}
+
+          {!llmLoading && !llmError && llmData && llmData.llm_summary && sections.length === 0 && (
+            <div
+              style={{
+                backgroundColor: 'white',
+                border: '1px solid #e0e7ff',
+                borderRadius: '12px',
+                padding: '20px',
+                marginBottom: '16px',
+                whiteSpace: 'pre-wrap',
+                fontSize: '15px',
+                lineHeight: 1.7,
+                color: '#262626',
+              }}
+            >
+              {llmData.llm_summary}
+            </div>
+          )}
+
+          {!llmLoading && !llmError && sections.length > 0 && (
+            <>
+              {(baseSection ? [baseSection] : sections.slice(0, 1)).map((s, i) => (
+                <div
+                  key={i}
+                  style={{
+                    backgroundColor: 'white',
+                    border: '1px solid #e0e7ff',
+                    borderRadius: '12px',
+                    padding: '20px',
+                    marginBottom: '16px',
+                  }}
+                >
+                  <SimpleMarkdown text={s.content} />
+                </div>
+              ))}
+
+              {availableModules.length > 0 && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '12px',
+                    marginBottom: '16px',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <div style={{ position: 'relative', flex: '1 1 300px' }} ref={dropdownRef}>
+                    <button
+                      onClick={() => setDropdownOpen(!dropdownOpen)}
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        border: '1px solid #c7d2fe',
+                        borderRadius: '10px',
+                        backgroundColor: 'white',
+                        color: '#1e3a5f',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <span>
+                        {selectedModules.size === 0
+                          ? 'Select analysis categories...'
+                          : `${selectedModules.size} categor${selectedModules.size === 1 ? 'y' : 'ies'} selected`}
+                      </span>
+                      <span style={{ fontSize: '12px', color: '#6b7280' }}>
+                        {dropdownOpen ? '▲' : '▼'}
+                      </span>
+                    </button>
+
+                    {dropdownOpen && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          right: 0,
+                          marginTop: '4px',
+                          backgroundColor: 'white',
+                          border: '1px solid #c7d2fe',
+                          borderRadius: '10px',
+                          boxShadow: '0 8px 24px rgba(0,0,0,0.1)',
+                          zIndex: 10,
+                          maxHeight: '320px',
+                          overflowY: 'auto',
+                        }}
+                      >
+                        {availableModules.map((mod) => (
+                          <label
+                            key={mod}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '10px',
+                              padding: '12px 16px',
+                              cursor: 'pointer',
+                              fontSize: '14px',
+                              color: '#1e3a5f',
+                              backgroundColor: selectedModules.has(mod) ? '#eff6ff' : 'white',
+                              borderBottom: '1px solid #f0f0f0',
+                              transition: 'background-color 0.15s',
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!selectedModules.has(mod)) e.currentTarget.style.backgroundColor = '#f8fafc';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = selectedModules.has(mod)
+                                ? '#eff6ff'
+                                : 'white';
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedModules.has(mod)}
+                              onChange={() => toggleModule(mod)}
+                              style={{ accentColor: '#3b82f6', width: '16px', height: '16px' }}
+                            />
+                            {ANALYSIS_MODULES[mod]}
+                          </label>
+                        ))}
+
+                        <div style={{ padding: '8px 12px', display: 'flex', gap: '8px' }}>
+                          <button
+                            onClick={() =>
+                              setSelectedModules(new Set(availableModules))
+                            }
+                            style={{
+                              flex: 1,
+                              padding: '8px',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              border: '1px solid #e5e7eb',
+                              borderRadius: '6px',
+                              backgroundColor: '#f9fafb',
+                              color: '#374151',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Select All
+                          </button>
+                          <button
+                            onClick={() => setSelectedModules(new Set())}
+                            style={{
+                              flex: 1,
+                              padding: '8px',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              border: '1px solid #e5e7eb',
+                              borderRadius: '6px',
+                              backgroundColor: '#f9fafb',
+                              color: '#374151',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Clear All
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={handleDisplay}
+                    disabled={selectedModules.size === 0}
+                    style={{
+                      padding: '12px 24px',
+                      fontSize: '14px',
+                      fontWeight: '700',
+                      border: 'none',
+                      borderRadius: '10px',
+                      backgroundColor: selectedModules.size > 0 ? '#3b82f6' : '#93c5fd',
+                      color: 'white',
+                      cursor: selectedModules.size > 0 ? 'pointer' : 'not-allowed',
+                      whiteSpace: 'nowrap',
+                      transition: 'background-color 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (selectedModules.size > 0) e.currentTarget.style.backgroundColor = '#2563eb';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (selectedModules.size > 0) e.currentTarget.style.backgroundColor = '#3b82f6';
+                    }}
+                  >
+                    Display
+                  </button>
+                </div>
+              )}
+
+              {Array.from(displayedModules).map((mod) => {
+                const modSections = moduleSectionMap[mod];
+                if (!modSections) return null;
+                return (
+                  <div
+                    key={mod}
+                    style={{
+                      backgroundColor: 'white',
+                      border: '1px solid #e0e7ff',
+                      borderRadius: '12px',
+                      padding: '20px',
+                      marginBottom: '12px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: '13px',
+                        fontWeight: '700',
+                        color: '#3b82f6',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        marginBottom: '12px',
+                        paddingBottom: '8px',
+                        borderBottom: '2px solid #dbeafe',
+                      }}
+                    >
+                      {ANALYSIS_MODULES[mod]}
+                    </div>
+                    {modSections.map((s, i) => (
+                      <SimpleMarkdown key={i} text={s.content} />
+                    ))}
+                  </div>
+                );
+              })}
+
+              {moduleSectionMap['_other'] &&
+                displayedModules.size > 0 &&
+                moduleSectionMap['_other'].map((s, i) => (
+                  <div
+                    key={`other-${i}`}
+                    style={{
+                      backgroundColor: 'white',
+                      border: '1px solid #e0e7ff',
+                      borderRadius: '12px',
+                      padding: '20px',
+                      marginBottom: '12px',
+                    }}
+                  >
+                    <SimpleMarkdown text={s.content} />
+                  </div>
+                ))}
+
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ProjectsPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -1346,6 +2043,8 @@ export default function ProjectsPage() {
                               </div>
                             )}
                           </div>
+
+                          <LlmAnalysisPanel projectId={p.id} />
                         </div>
 
                         <div
