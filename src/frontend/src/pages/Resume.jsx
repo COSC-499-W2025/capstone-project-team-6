@@ -56,6 +56,17 @@ const Resume = () => {
     return false;
   };
 
+  /** Convert YYYY-MM to comparable month key (year*12 + monthIndex). */
+  const toYearMonthKey = (yyyyMm) => {
+    if (typeof yyyyMm !== 'string' || !yyyyMm.trim()) return null;
+    const m = yyyyMm.match(/^(\d{4})-(\d{2})$/);
+    if (!m) return null;
+    const y = Number(m[1]);
+    const monthIndex = Number(m[2]) - 1;
+    if (monthIndex < 0 || monthIndex > 11) return null;
+    return y * 12 + monthIndex;
+  };
+
   /** Calendar helper: disallow months after the current month (used by react-datepicker). */
   const isCalendarMonthNotInFuture = (date) => {
     const now = new Date();
@@ -543,6 +554,14 @@ const Resume = () => {
       window.alert('Start and end dates cannot be in a future month.');
       return;
     }
+    if (!workEndCurrent) {
+      const startKey = toYearMonthKey(workForm.start_date);
+      const endKey = toYearMonthKey(workForm.end_date);
+      if (startKey != null && endKey != null && endKey < startKey) {
+        window.alert('End month/year cannot be earlier than start month/year.');
+        return;
+      }
+    }
 
     const payload = {
       company: workForm.company || null,
@@ -640,6 +659,14 @@ const Resume = () => {
     ) {
       window.alert('Start and end dates cannot be in a future month.');
       return;
+    }
+    if (!educationEndCurrent) {
+      const startKey = toYearMonthKey(educationForm.start_date);
+      const endKey = toYearMonthKey(educationForm.end_date);
+      if (startKey != null && endKey != null && endKey < startKey) {
+        window.alert('End month/year cannot be earlier than start month/year.');
+        return;
+      }
     }
 
     const payload = {
