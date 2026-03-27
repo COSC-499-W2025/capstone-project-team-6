@@ -1394,7 +1394,16 @@ def delete_project_for_user(project_id: int, username: str) -> bool:
                 WHERE id = ?
                 """,
                 (analysis_id,),
-            )
+            )            
+            empty_analysis = conn.execute(
+                "SELECT analysis_uuid FROM analyses WHERE id = ? AND total_projects = 0",
+                (analysis_id,),
+            ).fetchone()
+            
+            if empty_analysis:
+                analysis_uuid = empty_analysis["analysis_uuid"]
+                conn.execute("DELETE FROM analyses WHERE id = ?", (analysis_id,))
+                print(f"Auto-cleaned up empty portfolio analysis: {analysis_uuid}")
 
         conn.commit()
         return cur.rowcount > 0
@@ -1459,6 +1468,16 @@ def delete_all_projects_for_user(username: str) -> int:
                     """,
                     (cnt, cnt, analysis_id, username),
                 )
+            empty_analyses = conn.execute(
+                "SELECT analysis_uuid FROM analyses WHERE username = ? AND total_projects = 0",
+                (username,),
+            ).fetchall()
+            
+            if empty_analyses:
+                conn.execute("DELETE FROM analyses WHERE username = ? AND total_projects = 0", (username,))
+                empty_count = len(empty_analyses)
+                empty_uuids = [row["analysis_uuid"] for row in empty_analyses]
+                print(f"Auto-cleaned up {empty_count} empty portfolio analyses: {empty_uuids}")
 
             conn.execute("COMMIT;")
             return deleted_count
