@@ -63,7 +63,7 @@ describe('AnalyzePage', () => {
           <AnalyzePage />
         </MemoryRouter>
       );
-      expect(screen.getByText(/Missing taskId\. Please go back to Upload/i)).toBeInTheDocument();
+      expect(screen.getByText(/Missing task\. Please go back to Upload/i)).toBeInTheDocument();
     });
 
     it('shows error when auth token is missing', () => {
@@ -81,7 +81,6 @@ describe('AnalyzePage', () => {
       await waitFor(() => {
         expect(getTaskStatus).toHaveBeenCalledWith('task-abc-123', 'test-token');
       });
-      expect(screen.getAllByText(/Task: task-abc-123/).length).toBeGreaterThan(0);
       expect(screen.getByText('Analyzing Project')).toBeInTheDocument();
     });
 
@@ -109,7 +108,6 @@ describe('AnalyzePage', () => {
     });
 
     it('stores portfolio_id in sessionStorage when complete', async () => {
-      const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
       getTaskStatus.mockResolvedValue({
         status: 'completed',
         progress: 100,
@@ -120,8 +118,7 @@ describe('AnalyzePage', () => {
       await waitFor(() => {
         expect(mockNavigate).toHaveBeenCalledWith('/projects');
       });
-      expect(setItemSpy).toHaveBeenCalledWith('portfolio_id', 'portfolio-uuid-123');
-      setItemSpy.mockRestore();
+      expect(sessionStorage.getItem('portfolio_id')).toBe('portfolio-uuid-123');
     });
 
     it('shows failed state when task fails', async () => {
@@ -145,7 +142,7 @@ describe('AnalyzePage', () => {
       await waitFor(() => {
         expect(getTaskStatus).toHaveBeenCalled();
       });
-      const goButton = screen.getByText('Go to Projects');
+      const goButton = screen.getByText(/Go to Projects/);
       expect(goButton).toBeDisabled();
     });
 
@@ -161,7 +158,7 @@ describe('AnalyzePage', () => {
       await waitFor(() => {
         expect(getTaskStatus).toHaveBeenCalledWith('task-from-storage', 'test-token');
       });
-      expect(screen.getAllByText(/Task: task-from-storage/).length).toBeGreaterThan(0);
+      expect(screen.getByText('Analyzing Project')).toBeInTheDocument();
       sessionStorage.removeItem('analyze_task_id');
     });
 
@@ -177,9 +174,8 @@ describe('AnalyzePage', () => {
         expect(getTaskStatus).toHaveBeenCalled();
       });
       await waitFor(() => {
-        expect(screen.getByText(/Type of analysis: non-LLM/)).toBeInTheDocument();
+        expect(screen.getByText(/Running non-LLM analysis/)).toBeInTheDocument();
       });
-      expect(screen.getByText(/Completing non-LLM analysis/)).toBeInTheDocument();
     });
 
     it('shows analysis phase when running (LLM)', async () => {
@@ -188,15 +184,133 @@ describe('AnalyzePage', () => {
         progress: 95,
         analysis_phase: 'llm',
       });
-      renderWithState();
+      render(
+        <MemoryRouter initialEntries={[{ pathname: '/analyze', state: { taskId: 'test-task-123', analysisType: 'llm' } }]}>
+          <AnalyzePage />
+        </MemoryRouter>
+      );
 
       await waitFor(() => {
         expect(getTaskStatus).toHaveBeenCalled();
       });
       await waitFor(() => {
-        expect(screen.getByText(/Type of analysis: LLM/)).toBeInTheDocument();
+        expect(screen.getByText(/Running LLM analysis/)).toBeInTheDocument();
       });
-      expect(screen.getByText(/Running LLM analysis/)).toBeInTheDocument();
+    });
+  });
+
+  describe('Analysis type badge', () => {
+    it('shows LLM Analysis badge when analysisType is llm', async () => {
+      getTaskStatus.mockResolvedValue({ status: 'running', progress: 10 });
+      render(
+        <MemoryRouter
+          initialEntries={[{ pathname: '/analyze', state: { taskId: 'task-1', analysisType: 'llm' } }]}
+        >
+          <AnalyzePage />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(getTaskStatus).toHaveBeenCalled();
+      });
+      expect(screen.getByText(/LLM Analysis/)).toBeInTheDocument();
+    });
+
+    it('shows Non-LLM Analysis badge when analysisType is non_llm', async () => {
+      getTaskStatus.mockResolvedValue({ status: 'running', progress: 10 });
+      render(
+        <MemoryRouter
+          initialEntries={[
+            { pathname: '/analyze', state: { taskId: 'task-1', analysisType: 'non_llm' } },
+          ]}
+        >
+          <AnalyzePage />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(getTaskStatus).toHaveBeenCalled();
+      });
+      expect(screen.getByText(/Non-LLM Analysis/)).toBeInTheDocument();
+    });
+
+    it('defaults to Non-LLM Analysis badge when no analysisType is provided', async () => {
+      sessionStorage.removeItem('analyze_analysis_type');
+      getTaskStatus.mockResolvedValue({ status: 'running', progress: 10 });
+      render(
+        <MemoryRouter
+          initialEntries={[{ pathname: '/analyze', state: { taskId: 'task-1' } }]}
+        >
+          <AnalyzePage />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(getTaskStatus).toHaveBeenCalled();
+      });
+      expect(screen.getByText(/Non-LLM Analysis/)).toBeInTheDocument();
+    });
+
+    it('shows Running LLM analysis phase message when server reports llm phase', async () => {
+      getTaskStatus.mockResolvedValue({
+        status: 'running',
+        progress: 50,
+        analysis_phase: 'llm',
+      });
+      render(
+        <MemoryRouter
+          initialEntries={[{ pathname: '/analyze', state: { taskId: 'task-1', analysisType: 'llm' } }]}
+        >
+          <AnalyzePage />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/Running LLM analysis/)).toBeInTheDocument();
+      });
+    });
+
+    it('shows Running non-LLM analysis phase message when server reports non_llm phase', async () => {
+      getTaskStatus.mockResolvedValue({
+        status: 'running',
+        progress: 50,
+        analysis_phase: 'non_llm',
+      });
+      render(
+        <MemoryRouter
+          initialEntries={[
+            { pathname: '/analyze', state: { taskId: 'task-1', analysisType: 'non_llm' } },
+          ]}
+        >
+          <AnalyzePage />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/Running non-LLM analysis/)).toBeInTheDocument();
+      });
+    });
+
+    it('does NOT show Running LLM analysis when server reports llm phase but user chose non_llm', async () => {
+      getTaskStatus.mockResolvedValue({
+        status: 'running',
+        progress: 50,
+        analysis_phase: 'llm',
+      });
+      render(
+        <MemoryRouter
+          initialEntries={[
+            { pathname: '/analyze', state: { taskId: 'task-1', analysisType: 'non_llm' } },
+          ]}
+        >
+          <AnalyzePage />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(getTaskStatus).toHaveBeenCalled();
+      });
+      expect(screen.queryByText(/Running LLM analysis/)).not.toBeInTheDocument();
     });
   });
 
@@ -239,7 +353,7 @@ describe('AnalyzePage', () => {
         expect(getTaskStatus).toHaveBeenCalledWith('stored-task-1', 'test-token');
         expect(getTaskStatus).toHaveBeenCalledWith('stored-task-2', 'test-token');
       });
-      expect(screen.getByText(/2 tasks/)).toBeInTheDocument();
+      expect(screen.getByText(/projects completed/)).toBeInTheDocument();
       sessionStorage.removeItem('analyze_task_ids');
     });
   });

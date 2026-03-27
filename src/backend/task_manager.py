@@ -423,14 +423,14 @@ class TaskManager:
             "llm_error": None,
         }
 
-        # 2) LLM ANALYSIS (always runs when user has consented)
+        # 2) LLM ANALYSIS (runs only when user consented AND explicitly requested it)
         try:
             has_consented = check_user_consent(task.username)
         except Exception as e:
             has_consented = False
             result_payload["llm_error"] = f"Consent check failed: {e}"
 
-        if has_consented:
+        if has_consented and task.analysis_type == "llm":
             task.analysis_phase = "llm"
             task.progress = 82
             logger.info(f"Task {task.task_id}: Starting LLM analysis")
@@ -471,8 +471,10 @@ class TaskManager:
                 if llm_summary_text and analysis_uuid:
                     update_llm_summary(analysis_uuid, llm_summary_text, task.username)
                     logger.info(f"Task {task.task_id}: LLM summary saved to analysis {analysis_uuid}")
+                    result_payload["llm_ran"] = True
+                else:
+                    result_payload["llm_ran"] = False
 
-                result_payload["llm_ran"] = True
                 result_payload["llm_error"] = llm_error_text
 
             except Exception as e:

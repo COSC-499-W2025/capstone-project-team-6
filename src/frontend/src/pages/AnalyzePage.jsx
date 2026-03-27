@@ -179,7 +179,7 @@ export default function AnalyzePage() {
 
   const phaseMessage =
     analysisPhase === "non_llm" ? "Running non-LLM analysis…"
-    : analysisPhase === "llm" ? "Running LLM analysis…"
+    : analysisPhase === "llm" && analysisType === "llm" ? "Running LLM analysis…"
     : null;
 
   return (

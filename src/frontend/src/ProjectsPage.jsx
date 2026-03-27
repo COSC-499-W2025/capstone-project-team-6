@@ -13,6 +13,37 @@ const ANALYSIS_MODULES = {
   resume: 'Resume & Portfolio Artifacts',
 };
 
+function buildModuleSectionMap(sections) {
+  const otherSections = sections.filter((s) => s.number > 1);
+  const map = {};
+  for (const s of otherSections) {
+    const titleLower = s.title.toLowerCase();
+    if (titleLower.includes('architect') || titleLower.includes('pattern') || titleLower.includes('data flow')) {
+      map['architecture'] = map['architecture'] || [];
+      map['architecture'].push(s);
+    } else if (titleLower.includes('complex') || titleLower.includes('algorithm') || titleLower.includes('concurren')) {
+      map['complexity'] = map['complexity'] || [];
+      map['complexity'].push(s);
+    } else if (titleLower.includes('secur') || titleLower.includes('defensive')) {
+      map['security'] = map['security'] || [];
+      map['security'].push(s);
+    } else if (titleLower.includes('skill') || titleLower.includes('maturity') || titleLower.includes('soft')) {
+      map['skills'] = map['skills'] || [];
+      map['skills'].push(s);
+    } else if (titleLower.includes('domain') || titleLower.includes('competenc')) {
+      map['domain'] = map['domain'] || [];
+      map['domain'].push(s);
+    } else if (titleLower.includes('resume') || titleLower.includes('career') || titleLower.includes('portfolio artifact')) {
+      map['resume'] = map['resume'] || [];
+      map['resume'].push(s);
+    } else {
+      map['_other'] = map['_other'] || [];
+      map['_other'].push(s);
+    }
+  }
+  return map;
+}
+
 function parseLlmSections(markdown) {
   if (!markdown) return [];
   const sections = [];
@@ -268,7 +299,8 @@ function SimpleMarkdown({ text }) {
   return <>{elements}</>;
 }
 
-function LlmAnalysisPanel({ projectId }) {
+function LlmAnalysisPanel({ projectId, project }) {
+  const isLlmProject = project?.analysis_type === 'llm';
   const [llmData, setLlmData] = useState(null);
   const [llmLoading, setLlmLoading] = useState(false);
   const [llmError, setLlmError] = useState(null);
@@ -298,6 +330,10 @@ function LlmAnalysisPanel({ projectId }) {
       setLlmData(data);
       const parsed = parseLlmSections(data.llm_summary || '');
       setSections(parsed);
+      const map = buildModuleSectionMap(parsed);
+      const allModules = new Set(Object.keys(ANALYSIS_MODULES).filter((k) => map[k]));
+      setSelectedModules(allModules);
+      setDisplayedModules(allModules);
     } catch (err) {
       if (err?.response?.status === 404) {
         setLlmError('No LLM analysis available for this project.');
@@ -310,7 +346,7 @@ function LlmAnalysisPanel({ projectId }) {
   };
 
   const toggleExpanded = () => {
-    if (!expanded && llmData === null && !llmLoading) {
+    if (isLlmProject && !expanded && llmData === null && !llmLoading) {
       fetchAnalysis();
     }
     setExpanded(!expanded);
@@ -330,43 +366,35 @@ function LlmAnalysisPanel({ projectId }) {
     setDropdownOpen(false);
   };
 
+  const nonLlmRows = [
+    ['Primary language', project?.primary_language],
+    ['Languages', project?.languages ? Object.entries(project.languages).map(([lang, count]) => `${lang} (${count})`).join(', ') : null],
+    ['Frameworks', Array.isArray(project?.frameworks) && project.frameworks.length ? project.frameworks.join(', ') : null],
+    ['Total files', project?.total_files],
+    ['Code files', project?.code_files],
+    ['Test files', project?.test_files],
+    ['Doc files', project?.doc_files],
+    ['Config files', project?.config_files],
+    ['Has tests', project?.has_tests ? 'Yes' : 'No'],
+    ['Has README', project?.has_readme ? 'Yes' : 'No'],
+    ['Has CI/CD', project?.has_ci_cd ? 'Yes' : 'No'],
+    ['Has Docker', project?.has_docker ? 'Yes' : 'No'],
+    ['Estimated test coverage', project?.test_coverage_estimate],
+    ['Commits', project?.total_commits],
+    ['Primary branch', project?.primary_branch],
+    ['Total branches', project?.total_branches],
+    ['Predicted role', project?.predicted_role],
+  ].filter(([, value]) => value !== null && value !== undefined && value !== '');
+
   const baseSection = sections.find((s) => s.number <= 1);
-  const otherSections = sections.filter((s) => s.number > 1);
-
-  const moduleSectionMap = {};
-  for (const s of otherSections) {
-    const titleLower = s.title.toLowerCase();
-    if (titleLower.includes('architect') || titleLower.includes('pattern') || titleLower.includes('data flow')) {
-      moduleSectionMap['architecture'] = moduleSectionMap['architecture'] || [];
-      moduleSectionMap['architecture'].push(s);
-    } else if (titleLower.includes('complex') || titleLower.includes('algorithm') || titleLower.includes('concurren')) {
-      moduleSectionMap['complexity'] = moduleSectionMap['complexity'] || [];
-      moduleSectionMap['complexity'].push(s);
-    } else if (titleLower.includes('secur') || titleLower.includes('defensive')) {
-      moduleSectionMap['security'] = moduleSectionMap['security'] || [];
-      moduleSectionMap['security'].push(s);
-    } else if (titleLower.includes('skill') || titleLower.includes('maturity') || titleLower.includes('soft')) {
-      moduleSectionMap['skills'] = moduleSectionMap['skills'] || [];
-      moduleSectionMap['skills'].push(s);
-    } else if (titleLower.includes('domain') || titleLower.includes('competenc')) {
-      moduleSectionMap['domain'] = moduleSectionMap['domain'] || [];
-      moduleSectionMap['domain'].push(s);
-    } else if (titleLower.includes('resume') || titleLower.includes('career') || titleLower.includes('portfolio artifact')) {
-      moduleSectionMap['resume'] = moduleSectionMap['resume'] || [];
-      moduleSectionMap['resume'].push(s);
-    } else {
-      moduleSectionMap['_other'] = moduleSectionMap['_other'] || [];
-      moduleSectionMap['_other'].push(s);
-    }
-  }
-
+  const moduleSectionMap = buildModuleSectionMap(sections);
   const availableModules = Object.keys(ANALYSIS_MODULES).filter((k) => moduleSectionMap[k]);
 
   return (
     <div
       style={{
-        backgroundColor: '#f0f7ff',
-        border: '1px solid #bfdbfe',
+        backgroundColor: isLlmProject ? '#f0f7ff' : '#f9fafb',
+        border: isLlmProject ? '1px solid #bfdbfe' : '1px solid #e5e7eb',
         borderRadius: '16px',
       }}
     >
@@ -385,23 +413,23 @@ function LlmAnalysisPanel({ projectId }) {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '18px' }}>🤖</span>
+          <span style={{ fontSize: '18px' }}>{isLlmProject ? '🤖' : '⚙️'}</span>
           <span
             style={{
               fontSize: '13px',
               fontWeight: '700',
-              color: '#1e40af',
+              color: isLlmProject ? '#1e40af' : '#374151',
               textTransform: 'uppercase',
               letterSpacing: '0.5px',
             }}
           >
-            AI Analysis
+            {isLlmProject ? 'AI Analysis' : 'Analysis Output'}
           </span>
         </div>
         <span
           style={{
             fontSize: '18px',
-            color: '#3b82f6',
+            color: isLlmProject ? '#3b82f6' : '#6b7280',
             transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
             transition: 'transform 0.2s ease',
           }}
@@ -412,13 +440,13 @@ function LlmAnalysisPanel({ projectId }) {
 
       {expanded && (
         <div style={{ padding: '0 20px 20px 20px' }}>
-          {llmLoading && (
+          {isLlmProject && llmLoading && (
             <div style={{ textAlign: 'center', padding: '24px', color: '#3b82f6' }}>
               Loading AI analysis...
             </div>
           )}
 
-          {llmError && (
+          {isLlmProject && llmError && (
             <div
               style={{
                 padding: '12px 16px',
@@ -433,23 +461,60 @@ function LlmAnalysisPanel({ projectId }) {
             </div>
           )}
 
-          {!llmLoading && !llmError && llmData && !llmData.llm_summary && (
+          {!isLlmProject && (
             <div
               style={{
+                backgroundColor: 'white',
+                border: '1px solid #e5e7eb',
+                borderRadius: '12px',
                 padding: '16px',
-                backgroundColor: '#fffbeb',
-                border: '1px solid #fde68a',
-                borderRadius: '10px',
-                color: '#78350f',
-                fontSize: '14px',
-                textAlign: 'center',
+                display: 'grid',
+                gap: '10px',
               }}
             >
-              No AI analysis available for this project. Re-upload with LLM analysis enabled to generate insights.
+              <div
+                style={{
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  color: '#374151',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.4px',
+                }}
+              >
+                Non-LLM analysis output
+              </div>
+              {nonLlmRows.length > 0 ? nonLlmRows.map(([label, value]) => (
+                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+                  <span style={{ color: '#525252', fontSize: '14px' }}>{label}</span>
+                  <span style={{ color: '#111827', fontSize: '14px', textAlign: 'right' }}>{String(value)}</span>
+                </div>
+              )) : (
+                <div style={{ color: '#6b7280', fontSize: '14px' }}>
+                  No non-LLM analysis details available for this project.
+                </div>
+              )}
             </div>
           )}
 
-          {!llmLoading && !llmError && llmData && llmData.llm_summary && sections.length === 0 && (
+          {isLlmProject && !llmLoading && !llmError && llmData && !llmData.llm_summary && (
+            (
+              <div
+                style={{
+                  padding: '16px',
+                  backgroundColor: '#fffbeb',
+                  border: '1px solid #fde68a',
+                  borderRadius: '10px',
+                  color: '#78350f',
+                  fontSize: '14px',
+                  textAlign: 'center',
+                }}
+              >
+                No AI analysis available for this project. Re-upload with LLM analysis enabled to generate insights.
+              </div>
+            )
+          )}
+
+          {isLlmProject && !llmLoading && !llmError && llmData && llmData.llm_summary && sections.length === 0 && (
             <div
               style={{
                 backgroundColor: 'white',
@@ -467,7 +532,7 @@ function LlmAnalysisPanel({ projectId }) {
             </div>
           )}
 
-          {!llmLoading && !llmError && sections.length > 0 && (
+          {isLlmProject && !llmLoading && !llmError && sections.length > 0 && (
             <>
               {(baseSection ? [baseSection] : sections.slice(0, 1)).map((s, i) => (
                 <div
@@ -677,7 +742,6 @@ function LlmAnalysisPanel({ projectId }) {
               })}
 
               {moduleSectionMap['_other'] &&
-                displayedModules.size > 0 &&
                 moduleSectionMap['_other'].map((s, i) => (
                   <div
                     key={`other-${i}`}
@@ -2044,7 +2108,7 @@ export default function ProjectsPage() {
                             )}
                           </div>
 
-                          <LlmAnalysisPanel projectId={p.id} />
+                          {p.analysis_type === 'llm' && <LlmAnalysisPanel projectId={p.id} project={p} />}
                         </div>
 
                         <div

@@ -326,6 +326,20 @@ class TestChronologyCorrection:
         assert uncorrected_project["correction_timestamp"] is None
         assert uncorrected_project["effective_last_commit_date"] == uncorrected_project["last_commit_date"]
 
+    def test_get_user_projects_includes_analysis_type(self, sample_projects):
+        """Test that get_user_projects returns analysis_type from the analyses table."""
+        user_id = sample_projects["user_id"]
+
+        projects = get_user_projects(user_id)
+
+        assert len(projects) == 3
+        for project in projects:
+            assert "analysis_type" in project, (
+                "Each project dict must include analysis_type from the analyses table"
+            )
+            # The fixture creates analyses with analysis_type='non_llm'
+            assert project["analysis_type"] == "non_llm"
+
 
 class TestComparisonAttributes:
     """Test comparison attributes functionality."""

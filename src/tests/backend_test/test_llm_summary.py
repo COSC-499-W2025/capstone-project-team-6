@@ -292,7 +292,7 @@ class TestTaskManagerLlmSave:
             filename="test_project.zip",
             file_path=str(minimal_zip),
             file_hash="somehash",
-            analysis_type="non_llm",
+            analysis_type="llm",
         )
 
         manager = TaskManager()
@@ -339,7 +339,7 @@ class TestTaskManagerLlmSave:
             filename="test_project.zip",
             file_path=str(minimal_zip),
             file_hash="somehash2",
-            analysis_type="non_llm",
+            analysis_type="llm",
         )
 
         manager = TaskManager()
@@ -386,7 +386,7 @@ class TestTaskManagerLlmSave:
             filename="test_project.zip",
             file_path=str(minimal_zip),
             file_hash="somehash3",
-            analysis_type="non_llm",
+            analysis_type="llm",
         )
 
         manager = TaskManager()
@@ -437,7 +437,7 @@ class TestTaskManagerLlmSave:
             filename="test_project.zip",
             file_path=str(minimal_zip),
             file_hash="somehash4",
-            analysis_type="non_llm",
+            analysis_type="llm",
         )
 
         manager = TaskManager()
