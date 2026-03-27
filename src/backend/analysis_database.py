@@ -2302,9 +2302,7 @@ def update_user_education(username: str, education_id: int, education: Dict[str,
         return False
 
     # Build dynamic SET clause
-    allowed_keys = set(
-        ["education_text", "university", "location", "degree", "start_date", "end_date", "awards"]
-    )
+    allowed_keys = set(["education_text", "university", "location", "degree", "start_date", "end_date", "awards"])
     set_parts = []
     values = []
     for k, v in cleaned.items():
@@ -2325,7 +2323,8 @@ def update_user_education(username: str, education_id: int, education: Dict[str,
             SET {", ".join(set_parts)}, updated_at = CURRENT_TIMESTAMP
             WHERE username = ? AND id = ?
             """,
-        (*values,))
+            (*values,),
+        )
         res = conn.total_changes
         conn.commit()
 

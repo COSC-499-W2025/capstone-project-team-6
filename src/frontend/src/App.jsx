@@ -11,6 +11,7 @@ import CuratePage from './pages/CuratePage';
 import Upload from './pages/Upload';
 import Portfolio from './pages/Portfolio';
 import Resume from './pages/Resume';
+import JobMatch from './pages/JobMatch';
 import Settings from './pages/Settings';
 
 class ErrorBoundary extends React.Component {
@@ -149,6 +150,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Resume />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/job-match"
+            element={
+              <ProtectedRoute>
+                <JobMatch />
               </ProtectedRoute>
             }
           />

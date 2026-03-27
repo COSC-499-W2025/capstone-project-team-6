@@ -189,7 +189,6 @@ export const portfoliosAPI = {
 };
 
 // Resume API calls
-// Resume API calls
 export const resumeAPI = {
   generateResume: async (projectIds, options = {}) => {
     const payload = {
@@ -291,6 +290,15 @@ export const resumeAPI = {
 
   deleteWorkExperience: async (workId) => {
     const response = await api.delete(`/resume/work-experience/${workId}`);
+    return response.data;
+  },
+
+  analyzeJobMatch: async (jobDescription) => {
+    const response = await api.post(
+      '/resume/job-match',
+      { job_description: jobDescription },
+      { timeout: 60000 }
+    );
     return response.data;
   },
 };

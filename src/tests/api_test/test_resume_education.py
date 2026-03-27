@@ -226,4 +226,3 @@ class TestResumeEducationEndpoints:
         assert isinstance(personal_info_passed["education_entries"], list)
         assert len(personal_info_passed["education_entries"]) == 1
         assert personal_info_passed["education_entries"][0]["university"] == "MIT"
-

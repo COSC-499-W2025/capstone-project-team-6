@@ -6,7 +6,7 @@ import { projectsAPI, portfoliosAPI, curationAPI } from '../services/api';
 import api from '../services/api';
 
 const Dashboard = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [stats, setStats] = useState({
@@ -126,37 +126,6 @@ const Dashboard = () => {
               Manage your projects and generate professional portfolios
             </p>
           </div>
-          <button
-            onClick={async () => {
-              await logout();
-              navigate('/login');
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '10px 20px',
-              backgroundColor: 'white',
-              color: '#1a1a1a',
-              border: '1px solid #e5e5e5',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-              transition: 'all 0.2s',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#f5f5f5';
-              e.currentTarget.style.borderColor = '#d4d4d4';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'white';
-              e.currentTarget.style.borderColor = '#e5e5e5';
-            }}
-          >
-            <span>↗</span>
-            <span>Logout</span>
-          </button>
         </div>
 
         <div style={{

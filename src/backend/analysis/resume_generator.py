@@ -805,9 +805,7 @@ def generate_latex_resume(
             university = (entry.get("education_university") or entry.get("university") or "").strip()
             location = (entry.get("education_location") or entry.get("location") or "").strip()
             degree = (entry.get("education_degree") or entry.get("degree") or "").strip()
-            start_date = (
-                entry.get("education_start_date") or entry.get("start_date") or ""
-            ).strip()
+            start_date = (entry.get("education_start_date") or entry.get("start_date") or "").strip()
             end_date = (entry.get("education_end_date") or entry.get("end_date") or entry.get("grad_date") or "").strip()
             start_date_fmt = _format_month_year(start_date)
             end_date_fmt = _format_month_year(end_date)
@@ -817,10 +815,11 @@ def generate_latex_resume(
                 date_range = f"{start_date_fmt} -- Present"
             else:
                 date_range = end_date_fmt or start_date_fmt or " "
+            
             awards = (entry.get("education_awards") or entry.get("awards") or "").strip()
             education_text = (entry.get("education_text") or entry.get("education") or "").strip()
             # Keep education text on one line for LaTeX safety.
-            education_text_single_line = education_text.replace(chr(10), ' ').replace(chr(13), ' ')
+            education_text_single_line = education_text.replace(chr(10), " ").replace(chr(13), " ")
 
             if university or degree:
                 block = "  \\resumeSubheading{"
