@@ -7,8 +7,8 @@ import logging
 import os
 import sqlite3
 import uuid
-from datetime import datetime
 from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Union
 
@@ -2491,9 +2491,7 @@ def update_user_work_experience(username: str, work_id: int, work: Dict[str, Any
     if not cleaned:
         return False
 
-    allowed_keys = set(
-        ["company", "job_title", "location", "start_date", "end_date", "responsibilities_text"]
-    )
+    allowed_keys = set(["company", "job_title", "location", "start_date", "end_date", "responsibilities_text"])
     set_parts: List[str] = []
     values: List[Any] = []
     for k, v in cleaned.items():

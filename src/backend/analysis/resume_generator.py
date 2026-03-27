@@ -815,7 +815,7 @@ def generate_latex_resume(
                 date_range = f"{start_date_fmt} -- Present"
             else:
                 date_range = end_date_fmt or start_date_fmt or " "
-            
+
             awards = (entry.get("education_awards") or entry.get("awards") or "").strip()
             education_text = (entry.get("education_text") or entry.get("education") or "").strip()
             # Keep education text on one line for LaTeX safety.
@@ -918,7 +918,16 @@ def generate_latex_resume(
             responsibilities = _parse_responsibility_bullets(responsibilities_text)
 
             latex += "  \\resumeSubheading{"
-            latex += _safe(job_title or " ") + "}{" + _safe(company or " ") + "}{" + _safe(location or " ") + "}{" + _safe(date_range) + "}\n"
+            latex += (
+                _safe(job_title or " ")
+                + "}{"
+                + _safe(company or " ")
+                + "}{"
+                + _safe(location or " ")
+                + "}{"
+                + _safe(date_range)
+                + "}\n"
+            )
 
             if responsibilities:
                 latex += "  \\resumeItemListStart\n"
@@ -1302,12 +1311,7 @@ def generate_resume(
                     line = ", ".join(x for x in [d, u, loc] if x)
 
                     start_d = (entry.get("education_start_date") or entry.get("start_date") or "").strip()
-                    end_d = (
-                        entry.get("education_end_date")
-                        or entry.get("end_date")
-                        or entry.get("grad_date")
-                        or ""
-                    ).strip()
+                    end_d = (entry.get("education_end_date") or entry.get("end_date") or entry.get("grad_date") or "").strip()
                     start_d_fmt = _format_month_year(start_d)
                     end_d_fmt = _format_month_year(end_d)
                     if start_d_fmt or end_d_fmt:
