@@ -579,6 +579,12 @@ const Resume = () => {
     setIsEditing(false);
   };
 
+  const handleClosePreview = () => {
+    setGeneratedResume(null);
+    setEditableContent(null);
+    setIsEditing(false);
+  };
+
   const downloadResume = () => {
     if (!generatedResume) return;
 
@@ -1708,6 +1714,25 @@ const Resume = () => {
                     }}
                   >
                     Download
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleClosePreview}
+                    aria-label="Close preview"
+                    title="Close preview"
+                    style={{
+                      padding: '8px 12px',
+                      fontSize: '20px',
+                      lineHeight: 1,
+                      color: '#737373',
+                      backgroundColor: 'white',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ×
                   </button>
                 </div>
               </div>
