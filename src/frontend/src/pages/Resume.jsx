@@ -1765,14 +1765,12 @@ const Resume = () => {
                 </div>
               </div>
 
-              {/* Resume Content */}
+              {/* Resume Content (no inner scroll; page scrolls for long markdown) */}
               <div
                 style={{
                   padding: '24px',
                   backgroundColor: '#fafafa',
                   borderRadius: '8px',
-                  maxHeight: '600px',
-                  overflowY: 'auto',
                   overflowX: 'hidden',
                   minWidth: 0,
                 }}
@@ -1805,10 +1803,13 @@ const Resume = () => {
                         src={pdfUrl}
                         style={{
                           width: '100%',
-                          height: '560px',
+                          // Tall preview: viewport share (not a large fixed subtract, which made it ~300px).
+                          // clamp(min, preferred, max) keeps it readable on small screens without a tiny strip.
+                          height: 'clamp(520px, 78dvh, 1320px)',
                           border: '1px solid #e5e7eb',
                           borderRadius: '8px',
                           backgroundColor: 'white',
+                          display: 'block',
                         }}
                       />
                     )}
