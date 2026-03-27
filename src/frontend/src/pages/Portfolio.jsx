@@ -754,10 +754,18 @@ const Portfolio = () => {
   });
   const [livePortfolioSettings, setLivePortfolioSettings] = useState(null);
 
+  const [notification, setNotification] = useState(null);
+
+  const showNotification = (message, type = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 4000);
+  };
+
   const loadPortfolios = useCallback(async () => {
     setError('');
     setLoading(true);
     setSelectedPortfolioDetail(null);
+    setAllDetails(new Map());
     try {
       const data = await portfoliosAPI.listPortfolios();
       setPortfolios(data ?? []);
@@ -806,10 +814,11 @@ const Portfolio = () => {
       await portfoliosAPI.savePortfolioSettings?.(portfolioSettings);
       setLivePortfolioSettings({ ...portfolioSettings });
       setHasUnsavedChanges(false);
-      alert('Portfolio settings saved successfully!');
+      showNotification('Portfolio settings saved successfully!', 'success');
+      setIsPrivateMode(false);
     } catch (error) {
       console.error('Error saving portfolio settings:', error);
-      alert('Error saving portfolio settings. Please try again.');
+      showNotification('Error saving portfolio settings. Please try again.', 'error');
     }
   };
 
@@ -882,6 +891,28 @@ const Portfolio = () => {
       cancelled = true;
     };
   }, [selectedPortfolioId]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && isAuthenticated) {
+        loadPortfolios();
+      }
+    };
+
+    const handleWindowFocus = () => {
+      if (isAuthenticated) {
+        loadPortfolios();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleWindowFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleWindowFocus);
+    };
+  }, [isAuthenticated, loadPortfolios]);
 
   // Background-fetch details for all other portfolios so the heatmap shows ALL activity
   useEffect(() => {
@@ -1103,7 +1134,60 @@ const Portfolio = () => {
       backgroundColor: '#fafafa',
       position: 'relative'
     }}>
+      {/* CSS Animation Styles */}
+      <style>{`
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      `}</style>
+      
       <Navigation />
+      
+      {/* Notification Component */}
+      {notification && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          backgroundColor: notification.type === 'success' ? '#10b981' : '#ef4444',
+          color: 'white',
+          padding: '12px 20px',
+          borderRadius: '8px',
+          fontSize: '14px',
+          fontWeight: '600',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+          zIndex: 1001,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          animation: 'slideIn 0.3s ease-out',
+          maxWidth: '400px'
+        }}>
+          <span>{notification.type === 'success' ? '✅' : '❌'}</span>
+          {notification.message}
+          <button
+            onClick={() => setNotification(null)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'white',
+              cursor: 'pointer',
+              fontSize: '16px',
+              padding: '0',
+              marginLeft: '8px'
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
       
       {/* Private Mode Banner */}
       {isPrivateMode && (
@@ -1203,6 +1287,26 @@ const Portfolio = () => {
                 </button>
               </div>
             )}
+            
+            <button
+              onClick={loadPortfolios}
+              style={{
+                padding: '10px 16px',
+                borderRadius: '8px',
+                border: '1px solid #e5e5e5',
+                backgroundColor: 'white',
+                color: '#737373',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+              title="Refresh portfolio data"
+            >
+              🔄 Refresh
+            </button>
             
             <button
               onClick={togglePrivateMode}
