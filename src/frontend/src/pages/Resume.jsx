@@ -758,12 +758,12 @@ const Resume = () => {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: generatedResume ? '400px 1fr' : '1fr',
+            gridTemplateColumns: generatedResume ? 'minmax(0, 400px) minmax(0, 1fr)' : '1fr',
             gap: '24px',
           }}
         >
           {/* Left Panel */}
-          <div>
+          <div style={{ minWidth: 0 }}>
             {/* Personal Information */}
             <div
               style={{
@@ -1015,14 +1015,34 @@ const Resume = () => {
                             borderRadius: '8px',
                             backgroundColor: '#f9fafb',
                             border: '1px solid #e5e7eb',
+                            overflow: 'hidden',
+                            minWidth: 0,
                           }}
                         >
-                          <div style={{ fontSize: '14px', fontWeight: '700', color: '#1a1a1a', marginBottom: '6px' }}>
+                          <div
+                            style={{
+                              fontSize: '14px',
+                              fontWeight: '700',
+                              color: '#1a1a1a',
+                              marginBottom: '6px',
+                              overflowWrap: 'anywhere',
+                              wordBreak: 'break-word',
+                            }}
+                          >
                             {entry.degree && entry.university ? `${entry.degree} - ${entry.university}` : entry.degree || entry.university || 'Education'}
                           </div>
 
                           {hasAnyMeta && (
-                            <div style={{ fontSize: '13px', color: '#525252', lineHeight: '1.4', marginBottom: '10px' }}>
+                            <div
+                              style={{
+                                fontSize: '13px',
+                                color: '#525252',
+                                lineHeight: '1.4',
+                                marginBottom: '10px',
+                                overflowWrap: 'anywhere',
+                                wordBreak: 'break-word',
+                              }}
+                            >
                               {entry.location ? <div>{entry.location}</div> : null}
                               {(entry.start_date || entry.end_date) && (
                                 <div>
@@ -1124,14 +1144,23 @@ const Resume = () => {
                     }}
                   />
 
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
+                      gap: '8px',
+                      width: '100%',
+                      minWidth: 0,
+                    }}
+                  >
                     <input
                       type="text"
                       placeholder="Start date (e.g., Aug 2020)"
                       value={educationForm.start_date}
                       onChange={(e) => setEducationForm((prev) => ({ ...prev, start_date: e.target.value }))}
                       style={{
-                        flex: 1,
+                        minWidth: 0,
+                        width: '100%',
                         padding: '10px 12px',
                         border: '1px solid #e5e7eb',
                         borderRadius: '6px',
@@ -1145,7 +1174,8 @@ const Resume = () => {
                       value={educationForm.end_date}
                       onChange={(e) => setEducationForm((prev) => ({ ...prev, end_date: e.target.value }))}
                       style={{
-                        flex: 1,
+                        minWidth: 0,
+                        width: '100%',
                         padding: '10px 12px',
                         border: '1px solid #e5e7eb',
                         borderRadius: '6px',
@@ -1565,6 +1595,7 @@ const Resume = () => {
                 borderRadius: '12px',
                 padding: '24px',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                minWidth: 0,
               }}
             >
               <div
@@ -1708,6 +1739,8 @@ const Resume = () => {
                   borderRadius: '8px',
                   maxHeight: '600px',
                   overflowY: 'auto',
+                  overflowX: 'hidden',
+                  minWidth: 0,
                 }}
               >
                 {resumeFormat === 'pdf' ? (
@@ -1771,6 +1804,10 @@ const Resume = () => {
                       fontSize: '15px',
                       lineHeight: '1.7',
                       color: '#1a1a1a',
+                      minWidth: 0,
+                      maxWidth: '100%',
+                      overflowWrap: 'break-word',
+                      wordBreak: 'break-word',
                     }}
                   >
                     <ReactMarkdown
@@ -1823,7 +1860,17 @@ const Resume = () => {
                             {...props}
                           />
                         ),
-                        p: ({ node, ...props }) => <p style={{ marginBottom: '12px' }} {...props} />,
+                        p: ({ node, ...props }) => (
+                          <p
+                            style={{
+                              marginBottom: '12px',
+                              overflowWrap: 'break-word',
+                              wordBreak: 'break-word',
+                              maxWidth: '100%',
+                            }}
+                            {...props}
+                          />
+                        ),
                         ul: ({ node, ...props }) => (
                           <ul style={{ marginLeft: '20px', marginBottom: '12px', listStyleType: 'disc' }} {...props} />
                         ),
