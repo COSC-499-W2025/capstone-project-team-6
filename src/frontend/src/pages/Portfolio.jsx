@@ -1009,15 +1009,6 @@ const Portfolio = () => {
               </div>
 
               <div style={{ marginTop: '32px' }}>
-                <details style={{ border: '1px solid #e5e7eb', borderRadius: '12px', padding: '12px' }}>
-                  <summary style={{ cursor: 'pointer', fontWeight: '600', color: '#0f172a' }}>
-                    Full portfolio payload (debug)
-                  </summary>
-                  <div style={{ marginTop: '12px' }}>{renderJsonBlock(selectedPortfolioDetail)}</div>
-                </details>
-              </div>
-
-              <div style={{ marginTop: '32px' }}>
                 <h3 style={{ margin: 0, fontSize: '18px', color: '#0f172a' }}>Projects</h3>
                 {orderedProjectList.length > 0 ? (
                   <ul
