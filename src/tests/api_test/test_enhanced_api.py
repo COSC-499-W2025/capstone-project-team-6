@@ -253,7 +253,8 @@ if __name__ == "__main__":
 class TestTaskManager:
     """Test suite for task manager functionality."""
     
-    def test_task_creation(self):
+    @pytest.mark.asyncio
+    async def test_task_creation(self):
         """Test creating tasks."""
         task_manager = get_task_manager()
         
@@ -262,6 +263,11 @@ class TestTaskManager:
         temp_file.write_bytes(b"fake zip content")
         
         try:
+            # Run in event loop
+            loop = asyncio.get_event_loop() if asyncio.get_event_loop().is_running() else asyncio.new_event_loop()
+            if not loop.is_running():
+                asyncio.set_event_loop(loop)
+            
             task_id = task_manager.create_task(
                 task_type="new_portfolio",
                 username="testuser",
@@ -283,7 +289,8 @@ class TestTaskManager:
             if temp_file.exists():
                 temp_file.unlink()
     
-    def test_user_task_filtering(self):
+    @pytest.mark.asyncio
+    async def test_user_task_filtering(self):
         """Test getting tasks for specific users."""
         task_manager = get_task_manager()
         
@@ -294,6 +301,11 @@ class TestTaskManager:
         temp_file2.write_bytes(b"fake zip content 2")
         
         try:
+            # Ensure event loop is set
+            loop = asyncio.get_event_loop() if asyncio.get_event_loop().is_running() else asyncio.new_event_loop()
+            if not loop.is_running():
+                asyncio.set_event_loop(loop)
+                
             # Create tasks for different users
             task1 = task_manager.create_task(
                 task_type="new_portfolio",
