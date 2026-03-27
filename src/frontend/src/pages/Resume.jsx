@@ -546,7 +546,16 @@ const Resume = () => {
       setIsEditing(false);
     } catch (err) {
       console.error('Error generating resume:', err);
-      setError(err.response?.data?.detail || 'Failed to generate resume');
+      const detail = err.response?.data?.detail;
+      const detailStr = typeof detail === 'string' ? detail : '';
+      if (detailStr.includes('pdflatex is required')) {
+        setError(
+          'PDF generation requires LaTeX to be installed on the server. ' +
+            'Try switching to Markdown format instead, or contact your administrator.'
+        );
+      } else {
+        setError(detailStr || 'Failed to generate resume');
+      }
       try { window.scrollTo(0, 0); } catch (_) {}
     } finally {
       setGenerating(false);
