@@ -334,9 +334,7 @@ class TestChronologyCorrection:
 
         assert len(projects) == 3
         for project in projects:
-            assert "analysis_type" in project, (
-                "Each project dict must include analysis_type from the analyses table"
-            )
+            assert "analysis_type" in project, "Each project dict must include analysis_type from the analyses table"
             # The fixture creates analyses with analysis_type='non_llm'
             assert project["analysis_type"] == "non_llm"
 
