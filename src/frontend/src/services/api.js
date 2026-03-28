@@ -301,6 +301,16 @@ export const resumeAPI = {
     );
     return response.data;
   },
+
+  listJobMatches: async () => {
+    const response = await api.get('/resume/job-matches');
+    return response.data;
+  },
+
+  deleteJobMatch: async (matchId) => {
+    const response = await api.delete(`/resume/job-matches/${matchId}`);
+    return response.data;
+  },
 };
 
 // Curation API calls

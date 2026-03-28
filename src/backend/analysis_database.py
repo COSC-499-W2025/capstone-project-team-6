@@ -577,6 +577,27 @@ def init_db() -> None:
                 """
             )
 
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS job_matches (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+                job_description TEXT NOT NULL,
+                overall_score INTEGER NOT NULL,
+                skills_score INTEGER NOT NULL,
+                experience_score INTEGER NOT NULL,
+                matched_skills TEXT,
+                missing_skills TEXT,
+                matched_requirements TEXT,
+                unmet_requirements TEXT,
+                recommendations TEXT,
+                summary TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_job_matches_user ON job_matches(username);")
+
         conn.commit()
 
 
@@ -2535,6 +2556,112 @@ def delete_user_work_experience(username: str, work_id: int) -> bool:
         res = conn.execute(
             "DELETE FROM user_work_experience WHERE username = ? AND id = ?",
             (username, work_id),
+        )
+        conn.commit()
+        return int(res.rowcount) > 0
+
+
+# ---------------------------------------------------------------------------
+# Job match persistence
+# ---------------------------------------------------------------------------
+
+
+def save_job_match(username: str, job_description: str, result: Dict[str, Any]) -> int:
+    """Persist a job-match analysis result and return the new row id."""
+    if not username:
+        raise ValueError("username is required")
+
+    init_db()
+    with get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+        conn.execute("INSERT OR IGNORE INTO users (username) VALUES (?)", (username,))
+        cur = conn.execute(
+            """
+            INSERT INTO job_matches (
+                username, job_description,
+                overall_score, skills_score, experience_score,
+                matched_skills, missing_skills,
+                matched_requirements, unmet_requirements,
+                recommendations, summary
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                username,
+                job_description,
+                result.get("overall_score", 0),
+                result.get("skills_score", 0),
+                result.get("experience_score", 0),
+                json.dumps(result.get("matched_skills", [])),
+                json.dumps(result.get("missing_skills", [])),
+                json.dumps(result.get("matched_requirements", [])),
+                json.dumps(result.get("unmet_requirements", [])),
+                json.dumps(result.get("recommendations", [])),
+                result.get("summary", ""),
+            ),
+        )
+        conn.commit()
+        return int(cur.lastrowid)
+
+
+def _deserialize_job_match_row(row: sqlite3.Row) -> Dict[str, Any]:
+    """Convert a job_matches row into a plain dict with parsed JSON arrays."""
+    item = dict(row)
+    for key in ("matched_skills", "missing_skills", "matched_requirements",
+                "unmet_requirements", "recommendations"):
+        raw = item.get(key)
+        if raw:
+            try:
+                item[key] = json.loads(raw)
+            except (json.JSONDecodeError, TypeError):
+                item[key] = []
+        else:
+            item[key] = []
+    return item
+
+
+def list_job_matches(username: str, limit: int = 50) -> List[Dict[str, Any]]:
+    """Return saved job-match results for a user, newest first."""
+    if not username:
+        return []
+
+    init_db()
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT * FROM job_matches
+            WHERE username = ?
+            ORDER BY created_at DESC
+            LIMIT ?
+            """,
+            (username, limit),
+        ).fetchall()
+        return [_deserialize_job_match_row(r) for r in rows]
+
+
+def get_job_match(match_id: int, username: str) -> Optional[Dict[str, Any]]:
+    """Fetch a single job-match result by id with ownership check."""
+    if not username or match_id is None:
+        return None
+
+    init_db()
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM job_matches WHERE id = ? AND username = ?",
+            (match_id, username),
+        ).fetchone()
+        return _deserialize_job_match_row(row) if row else None
+
+
+def delete_job_match(match_id: int, username: str) -> bool:
+    """Delete a saved job-match result. Returns True if a row was removed."""
+    if not username or match_id is None:
+        return False
+
+    init_db()
+    with get_connection() as conn:
+        res = conn.execute(
+            "DELETE FROM job_matches WHERE id = ? AND username = ?",
+            (match_id, username),
         )
         conn.commit()
         return int(res.rowcount) > 0

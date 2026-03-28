@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { NavigationBlockProvider } from './contexts/NavigationBlockContext';
 import LoginPage from './pages/auth/LoginPage';
 import SignupPage from './pages/auth/SignupPage';
 import ConsentPage from './pages/auth/ConsentPage';
@@ -82,6 +83,7 @@ function App() {
   return (
     <ErrorBoundary>
     <AuthProvider>
+      <NavigationBlockProvider>
       <Router>
         <Routes>
           {/* Public routes */}
@@ -175,6 +177,7 @@ function App() {
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>
+      </NavigationBlockProvider>
     </AuthProvider>
     </ErrorBoundary>
   );
