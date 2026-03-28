@@ -1689,6 +1689,17 @@ def get_user_resume_items(resume_id: int, username: str) -> List[sqlite3.Row]:
         ).fetchall()
 
 
+def delete_user_resume(resume_id: int, username: str) -> bool:
+    with get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+        cursor = conn.execute(
+            "DELETE FROM user_resumes WHERE id = ? AND username = ?",
+            (resume_id, username),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+
+
 def get_resume_items_for_project(project_id: int) -> List[sqlite3.Row]:
     """
     Backwards-compatible alias for older code/tests.

@@ -12,6 +12,7 @@ from backend.analysis_database import (add_items_to_user_resume,
                                        create_user_work_experience,
                                        delete_user_education,
                                        delete_user_personal_info,
+                                       delete_user_resume,
                                        delete_user_work_experience,
                                        get_all_analyses_for_user,
                                        get_analysis_by_uuid, get_connection,
@@ -758,10 +759,10 @@ async def edit_resume(
 
 @router.post("/resumes", response_model=StoredResumeResponse)
 async def create_stored_resume(request: StoredResumeCreateRequest, username: str = Depends(verify_token)):
-    if request.format not in ("markdown", "text"):
+    if request.format not in ("markdown", "text", "pdf"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only markdown/text resumes can be stored",
+            detail="Only markdown/text/pdf resumes can be stored",
         )
 
     resume_id = create_user_resume(
@@ -846,6 +847,13 @@ async def update_stored_resume(resume_id: int, request: StoredResumeUpdateReques
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )
+
+
+@router.delete("/resumes/{resume_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_stored_resume_endpoint(resume_id: int, username: str = Depends(verify_token)):
+    deleted = delete_user_resume(resume_id, username)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
 
 
 @router.post("/resumes/{resume_id}/items", response_model=StoredResumeResponse)

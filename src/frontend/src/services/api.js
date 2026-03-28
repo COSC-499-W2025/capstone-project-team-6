@@ -227,6 +227,10 @@ export const resumeAPI = {
     return response.data;
   },
 
+  deleteStoredResume: async (resumeId) => {
+    await api.delete(`/resumes/${resumeId}`);
+  },
+
   addItemsToResume: async (resumeId, resumeItemIds) => {
     const response = await api.post(`/resumes/${resumeId}/items`, {
       resume_item_ids: resumeItemIds,

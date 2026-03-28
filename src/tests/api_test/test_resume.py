@@ -436,15 +436,30 @@ class TestResumeEndpoints:
         assert response.status_code == 403
 
     def test_create_stored_resume_invalid_format(self, auth_token):
-        """Test creating stored resume with invalid format."""
+        """Test creating stored resume with invalid format (not markdown/text/pdf)."""
         token, _ = auth_token
         response = client.post(
             "/api/resumes",
             headers={"Authorization": f"Bearer {token}"},
-            json={"title": "Test Resume", "format": "pdf", "content": "Test content"},
+            json={"title": "Test Resume", "format": "latex", "content": "Test content"},
         )
         assert response.status_code == 400
-        assert "markdown" in response.json()["detail"].lower() or "text" in response.json()["detail"].lower()
+        detail = response.json()["detail"].lower()
+        assert "markdown" in detail or "text" in detail or "pdf" in detail
+
+    def test_create_stored_resume_pdf_format(self, auth_token):
+        """Test creating stored resume in pdf format (base64 body stored as text)."""
+        token, _ = auth_token
+        # Minimal placeholder; API stores string as-is
+        response = client.post(
+            "/api/resumes",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"title": "PDF Resume", "format": "pdf", "content": "JVBERi0xLjQK"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["format"] == "pdf"
+        assert data["content"] == "JVBERi0xLjQK"
 
     def test_create_stored_resume_text_format(self, auth_token):
         """Test creating stored resume in text format."""
@@ -542,6 +557,61 @@ class TestResumeEndpoints:
         """Test updating stored resume without auth."""
         response = client.patch("/api/resumes/1", json={"content": "Updated content"})
         assert response.status_code == 403
+
+    def test_delete_stored_resume_success(self, auth_token):
+        """Test deleting a stored resume returns 204 and removes the row."""
+        token, _ = auth_token
+        create_response = client.post(
+            "/api/resumes",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"title": "To Delete", "format": "markdown", "content": "## Hi"},
+        )
+        assert create_response.status_code == 200
+        resume_id = create_response.json()["id"]
+
+        delete_response = client.delete(
+            f"/api/resumes/{resume_id}",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert delete_response.status_code == 204
+
+        get_response = client.get(
+            f"/api/resumes/{resume_id}",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert get_response.status_code == 404
+
+    def test_delete_stored_resume_unauthorized(self):
+        """Test deleting stored resume without auth."""
+        response = client.delete("/api/resumes/1")
+        assert response.status_code == 403
+
+    def test_delete_stored_resume_not_found(self, auth_token):
+        """Test deleting non-existent stored resume returns 404."""
+        token, _ = auth_token
+        response = client.delete(
+            "/api/resumes/99999",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 404
+
+    def test_delete_stored_resume_access_control(self, auth_token, second_auth_token):
+        """Test that users cannot delete other users' resumes."""
+        token1, _ = auth_token
+        token2, _ = second_auth_token
+
+        create_response = client.post(
+            "/api/resumes",
+            headers={"Authorization": f"Bearer {token1}"},
+            json={"title": "User1 Only", "format": "markdown", "content": "Secret"},
+        )
+        resume_id = create_response.json()["id"]
+
+        response = client.delete(
+            f"/api/resumes/{resume_id}",
+            headers={"Authorization": f"Bearer {token2}"},
+        )
+        assert response.status_code == 404
 
     def test_update_stored_resume_not_found(self, auth_token):
         """Test updating non-existent stored resume."""

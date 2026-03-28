@@ -6,6 +6,72 @@ import remarkGfm from 'remark-gfm';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 
+const PdfPreview = ({ base64Content, narrow = false }) => {
+  const [url, setUrl] = useState(null);
+  const urlRef = useRef(null);
+
+  useEffect(() => {
+    if (!base64Content) return;
+    try {
+      const binaryString = atob(base64Content);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const blobUrl = URL.createObjectURL(blob);
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+      urlRef.current = blobUrl;
+      setUrl(blobUrl);
+    } catch {
+      setUrl(null);
+    }
+    return () => {
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+      urlRef.current = null;
+    };
+  }, [base64Content]);
+
+  if (!url) {
+    return <p style={{ color: '#737373', fontSize: '14px' }}>Unable to preview this PDF.</p>;
+  }
+
+  const iframe = (
+    <iframe
+      src={url}
+      title="PDF Preview"
+      style={{
+        width: '100%',
+        height: narrow ? 'min(400px, 52vh)' : 'min(280px, 38vh)',
+        maxHeight: narrow ? '480px' : '320px',
+        border: '1px solid #e5e7eb',
+        borderRadius: '6px',
+        display: 'block',
+        backgroundColor: '#f3f4f6',
+      }}
+    />
+  );
+
+  if (narrow) {
+    return (
+      <div
+        style={{
+          maxWidth: 'min(680px, 96%)',
+          margin: '0 auto',
+          padding: '14px',
+          backgroundColor: '#f9fafb',
+          borderRadius: '8px',
+          border: '1px solid #e5e7eb',
+        }}
+      >
+        {iframe}
+      </div>
+    );
+  }
+
+  return iframe;
+};
+
 const Resume = () => {
   const [projects, setProjects] = useState([]);
   const [selectedProjectIds, setSelectedProjectIds] = useState([]);
@@ -25,6 +91,11 @@ const Resume = () => {
   const [storedResumeFormat, setStoredResumeFormat] = useState('markdown');
   const [storedResumeLoading, setStoredResumeLoading] = useState(false);
   const [storedResumeSaving, setStoredResumeSaving] = useState(false);
+  const [deletingResumeId, setDeletingResumeId] = useState(null);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveResumeTitle, setSaveResumeTitle] = useState('');
+  const [saveResumeSaving, setSaveResumeSaving] = useState(false);
+  const [viewingResumeId, setViewingResumeId] = useState(null);
   const [pdfUrl, setPdfUrl] = useState(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState('');
@@ -764,6 +835,46 @@ const Resume = () => {
     }
   };
 
+  const handleDeleteStoredResume = async (resumeId) => {
+    if (!window.confirm('Delete this saved resume? This cannot be undone.')) return;
+    try {
+      setDeletingResumeId(resumeId);
+      await resumeAPI.deleteStoredResume(resumeId);
+      setStoredResumes((prev) => prev.filter((r) => r.id !== resumeId));
+      if (storedResumeId === resumeId) {
+        setStoredResumeId('');
+        setStoredResumeTitle('');
+        setStoredResumeContent('');
+        setStoredResumeFormat('markdown');
+      }
+      if (viewingResumeId === resumeId) setViewingResumeId(null);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to delete resume');
+    } finally {
+      setDeletingResumeId(null);
+    }
+  };
+
+  const handleSaveGeneratedResume = async () => {
+    if (!saveResumeTitle.trim() || !generatedResume) return;
+    try {
+      setSaveResumeSaving(true);
+      const content = editableContent || generatedResume.content;
+      const created = await resumeAPI.createStoredResume({
+        title: saveResumeTitle.trim(),
+        format: resumeFormat,
+        content,
+      });
+      setStoredResumes((prev) => [created, ...prev]);
+      setShowSaveModal(false);
+      setSaveResumeTitle('');
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to save resume');
+    } finally {
+      setSaveResumeSaving(false);
+    }
+  };
+
   const toggleProject = (projectId) => {
     setSelectedProjectIds((prev) => {
       if (prev.includes(projectId)) {
@@ -1025,6 +1136,89 @@ const Resume = () => {
           >
             Dismiss
           </button>
+        </div>
+      )}
+
+      {showSaveModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={() => setShowSaveModal(false)}
+        >
+          <div
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              width: '420px',
+              boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ marginTop: 0, fontSize: '18px', fontWeight: '600', color: '#1a1a1a' }}>
+              Save Resume
+            </h3>
+            <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 16px 0' }}>
+              Give your resume a title so you can find it later.
+            </p>
+            <input
+              type="text"
+              placeholder="e.g. Software Engineer — Google"
+              value={saveResumeTitle}
+              onChange={(e) => setSaveResumeTitle(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSaveGeneratedResume()}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                fontSize: '14px',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                boxSizing: 'border-box',
+                marginBottom: '16px',
+              }}
+              autoFocus
+            />
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowSaveModal(false)}
+                style={{
+                  padding: '8px 16px',
+                  fontSize: '14px',
+                  color: '#374151',
+                  backgroundColor: '#f3f4f6',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveGeneratedResume}
+                disabled={saveResumeSaving || !saveResumeTitle.trim()}
+                style={{
+                  padding: '8px 16px',
+                  fontSize: '14px',
+                  color: 'white',
+                  backgroundColor:
+                    saveResumeSaving || !saveResumeTitle.trim() ? '#9ca3af' : '#16a34a',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor:
+                    saveResumeSaving || !saveResumeTitle.trim() ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {saveResumeSaving ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -2248,6 +2442,24 @@ const Resume = () => {
                   )}
 
                   <button
+                    onClick={() => {
+                      setSaveResumeTitle('');
+                      setShowSaveModal(true);
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      fontSize: '14px',
+                      color: 'white',
+                      backgroundColor: '#16a34a',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Save Resume
+                  </button>
+
+                  <button
                     onClick={downloadResume}
                     style={{
                       padding: '8px 16px',
@@ -2483,7 +2695,156 @@ const Resume = () => {
           )}
         </div>
       </div>
-      {/* Stored Resume */}
+      {/* Saved Resumes */}
+      <div
+        style={{
+          backgroundColor: 'white',
+          borderRadius: '12px',
+          padding: '24px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          marginBottom: '24px',
+        }}
+      >
+        <h2
+          style={{
+            fontSize: '20px',
+            fontWeight: '600',
+            color: '#1a1a1a',
+            margin: '0 0 16px 0',
+          }}
+        >
+          Saved Resumes
+        </h2>
+
+        {storedResumeLoading && (
+          <p style={{ color: '#737373', fontSize: '14px' }}>Loading saved resumes...</p>
+        )}
+
+        {!storedResumeLoading && storedResumes.length === 0 && (
+          <p style={{ color: '#737373', fontSize: '14px' }}>
+            No saved resumes yet. Generate a resume and click &quot;Save Resume&quot; to save it
+            here.
+          </p>
+        )}
+
+        {storedResumes.map((resume) => (
+          <div
+            key={resume.id}
+            style={{
+              border: '1px solid #e5e7eb',
+              borderRadius: '8px',
+              padding: '16px',
+              marginBottom: '12px',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginBottom: '4px',
+                  }}
+                >
+                  <span style={{ fontWeight: '600', fontSize: '15px', color: '#111827' }}>
+                    {resume.title}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      padding: '2px 8px',
+                      borderRadius: '999px',
+                      backgroundColor: '#eff6ff',
+                      color: '#2563eb',
+                      fontWeight: '500',
+                    }}
+                  >
+                    {resume.format}
+                  </span>
+                </div>
+                <span style={{ fontSize: '12px', color: '#9ca3af' }}>
+                  Saved {new Date(resume.created_at).toLocaleDateString()}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                <button
+                  onClick={() =>
+                    setViewingResumeId(viewingResumeId === resume.id ? null : resume.id)
+                  }
+                  style={{
+                    padding: '6px 14px',
+                    fontSize: '13px',
+                    color: '#2563eb',
+                    backgroundColor: 'white',
+                    border: '1px solid #2563eb',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {viewingResumeId === resume.id ? 'Hide' : 'View'}
+                </button>
+                <button
+                  onClick={() => handleDeleteStoredResume(resume.id)}
+                  disabled={deletingResumeId === resume.id}
+                  style={{
+                    padding: '6px 14px',
+                    fontSize: '13px',
+                    color: 'white',
+                    backgroundColor: deletingResumeId === resume.id ? '#9ca3af' : '#dc2626',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: deletingResumeId === resume.id ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {deletingResumeId === resume.id ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+
+            {viewingResumeId === resume.id && (
+              <div
+                style={{
+                  marginTop: '12px',
+                  borderTop: '1px solid #e5e7eb',
+                  paddingTop: '12px',
+                  ...(resume.format === 'pdf'
+                    ? { overflow: 'hidden' }
+                    : { maxHeight: '600px', overflowY: 'auto' }),
+                }}
+              >
+                {resume.format === 'pdf' ? (
+                  <PdfPreview base64Content={resume.content} narrow />
+                ) : resume.format === 'markdown' ? (
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{resume.content}</ReactMarkdown>
+                ) : (
+                  <pre
+                    style={{
+                      whiteSpace: 'pre-wrap',
+                      fontFamily: 'monospace',
+                      fontSize: '13px',
+                      lineHeight: '1.5',
+                      margin: 0,
+                    }}
+                  >
+                    {resume.content}
+                  </pre>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Resume Template */}
       <div
         style={{
           backgroundColor: 'white',
@@ -2499,11 +2860,14 @@ const Resume = () => {
             fontWeight: '600',
             color: '#1a1a1a',
             margin: 0,
-            marginBottom: '16px',
+            marginBottom: '4px',
           }}
         >
-          Stored Resume
+          Resume Template
         </h2>
+        <p style={{ fontSize: '13px', color: '#6b7280', margin: '0 0 16px 0' }}>
+          Paste an existing resume to use as a base template when generating.
+        </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <input
@@ -2570,7 +2934,7 @@ const Resume = () => {
                 cursor: 'pointer',
               }}
             >
-              {storedResumeSaving ? 'Saving...' : 'Save New Resume'}
+              {storedResumeSaving ? 'Saving...' : 'Save Template'}
             </button>
             <button
               onClick={handleUpdateStoredResume}
@@ -2586,15 +2950,9 @@ const Resume = () => {
                 cursor: storedResumeId ? 'pointer' : 'not-allowed',
               }}
             >
-              Update Resume
+              Update Template
             </button>
           </div>
-
-          {storedResumeLoading && (
-            <div style={{ fontSize: '12px', color: '#737373' }}>
-              Loading stored resumes...
-            </div>
-          )}
         </div>
       </div>
     </div>
