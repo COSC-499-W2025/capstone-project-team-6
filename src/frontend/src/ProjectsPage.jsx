@@ -328,6 +328,11 @@ function LlmAnalysisPanel({ projectId, project }) {
     try {
       const data = await projectsAPI.getLlmAnalysis(projectId);
       setLlmData(data);
+      if (data.llm_error) {
+        setLlmError(data.llm_error);
+      } else {
+        setLlmError(null);
+      }
       const parsed = parseLlmSections(data.llm_summary || '');
       setSections(parsed);
       const map = buildModuleSectionMap(parsed);
