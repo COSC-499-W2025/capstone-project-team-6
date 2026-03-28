@@ -21,6 +21,8 @@ vi.mock('../services/api', () => ({
     createStoredResume: vi.fn(),
     updateStoredResume: vi.fn(),
     getStoredResume: vi.fn(),
+    listEducation: vi.fn().mockResolvedValue([]),
+    listWorkExperience: vi.fn().mockResolvedValue([]),
   },
   curationAPI: {
     getSettings: vi.fn(),
@@ -158,7 +160,9 @@ describe('Resume Page', () => {
 
       await screen.findByText('CapstoneApp');
       const checkboxes = screen.getAllByRole('checkbox');
-      fireEvent.click(checkboxes[1]);
+      // Index 0: educationEndCurrent, Index 1: workEndCurrent, Index 2: showShowcaseOnly
+      // Index 3: first project (CapstoneApp)
+      fireEvent.click(checkboxes[3]);
 
       const btn = screen.getByRole('button', { name: /generate resume/i });
       expect(btn).not.toBeDisabled();
@@ -179,7 +183,7 @@ describe('Resume Page', () => {
       await screen.findByText('CapstoneApp');
 
       const checkboxes = screen.getAllByRole('checkbox');
-      fireEvent.click(checkboxes[1]);
+      fireEvent.click(checkboxes[3]);
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
       await waitFor(() => {
@@ -205,7 +209,7 @@ describe('Resume Page', () => {
       await screen.findByText('CapstoneApp');
 
       const checkboxes = screen.getAllByRole('checkbox');
-      fireEvent.click(checkboxes[1]);
+      fireEvent.click(checkboxes[3]);
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
       await waitFor(() => {
@@ -221,7 +225,7 @@ describe('Resume Page', () => {
       await screen.findByText('CapstoneApp');
 
       const checkboxes = screen.getAllByRole('checkbox');
-      fireEvent.click(checkboxes[1]);
+      fireEvent.click(checkboxes[3]);
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
       await waitFor(() => {
@@ -241,7 +245,7 @@ describe('Resume Page', () => {
       await screen.findByText('CapstoneApp');
 
       const checkboxes = screen.getAllByRole('checkbox');
-      fireEvent.click(checkboxes[1]);
+      fireEvent.click(checkboxes[3]);
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
       await waitFor(() => {
@@ -257,7 +261,7 @@ describe('Resume Page', () => {
       await screen.findByText('CapstoneApp');
 
       const checkboxes = screen.getAllByRole('checkbox');
-      fireEvent.click(checkboxes[1]);
+      fireEvent.click(checkboxes[3]);
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
       await waitFor(() => {
@@ -273,7 +277,7 @@ describe('Resume Page', () => {
       await screen.findByText('CapstoneApp');
 
       const checkboxes = screen.getAllByRole('checkbox');
-      fireEvent.click(checkboxes[1]);
+      fireEvent.click(checkboxes[3]);
 
       const btn = screen.getByRole('button', { name: /generate resume/i });
       fireEvent.click(btn);
@@ -308,7 +312,7 @@ describe('Resume Page', () => {
       await screen.findByText('CapstoneApp');
 
       const checkboxes = screen.getAllByRole('checkbox');
-      fireEvent.click(checkboxes[1]);
+      fireEvent.click(checkboxes[3]);
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
       await waitFor(() => {
@@ -328,7 +332,7 @@ describe('Resume Page', () => {
       await screen.findByText('CapstoneApp');
 
       const checkboxes = screen.getAllByRole('checkbox');
-      fireEvent.click(checkboxes[1]);
+      fireEvent.click(checkboxes[3]);
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
       await waitFor(() => {
@@ -348,7 +352,7 @@ describe('Resume Page', () => {
       await screen.findByText('CapstoneApp');
 
       const checkboxes = screen.getAllByRole('checkbox');
-      fireEvent.click(checkboxes[1]);
+      fireEvent.click(checkboxes[3]);
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
       await waitFor(() => {
@@ -368,7 +372,7 @@ describe('Resume Page', () => {
       await screen.findByText('CapstoneApp');
 
       const checkboxes = screen.getAllByRole('checkbox');
-      fireEvent.click(checkboxes[1]);
+      fireEvent.click(checkboxes[3]);
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
       await waitFor(() => {
@@ -386,7 +390,7 @@ describe('Resume Page', () => {
       await screen.findByText('CapstoneApp');
 
       const checkboxes = screen.getAllByRole('checkbox');
-      fireEvent.click(checkboxes[1]);
+      fireEvent.click(checkboxes[3]);
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
       await waitFor(() => {

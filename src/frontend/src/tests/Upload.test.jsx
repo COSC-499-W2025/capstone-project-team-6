@@ -12,6 +12,14 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: vi.fn(() => ({ user: { token: 'test-token' }, isAuthenticated: true })),
+}));
+
+vi.mock('../components/Navigation', () => ({
+  default: () => <div data-testid="nav">Navigation</div>,
+}));
+
 vi.mock('../services/api', () => ({
   default: {
     post: vi.fn(),

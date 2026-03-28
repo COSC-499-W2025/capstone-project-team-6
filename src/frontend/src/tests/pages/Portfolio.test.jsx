@@ -24,6 +24,9 @@ vi.mock('../../services/api', () => {
       listPortfolios: vi.fn(),
       getPortfolioDetail: vi.fn(),
     },
+    curationAPI: {
+      getSettings: vi.fn().mockResolvedValue({}),
+    },
   };
 });
 
@@ -225,9 +228,11 @@ describe('Portfolio page', () => {
 
   it('loads detail for another portfolio when selected', async () => {
     portfoliosAPI.listPortfolios.mockResolvedValue(mockPortfolioList);
-    portfoliosAPI.getPortfolioDetail
-      .mockResolvedValueOnce(mockDetailFirst)
-      .mockResolvedValueOnce(mockDetailSecond);
+    portfoliosAPI.getPortfolioDetail.mockImplementation((uuid) => {
+      if (uuid === 'run-1') return Promise.resolve(mockDetailFirst);
+      if (uuid === 'run-2') return Promise.resolve(mockDetailSecond);
+      return Promise.reject(new Error(`Unknown uuid: ${uuid}`));
+    });
 
     renderWithAuth();
 
