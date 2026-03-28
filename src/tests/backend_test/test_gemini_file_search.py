@@ -28,7 +28,11 @@ sys.modules["dotenv"] = dotenv_mock
 from backend.analysis.llm_pipeline import (_should_ignore_path,
                                            _summarize_offline_report,
                                            run_gemini_analysis)
-from backend.gemini_file_search import GeminiFileSearchClient
+from backend.gemini_file_search import (
+    GeminiFileSearchClient,
+    LLM_INPUT_TOO_LARGE_USER_MESSAGE,
+    humanize_gemini_generation_error,
+)
 
 # ==========================================
 # TEST 1: Logic & Filtering (Crucial Fixes)
@@ -141,6 +145,43 @@ class TestGeminiClient:
         assert mock_client_instance.files.get.call_count == 2
         assert active_files == [file_active]
 
+    def test_generate_content_maps_token_limit_to_friendly_message(self, mock_genai):
+        """Gemini input token limit errors are surfaced as a short user message."""
+        api_exc = (
+            "400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': "
+            "'The input token count exceeds the maximum number of tokens allowed 1048576.', "
+            "'status': 'INVALID_ARGUMENT'}}"
+        )
+        mock_client_instance = mock_genai.Client.return_value
+        mock_client_instance.models.generate_content.side_effect = Exception(api_exc)
+
+        with patch.dict(os.environ, {"GOOGLE_API_KEY": "test"}):
+            client = GeminiFileSearchClient()
+
+        out = client.generate_content([SimpleNamespace(name="f1")], "prompt")
+        assert out.startswith("Error executing analysis:")
+        assert LLM_INPUT_TOO_LARGE_USER_MESSAGE in out
+        assert "1048576" not in out
+        assert "INVALID_ARGUMENT" not in out
+
+
+@pytest.mark.parametrize(
+    "raw,expect_friendly",
+    [
+        (
+            "The input token count exceeds the maximum number of tokens allowed 1048576.",
+            True,
+        ),
+        ("Something else went wrong", False),
+    ],
+)
+def test_humanize_gemini_generation_error(raw, expect_friendly):
+    result = humanize_gemini_generation_error(raw)
+    if expect_friendly:
+        assert result == LLM_INPUT_TOO_LARGE_USER_MESSAGE
+    else:
+        assert result == raw
+
 
 # ==========================================
 # TEST 3: LLM Pipeline (Integration)
@@ -228,6 +269,45 @@ class TestLLMPipeline:
 
         # C. Verify Cleanup (CRITICAL)
         mock_client_instance.cleanup_files.assert_called_once_with(["file_ref_1", "file_ref_2"])
+
+    def test_pipeline_generation_error_string_sets_llm_error_not_summary(self, mock_deps, tmp_path):
+        """When generate_content returns an error-prefixed string, store llm_error (humanized), not llm_summary."""
+        fake_zip = tmp_path / "project.zip"
+        fake_zip.touch()
+
+        mock_deps.report_gen.return_value = {
+            "summary": {"total_files": 10},
+            "projects": [{"project_name": "TestProj"}],
+        }
+
+        mock_classifier_instance = mock_deps.classifier.return_value.__enter__.return_value
+        mock_classifier_instance.classify_project.return_value = {
+            "files": {
+                "code": {"python": [{"path": "app.py"}]},
+                "configs": [],
+                "docs": [],
+                "tests": [],
+                "other": [],
+            }
+        }
+
+        mock_zip = MagicMock()
+        mock_zip.read.return_value = b"import flask"
+        mock_zip.__enter__.return_value = mock_zip
+        mock_classifier_instance.zip_file = mock_zip
+
+        raw_api = (
+            "400 INVALID_ARGUMENT. {'error': {'message': "
+            "'The input token count exceeds the maximum number of tokens allowed 1048576.'}}"
+        )
+        mock_client_instance = mock_deps.gemini_client.return_value
+        mock_client_instance.upload_batch.return_value = ["file_ref_1", "file_ref_2"]
+        mock_client_instance.generate_content.return_value = f"Error executing analysis: {raw_api}"
+
+        result = run_gemini_analysis(fake_zip)
+
+        assert result.get("llm_summary") is None
+        assert result.get("llm_error") == LLM_INPUT_TOO_LARGE_USER_MESSAGE
 
     def test_pipeline_handles_client_error(self, mock_deps, tmp_path):
         """Test that errors in Gemini initialization are caught gracefully."""

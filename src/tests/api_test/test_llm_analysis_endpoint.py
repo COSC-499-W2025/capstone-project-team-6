@@ -135,6 +135,27 @@ class TestLlmAnalysisEndpoint:
         data = resp.json()
         assert data["project_id"] == project_with_llm
         assert data["llm_summary"] == SAMPLE_LLM_SUMMARY
+        assert data.get("llm_error") is None
+
+    def test_returns_llm_error_when_stored(self, auth_token, isolated_db):
+        """When LLM failed, llm_error is persisted and returned alongside null summary."""
+        token, username = auth_token
+        analysis_id = adb.record_analysis(
+            "llm", SAMPLE_PAYLOAD, username=username, analysis_uuid="test-uuid-err"
+        )
+        msg = "This project is too large for LLM analysis. Blume employees are working on a fix."
+        adb.update_llm_error("test-uuid-err", msg, username)
+        projects = adb.get_projects_for_analysis(analysis_id)
+        project_id = projects[0]["id"]
+
+        resp = client.get(
+            f"/api/projects/{project_id}/llm-analysis",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["llm_summary"] is None
+        assert data["llm_error"] == msg
 
     def test_returns_null_summary_when_llm_not_run(self, auth_token, project_without_llm):
         token, _ = auth_token
@@ -146,6 +167,7 @@ class TestLlmAnalysisEndpoint:
         data = resp.json()
         assert data["project_id"] == project_without_llm
         assert data["llm_summary"] is None
+        assert data.get("llm_error") is None
 
     def test_returns_404_for_nonexistent_project(self, auth_token, isolated_db):
         token, _ = auth_token
@@ -193,3 +215,4 @@ class TestLlmAnalysisEndpoint:
         data = resp.json()
         assert "project_id" in data
         assert "llm_summary" in data
+        assert "llm_error" in data
