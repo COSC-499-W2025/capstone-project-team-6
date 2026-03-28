@@ -436,7 +436,8 @@ class TaskManager:
             logger.info(f"Task {task.task_id}: Starting LLM analysis")
             try:
                 from .analysis.llm_pipeline import run_gemini_analysis
-                from .analysis_database import update_llm_error, update_llm_summary
+                from .analysis_database import (update_llm_error,
+                                                update_llm_summary)
 
                 active_features = ["architecture", "complexity", "security", "skills", "domain", "resume"]
 
@@ -482,7 +483,8 @@ class TaskManager:
 
             except Exception as e:
                 result_payload["llm_ran"] = False
-                from .gemini_file_search import humanize_gemini_generation_error
+                from .gemini_file_search import \
+                    humanize_gemini_generation_error
 
                 err_msg = humanize_gemini_generation_error(str(e))
                 result_payload["llm_error"] = err_msg

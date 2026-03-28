@@ -140,9 +140,7 @@ class TestLlmAnalysisEndpoint:
     def test_returns_llm_error_when_stored(self, auth_token, isolated_db):
         """When LLM failed, llm_error is persisted and returned alongside null summary."""
         token, username = auth_token
-        analysis_id = adb.record_analysis(
-            "llm", SAMPLE_PAYLOAD, username=username, analysis_uuid="test-uuid-err"
-        )
+        analysis_id = adb.record_analysis("llm", SAMPLE_PAYLOAD, username=username, analysis_uuid="test-uuid-err")
         msg = "This project is too large for LLM analysis. Blume employees are working on a fix."
         adb.update_llm_error("test-uuid-err", msg, username)
         projects = adb.get_projects_for_analysis(analysis_id)

@@ -13,7 +13,8 @@ from dotenv import load_dotenv
 
 from ..analysis.deep_code_analyzer import generate_comprehensive_report
 from ..analysis.project_analyzer import FileClassifier
-from ..gemini_file_search import GeminiFileSearchClient, humanize_gemini_generation_error
+from ..gemini_file_search import (GeminiFileSearchClient,
+                                  humanize_gemini_generation_error)
 
 # Load environment variables
 load_dotenv()

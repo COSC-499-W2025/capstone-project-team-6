@@ -28,11 +28,9 @@ sys.modules["dotenv"] = dotenv_mock
 from backend.analysis.llm_pipeline import (_should_ignore_path,
                                            _summarize_offline_report,
                                            run_gemini_analysis)
-from backend.gemini_file_search import (
-    GeminiFileSearchClient,
-    LLM_INPUT_TOO_LARGE_USER_MESSAGE,
-    humanize_gemini_generation_error,
-)
+from backend.gemini_file_search import (LLM_INPUT_TOO_LARGE_USER_MESSAGE,
+                                        GeminiFileSearchClient,
+                                        humanize_gemini_generation_error)
 
 # ==========================================
 # TEST 1: Logic & Filtering (Crucial Fixes)

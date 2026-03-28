@@ -18,9 +18,7 @@ from google.genai import types
 logger = logging.getLogger(__name__)
 
 # Shown when Gemini rejects the request because combined input exceeds the model context limit.
-LLM_INPUT_TOO_LARGE_USER_MESSAGE = (
-    "This project is too large for LLM analysis. Blume employees are working on a fix."
-)
+LLM_INPUT_TOO_LARGE_USER_MESSAGE = "This project is too large for LLM analysis. Blume employees are working on a fix."
 
 
 def _is_input_token_limit_error(text: str) -> bool:
