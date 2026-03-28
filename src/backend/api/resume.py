@@ -2,7 +2,7 @@
 
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 
 from backend.analysis.job_match_analyzer import analyze_job_match
@@ -19,6 +19,7 @@ from backend.analysis_database import (add_items_to_user_resume,
                                        get_projects_for_user,
                                        get_resume_items_for_project_id,
                                        get_user_personal_info, get_user_resume,
+                                       get_user_resume_blob,
                                        get_user_resume_items,
                                        list_user_education, list_user_resumes,
                                        list_user_work_experience,
@@ -66,9 +67,14 @@ class ResumeEditRequest(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
 
 
+_BINARY_RESUME_FORMATS = {"pdf", "docx"}
+_TEXT_RESUME_FORMATS = {"markdown", "text"}
+_ALL_STORED_FORMATS = _TEXT_RESUME_FORMATS | _BINARY_RESUME_FORMATS
+
+
 class StoredResumeCreateRequest(BaseModel):
     title: str
-    format: str = Field("markdown", description="markdown or text")
+    format: str = Field("markdown", description="markdown, text, pdf, or docx")
     content: str
 
 
@@ -553,15 +559,14 @@ async def generate_resume(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="Stored resume not found",
                 )
-            if request.format != "markdown":
+            stored_fmt = stored_resume["format"]
+            # For binary formats (pdf/docx) the generate call always produces a
+            # projects-only markdown string that gets injected into the original file.
+            # For text/markdown format the caller must also request markdown output.
+            if stored_fmt in _TEXT_RESUME_FORMATS and request.format != "markdown":
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Merging with a stored resume requires markdown output format",
-                )
-            if stored_resume["format"] != "markdown":
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Stored resume must be in markdown format to merge",
+                    detail="Merging with a markdown/text stored resume requires markdown output format",
                 )
 
         # Fetch all projects belonging to the user and build a lookup map
@@ -694,28 +699,54 @@ async def generate_resume(
                 or personal_info_for_gen.get("responsibilities_text"),
             )
 
+        # When a binary (PDF/DOCX) stored resume is present we only need the
+        # projects section in markdown so we can inject it into the original file.
+        stored_fmt = stored_resume["format"] if stored_resume else None
+        generate_format = "markdown" if stored_fmt in _BINARY_RESUME_FORMATS else request.format
+
         # Generate the resume content
         resume_content = generate_resume_impl(
             projects=bundles,
-            format=request.format,
-            include_skills=request.include_skills,
-            include_projects=request.include_projects,
+            format=generate_format,
+            include_skills=request.include_skills if stored_fmt not in _BINARY_RESUME_FORMATS else False,
+            include_projects=True,
             max_projects=request.max_projects,
             personal_info=personal_info_for_gen,
             highlighted_skills=request.highlighted_skills,
         )
 
-        # Encode binary formats (pdf / latex) as base64 for JSON transport
-        if request.format in ("pdf", "latex") and isinstance(resume_content, bytes):
-            resume_content = base64.b64encode(resume_content).decode("utf-8")
+        output_format = request.format
 
-        # Merge generated content into the stored resume when requested
-        if stored_resume is not None and isinstance(resume_content, str):
-            resume_content = _merge_resume_content(stored_resume["content_text"], resume_content)
+        if stored_resume is not None:
+            if stored_fmt in _BINARY_RESUME_FORMATS:
+                # Inject projects into the original binary document
+                from backend.analysis.resume_file_injector import (
+                    inject_projects_into_docx,
+                    inject_projects_into_pdf,
+                )
+
+                original_blob = get_user_resume_blob(stored_resume["id"], username)
+                if original_blob:
+                    projects_markdown = resume_content if isinstance(resume_content, str) else ""
+                    if stored_fmt == "pdf":
+                        resume_content = inject_projects_into_pdf(original_blob, projects_markdown)
+                    else:
+                        resume_content = inject_projects_into_docx(original_blob, projects_markdown)
+                    output_format = stored_fmt
+                else:
+                    # Blob unavailable — fall back to plain markdown output
+                    output_format = "markdown"
+            elif isinstance(resume_content, str):
+                # Text/markdown stored resume: merge project section into base text
+                resume_content = _merge_resume_content(stored_resume["content_text"], resume_content)
+
+        # Encode binary formats (pdf / docx / latex) as base64 for JSON transport
+        if output_format in ("pdf", "docx", "latex") and isinstance(resume_content, bytes):
+            resume_content = base64.b64encode(resume_content).decode("utf-8")
 
         return ResumeResponse(
             resume_id=str(uuid.uuid4()),
-            format=request.format,
+            format=output_format,
             content=resume_content,
             metadata={
                 "username": username,
@@ -758,10 +789,10 @@ async def edit_resume(
 
 @router.post("/resumes", response_model=StoredResumeResponse)
 async def create_stored_resume(request: StoredResumeCreateRequest, username: str = Depends(verify_token)):
-    if request.format not in ("markdown", "text"):
+    if request.format not in _ALL_STORED_FORMATS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only markdown/text resumes can be stored",
+            detail=f"Unsupported format. Allowed: {', '.join(sorted(_ALL_STORED_FORMATS))}",
         )
 
     resume_id = create_user_resume(
@@ -770,6 +801,77 @@ async def create_stored_resume(request: StoredResumeCreateRequest, username: str
         format=request.format,
         content_text=request.content,
     )
+    row = get_user_resume(resume_id, username)
+    return StoredResumeResponse(
+        id=row["id"],
+        title=row["title"],
+        format=row["format"],
+        content=row["content_text"],
+        items=[],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+    )
+
+
+@router.post("/resumes/upload", response_model=StoredResumeResponse)
+async def upload_resume_file(
+    file: UploadFile = File(...),
+    title: str = "",
+    username: str = Depends(verify_token),
+):
+    """Upload a PDF or DOCX file as an existing resume.
+
+    The binary content is stored in the database so it can later be used as
+    the base document when generating a resume with added projects.
+    """
+    from backend.analysis.resume_file_injector import (
+        extract_text_from_docx,
+        extract_text_from_pdf,
+    )
+
+    mime = (file.content_type or "").lower()
+    filename = file.filename or ""
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+    # Determine format from MIME or extension
+    if mime in ("application/pdf",) or ext == "pdf":
+        fmt = "pdf"
+    elif mime in (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/msword",
+    ) or ext in ("docx", "doc"):
+        fmt = "docx"
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only PDF (.pdf) and DOCX (.docx) files are supported.",
+        )
+
+    file_bytes = await file.read()
+    if not file_bytes:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file is empty.")
+
+    if len(file_bytes) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File exceeds the 20 MB limit.")
+
+    # Extract plain text for search / job-match (best-effort)
+    if fmt == "pdf":
+        extracted_text = extract_text_from_pdf(file_bytes)
+    else:
+        extracted_text = extract_text_from_docx(file_bytes)
+
+    resume_title = (title or "").strip() or (filename or f"Uploaded {fmt.upper()} Resume")
+
+    resume_id = create_user_resume(
+        username=username,
+        title=resume_title,
+        format=fmt,
+        content_text=extracted_text or f"[Binary {fmt.upper()} resume — text extraction unavailable]",
+        original_filename=filename or None,
+        original_mime=mime or None,
+        original_blob=file_bytes,
+    )
+
     row = get_user_resume(resume_id, username)
     return StoredResumeResponse(
         id=row["id"],

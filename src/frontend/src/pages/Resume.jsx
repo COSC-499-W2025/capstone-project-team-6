@@ -25,6 +25,13 @@ const Resume = () => {
   const [storedResumeFormat, setStoredResumeFormat] = useState('markdown');
   const [storedResumeLoading, setStoredResumeLoading] = useState(false);
   const [storedResumeSaving, setStoredResumeSaving] = useState(false);
+
+  // File upload state for PDF/DOCX stored resumes
+  const [storedResumeInputMode, setStoredResumeInputMode] = useState('text'); // 'text' | 'file'
+  const [uploadedFile, setUploadedFile] = useState(null); // File object
+  const [uploadedResumeTitle, setUploadedResumeTitle] = useState('');
+  const [fileUploading, setFileUploading] = useState(false);
+  const fileInputRef = useRef(null);
   const [pdfUrl, setPdfUrl] = useState(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState('');
@@ -316,6 +323,7 @@ const Resume = () => {
 
   useEffect(() => {
     // Render generated PDF inline by converting the base64 payload into a Blob URL.
+    // DOCX files cannot be previewed in-browser — skip and let the user download.
     if (generatedResume?.format !== 'pdf' || !generatedResume?.content) {
       if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
       pdfUrlRef.current = null;
@@ -700,6 +708,33 @@ const Resume = () => {
     }
   };
 
+  const handleUploadResumeFile = async () => {
+    if (!uploadedFile) {
+      setError('Please select a PDF or DOCX file to upload.');
+      return;
+    }
+    const titleToUse = uploadedResumeTitle.trim() || uploadedFile.name;
+
+    try {
+      setFileUploading(true);
+      setError('');
+      const created = await resumeAPI.uploadResumeFile(uploadedFile, titleToUse);
+      setStoredResumes((prev) => [created, ...prev]);
+      setStoredResumeId(created.id);
+      setStoredResumeTitle(created.title);
+      setStoredResumeContent(created.content);
+      setStoredResumeFormat(created.format);
+      setUploadedFile(null);
+      setUploadedResumeTitle('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } catch (err) {
+      console.error('Error uploading resume file:', err);
+      setError(err.response?.data?.detail || 'Failed to upload resume file');
+    } finally {
+      setFileUploading(false);
+    }
+  };
+
   const handleCreateStoredResume = async () => {
     if (!storedResumeTitle.trim() || !storedResumeContent.trim()) {
       setError('Please add a resume title and content to save.');
@@ -854,12 +889,18 @@ const Resume = () => {
         'education_awards',
       ].forEach((k) => delete personalInfoForResume[k]);
 
+      // When a binary (PDF/DOCX) stored resume is selected, the backend determines
+      // the output format automatically — we still pass the user's chosen format so
+      // the backend can use it when no stored resume is present.
+      const isBinaryStoredResume = storedResumeId
+        && ['pdf', 'docx'].includes(storedResumeFormat);
+
       const resume = await resumeAPI.generateResume(selectedProjectIds, {
-        format: resumeFormat,
+        format: isBinaryStoredResume ? storedResumeFormat : resumeFormat,
         include_skills: includeSkills,
         include_projects: includeProjects,
         personal_info: personalInfoForResume,
-        stored_resume_id: resumeFormat === 'markdown' ? (storedResumeId || null) : null,
+        stored_resume_id: storedResumeId || null,
         highlighted_skills: curationSettings?.highlighted_skills?.length > 0
           ? curationSettings.highlighted_skills
           : undefined,
@@ -897,7 +938,24 @@ const Resume = () => {
   const downloadResume = () => {
     if (!generatedResume) return;
 
-    if (generatedResume.format === 'pdf') {
+    if (generatedResume.format === 'docx') {
+      const binaryString = atob(generatedResume.content);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `resume_${new Date().toISOString().split('T')[0]}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } else if (generatedResume.format === 'pdf') {
       // Decode base64 PDF
       const binaryString = atob(generatedResume.content);
       const bytes = new Uint8Array(binaryString.length);
@@ -979,6 +1037,334 @@ const Resume = () => {
     selectedProjectIds.length;
 
   const showcaseButtonDisabled = showcaseProjectIds.length === 0;
+
+  // Extracted so it can be rendered in the left panel (above Project Selection)
+  const existingResumePanel = (
+    <div
+      style={{
+        backgroundColor: 'white',
+        borderRadius: '12px',
+        padding: '24px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+        marginBottom: '24px',
+      }}
+    >
+      <h2
+        style={{
+          fontSize: '20px',
+          fontWeight: '600',
+          color: '#1a1a1a',
+          margin: 0,
+          marginBottom: '4px',
+        }}
+      >
+        Existing Resume
+      </h2>
+      <p style={{ fontSize: '13px', color: '#737373', margin: '0 0 16px 0' }}>
+        Upload an existing resume (PDF or DOCX) or paste Markdown. When you generate,
+        your selected projects will be added to the Projects section of this resume.
+      </p>
+
+      {/* Mode tabs */}
+      <div style={{ display: 'flex', gap: '0', marginBottom: '16px', borderBottom: '2px solid #e5e7eb' }}>
+        {[
+          { key: 'file', label: 'Upload PDF / DOCX' },
+          { key: 'text', label: 'Paste Markdown' },
+        ].map(({ key, label }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setStoredResumeInputMode(key)}
+            style={{
+              padding: '8px 16px',
+              fontSize: '14px',
+              fontWeight: storedResumeInputMode === key ? '600' : '400',
+              color: storedResumeInputMode === key ? '#2563eb' : '#737373',
+              backgroundColor: 'transparent',
+              border: 'none',
+              borderBottom: storedResumeInputMode === key ? '2px solid #2563eb' : '2px solid transparent',
+              marginBottom: '-2px',
+              cursor: 'pointer',
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+
+        {storedResumeInputMode === 'file' ? (
+          /* ---- File upload mode ---- */
+          <>
+            <input
+              type="text"
+              placeholder="Resume title (optional — defaults to filename)"
+              value={uploadedResumeTitle}
+              onChange={(e) => setUploadedResumeTitle(e.target.value)}
+              style={{
+                padding: '10px 12px',
+                border: '1px solid #e5e7eb',
+                borderRadius: '6px',
+                fontSize: '14px',
+                width: '100%',
+                boxSizing: 'border-box',
+              }}
+            />
+
+            {/* Drop zone / file picker */}
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const f = e.dataTransfer.files[0];
+                if (f) setUploadedFile(f);
+              }}
+              style={{
+                border: '2px dashed #d1d5db',
+                borderRadius: '8px',
+                padding: '24px',
+                textAlign: 'center',
+                cursor: 'pointer',
+                backgroundColor: uploadedFile ? '#f0fdf4' : '#f9fafb',
+                borderColor: uploadedFile ? '#16a34a' : '#d1d5db',
+                transition: 'all 0.15s',
+              }}
+            >
+              {uploadedFile ? (
+                <div>
+                  <div style={{ fontSize: '24px', marginBottom: '4px' }}>📄</div>
+                  <div style={{ fontSize: '14px', fontWeight: '600', color: '#16a34a' }}>
+                    {uploadedFile.name}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#737373', marginTop: '4px' }}>
+                    {(uploadedFile.size / 1024).toFixed(1)} KB
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setUploadedFile(null);
+                      if (fileInputRef.current) fileInputRef.current.value = '';
+                    }}
+                    style={{
+                      marginTop: '8px',
+                      padding: '4px 10px',
+                      fontSize: '12px',
+                      color: '#dc2626',
+                      backgroundColor: 'white',
+                      border: '1px solid #dc2626',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize: '24px', marginBottom: '4px' }}>⬆️</div>
+                  <div style={{ fontSize: '14px', color: '#525252' }}>
+                    Click or drag &amp; drop your resume here
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '4px' }}>
+                    PDF or DOCX — max 20 MB
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) setUploadedFile(f);
+              }}
+            />
+
+            <button
+              type="button"
+              onClick={handleUploadResumeFile}
+              disabled={fileUploading || !uploadedFile}
+              style={{
+                padding: '10px 12px',
+                fontSize: '14px',
+                color: 'white',
+                backgroundColor: fileUploading || !uploadedFile ? '#9ca3af' : '#2563eb',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: fileUploading || !uploadedFile ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {fileUploading ? 'Uploading...' : 'Upload & Save Resume'}
+            </button>
+          </>
+        ) : (
+          /* ---- Paste / markdown mode ---- */
+          <>
+            <input
+              type="text"
+              placeholder="Resume Title"
+              value={storedResumeTitle}
+              onChange={(e) => setStoredResumeTitle(e.target.value)}
+              style={{
+                padding: '10px 12px',
+                border: '1px solid #e5e7eb',
+                borderRadius: '6px',
+                fontSize: '14px',
+                width: '100%',
+                boxSizing: 'border-box',
+              }}
+            />
+
+            <select
+              value={storedResumeFormat}
+              onChange={(e) => setStoredResumeFormat(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                fontSize: '14px',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                backgroundColor: 'white',
+              }}
+            >
+              <option value="markdown">Markdown</option>
+              <option value="text">Plain text</option>
+            </select>
+
+            <textarea
+              value={storedResumeContent}
+              onChange={(e) => setStoredResumeContent(e.target.value)}
+              placeholder="Paste your existing resume here..."
+              style={{
+                width: '100%',
+                minHeight: '180px',
+                padding: '12px',
+                border: '1px solid #e5e7eb',
+                borderRadius: '6px',
+                fontSize: '13px',
+                fontFamily: 'monospace',
+                lineHeight: '1.5',
+                resize: 'vertical',
+                boxSizing: 'border-box',
+              }}
+            />
+
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={handleCreateStoredResume}
+                disabled={storedResumeSaving || storedResumeLoading}
+                style={{
+                  flex: 1,
+                  padding: '10px 12px',
+                  fontSize: '14px',
+                  color: 'white',
+                  backgroundColor: '#2563eb',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                }}
+              >
+                {storedResumeSaving ? 'Saving...' : 'Save New Resume'}
+              </button>
+              <button
+                onClick={handleUpdateStoredResume}
+                disabled={storedResumeSaving || !storedResumeId}
+                style={{
+                  flex: 1,
+                  padding: '10px 12px',
+                  fontSize: '14px',
+                  color: '#2563eb',
+                  backgroundColor: 'white',
+                  border: '1px solid #2563eb',
+                  borderRadius: '6px',
+                  cursor: storedResumeId ? 'pointer' : 'not-allowed',
+                }}
+              >
+                Update Resume
+              </button>
+            </div>
+          </>
+        )}
+
+        {storedResumeLoading && (
+          <div style={{ fontSize: '12px', color: '#737373' }}>
+            Loading stored resumes...
+          </div>
+        )}
+
+        {/* Saved resumes list */}
+        {storedResumes.length > 0 && (
+          <div style={{ marginTop: '4px' }}>
+            <div style={{ fontSize: '13px', fontWeight: '600', color: '#525252', marginBottom: '6px' }}>
+              Saved Resumes
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {storedResumes.map((r) => (
+                <div
+                  key={r.id}
+                  onClick={() => handleSelectStoredResume(r.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: `1px solid ${storedResumeId === r.id ? '#2563eb' : '#e5e7eb'}`,
+                    backgroundColor: storedResumeId === r.id ? '#eff6ff' : '#f9fafb',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span style={{ fontSize: '16px' }}>
+                    {r.format === 'pdf' ? '📕' : r.format === 'docx' ? '📘' : '📝'}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {r.title}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#9ca3af', textTransform: 'uppercase' }}>
+                      {r.format}
+                    </div>
+                  </div>
+                  {storedResumeId === r.id && (
+                    <span style={{ fontSize: '12px', color: '#2563eb', fontWeight: '600' }}>Active</span>
+                  )}
+                </div>
+              ))}
+              {storedResumeId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStoredResumeId('');
+                    setStoredResumeTitle('');
+                    setStoredResumeContent('');
+                    setStoredResumeFormat('markdown');
+                  }}
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '13px',
+                    color: '#6b7280',
+                    backgroundColor: 'white',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    alignSelf: 'flex-start',
+                  }}
+                >
+                  Clear Selection
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div
@@ -1804,6 +2190,8 @@ const Resume = () => {
               </div>
             </div>
 
+            {existingResumePanel}
+
             {/* Project Selection */}
             <div
               style={{
@@ -2041,34 +2429,37 @@ const Resume = () => {
                   Options
                 </h3>
 
-                <div style={{ marginBottom: '12px' }}>
-                  <label
-                    style={{
-                      fontSize: '14px',
-                      color: '#525252',
-                      marginBottom: '4px',
-                      display: 'block',
-                    }}
-                  >
-                    Format
-                  </label>
+                {/* Only show format selector when no binary resume is active */}
+                {!(['pdf', 'docx'].includes(storedResumeFormat) && storedResumeId) && (
+                  <div style={{ marginBottom: '12px' }}>
+                    <label
+                      style={{
+                        fontSize: '14px',
+                        color: '#525252',
+                        marginBottom: '4px',
+                        display: 'block',
+                      }}
+                    >
+                      Format
+                    </label>
 
-                  <select
-                    value={resumeFormat}
-                    onChange={(e) => setResumeFormat(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      fontSize: '14px',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '6px',
-                      backgroundColor: 'white',
-                    }}
-                  >
-                    <option value="markdown">Markdown</option>
-                    <option value="pdf">PDF</option>
-                  </select>
-                </div>
+                    <select
+                      value={resumeFormat}
+                      onChange={(e) => setResumeFormat(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        fontSize: '14px',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '6px',
+                        backgroundColor: 'white',
+                      }}
+                    >
+                      <option value="markdown">Markdown</option>
+                      <option value="pdf">PDF</option>
+                    </select>
+                  </div>
+                )}
 
                 <div>
                   {/* Stored Resume Selector */}
@@ -2081,7 +2472,7 @@ const Resume = () => {
                         display: 'block',
                       }}
                     >
-                      Use Stored Resume (Markdown only)
+                      Use Existing Resume
                     </label>
                     <select
                       value={storedResumeId || ''}
@@ -2098,10 +2489,15 @@ const Resume = () => {
                       <option value="">None</option>
                       {storedResumes.map((resume) => (
                         <option key={resume.id} value={resume.id}>
-                          {resume.title}
+                          {resume.title} ({resume.format.toUpperCase()})
                         </option>
                       ))}
                     </select>
+                    {storedResumeId && ['pdf', 'docx'].includes(storedResumeFormat) && (
+                      <div style={{ fontSize: '12px', color: '#16a34a', marginTop: '4px' }}>
+                        ✓ Projects will be injected into your {storedResumeFormat.toUpperCase()} resume
+                      </div>
+                    )}
                   </div>
 
                   {/* Include Projects Section */}
@@ -2179,7 +2575,7 @@ const Resume = () => {
                 </h2>
 
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  {resumeFormat !== 'pdf' && !isEditing && (
+                  {!['pdf', 'docx'].includes(generatedResume?.format) && !isEditing && (
                     <>
                       <button
                         onClick={handleEditContent}
@@ -2302,7 +2698,31 @@ const Resume = () => {
                   overflowY: 'auto',
                 }}
               >
-                {generatedResume?.format === 'pdf' ? (
+                {generatedResume?.format === 'docx' ? (
+                  <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                    <div style={{ fontSize: '48px', marginBottom: '12px' }}>📘</div>
+                    <div style={{ fontSize: '16px', fontWeight: '600', color: '#1a1a1a', marginBottom: '8px' }}>
+                      DOCX Resume Ready
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#737373', marginBottom: '20px' }}>
+                      Your projects have been added to the resume. Click Download to save the file.
+                    </div>
+                    <button
+                      onClick={downloadResume}
+                      style={{
+                        padding: '10px 24px',
+                        fontSize: '14px',
+                        color: 'white',
+                        backgroundColor: '#2563eb',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Download DOCX
+                    </button>
+                  </div>
+                ) : generatedResume?.format === 'pdf' ? (
                   <div style={{ width: '100%' }}>
                     {pdfLoading && (
                       <div style={{ padding: '24px', color: '#737373' }}>
@@ -2479,120 +2899,6 @@ const Resume = () => {
                   </div>
                 )}
               </div>
-            </div>
-          )}
-        </div>
-      </div>
-      {/* Stored Resume */}
-      <div
-        style={{
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          padding: '24px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          marginBottom: '24px',
-        }}
-      >
-        <h2
-          style={{
-            fontSize: '20px',
-            fontWeight: '600',
-            color: '#1a1a1a',
-            margin: 0,
-            marginBottom: '16px',
-          }}
-        >
-          Stored Resume
-        </h2>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <input
-            type="text"
-            placeholder="Resume Title"
-            value={storedResumeTitle}
-            onChange={(e) => setStoredResumeTitle(e.target.value)}
-            style={{
-              padding: '10px 12px',
-              border: '1px solid #e5e7eb',
-              borderRadius: '6px',
-              fontSize: '14px',
-              width: '100%',
-              boxSizing: 'border-box',
-            }}
-          />
-
-          <select
-            value={storedResumeFormat}
-            onChange={(e) => setStoredResumeFormat(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              fontSize: '14px',
-              border: '1px solid #d1d5db',
-              borderRadius: '6px',
-              backgroundColor: 'white',
-            }}
-          >
-            <option value="markdown">Markdown</option>
-            <option value="text">Plain text</option>
-          </select>
-
-          <textarea
-            value={storedResumeContent}
-            onChange={(e) => setStoredResumeContent(e.target.value)}
-            placeholder="Paste your existing resume here..."
-            style={{
-              width: '100%',
-              minHeight: '180px',
-              padding: '12px',
-              border: '1px solid #e5e7eb',
-              borderRadius: '6px',
-              fontSize: '13px',
-              fontFamily: 'monospace',
-              lineHeight: '1.5',
-              resize: 'vertical',
-              boxSizing: 'border-box',
-            }}
-          />
-
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              onClick={handleCreateStoredResume}
-              disabled={storedResumeSaving || storedResumeLoading}
-              style={{
-                flex: 1,
-                padding: '10px 12px',
-                fontSize: '14px',
-                color: 'white',
-                backgroundColor: '#2563eb',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-              }}
-            >
-              {storedResumeSaving ? 'Saving...' : 'Save New Resume'}
-            </button>
-            <button
-              onClick={handleUpdateStoredResume}
-              disabled={storedResumeSaving || !storedResumeId}
-              style={{
-                flex: 1,
-                padding: '10px 12px',
-                fontSize: '14px',
-                color: '#2563eb',
-                backgroundColor: 'white',
-                border: '1px solid #2563eb',
-                borderRadius: '6px',
-                cursor: storedResumeId ? 'pointer' : 'not-allowed',
-              }}
-            >
-              Update Resume
-            </button>
-          </div>
-
-          {storedResumeLoading && (
-            <div style={{ fontSize: '12px', color: '#737373' }}>
-              Loading stored resumes...
             </div>
           )}
         </div>
