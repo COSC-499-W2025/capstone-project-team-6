@@ -172,6 +172,10 @@ def init_db() -> None:
         if "zip_file_hash" not in existing_columns:
             conn.execute("ALTER TABLE analyses ADD COLUMN zip_file_hash TEXT;")
             conn.commit()
+        existing_columns = {row["name"] for row in conn.execute("PRAGMA table_info(analyses)")}
+        if "llm_error" not in existing_columns:
+            conn.execute("ALTER TABLE analyses ADD COLUMN llm_error TEXT;")
+            conn.commit()
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_analyses_hash_user "
             "ON analyses (zip_file_hash, username) WHERE zip_file_hash IS NOT NULL;"
@@ -2046,6 +2050,24 @@ def get_llm_summary_for_analysis(uuid_str: str, username: str = None) -> Optiona
         return row["llm_summary"]
 
 
+def get_llm_analysis_for_api(uuid_str: str, username: str = None) -> Dict[str, Any]:
+    """Return llm_summary and llm_error for GET /projects/{id}/llm-analysis."""
+    with get_connection() as conn:
+        if username:
+            row = conn.execute(
+                "SELECT llm_summary, llm_error FROM analyses WHERE analysis_uuid = ? AND username = ?",
+                (uuid_str, username),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT llm_summary, llm_error FROM analyses WHERE analysis_uuid = ?",
+                (uuid_str,),
+            ).fetchone()
+        if not row:
+            return {"llm_summary": None, "llm_error": None}
+        return {"llm_summary": row["llm_summary"], "llm_error": row["llm_error"]}
+
+
 def update_llm_summary(uuid_str: str, llm_summary: str, username: str = None) -> bool:
     """Update the llm_summary column on an existing analysis row."""
     with get_connection() as conn:
@@ -2058,6 +2080,23 @@ def update_llm_summary(uuid_str: str, llm_summary: str, username: str = None) ->
             cursor = conn.execute(
                 "UPDATE analyses SET llm_summary = ? WHERE analysis_uuid = ?",
                 (llm_summary, uuid_str),
+            )
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+def update_llm_error(uuid_str: str, llm_error: Optional[str], username: str = None) -> bool:
+    """Set or clear the llm_error column (user-facing message when LLM step failed)."""
+    with get_connection() as conn:
+        if username:
+            cursor = conn.execute(
+                "UPDATE analyses SET llm_error = ? WHERE analysis_uuid = ? AND username = ?",
+                (llm_error, uuid_str, username),
+            )
+        else:
+            cursor = conn.execute(
+                "UPDATE analyses SET llm_error = ? WHERE analysis_uuid = ?",
+                (llm_error, uuid_str),
             )
         conn.commit()
         return cursor.rowcount > 0

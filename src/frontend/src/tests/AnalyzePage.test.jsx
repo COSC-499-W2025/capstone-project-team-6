@@ -91,7 +91,9 @@ describe('AnalyzePage', () => {
       await waitFor(() => {
         expect(getTaskStatus).toHaveBeenCalled();
       });
-      expect(screen.getByText(/50%/)).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText(/50%/)).toBeInTheDocument();
+      });
     });
 
     it('navigates to projects when analysis completes', async () => {
@@ -355,6 +357,36 @@ describe('AnalyzePage', () => {
       });
       expect(screen.getByText(/projects completed/)).toBeInTheDocument();
       sessionStorage.removeItem('analyze_task_ids');
+    });
+
+    it('shows average of per-task progress while multi-task analyses run (not only completion count)', async () => {
+      getTaskStatus.mockImplementation(async (taskId) => {
+        if (taskId === 'task-a') return { status: 'running', progress: 40 };
+        return { status: 'running', progress: 60 };
+      });
+      renderWithTaskIds(['task-a', 'task-b']);
+
+      await waitFor(() => {
+        expect(screen.getByText(/50%/)).toBeInTheDocument();
+      });
+    });
+
+    it('when first task completes, bar is 50% even if API reports progress < 100 on completed', async () => {
+      getTaskStatus.mockImplementation(async (taskId) => {
+        if (taskId === 'task-a') {
+          return {
+            status: 'completed',
+            progress: 92,
+            result: { analysis_uuid: 'uuid-a' },
+          };
+        }
+        return { status: 'running', progress: 0 };
+      });
+      renderWithTaskIds(['task-a', 'task-b']);
+
+      await waitFor(() => {
+        expect(screen.getByText(/50%/)).toBeInTheDocument();
+      });
     });
   });
 });

@@ -436,7 +436,8 @@ class TaskManager:
             logger.info(f"Task {task.task_id}: Starting LLM analysis")
             try:
                 from .analysis.llm_pipeline import run_gemini_analysis
-                from .analysis_database import update_llm_summary
+                from .analysis_database import (update_llm_error,
+                                                update_llm_summary)
 
                 active_features = ["architecture", "complexity", "security", "skills", "domain", "resume"]
 
@@ -470,16 +471,25 @@ class TaskManager:
 
                 if llm_summary_text and analysis_uuid:
                     update_llm_summary(analysis_uuid, llm_summary_text, task.username)
+                    update_llm_error(analysis_uuid, None, task.username)
                     logger.info(f"Task {task.task_id}: LLM summary saved to analysis {analysis_uuid}")
                     result_payload["llm_ran"] = True
                 else:
                     result_payload["llm_ran"] = False
+                    if llm_error_text and analysis_uuid:
+                        update_llm_error(analysis_uuid, llm_error_text, task.username)
 
                 result_payload["llm_error"] = llm_error_text
 
             except Exception as e:
                 result_payload["llm_ran"] = False
-                result_payload["llm_error"] = str(e)
+                from .gemini_file_search import \
+                    humanize_gemini_generation_error
+
+                err_msg = humanize_gemini_generation_error(str(e))
+                result_payload["llm_error"] = err_msg
+                if analysis_uuid:
+                    update_llm_error(analysis_uuid, err_msg, task.username)
                 logger.error(f"Task {task.task_id}: LLM analysis failed: {e}", exc_info=True)
 
         task.progress = 99

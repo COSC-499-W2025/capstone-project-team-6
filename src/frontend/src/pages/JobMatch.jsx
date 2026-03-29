@@ -1,31 +1,31 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Navigation from '../components/Navigation';
 import { resumeAPI } from '../services/api';
 import { useNavigationBlock } from '../contexts/NavigationBlockContext';
 
-const ScoreBadge = ({ score, label, color, size = 'large' }) => {
-  const dim = size === 'small' ? '52px' : '80px';
-  const fontSize = size === 'small' ? '16px' : '22px';
-  const labelSize = size === 'small' ? '11px' : '13px';
-  const border = size === 'small' ? '4px' : '5px';
+const ScoreBadge = ({ score, label, color }) => {
+  const r = 34;
+  const circ = 2 * Math.PI * r;
+  const offset = circ * (1 - score / 100);
   return (
     <div style={{ textAlign: 'center' }}>
-      <div style={{
-        width: dim,
-        height: dim,
-        borderRadius: '50%',
-        border: `${border} solid ${color}`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        margin: '0 auto 8px',
-        fontSize,
-        fontWeight: '700',
-        color,
-      }}>
-        {score}
-      </div>
-      <div style={{ fontSize: labelSize, color: '#666', fontWeight: '500' }}>{label}</div>
+      <svg width="88" height="88" style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx="44" cy="44" r={r} fill="none" stroke="#e5e7eb" strokeWidth="6" />
+        <circle
+          cx="44" cy="44" r={r} fill="none" stroke={color} strokeWidth="6"
+          strokeDasharray={circ} strokeDashoffset={offset}
+          strokeLinecap="round"
+          style={{ transition: 'stroke-dashoffset 0.8s ease' }}
+        />
+        <text
+          x="44" y="44" textAnchor="middle" dominantBaseline="central"
+          fill={color} fontSize="15" fontWeight="700"
+          style={{ transform: 'rotate(90deg)', transformOrigin: '44px 44px' }}
+        >
+          {score}%
+        </text>
+      </svg>
+      <div style={{ fontSize: '13px', color: '#666', fontWeight: '500', marginTop: '4px' }}>{label}</div>
     </div>
   );
 };
@@ -136,8 +136,9 @@ const SavedMatchCard = ({ match, isExpanded, onToggle, onDelete }) => {
       : match.job_description
     : 'No description';
 
-  const date = match.created_at
-    ? new Date(match.created_at + (match.created_at.endsWith('Z') ? '' : 'Z')).toLocaleDateString('en-US', {
+  const rawCreatedAt = typeof match.created_at === 'string' ? match.created_at.replace(' ', 'T') : '';
+  const date = rawCreatedAt
+    ? new Date(rawCreatedAt + (rawCreatedAt.endsWith('Z') ? '' : 'Z')).toLocaleDateString('en-US', {
         month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
       })
     : '';
@@ -244,6 +245,8 @@ const JobMatch = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [showProgress, setShowProgress] = useState(false);
   const [savedMatches, setSavedMatches] = useState([]);
   const [expandedId, setExpandedId] = useState(null);
   const [loadingMatches, setLoadingMatches] = useState(true);
@@ -264,6 +267,27 @@ const JobMatch = () => {
       return () => window.removeEventListener('beforeunload', handler);
     }
   }, [loading]);
+
+  useEffect(() => {
+    if (!loading) return;
+    setLoadingProgress(0);
+    setShowProgress(true);
+    const interval = setInterval(() => {
+      setLoadingProgress((prev) => {
+        if (prev >= 90) return prev;
+        const remaining = 90 - prev;
+        return Math.min(90, prev + remaining * 0.06 + Math.random() * 2);
+      });
+    }, 400);
+    return () => clearInterval(interval);
+  }, [loading]);
+
+  useEffect(() => {
+    if (loading || !showProgress) return;
+    setLoadingProgress(100);
+    const timer = setTimeout(() => setShowProgress(false), 600);
+    return () => clearTimeout(timer);
+  }, [loading, showProgress]);
 
   const fetchSavedMatches = useCallback(async () => {
     try {
@@ -361,29 +385,48 @@ const JobMatch = () => {
           {error && (
             <p style={{ color: '#dc2626', fontSize: '13px', marginTop: '8px' }}>{error}</p>
           )}
-          <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button
-              onClick={handleAnalyze}
-              disabled={loading}
-              style={{
-                padding: '10px 24px',
-                backgroundColor: loading ? '#9ca3af' : '#1a1a1a',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontWeight: '600',
-                cursor: loading ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {loading ? 'Analyzing...' : 'Analyze Match'}
-            </button>
-            {loading && (
-              <span style={{ fontSize: '13px', color: '#666' }}>
-                This may take up to 30 seconds...
-              </span>
-            )}
-          </div>
+          {!loading && (
+            <div style={{ marginTop: '16px' }}>
+              <button
+                onClick={handleAnalyze}
+                style={{
+                  padding: '10px 24px',
+                  backgroundColor: '#1a1a1a',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Analyze Match
+              </button>
+            </div>
+          )}
+
+          {/* Loading progress bar */}
+          {showProgress && (
+            <div style={{ marginTop: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <span style={{ fontSize: '13px', color: '#666' }}>
+                  {loadingProgress < 100 ? 'Analyzing your resume against the job description...' : 'Done!'}
+                </span>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a' }}>
+                  {Math.round(loadingProgress)}%
+                </span>
+              </div>
+              <div style={{ height: '8px', backgroundColor: '#e5e7eb', borderRadius: '999px', overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%',
+                  width: `${loadingProgress}%`,
+                  backgroundColor: '#1a1a1a',
+                  borderRadius: '999px',
+                  transition: 'width 0.4s ease',
+                }} />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Current analysis result */}
