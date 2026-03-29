@@ -4,6 +4,10 @@ Project Comparison Utilities
 
 from typing import Any, Dict
 
+# Minimum aggregate metadata change (see calculate_project_change_percentage) required
+# to replace an existing matched project during incremental merge. Lower = more updates.
+DEFAULT_INCREMENTAL_CHANGE_THRESHOLD = 5.0
+
 
 def calculate_project_change_percentage(old_project: Dict[str, Any], new_project: Dict[str, Any]) -> float:
     """Calculate the percentage of changes between two project versions."""
@@ -140,13 +144,18 @@ def calculate_project_change_percentage(old_project: Dict[str, Any], new_project
     return min(change_percentage, 100.0)
 
 
-def process_incremental_projects(existing_projects: list, new_projects: list, change_threshold: float = 50.0) -> Dict[str, Any]:
+def process_incremental_projects(
+    existing_projects: list,
+    new_projects: list,
+    change_threshold: float = DEFAULT_INCREMENTAL_CHANGE_THRESHOLD,
+) -> Dict[str, Any]:
     """Process new projects against existing ones with change detection.
 
     Args:
         existing_projects: List of existing project dictionaries
         new_projects: List of new project dictionaries to merge
-        change_threshold: Minimum percentage change required to update (default: 50.0)
+        change_threshold: Existing project is replaced when change_percentage exceeds this
+            (default: DEFAULT_INCREMENTAL_CHANGE_THRESHOLD).
 
     Returns:
         Dictionary containing:
