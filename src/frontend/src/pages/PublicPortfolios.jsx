@@ -231,14 +231,14 @@ const PublicPortfolios = () => {
           </div>
         </section>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
           <section
             style={{
               backgroundColor: 'white',
               borderRadius: '14px',
               border: '1px solid #e5e7eb',
               padding: '16px',
-              minHeight: '420px',
+              minHeight: '300px',
             }}
           >
             {loading ? (
@@ -333,133 +333,256 @@ const PublicPortfolios = () => {
             </div>
           </section>
 
-          <section
-            style={{
-              backgroundColor: 'white',
-              borderRadius: '14px',
-              border: '1px solid #e5e7eb',
-              padding: '16px',
-              minHeight: '420px',
-            }}
-          >
-            {!selectedId ? (
-              <p style={{ color: '#6b7280' }}>Select a portfolio card to view details.</p>
-            ) : detailLoading ? (
-              <p style={{ color: '#6b7280' }}>Loading details...</p>
-            ) : !selectedDetail ? (
-              <p style={{ color: '#b91c1c' }}>Unable to load portfolio details.</p>
-            ) : (
-              <>
-                <h3 style={{ margin: 0, color: '#111827' }}>@{selectedDetail.username}</h3>
-                <p style={{ margin: '6px 0 0', color: '#6b7280', fontSize: '13px' }}>
-                  {selectedDetail.total_projects} project{selectedDetail.total_projects !== 1 ? 's' : ''} •{' '}
-                  {selectedDetail.analysis_type.toUpperCase()}
-                </p>
+        </div>
 
-                {(selectedSettings.showProfileSummary ?? true) && roleAssessment && (
-                  <div style={{ marginTop: '12px' }}>
-                    <p style={{ margin: '0 0 6px', fontSize: '13px', color: '#6b7280' }}>Primary Role</p>
-                    <div style={{ fontSize: '14px', fontWeight: '700', color: '#111827' }}>
-                      {roleAssessment.role}
+        {!selectedId ? (
+          <section style={{
+            backgroundColor: 'white', borderRadius: '14px', border: '1px solid #e5e7eb',
+            padding: '24px', marginTop: '20px', textAlign: 'center',
+          }}>
+            <p style={{ color: '#6b7280' }}>Select a portfolio card above to view the developer profile.</p>
+          </section>
+        ) : detailLoading ? (
+          <section style={{
+            backgroundColor: 'white', borderRadius: '14px', border: '1px solid #e5e7eb',
+            padding: '24px', marginTop: '20px', textAlign: 'center',
+          }}>
+            <p style={{ color: '#6b7280' }}>Loading developer profile...</p>
+          </section>
+        ) : !selectedDetail ? (
+          <section style={{
+            backgroundColor: 'white', borderRadius: '14px', border: '1px solid #e5e7eb',
+            padding: '24px', marginTop: '20px', textAlign: 'center',
+          }}>
+            <p style={{ color: '#b91c1c' }}>Unable to load portfolio details.</p>
+          </section>
+        ) : (
+          <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Developer Profile Header */}
+            <section style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              borderRadius: '20px', padding: '36px', color: 'white',
+              position: 'relative', overflow: 'hidden',
+            }}>
+              <div style={{
+                position: 'absolute', top: 0, right: 0, width: '100%', height: '100%', opacity: 0.05,
+                background: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'1\'%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'4\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
+              }} />
+              <div style={{ position: 'relative', zIndex: 2 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px', flexWrap: 'wrap', gap: '16px' }}>
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', opacity: 0.8, marginBottom: '6px' }}>
+                      Developer Profile
+                    </div>
+                    <h2 style={{ margin: 0, fontSize: '32px', fontWeight: '800' }}>
+                      @{selectedDetail.username}
+                    </h2>
+                  </div>
+                  <div style={{
+                    padding: '14px 22px', backgroundColor: 'rgba(255,255,255,0.15)',
+                    borderRadius: '14px', textAlign: 'center', backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                  }}>
+                    <div style={{ fontSize: '22px', fontWeight: '700', marginBottom: '2px' }}>
+                      {selectedDetail.total_projects}
+                    </div>
+                    <div style={{ fontSize: '11px', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Projects Analyzed
                     </div>
                   </div>
-                )}
+                </div>
 
-                {topLanguages.length > 0 && (
-                  <div style={{ marginTop: '12px' }}>
-                    <p style={{ margin: '0 0 8px', fontSize: '13px', color: '#6b7280' }}>Languages</p>
-                    <div style={{ display: 'grid', gap: '4px' }}>
-                      {topLanguages.map(([language, count]) => (
-                        <div key={`lang-${language}`} style={{ fontSize: '12px', color: '#374151' }}>
-                          {language} ({count})
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                  gap: '20px',
+                }}>
+                  {/* Primary Role Card */}
+                  {(selectedSettings.showProfileSummary ?? true) && roleAssessment && (
+                    <div style={{
+                      backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '14px', padding: '20px',
+                      backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                        <div style={{
+                          width: '36px', height: '36px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.2)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px',
+                        }}>
+                          🎯
                         </div>
-                      ))}
+                        <div>
+                          <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '600' }}>Primary Role</h4>
+                          <p style={{ margin: 0, fontSize: '12px', opacity: 0.7 }}>
+                            Based on {roleAssessment.total} project{roleAssessment.total !== 1 ? 's' : ''}
+                          </p>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '18px', fontWeight: '700' }}>{roleAssessment.role}</div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {(selectedSettings.showProfileSummary ?? true) && selectedDetail.summary && (
-                  <div style={{ marginTop: '12px' }}>
-                    <p style={{ margin: '0 0 6px', fontSize: '13px', color: '#6b7280' }}>Profile Summary</p>
-                    <p style={{ margin: 0, fontSize: '13px', color: '#374151', lineHeight: 1.5 }}>
-                      {selectedDetail.summary?.analysis_summary ||
-                        selectedDetail.summary?.text_summary ||
-                        'Summary shared by portfolio owner.'}
-                    </p>
-                  </div>
-                )}
-
-                {(selectedSettings.showSkills ?? true) && (selectedDetail.skills || []).length > 0 && (
-                  <div style={{ marginTop: '12px' }}>
-                    <p style={{ margin: '0 0 8px', fontSize: '13px', color: '#6b7280' }}>Core Skills</p>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                      {selectedDetail.skills.slice(0, 10).map((skill, idx) => {
-                        const label = skill?.skill || skill?.name || String(skill);
-                        return (
-                          <span
-                            key={`skill-${selectedDetail.analysis_uuid}-${idx}`}
-                            style={{
-                              fontSize: '11px',
-                              borderRadius: '999px',
-                              padding: '2px 8px',
-                              backgroundColor: '#eef2ff',
-                              color: '#4338ca',
-                            }}
-                          >
-                            {label}
+                  {/* Core Skills Card */}
+                  {(selectedSettings.showSkills ?? true) && (selectedDetail.skills || []).length > 0 && (
+                    <div style={{
+                      backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '14px', padding: '20px',
+                      backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                        <div style={{
+                          width: '36px', height: '36px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.2)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px',
+                        }}>
+                          ⚡
+                        </div>
+                        <div>
+                          <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '600' }}>Core Skills</h4>
+                          <p style={{ margin: 0, fontSize: '12px', opacity: 0.7 }}>
+                            Top {Math.min(selectedDetail.skills.length, 8)} across all projects
+                          </p>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {selectedDetail.skills.slice(0, 8).map((skill, idx) => {
+                          const label = skill?.skill || skill?.name || String(skill);
+                          return (
+                            <span key={`profile-skill-${idx}`} style={{
+                              fontSize: '12px', padding: '4px 10px', borderRadius: '999px',
+                              backgroundColor: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)',
+                            }}>
+                              {label}
+                            </span>
+                          );
+                        })}
+                        {selectedDetail.skills.length > 8 && (
+                          <span style={{ fontSize: '12px', opacity: 0.7, alignSelf: 'center' }}>
+                            +{selectedDetail.skills.length - 8} more skills
                           </span>
-                        );
-                      })}
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {(selectedSettings.showProjects ?? true) && (
-                  <div style={{ marginTop: '12px' }}>
-                    <p style={{ margin: '0 0 8px', fontSize: '13px', color: '#6b7280' }}>Projects</p>
-                    <ul style={{ margin: 0, paddingLeft: '18px', color: '#374151', fontSize: '13px', lineHeight: 1.5 }}>
-                      {(selectedDetail.projects || []).slice(0, 20).map((project, idx) => (
-                        <li key={`project-${selectedDetail.analysis_uuid}-${idx}`}>
-                          {project?.project_name || project?.name || 'Unnamed project'}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {(selectedSettings.showPortfolioItems ?? true) && (selectedDetail.portfolio_items || []).length > 0 && (
-                  <div style={{ marginTop: '12px' }}>
-                    <p style={{ margin: '0 0 8px', fontSize: '13px', color: '#6b7280' }}>
-                      Portfolio Highlights
-                    </p>
-                    <div style={{ display: 'grid', gap: '8px' }}>
-                      {selectedDetail.portfolio_items.slice(0, 6).map((item, idx) => (
-                        <div
-                          key={`item-${selectedDetail.analysis_uuid}-${idx}`}
-                          style={{
-                            borderRadius: '10px',
-                            border: '1px solid #e5e7eb',
-                            backgroundColor: '#f9fafb',
-                            padding: '10px',
-                          }}
-                        >
-                          <div style={{ fontSize: '13px', fontWeight: '600', color: '#111827' }}>
-                            {item.title || item.project_name || `Highlight ${idx + 1}`}
+                  {/* Languages Card */}
+                  {topLanguages.length > 0 && (
+                    <div style={{
+                      backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '14px', padding: '20px',
+                      backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                        <div style={{
+                          width: '36px', height: '36px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.2)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px',
+                        }}>
+                          💻
+                        </div>
+                        <div>
+                          <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '600' }}>Languages</h4>
+                          <p style={{ margin: 0, fontSize: '12px', opacity: 0.7 }}>Primary technologies</p>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {topLanguages.map(([language, count]) => (
+                          <div key={`profile-lang-${language}`} style={{
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: '8px', padding: '6px 12px',
+                          }}>
+                            <span style={{ fontSize: '13px', fontWeight: '500' }}>{language}</span>
+                            <span style={{
+                              fontSize: '11px', opacity: 0.8, backgroundColor: 'rgba(255,255,255,0.15)',
+                              padding: '2px 8px', borderRadius: '999px',
+                            }}>
+                              {count} project{count !== 1 ? 's' : ''}
+                            </span>
                           </div>
-                          {item.text_summary && (
-                            <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#374151', lineHeight: 1.45 }}>
-                              {item.text_summary}
-                            </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            {/* Profile Summary */}
+            {(selectedSettings.showProfileSummary ?? true) && selectedDetail.summary && (
+              <section style={{
+                backgroundColor: 'white', borderRadius: '14px', border: '1px solid #e5e7eb', padding: '20px',
+              }}>
+                <h3 style={{ margin: '0 0 10px', fontSize: '16px', color: '#0f172a' }}>Profile Summary</h3>
+                <p style={{ margin: 0, fontSize: '14px', color: '#374151', lineHeight: 1.6 }}>
+                  {selectedDetail.summary?.analysis_summary ||
+                    selectedDetail.summary?.text_summary ||
+                    'Summary shared by portfolio owner.'}
+                </p>
+              </section>
+            )}
+
+            {/* Projects + Portfolio Highlights side by side */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              {(selectedSettings.showProjects ?? true) && (selectedDetail.projects || []).length > 0 && (
+                <section style={{
+                  backgroundColor: 'white', borderRadius: '14px', border: '1px solid #e5e7eb', padding: '20px',
+                }}>
+                  <h3 style={{ margin: '0 0 12px', fontSize: '16px', color: '#0f172a' }}>Projects</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {(selectedDetail.projects || []).slice(0, 20).map((project, idx) => (
+                      <div key={`project-${selectedDetail.analysis_uuid}-${idx}`} style={{
+                        padding: '10px 14px', borderRadius: '10px', border: '1px solid #e5e7eb', backgroundColor: '#f9fafb',
+                      }}>
+                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#111827' }}>
+                          {project?.project_name || project?.name || 'Unnamed project'}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
+                          {project?.primary_language || 'Language unknown'}
+                          {project?.total_files ? ` • ${project.total_files} files` : ''}
+                          {(project?.curated_role || project?.predicted_role) && (
+                            <span style={{
+                              marginLeft: '8px', padding: '1px 8px', borderRadius: '999px',
+                              backgroundColor: project?.curated_role ? '#f0fdf4' : '#eef2ff',
+                              color: project?.curated_role ? '#166534' : '#3730a3',
+                              fontSize: '11px', fontWeight: '600',
+                              border: `1px solid ${project?.curated_role ? '#bbf7d0' : '#c7d2fe'}`,
+                            }}>
+                              {project?.curated_role || project?.predicted_role}
+                            </span>
                           )}
                         </div>
-                      ))}
-                    </div>
+                        {project?.summary && (
+                          <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#374151', lineHeight: 1.45 }}>
+                            {project.summary}
+                          </p>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                )}
-              </>
-            )}
-          </section>
-        </div>
+                </section>
+              )}
+
+              {(selectedSettings.showPortfolioItems ?? true) && (selectedDetail.portfolio_items || []).length > 0 && (
+                <section style={{
+                  backgroundColor: 'white', borderRadius: '14px', border: '1px solid #e5e7eb', padding: '20px',
+                }}>
+                  <h3 style={{ margin: '0 0 12px', fontSize: '16px', color: '#0f172a' }}>Portfolio Highlights</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {selectedDetail.portfolio_items.slice(0, 6).map((item, idx) => (
+                      <div key={`item-${selectedDetail.analysis_uuid}-${idx}`} style={{
+                        borderRadius: '10px', border: '1px solid #e5e7eb', backgroundColor: '#f9fafb', padding: '12px',
+                      }}>
+                        <div style={{ fontSize: '13px', fontWeight: '600', color: '#111827' }}>
+                          {item.title || item.project_name || `Highlight ${idx + 1}`}
+                        </div>
+                        {item.text_summary && (
+                          <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#374151', lineHeight: 1.45 }}>
+                            {item.text_summary}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
