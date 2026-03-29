@@ -377,6 +377,13 @@ const Resume = () => {
   const [curationSettings, setCurationSettings] = useState(null);
   const [chronologyCorrections, setChronologyCorrections] = useState({});
   const [showShowcaseOnly, setShowShowcaseOnly] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveResumeTitle, setSaveResumeTitle] = useState('');
+  const [saveResumeSaving, setSaveResumeSaving] = useState(false);
+  const [deletingResumeId, setDeletingResumeId] = useState(null);
+  const [viewingResumeId, setViewingResumeId] = useState(null);
+  const [viewingResumeData, setViewingResumeData] = useState(null); // { title, format, content, blobUrl }
+  const [viewingResumeLoading, setViewingResumeLoading] = useState(false);
 
   useEffect(() => {
     loadProjects();
@@ -883,6 +890,38 @@ const Resume = () => {
     } finally {
       setDeletingResumeId(null);
     }
+  };
+
+  const handleViewStoredResume = async (resumeId) => {
+    setViewingResumeId(resumeId);
+    setViewingResumeData(null);
+    setViewingResumeLoading(true);
+    try {
+      const resume = await resumeAPI.getStoredResume(resumeId);
+      let blobUrl = null;
+      if (resume.format === 'pdf' || resume.format === 'docx') {
+        try {
+          const blob = await resumeAPI.getStoredResumeFileBlob(resumeId);
+          blobUrl = URL.createObjectURL(blob);
+        } catch {
+          // blob unavailable, fall back to extracted text
+        }
+      }
+      setViewingResumeData({ title: resume.title, format: resume.format, content: resume.content, blobUrl });
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to load resume');
+      setViewingResumeId(null);
+    } finally {
+      setViewingResumeLoading(false);
+    }
+  };
+
+  const handleCloseViewModal = () => {
+    if (viewingResumeData?.blobUrl) {
+      URL.revokeObjectURL(viewingResumeData.blobUrl);
+    }
+    setViewingResumeId(null);
+    setViewingResumeData(null);
   };
 
   const handleSaveGeneratedResume = async () => {
@@ -1429,7 +1468,6 @@ const Resume = () => {
               {storedResumes.map((r) => (
                 <div
                   key={r.id}
-                  onClick={() => handleSelectStoredResume(r.id)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -1438,13 +1476,18 @@ const Resume = () => {
                     borderRadius: '6px',
                     border: `1px solid ${storedResumeId === r.id ? '#2563eb' : '#e5e7eb'}`,
                     backgroundColor: storedResumeId === r.id ? '#eff6ff' : '#f9fafb',
-                    cursor: 'pointer',
                   }}
                 >
-                  <span style={{ fontSize: '16px' }}>
+                  <span
+                    style={{ fontSize: '16px', cursor: 'pointer', flexShrink: 0 }}
+                    onClick={() => handleSelectStoredResume(r.id)}
+                  >
                     {r.format === 'pdf' ? '📕' : r.format === 'docx' ? '📘' : '📝'}
                   </span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}
+                    onClick={() => handleSelectStoredResume(r.id)}
+                  >
                     <div style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {r.title}
                     </div>
@@ -1453,8 +1496,41 @@ const Resume = () => {
                     </div>
                   </div>
                   {storedResumeId === r.id && (
-                    <span style={{ fontSize: '12px', color: '#2563eb', fontWeight: '600' }}>Active</span>
+                    <span style={{ fontSize: '12px', color: '#2563eb', fontWeight: '600', flexShrink: 0 }}>Active</span>
                   )}
+                  <button
+                    type="button"
+                    title="View"
+                    onClick={(e) => { e.stopPropagation(); handleViewStoredResume(r.id); }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '2px 4px',
+                      fontSize: '14px',
+                      color: '#6b7280',
+                      flexShrink: 0,
+                    }}
+                  >
+                    👁
+                  </button>
+                  <button
+                    type="button"
+                    title="Delete"
+                    disabled={deletingResumeId === r.id}
+                    onClick={(e) => { e.stopPropagation(); handleDeleteStoredResume(r.id); }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: deletingResumeId === r.id ? 'not-allowed' : 'pointer',
+                      padding: '2px 4px',
+                      fontSize: '14px',
+                      color: deletingResumeId === r.id ? '#d1d5db' : '#ef4444',
+                      flexShrink: 0,
+                    }}
+                  >
+                    🗑
+                  </button>
                 </div>
               ))}
               {storedResumeId && (
@@ -1532,6 +1608,139 @@ const Resume = () => {
           >
             Dismiss
           </button>
+        </div>
+      )}
+
+      {viewingResumeId && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={handleCloseViewModal}
+        >
+          <div
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              width: '90vw',
+              maxWidth: '860px',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 4px 32px rgba(0,0,0,0.18)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600', color: '#1a1a1a' }}>
+                {viewingResumeData ? viewingResumeData.title : 'Loading…'}
+              </h3>
+              <button
+                type="button"
+                onClick={handleCloseViewModal}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '20px',
+                  cursor: 'pointer',
+                  color: '#6b7280',
+                  lineHeight: 1,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal body */}
+            {viewingResumeLoading && (
+              <div style={{ textAlign: 'center', padding: '48px', color: '#6b7280' }}>Loading…</div>
+            )}
+
+            {!viewingResumeLoading && viewingResumeData && (
+              <>
+                {/* PDF: iframe */}
+                {viewingResumeData.format === 'pdf' && viewingResumeData.blobUrl && (
+                  <iframe
+                    src={viewingResumeData.blobUrl}
+                    title={viewingResumeData.title}
+                    style={{ flex: 1, minHeight: '60vh', border: 'none', borderRadius: '6px' }}
+                  />
+                )}
+
+                {/* DOCX: extracted text + download button */}
+                {viewingResumeData.format === 'docx' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, overflow: 'hidden' }}>
+                    {viewingResumeData.blobUrl && (
+                      <a
+                        href={viewingResumeData.blobUrl}
+                        download={`${viewingResumeData.title}.docx`}
+                        style={{
+                          display: 'inline-block',
+                          padding: '8px 16px',
+                          backgroundColor: '#2563eb',
+                          color: 'white',
+                          borderRadius: '6px',
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          textDecoration: 'none',
+                          alignSelf: 'flex-start',
+                        }}
+                      >
+                        ⬇ Download DOCX
+                      </a>
+                    )}
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>
+                      Extracted text preview:
+                    </div>
+                    <pre
+                      style={{
+                        flex: 1,
+                        overflowY: 'auto',
+                        background: '#f9fafb',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '6px',
+                        padding: '16px',
+                        fontSize: '13px',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        margin: 0,
+                        maxHeight: '55vh',
+                      }}
+                    >
+                      {viewingResumeData.content || '(No text could be extracted from this file.)'}
+                    </pre>
+                  </div>
+                )}
+
+                {/* Markdown (and PDF fallback without blob) */}
+                {(viewingResumeData.format === 'markdown' ||
+                  viewingResumeData.format === 'latex' ||
+                  (viewingResumeData.format === 'pdf' && !viewingResumeData.blobUrl)) && (
+                  <div
+                    style={{
+                      flex: 1,
+                      overflowY: 'auto',
+                      background: '#f9fafb',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '6px',
+                      padding: '16px',
+                      maxHeight: '65vh',
+                    }}
+                  >
+                    <ReactMarkdown>{viewingResumeData.content || ''}</ReactMarkdown>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       )}
 
@@ -2723,24 +2932,7 @@ const Resume = () => {
                     )}
                   </div>
 
-                  {/* Include Projects Section */}
-                  <label
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      fontSize: '14px',
-                      color: '#525252',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={includeProjects}
-                      onChange={(e) => setIncludeProjects(e.target.checked)}
-                      style={{ marginRight: '8px' }}
-                    />
-                    Include Projects Section
-                  </label>
+
                 </div>
 
                 {/* Generate Button */}

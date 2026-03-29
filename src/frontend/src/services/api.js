@@ -232,6 +232,11 @@ export const resumeAPI = {
     return response.data;
   },
 
+  getStoredResumeFileBlob: async (resumeId) => {
+    const response = await api.get(`/resumes/${resumeId}/file`, { responseType: 'blob' });
+    return response.data;
+  },
+
   updateStoredResume: async (resumeId, content) => {
     const response = await api.patch(`/resumes/${resumeId}`, { content });
     return response.data;

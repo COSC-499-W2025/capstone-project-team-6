@@ -3,6 +3,7 @@
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from backend.analysis.job_match_analyzer import analyze_job_match
@@ -967,6 +968,33 @@ async def update_stored_resume(resume_id: int, request: StoredResumeUpdateReques
         items=[dict(item) for item in items],
         created_at=row["created_at"],
         updated_at=row["updated_at"],
+    )
+
+
+@router.get("/resumes/{resume_id}/file")
+async def download_stored_resume_file(resume_id: int, username: str = Depends(verify_token)):
+    """Return the original binary blob for a PDF or DOCX stored resume."""
+    row = get_user_resume(resume_id, username)
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
+
+    blob = get_user_resume_blob(resume_id, username)
+    if not blob:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No binary file stored for this resume")
+
+    fmt = row["format"]
+    if fmt == "pdf":
+        media_type = "application/pdf"
+        filename = f"{row['title']}.pdf"
+    else:
+        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        filename = f"{row['title']}.docx"
+
+    safe_filename = filename.replace('"', "'")
+    return Response(
+        content=blob,
+        media_type=media_type,
+        headers={"Content-Disposition": f'inline; filename="{safe_filename}"'},
     )
 
 
