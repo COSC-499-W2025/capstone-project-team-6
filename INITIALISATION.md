@@ -1,4 +1,4 @@
-# Initialisation Guide: MDA Portfolio & Resume Generator
+# Initialisation Guide: BLUME Portfolio & Resume Generator
 
 This document gets you from zero to a running application as quickly as possible. Choose the setup path that suits you best.
 
@@ -6,7 +6,7 @@ This document gets you from zero to a running application as quickly as possible
 
 ## What is this project?
 
-The **MDA Portfolio & Resume Generator** analyses your digital work artifacts (code repositories, documents, media) and automatically generates a curated portfolio and one-page resume. It extracts projects, skills, and contributions from uploaded ZIP archives, then lets you customise the output through a web interface.
+The **BLUME Portfolio & Resume Generator** analyses your digital work artifacts (code repositories, documents, media) and automatically generates a curated portfolio and one-page resume. It extracts projects, skills, and contributions from uploaded ZIP archives, then lets you customise the output through a web interface.
 
 - **Backend:** Python / FastAPI
 - **Frontend:** React / Vite
