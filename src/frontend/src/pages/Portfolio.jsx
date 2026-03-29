@@ -4,6 +4,19 @@ import Navigation from '../components/Navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { portfoliosAPI, curationAPI } from '../services/api';
 
+const DEFAULT_PORTFOLIO_SETTINGS = {
+  showHeatmap: true,
+  showSkills: true,
+  showProjectDetails: true,
+  showPortfolioItems: true,
+  showProjects: true,
+  showProfileSummary: true,
+  skillsDisplayLimit: 10,
+  projectDisplayMode: 'full', // 'full' or 'summary'
+  heatmapTimeRange: 'auto', // 'auto', '1year', '2years', '3years'
+  theme: 'default' // 'default', 'minimal', 'professional'
+};
+
 const formatTimestamp = (value) => {
   if (!value) return 'N/A';
   const date = new Date(value);
@@ -743,16 +756,8 @@ const Portfolio = () => {
   // Private Mode State for Portfolio Customization
   const [isPrivateMode, setIsPrivateMode] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [portfolioSettings, setPortfolioSettings] = useState({
-    showHeatmap: true,
-    showSkills: true,
-    showProjectDetails: true,
-    skillsDisplayLimit: 10,
-    projectDisplayMode: 'full', // 'full' or 'summary'
-    heatmapTimeRange: 'auto', // 'auto', '1year', '2years', '3years'
-    theme: 'default' // 'default', 'minimal', 'professional'
-  });
-  const [livePortfolioSettings, setLivePortfolioSettings] = useState(null);
+  const [portfolioSettings, setPortfolioSettings] = useState({ ...DEFAULT_PORTFOLIO_SETTINGS });
+  const [livePortfolioSettings, setLivePortfolioSettings] = useState({ ...DEFAULT_PORTFOLIO_SETTINGS });
 
   const [notification, setNotification] = useState(null);
 
@@ -802,11 +807,13 @@ const Portfolio = () => {
     try {
       const response = await portfoliosAPI.getPortfolioSettings?.() || {};
       const settings = response.data || response;
-      setPortfolioSettings(prev => ({ ...prev, ...settings }));
-      setLivePortfolioSettings(settings);
+      const mergedSettings = { ...DEFAULT_PORTFOLIO_SETTINGS, ...settings };
+      setPortfolioSettings(mergedSettings);
+      setLivePortfolioSettings(mergedSettings);
     } catch (error) {
       // Use defaults if no settings found
       console.log('Using default portfolio settings');
+      setLivePortfolioSettings({ ...DEFAULT_PORTFOLIO_SETTINGS });
     }
   };
 
@@ -839,7 +846,7 @@ const Portfolio = () => {
       if (!confirm) return;
       // Revert to live settings
       if (livePortfolioSettings) {
-        setPortfolioSettings(prev => ({ ...prev, ...livePortfolioSettings }));
+        setPortfolioSettings({ ...livePortfolioSettings });
       }
       setHasUnsavedChanges(false);
     }
@@ -851,7 +858,7 @@ const Portfolio = () => {
       const confirm = window.confirm('You have unsaved changes. Do you want to discard them and exit preview mode?');
       if (!confirm) return;
       if (livePortfolioSettings) {
-        setPortfolioSettings(prev => ({ ...prev, ...livePortfolioSettings }));
+        setPortfolioSettings({ ...livePortfolioSettings });
       }
       setHasUnsavedChanges(false);
     }
@@ -1431,7 +1438,7 @@ const Portfolio = () => {
             />
             
             {/* Activity Heatmap - Customizable */}
-            {portfolioSettings.showHeatmap && (
+            {(portfolioSettings.showHeatmap || isPrivateMode) && (
               <div style={{ 
                 position: 'relative',
                 border: isPrivateMode ? '2px dashed #8b5cf6' : 'none',
@@ -1464,7 +1471,22 @@ const Portfolio = () => {
                     </label>
                   </div>
                 )}
-                <ActivityHeatmap portfolios={portfolios} projectList={allProjectsForHeatmap} />
+                {portfolioSettings.showHeatmap ? (
+                  <ActivityHeatmap portfolios={portfolios} projectList={allProjectsForHeatmap} />
+                ) : (
+                  isPrivateMode && (
+                    <div style={{
+                      backgroundColor: 'white',
+                      borderRadius: '12px',
+                      border: '1px solid #e5e7eb',
+                      padding: '20px',
+                      color: '#6b7280',
+                      marginTop: '8px'
+                    }}>
+                      Heatmap section is hidden
+                    </div>
+                  )
+                )}
               </div>
             )}
             
