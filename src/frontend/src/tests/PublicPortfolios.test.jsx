@@ -46,12 +46,13 @@ const mockDetailResponse = {
   published_at: '2026-01-25T10:00:00',
   total_projects: 3,
   projects: [
-    { project_name: 'Alpha' },
-    { project_name: 'Portfolio Service' },
+    { project_name: 'Alpha', primary_language: 'Python', predicted_role: 'Backend Developer' },
+    { project_name: 'Portfolio Service', primary_language: 'Python', predicted_role: 'Backend Developer' },
   ],
   skills: [{ skill: 'FastAPI' }, { skill: 'Testing' }],
   summary: {},
   portfolio_items: [],
+  portfolio_settings: {},
 };
 
 const renderPage = () =>
@@ -110,9 +111,12 @@ describe('PublicPortfolios page', () => {
 
     await waitFor(() => {
       expect(portfoliosAPI.getPublicPortfolioDetail).toHaveBeenCalledWith('public-1');
+      expect(screen.getByText('Developer Profile')).toBeInTheDocument();
       expect(screen.getByText('Core Skills')).toBeInTheDocument();
       expect(screen.getByText('FastAPI')).toBeInTheDocument();
       expect(screen.getByText('Portfolio Service')).toBeInTheDocument();
+      expect(screen.getByText('Primary Role')).toBeInTheDocument();
+      expect(screen.getAllByText('Backend Developer').length).toBeGreaterThan(0);
     });
   });
 
