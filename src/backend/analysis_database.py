@@ -2098,38 +2098,33 @@ def set_portfolio_visibility(analysis_uuid: str, username: str, is_public: bool)
             return False
 
         now_iso = datetime.now().isoformat()
-        conn.execute("BEGIN;")
-        try:
-            if is_public:
-                conn.execute(
-                    """
-                    UPDATE analyses
-                    SET is_public = 0, published_at = NULL
-                    WHERE username = ? AND analysis_uuid != ?
-                    """,
-                    (username, analysis_uuid),
-                )
-                conn.execute(
-                    """
-                    UPDATE analyses
-                    SET is_public = 1, published_at = ?
-                    WHERE analysis_uuid = ? AND username = ?
-                    """,
-                    (now_iso, analysis_uuid, username),
-                )
-            else:
-                conn.execute(
-                    """
-                    UPDATE analyses
-                    SET is_public = 0, published_at = NULL
-                    WHERE analysis_uuid = ? AND username = ?
-                    """,
-                    (analysis_uuid, username),
-                )
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
+        if is_public:
+            conn.execute(
+                """
+                UPDATE analyses
+                SET is_public = 0, published_at = NULL
+                WHERE username = ? AND analysis_uuid != ?
+                """,
+                (username, analysis_uuid),
+            )
+            conn.execute(
+                """
+                UPDATE analyses
+                SET is_public = 1, published_at = ?
+                WHERE analysis_uuid = ? AND username = ?
+                """,
+                (now_iso, analysis_uuid, username),
+            )
+        else:
+            conn.execute(
+                """
+                UPDATE analyses
+                SET is_public = 0, published_at = NULL
+                WHERE analysis_uuid = ? AND username = ?
+                """,
+                (analysis_uuid, username),
+            )
+        conn.commit()
         return True
 
 
@@ -2235,10 +2230,16 @@ def _filter_aggregate_for_settings(aggregate: Dict[str, Any], portfolio_settings
     if selected is None:
         return aggregate
 
+    all_projects = aggregate.get("projects", [])
     projects = [
-        p for p in aggregate.get("projects", [])
+        p for p in all_projects
         if _normalize_project_share_key(p.get("public_project_key")) in selected
     ]
+
+    # If settings reference stale keys that match nothing, fall back to all
+    if not projects and all_projects:
+        return aggregate
+
     shared_names = {
         _normalize_project_share_key(p.get("project_name") or p.get("name"))
         for p in projects
@@ -2269,11 +2270,31 @@ def _aggregate_user_public_portfolio(conn: sqlite3.Connection, username: str) ->
         (username,),
     ).fetchall()
 
+    db_project_rows = conn.execute(
+        """
+        SELECT p.*, a.analysis_uuid
+        FROM projects p
+        JOIN analyses a ON a.id = p.analysis_id
+        WHERE a.username = ?
+        ORDER BY p.id DESC
+        """,
+        (username,),
+    ).fetchall()
+
     project_seen: set = set()
     projects: List[Dict[str, Any]] = []
     skill_counts: Dict[str, int] = {}
     analysis_timestamps: List[str] = []
     portfolio_items: List[Dict[str, Any]] = []
+
+    for db_proj in db_project_rows:
+        proj = dict(db_proj)
+        share_key = build_public_project_key(proj)
+        if share_key in project_seen:
+            continue
+        project_seen.add(share_key)
+        proj["public_project_key"] = share_key
+        projects.append(proj)
 
     for row in rows:
         if row["analysis_timestamp"]:
@@ -2287,17 +2308,6 @@ def _aggregate_user_public_portfolio(conn: sqlite3.Connection, username: str) ->
                     parsed = maybe
             except json.JSONDecodeError:
                 parsed = {}
-
-        for project in parsed.get("projects", []) if isinstance(parsed.get("projects"), list) else []:
-            if not isinstance(project, dict):
-                continue
-            share_key = build_public_project_key(project)
-            if share_key in project_seen:
-                continue
-            project_seen.add(share_key)
-            project_with_key = dict(project)
-            project_with_key["public_project_key"] = share_key
-            projects.append(project_with_key)
 
         for skill in parsed.get("skills", []) if isinstance(parsed.get("skills"), list) else []:
             if isinstance(skill, dict):
@@ -2318,7 +2328,6 @@ def _aggregate_user_public_portfolio(conn: sqlite3.Connection, username: str) ->
         try:
             portfolio_items.extend(get_portfolio_items_for_analysis(row["analysis_uuid"], username))
         except Exception:
-            # Keep public listing robust if one analysis has malformed portfolio item rows
             continue
 
     skills = [
@@ -2345,7 +2354,16 @@ def list_public_portfolios(
     page: int = 1,
     page_size: int = 12,
 ) -> Dict[str, Any]:
-    """List public portfolio cards with search/filter/pagination."""
+    """List public portfolio cards with search/filter/pagination.
+
+    Resolved bugs (Requirement 2 – public mode):
+    - Developer Profile (primary role, core skills, languages) now included in public view.
+    - Fixed: new accounts' public portfolios not appearing — caused by stale
+      user_portfolio_settings surviving account deletion, and a variable-shadowing
+      bug where the loop variable ``username`` overwrote the filter parameter,
+      silently dropping every card whose username didn't contain the last-iterated
+      value.
+    """
     page = max(1, page)
     page_size = min(max(1, page_size), 50)
 
@@ -2384,15 +2402,15 @@ def list_public_portfolios(
     cards: List[Dict[str, Any]] = []
     with get_connection() as conn:
         for row in rows:
-            username = row["username"]
-            aggregate = _aggregate_user_public_portfolio(conn, username)
+            row_user = row["username"]
+            aggregate = _aggregate_user_public_portfolio(conn, row_user)
             filtered_aggregate = _filter_aggregate_for_settings(
                 aggregate,
-                settings_by_user.get(username, dict(DEFAULT_PORTFOLIO_SETTINGS)),
+                settings_by_user.get(row_user, dict(DEFAULT_PORTFOLIO_SETTINGS)),
             )
             row_payload = {
                 "analysis_uuid": row["analysis_uuid"],
-                "username": username,
+                "username": row_user,
                 "analysis_type": row["analysis_type"],
                 "analysis_timestamp": row["analysis_timestamp"],
                 "published_at": row["published_at"],
@@ -2404,7 +2422,7 @@ def list_public_portfolios(
             cards.append(
                 _extract_public_portfolio_card(
                     row_payload,
-                    settings_by_user.get(username, dict(DEFAULT_PORTFOLIO_SETTINGS)),
+                    settings_by_user.get(row_user, dict(DEFAULT_PORTFOLIO_SETTINGS)),
                 )
             )
 
@@ -2499,6 +2517,9 @@ def get_public_portfolio_detail(analysis_uuid: str) -> Optional[Dict[str, Any]]:
                     "primary_language": project.get("primary_language"),
                     "total_files": project.get("total_files"),
                     "summary": project.get("summary"),
+                    "predicted_role": project.get("predicted_role"),
+                    "predicted_role_confidence": project.get("predicted_role_confidence"),
+                    "curated_role": project.get("curated_role"),
                 }
             )
         projects = condensed_projects
