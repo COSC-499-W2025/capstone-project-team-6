@@ -26,9 +26,11 @@ vi.mock('../../services/api', () => {
       getPortfolioSettings: vi.fn(),
       savePortfolioSettings: vi.fn(),
       setVisibility: vi.fn(),
+      deletePortfolio: vi.fn(),
+      cleanupEmptyPortfolios: vi.fn(),
     },
     curationAPI: {
-      getSettings: vi.fn(),
+      getSettings: vi.fn().mockResolvedValue({}),
     },
   };
 });
@@ -139,6 +141,9 @@ describe('Portfolio page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    portfoliosAPI.listPortfolios.mockReset();
+    portfoliosAPI.getPortfolioDetail.mockReset();
+    curationAPI.getSettings.mockReset();
     portfoliosAPI.getPortfolioSettings.mockResolvedValue({ settings: {} });
     portfoliosAPI.savePortfolioSettings.mockResolvedValue({ settings: {} });
     portfoliosAPI.setVisibility.mockResolvedValue({ analysis_uuid: 'run-1', is_public: true });
@@ -158,12 +163,15 @@ describe('Portfolio page', () => {
     });
   });
 
-  it('shows loading state while fetching portfolios', () => {
+  it('shows loading state while fetching portfolios', async () => {
     portfoliosAPI.listPortfolios.mockImplementation(() => new Promise(() => {}));
+    curationAPI.getSettings.mockImplementation(() => new Promise(() => {}));
 
     renderWithAuth();
 
-    expect(screen.getByText('Loading portfolios...')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Loading portfolios...')).toBeInTheDocument();
+    });
   });
 
   it('shows error message when portfolio list fails', async () => {
@@ -240,9 +248,11 @@ describe('Portfolio page', () => {
 
   it('loads detail for another portfolio when selected', async () => {
     portfoliosAPI.listPortfolios.mockResolvedValue(mockPortfolioList);
-    portfoliosAPI.getPortfolioDetail.mockImplementation(async (analysisId) => (
-      analysisId === 'run-2' ? mockDetailSecond : mockDetailFirst
-    ));
+    portfoliosAPI.getPortfolioDetail.mockImplementation((uuid) => {
+      if (uuid === 'run-1') return Promise.resolve(mockDetailFirst);
+      if (uuid === 'run-2') return Promise.resolve(mockDetailSecond);
+      return Promise.reject(new Error(`Unknown uuid: ${uuid}`));
+    });
 
     renderWithAuth();
 

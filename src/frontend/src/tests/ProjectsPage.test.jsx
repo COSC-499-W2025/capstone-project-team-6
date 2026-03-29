@@ -80,11 +80,13 @@ describe('ProjectsPage', () => {
   });
 
   describe('Loading State', () => {
-    it('displays loading message initially', () => {
+    it('displays loading message initially', async () => {
       projectsAPI.getProjects.mockImplementation(() => new Promise(() => {}));
       renderWithAuth();
-      
-      expect(screen.getByText('Loading projects...')).toBeInTheDocument();
+
+      await waitFor(() => {
+        expect(screen.getByText('Loading projects...')).toBeInTheDocument();
+      });
     });
 
     it('hides loading message after data loads', async () => {
@@ -250,15 +252,19 @@ describe('ProjectsPage', () => {
     it('displays page title', async () => {
       projectsAPI.getProjects.mockResolvedValue([]);
       renderWithAuth();
-      
-      expect(screen.getByText('My Projects')).toBeInTheDocument();
+
+      await waitFor(() => {
+        expect(screen.getByText('My Projects')).toBeInTheDocument();
+      });
     });
 
     it('displays total projects label', async () => {
       projectsAPI.getProjects.mockResolvedValue([]);
       renderWithAuth();
-      
-      expect(screen.getByText('Total Projects')).toBeInTheDocument();
+
+      await waitFor(() => {
+        expect(screen.getByText('Total Projects')).toBeInTheDocument();
+      });
     });
   });
 

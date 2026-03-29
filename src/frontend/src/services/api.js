@@ -213,6 +213,16 @@ export const portfoliosAPI = {
     const response = await api.get(`/portfolios/public/${portfolioId}`);
     return response.data;
   },
+
+  deletePortfolio: async (portfolioId) => {
+    const response = await api.delete(`/portfolios/${portfolioId}`);
+    return response.data;
+  },
+
+  cleanupEmptyPortfolios: async () => {
+    const response = await api.post('/portfolios/cleanup');
+    return response.data;
+  },
 };
 
 // Resume API calls
