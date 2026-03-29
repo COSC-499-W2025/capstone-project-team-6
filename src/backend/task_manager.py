@@ -261,6 +261,17 @@ class TaskManager:
         user_tasks.sort(key=lambda t: t.created_at, reverse=True)
         return user_tasks[:limit]
 
+    def cancel_task(self, task_id: str) -> bool:
+        """Cancel a pending or running task. Returns True if cancelled, False otherwise."""
+        task = self.tasks.get(task_id)
+        if not task:
+            return False
+        if task.status in (TaskStatus.PENDING, TaskStatus.RUNNING):
+            task.status = TaskStatus.FAILED
+            task.error = "Cancelled by user"
+            return True
+        return False
+
     async def _process_task(self, task_id: str):
         """Process a task asynchronously."""
         task = self.tasks.get(task_id)
