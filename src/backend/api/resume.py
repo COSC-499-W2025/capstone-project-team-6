@@ -10,6 +10,7 @@ from backend.analysis_database import (add_items_to_user_resume,
                                        create_user_education,
                                        create_user_resume,
                                        create_user_work_experience,
+                                       delete_job_match,
                                        delete_user_education,
                                        delete_user_personal_info,
                                        delete_user_work_experience,
@@ -20,8 +21,10 @@ from backend.analysis_database import (add_items_to_user_resume,
                                        get_resume_items_for_project_id,
                                        get_user_personal_info, get_user_resume,
                                        get_user_resume_items,
+                                       list_job_matches,
                                        list_user_education, list_user_resumes,
                                        list_user_work_experience,
+                                       save_job_match,
                                        update_user_education,
                                        update_user_resume_content,
                                        update_user_work_experience,
@@ -103,6 +106,7 @@ class JobMatchRequest(BaseModel):
 class JobMatchResponse(BaseModel):
     """Job description match result."""
 
+    id: Optional[int] = None
     overall_score: int
     skills_score: int
     experience_score: int
@@ -112,6 +116,8 @@ class JobMatchResponse(BaseModel):
     unmet_requirements: List[str]
     recommendations: List[str]
     summary: str
+    job_description: Optional[str] = None
+    created_at: Optional[str] = None
 
 
 class PersonalInfoUpsertRequest(BaseModel):
@@ -335,7 +341,8 @@ async def job_match(request: JobMatchRequest, username: str = Depends(verify_tok
             project_summaries=project_summaries,
             stored_resumes=stored_resumes,
         )
-        return JobMatchResponse(**result)
+        match_id = save_job_match(username, request.job_description, result)
+        return JobMatchResponse(id=match_id, job_description=request.job_description, **result)
 
     except HTTPException:
         raise
@@ -344,6 +351,21 @@ async def job_match(request: JobMatchRequest, username: str = Depends(verify_tok
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Job match analysis failed: {str(e)}",
         )
+
+
+@router.get("/resume/job-matches")
+async def get_job_matches(username: str = Depends(verify_token)):
+    """Return saved job-match analyses for the authenticated user."""
+    return list_job_matches(username)
+
+
+@router.delete("/resume/job-matches/{match_id}")
+async def remove_job_match(match_id: int, username: str = Depends(verify_token)):
+    """Delete a saved job-match analysis."""
+    deleted = delete_job_match(match_id, username)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Job match not found")
+    return {"ok": True}
 
 
 @router.get("/resume/personal-info")

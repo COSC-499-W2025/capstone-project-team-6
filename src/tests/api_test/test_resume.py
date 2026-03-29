@@ -851,3 +851,121 @@ class TestResumeWorkExperienceEndpoints:
         assert isinstance(personal_info_passed["work_experience_entries"], list)
         assert len(personal_info_passed["work_experience_entries"]) == 1
         assert personal_info_passed["work_experience_entries"][0]["company"] == "Acme Corp"
+
+
+MOCK_JOB_MATCH_ANALYZER_RESULT = {
+    "overall_score": 72,
+    "skills_score": 80,
+    "experience_score": 65,
+    "matched_skills": ["Python", "SQL"],
+    "missing_skills": ["Kubernetes"],
+    "matched_requirements": ["Bachelor's degree"],
+    "unmet_requirements": ["5+ years distributed systems"],
+    "recommendations": ["Highlight cloud projects"],
+    "summary": "Strong technical overlap with gaps in ops tooling.",
+}
+
+
+class TestJobMatchEndpoints:
+    """Tests for job description match persistence API."""
+
+    def test_job_match_unauthorized(self):
+        response = client.post(
+            "/api/resume/job-match",
+            json={"job_description": "a" * 50},
+        )
+        assert response.status_code == 403
+
+    def test_job_matches_list_unauthorized(self):
+        assert client.get("/api/resume/job-matches").status_code == 403
+
+    def test_job_matches_delete_unauthorized(self):
+        assert client.delete("/api/resume/job-matches/1").status_code == 403
+
+    def test_job_match_validation_too_short(self, auth_token):
+        token, _ = auth_token
+        headers = {"Authorization": f"Bearer {token}"}
+        response = client.post(
+            "/api/resume/job-match",
+            headers=headers,
+            json={"job_description": "short"},
+        )
+        assert response.status_code == 422
+
+    @patch("backend.api.resume.analyze_job_match")
+    @patch("backend.api.resume.get_projects_for_user")
+    def test_job_match_persists_returns_id_and_lists(
+        self, mock_projects, mock_analyze, auth_token
+    ):
+        token, _ = auth_token
+        headers = {"Authorization": f"Bearer {token}"}
+        mock_projects.return_value = []
+        mock_analyze.return_value = dict(MOCK_JOB_MATCH_ANALYZER_RESULT)
+
+        desc = "We are hiring a senior backend engineer with fifty chars min."
+        post = client.post(
+            "/api/resume/job-match",
+            headers=headers,
+            json={"job_description": desc},
+        )
+        assert post.status_code == 200
+        body = post.json()
+        assert body["id"] is not None
+        assert body["job_description"] == desc
+        assert body["overall_score"] == 72
+        assert body["matched_skills"] == ["Python", "SQL"]
+        mock_analyze.assert_called_once()
+
+        listed = client.get("/api/resume/job-matches", headers=headers)
+        assert listed.status_code == 200
+        items = listed.json()
+        assert len(items) == 1
+        assert items[0]["id"] == body["id"]
+        assert items[0]["job_description"] == desc
+
+        deleted = client.delete(
+            f"/api/resume/job-matches/{body['id']}",
+            headers=headers,
+        )
+        assert deleted.status_code == 200
+        assert deleted.json() == {"ok": True}
+
+        after = client.get("/api/resume/job-matches", headers=headers)
+        assert after.json() == []
+
+    @patch("backend.api.resume.analyze_job_match")
+    @patch("backend.api.resume.get_projects_for_user")
+    def test_job_match_delete_not_found(self, mock_projects, mock_analyze, auth_token):
+        token, _ = auth_token
+        headers = {"Authorization": f"Bearer {token}"}
+        mock_projects.return_value = []
+        mock_analyze.return_value = dict(MOCK_JOB_MATCH_ANALYZER_RESULT)
+        response = client.delete("/api/resume/job-matches/999999", headers=headers)
+        assert response.status_code == 404
+
+    @patch("backend.api.resume.analyze_job_match")
+    @patch("backend.api.resume.get_projects_for_user")
+    def test_job_match_delete_other_user_denied(
+        self, mock_projects, mock_analyze, auth_token, second_auth_token
+    ):
+        token1, _ = auth_token
+        token2, _ = second_auth_token
+        headers1 = {"Authorization": f"Bearer {token1}"}
+        headers2 = {"Authorization": f"Bearer {token2}"}
+        mock_projects.return_value = []
+        mock_analyze.return_value = dict(MOCK_JOB_MATCH_ANALYZER_RESULT)
+
+        desc = "Another job description that is at least fifty characters long here."
+        post = client.post(
+            "/api/resume/job-match",
+            headers=headers1,
+            json={"job_description": desc},
+        )
+        assert post.status_code == 200
+        match_id = post.json()["id"]
+
+        denied = client.delete(f"/api/resume/job-matches/{match_id}", headers=headers2)
+        assert denied.status_code == 404
+
+        still_there = client.get("/api/resume/job-matches", headers=headers1)
+        assert len(still_there.json()) == 1
