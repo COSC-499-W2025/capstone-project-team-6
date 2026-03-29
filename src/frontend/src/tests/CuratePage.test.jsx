@@ -35,7 +35,6 @@ vi.mock('../services/api', () => {
       saveAttributes: vi.fn(),
       saveSkills: vi.fn(),
       saveChronology: vi.fn(),
-      saveOrder: vi.fn(),
     },
   };
 });
@@ -105,7 +104,6 @@ describe('CuratePage', () => {
     curationAPI.saveAttributes.mockResolvedValue({ success: true });
     curationAPI.saveSkills.mockResolvedValue({ success: true });
     curationAPI.saveChronology.mockResolvedValue({ success: true });
-    curationAPI.saveOrder.mockResolvedValue({ success: true });
   });
 
   describe('Page Rendering', () => {
@@ -143,15 +141,14 @@ describe('CuratePage', () => {
   });
 
   describe('Tab Navigation', () => {
-    it('renders all five tabs', async () => {
+    it('renders all available curation tabs', async () => {
       renderWithAuth();
       
       await waitFor(() => {
         expect(screen.getByText('Showcase (Top 3)')).toBeInTheDocument();
-        expect(screen.getByText('Comparison Attributes')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Project Comparison Fields' })).toBeInTheDocument();
         expect(screen.getByText('Highlighted Skills')).toBeInTheDocument();
-        expect(screen.getByText('Chronology Correction')).toBeInTheDocument();
-        expect(screen.getByText('Project Order')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Chronology Correction' })).toBeInTheDocument();
       });
     });
 
@@ -167,12 +164,12 @@ describe('CuratePage', () => {
       renderWithAuth();
       
       await waitFor(() => {
-        const attributesTab = screen.getByText('Comparison Attributes');
+        const attributesTab = screen.getByRole('button', { name: 'Project Comparison Fields' });
         fireEvent.click(attributesTab);
       });
 
       await waitFor(() => {
-        expect(screen.getByText('Select Comparison Attributes')).toBeInTheDocument();
+        expect(screen.getByText('Select Project Comparison Fields')).toBeInTheDocument();
       });
     });
 
@@ -193,27 +190,15 @@ describe('CuratePage', () => {
       renderWithAuth();
       
       await waitFor(() => {
-        const chronologyTab = screen.getByText(/Chronology Correction/);
+        const chronologyTab = screen.getByRole('button', { name: 'Chronology Correction' });
         fireEvent.click(chronologyTab);
       });
 
       await waitFor(() => {
-        expect(screen.getByText(/chronology/i)).toBeInTheDocument();
+        expect(screen.getByText('Correct Project Dates')).toBeInTheDocument();
       });
     });
 
-    it('switches to order tab when clicked', async () => {
-      renderWithAuth();
-      
-      await waitFor(() => {
-        const orderTab = screen.getByText('Project Order');
-        fireEvent.click(orderTab);
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText('Customize Project Order')).toBeInTheDocument();
-      });
-    });
   });
 
   describe('Showcase Tab', () => {
@@ -289,13 +274,13 @@ describe('CuratePage', () => {
       renderWithAuth();
       
       await waitFor(() => {
-        const attributesTab = screen.getByText('Comparison Attributes');
+        const attributesTab = screen.getByRole('button', { name: 'Project Comparison Fields' });
         fireEvent.click(attributesTab);
       });
 
       await waitFor(() => {
         // Just check the tab content is shown
-        expect(screen.getByText('Select Comparison Attributes')).toBeInTheDocument();
+        expect(screen.getByText('Select Project Comparison Fields')).toBeInTheDocument();
       });
     });
 
@@ -303,7 +288,7 @@ describe('CuratePage', () => {
       renderWithAuth();
       
       await waitFor(() => {
-        const attributesTab = screen.getByText(/Comparison Attributes/);
+        const attributesTab = screen.getByRole('button', { name: 'Project Comparison Fields' });
         fireEvent.click(attributesTab);
       });
 
@@ -316,7 +301,7 @@ describe('CuratePage', () => {
       renderWithAuth();
       
       await waitFor(() => {
-        const attributesTab = screen.getByText(/Comparison Attributes/);
+        const attributesTab = screen.getByRole('button', { name: 'Project Comparison Fields' });
         fireEvent.click(attributesTab);
       });
 
@@ -397,7 +382,7 @@ describe('CuratePage', () => {
       renderWithAuth();
       
       await waitFor(() => {
-        const chronologyTab = screen.getByText(/Chronology Correction/);
+        const chronologyTab = screen.getByRole('button', { name: 'Chronology Correction' });
         fireEvent.click(chronologyTab);
       });
 
@@ -410,7 +395,7 @@ describe('CuratePage', () => {
       renderWithAuth();
       
       await waitFor(() => {
-        const chronologyTab = screen.getByText(/Chronology Correction/);
+        const chronologyTab = screen.getByRole('button', { name: 'Chronology Correction' });
         fireEvent.click(chronologyTab);
       });
 
@@ -430,7 +415,7 @@ describe('CuratePage', () => {
       renderWithAuth();
       
       await waitFor(() => {
-        const chronologyTab = screen.getByText(/Chronology Correction/);
+        const chronologyTab = screen.getByRole('button', { name: 'Chronology Correction' });
         fireEvent.click(chronologyTab);
       });
 
@@ -446,67 +431,6 @@ describe('CuratePage', () => {
 
       await waitFor(() => {
         expect(curationAPI.saveChronology).toHaveBeenCalled();
-      });
-    });
-  });
-
-  describe('Order Tab', () => {
-    it('displays projects in current order', async () => {
-      renderWithAuth();
-      
-      await waitFor(() => {
-        const orderTab = screen.getByText(/Project Order/);
-        fireEvent.click(orderTab);
-      });
-
-      await waitFor(() => {
-        expect(screen.getAllByText(/Project [ABC]/).length).toBeGreaterThan(0);
-      });
-    });
-
-    it('displays move up and move down buttons', async () => {
-      renderWithAuth();
-      
-      await waitFor(() => {
-        const orderTab = screen.getByText(/Project Order/);
-        fireEvent.click(orderTab);
-      });
-
-      await waitFor(() => {
-        const buttons = screen.getAllByRole('button');
-        const moveButtons = buttons.filter(b => b.textContent === '▲' || b.textContent === '▼');
-        expect(moveButtons.length).toBeGreaterThan(0);
-      });
-    });
-
-    it('displays save button', async () => {
-      renderWithAuth();
-      
-      await waitFor(() => {
-        const orderTab = screen.getByText(/Project Order/);
-        fireEvent.click(orderTab);
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText('Save Project Order')).toBeInTheDocument();
-      });
-    });
-
-    it('calls save API when save button is clicked', async () => {
-      renderWithAuth();
-      
-      await waitFor(() => {
-        const orderTab = screen.getByText(/Project Order/);
-        fireEvent.click(orderTab);
-      });
-
-      await waitFor(() => {
-        const saveButton = screen.getByText('Save Project Order');
-        fireEvent.click(saveButton);
-      });
-
-      await waitFor(() => {
-        expect(curationAPI.saveOrder).toHaveBeenCalled();
       });
     });
   });
