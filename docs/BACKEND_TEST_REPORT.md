@@ -2,7 +2,7 @@
 
 ## 1. Introduction
 
-This report summarizes the backend testing completed for the capstone system. It lists the backend test files currently used in the project, the components and features they cover, and the testing strategies used to verify that the server-side logic behaves as expected.
+This report summarizes the backend testing completed for the BLUME system. It lists the backend test files currently used in the project, the components and features they cover, and the testing strategies used to verify that the server-side logic behaves as expected.
 
 The backend is built with FastAPI and Python and supports important workflows such as authentication, portfolio management, project analysis, resume generation, LLM integration, curation, and role prediction. Backend testing focuses on confirming that API endpoints, analysis algorithms, database operations, and processing pipelines behave correctly under normal, edge-case, and failure conditions.
 
@@ -317,6 +317,6 @@ Task manager and LLM pipeline tests use `pytest-asyncio` and mocks to verify tha
 
 ## 7. Conclusion
 
-The backend test suite provides broad and deep coverage of the capstone system's server-side logic. Across 60 test files and approximately 897 tests, it verifies critical workflows including authentication, portfolio and project management, code and git analysis, resume generation, LLM integration, role prediction, project ranking, curation, and CLI command workflows.
+The backend test suite provides broad and deep coverage of the BLUME system's server-side logic. Across 60 test files and approximately 897 tests, it verifies critical workflows including authentication, portfolio and project management, code and git analysis, resume generation, LLM integration, role prediction, project ranking, curation, and CLI command workflows.
 
 By combining unit tests for analysis algorithms, API endpoint tests with an in-process test client, database isolation via temporary fixtures, mocking of external services, real git repository fixtures for git analysis, and end-to-end integration tests for full workflows, the backend tests provide confidence that the system behaves correctly and safely across both normal and failure conditions.
