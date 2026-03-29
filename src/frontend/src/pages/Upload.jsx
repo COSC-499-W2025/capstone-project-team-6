@@ -8,6 +8,42 @@ import { consentAPI, portfoliosAPI } from '../services/api';
 const MAX_FILE_SIZE_MB = 500;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
+/** Incremental upload: show project name(s) first, then date, analysis type, and count (matches Portfolio page intent). */
+const formatIncrementalPortfolioOptionLabel = (portfolio) => {
+  const projectNames = Array.isArray(portfolio.project_names)
+    ? portfolio.project_names.filter(Boolean)
+    : [];
+
+  let primaryLabel;
+  if (projectNames.length === 0) {
+    const base = (portfolio.zip_file || '').replace(/\\/g, '/').split('/').pop() || '';
+    primaryLabel = base.replace(/\.zip$/i, '') || 'Unnamed portfolio';
+  } else if (projectNames.length === 1) {
+    primaryLabel = projectNames[0];
+  } else if (projectNames.length <= 3) {
+    primaryLabel = projectNames.join(', ');
+  } else {
+    primaryLabel = `${projectNames.slice(0, 2).join(', ')} + ${projectNames.length - 2} more`;
+  }
+
+  const date = new Date(portfolio.analysis_timestamp);
+  const dateTimeStr = Number.isNaN(date.getTime())
+    ? (portfolio.analysis_timestamp || '—')
+    : date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+
+  const typeStr = (portfolio.analysis_type || '').toUpperCase() || '—';
+  const n = portfolio.total_projects ?? 0;
+  const projectsStr = `${n} project${n !== 1 ? 's' : ''}`;
+
+  return `${primaryLabel} — ${dateTimeStr} · ${typeStr} · ${projectsStr}`;
+};
+
 const Upload = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -805,17 +841,11 @@ const Upload = () => {
                     onBlur={(e) => e.target.style.borderColor = '#e5e5e5'}
                   >
                     <option value="">-- Select a portfolio --</option>
-                    {portfolios.map((portfolio) => {
-                      const date = new Date(portfolio.analysis_timestamp);
-                      const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                      const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-                      const displayName = `${portfolio.analysis_type.toUpperCase()} - ${dateStr} at ${timeStr}`;
-                      return (
-                        <option key={portfolio.analysis_uuid} value={portfolio.analysis_uuid}>
-                          {displayName} ({portfolio.total_projects} project{portfolio.total_projects !== 1 ? 's' : ''})
-                        </option>
-                      );
-                    })}
+                    {portfolios.map((portfolio) => (
+                      <option key={portfolio.analysis_uuid} value={portfolio.analysis_uuid}>
+                        {formatIncrementalPortfolioOptionLabel(portfolio)}
+                      </option>
+                    ))}
                   </select>
                 )}
               </div>
