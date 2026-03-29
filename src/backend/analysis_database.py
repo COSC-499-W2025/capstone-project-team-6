@@ -2656,8 +2656,7 @@ def save_job_match(username: str, job_description: str, result: Dict[str, Any]) 
 def _deserialize_job_match_row(row: sqlite3.Row) -> Dict[str, Any]:
     """Convert a job_matches row into a plain dict with parsed JSON arrays."""
     item = dict(row)
-    for key in ("matched_skills", "missing_skills", "matched_requirements",
-                "unmet_requirements", "recommendations"):
+    for key in ("matched_skills", "missing_skills", "matched_requirements", "unmet_requirements", "recommendations"):
         raw = item.get(key)
         if raw:
             try:

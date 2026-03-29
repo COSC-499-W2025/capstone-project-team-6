@@ -964,9 +964,7 @@ class TestJobMatchEndpoints:
 
     @patch("backend.api.resume.analyze_job_match")
     @patch("backend.api.resume.get_projects_for_user")
-    def test_job_match_persists_returns_id_and_lists(
-        self, mock_projects, mock_analyze, auth_token
-    ):
+    def test_job_match_persists_returns_id_and_lists(self, mock_projects, mock_analyze, auth_token):
         token, _ = auth_token
         headers = {"Authorization": f"Bearer {token}"}
         mock_projects.return_value = []
@@ -1015,9 +1013,7 @@ class TestJobMatchEndpoints:
 
     @patch("backend.api.resume.analyze_job_match")
     @patch("backend.api.resume.get_projects_for_user")
-    def test_job_match_delete_other_user_denied(
-        self, mock_projects, mock_analyze, auth_token, second_auth_token
-    ):
+    def test_job_match_delete_other_user_denied(self, mock_projects, mock_analyze, auth_token, second_auth_token):
         token1, _ = auth_token
         token2, _ = second_auth_token
         headers1 = {"Authorization": f"Bearer {token1}"}
