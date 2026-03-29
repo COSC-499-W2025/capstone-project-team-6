@@ -7,13 +7,18 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import (APIRouter, Depends, File, Form, HTTPException, UploadFile,
-                     status)
+                     Query, status)
 from pydantic import BaseModel, Field
 
 from backend.analysis_database import (delete_analysis,
+                                       get_user_portfolio_settings,
                                        get_all_analyses_for_user,
                                        get_analysis_by_file_hash,
-                                       get_analysis_by_uuid)
+                                       get_analysis_by_uuid,
+                                       get_public_portfolio_detail,
+                                       list_public_portfolios,
+                                       set_portfolio_visibility,
+                                       upsert_user_portfolio_settings)
 from backend.api.auth import verify_token
 from backend.database import check_user_consent
 from backend.task_manager import TaskType, get_task_manager
@@ -28,6 +33,8 @@ class PortfolioListItem(BaseModel):
     total_projects: int
     analysis_type: str
     project_names: List[str] = Field(default_factory=list)
+    is_public: bool = False
+    published_at: Optional[str] = None
 
 
 class PortfolioDetail(BaseModel):
@@ -57,6 +64,61 @@ class ConsentResponse(BaseModel):
     message: str
 
 
+class PortfolioVisibilityRequest(BaseModel):
+    is_public: bool
+
+
+class PortfolioVisibilityResponse(BaseModel):
+    analysis_uuid: str
+    is_public: bool
+    message: str
+
+
+class PublicPortfolioCard(BaseModel):
+    analysis_uuid: str
+    username: str
+    analysis_type: str
+    analysis_timestamp: str
+    published_at: Optional[str] = None
+    total_projects: int
+    project_names: List[str] = Field(default_factory=list)
+    project_types: List[str] = Field(default_factory=list)
+    top_languages: List[str] = Field(default_factory=list)
+    top_skills: List[str] = Field(default_factory=list)
+    has_tests: bool = False
+
+
+class PublicPortfolioListResponse(BaseModel):
+    items: List[PublicPortfolioCard] = Field(default_factory=list)
+    total: int
+    page: int
+    page_size: int
+
+
+class PublicPortfolioDetail(BaseModel):
+    analysis_uuid: str
+    username: str
+    analysis_type: str
+    zip_file: str
+    analysis_timestamp: str
+    published_at: Optional[str] = None
+    total_projects: int
+    projects: List[Dict[str, Any]] = Field(default_factory=list)
+    skills: List[Dict[str, Any]] = Field(default_factory=list)
+    summary: Optional[Dict[str, Any]] = None
+    portfolio_items: List[Dict[str, Any]] = Field(default_factory=list)
+    portfolio_settings: Dict[str, Any] = Field(default_factory=dict)
+    analysis_timestamps: List[str] = Field(default_factory=list)
+
+
+class PortfolioSettingsRequest(BaseModel):
+    settings: Dict[str, Any] = Field(default_factory=dict)
+
+
+class PortfolioSettingsResponse(BaseModel):
+    settings: Dict[str, Any] = Field(default_factory=dict)
+
+
 @router.get("/portfolios", response_model=List[PortfolioListItem], operation_id="list_portfolios")
 async def list_portfolios(username: str = Depends(verify_token)):
     """List all portfolios for the authenticated user."""
@@ -70,9 +132,108 @@ async def list_portfolios(username: str = Depends(verify_token)):
             total_projects=a["total_projects"],
             analysis_type=a["analysis_type"],
             project_names=a.get("project_names", []),
+            is_public=bool(a.get("is_public")),
+            published_at=a.get("published_at"),
         )
         for a in analyses
     ]
+
+
+@router.get(
+    "/portfolio/settings",
+    response_model=PortfolioSettingsResponse,
+    operation_id="get_portfolio_settings",
+)
+async def get_portfolio_settings(username: str = Depends(verify_token)):
+    settings = get_user_portfolio_settings(username)
+    return PortfolioSettingsResponse(settings=settings)
+
+
+@router.post(
+    "/portfolio/settings",
+    response_model=PortfolioSettingsResponse,
+    operation_id="save_portfolio_settings",
+)
+async def save_portfolio_settings(
+    request: PortfolioSettingsRequest,
+    username: str = Depends(verify_token),
+):
+    settings = upsert_user_portfolio_settings(username, request.settings)
+    return PortfolioSettingsResponse(settings=settings)
+
+
+@router.post(
+    "/portfolios/{portfolio_id}/visibility",
+    response_model=PortfolioVisibilityResponse,
+    operation_id="set_portfolio_visibility",
+)
+async def update_portfolio_visibility(
+    portfolio_id: str,
+    request: PortfolioVisibilityRequest,
+    username: str = Depends(verify_token),
+):
+    """Update whether a portfolio is publicly visible."""
+    updated = set_portfolio_visibility(portfolio_id, username, request.is_public)
+    if not updated:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Portfolio {portfolio_id} not found",
+        )
+
+    return PortfolioVisibilityResponse(
+        analysis_uuid=portfolio_id,
+        is_public=request.is_public,
+        message="Portfolio published successfully" if request.is_public else "Portfolio set to private",
+    )
+
+
+@router.get(
+    "/portfolios/public",
+    response_model=PublicPortfolioListResponse,
+    operation_id="list_public_portfolios",
+)
+async def get_public_portfolios(
+    q: Optional[str] = Query(None, description="Search text for user/projects/skills"),
+    username: Optional[str] = Query(None, description="Username filter (partial match)"),
+    project_type: Optional[str] = Query(None, description="Project type / role filter"),
+    language: Optional[str] = Query(None, description="Primary language filter"),
+    has_tests: Optional[bool] = Query(None, description="Whether projects with tests should be included"),
+    sort: str = Query("newest", description="Sort mode: newest, oldest, projects_desc, username"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(12, ge=1, le=50),
+    _: str = Depends(verify_token),
+):
+    """List public portfolios with search, filter, and pagination."""
+    payload = list_public_portfolios(
+        q=q,
+        username=username,
+        project_type=project_type,
+        language=language,
+        has_tests=has_tests,
+        sort=sort,
+        page=page,
+        page_size=page_size,
+    )
+    return PublicPortfolioListResponse(**payload)
+
+
+@router.get(
+    "/portfolios/public/{portfolio_id}",
+    response_model=PublicPortfolioDetail,
+    operation_id="get_public_portfolio",
+)
+async def get_public_portfolio(
+    portfolio_id: str,
+    _: str = Depends(verify_token),
+):
+    """Get detail for a public portfolio."""
+    detail = get_public_portfolio_detail(portfolio_id)
+    if not detail:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Public portfolio {portfolio_id} not found",
+        )
+    return PublicPortfolioDetail(**detail)
 
 
 @router.get("/portfolios/{portfolio_id}", response_model=PortfolioDetail, operation_id="get_portfolio")
