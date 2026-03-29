@@ -800,6 +800,8 @@ const Portfolio = () => {
   const [detailError, setDetailError] = useState('');
   // Cache of all fetched portfolio details (uuid → detail) for the heatmap
   const [allDetails, setAllDetails] = useState(new Map());
+  const [deletingIds, setDeletingIds] = useState({});
+  const [notification, setNotification] = useState(null);
 
   // Curation settings
   const [curationSettings, setCurationSettings] = useState(null);
@@ -809,8 +811,6 @@ const Portfolio = () => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [portfolioSettings, setPortfolioSettings] = useState({ ...DEFAULT_PORTFOLIO_SETTINGS });
   const [livePortfolioSettings, setLivePortfolioSettings] = useState({ ...DEFAULT_PORTFOLIO_SETTINGS });
-
-  const [notification, setNotification] = useState(null);
 
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
@@ -920,6 +920,28 @@ const Portfolio = () => {
     setPortfolioSettings(prev => ({ ...prev, ...newSettings }));
     setHasUnsavedChanges(true);
   };
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && isAuthenticated) {
+        loadPortfolios();
+      }
+    };
+
+    const handleFocus = () => {
+      if (isAuthenticated) {
+        loadPortfolios();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [isAuthenticated, loadPortfolios]);
 
   useEffect(() => {
     if (!selectedPortfolioId) {
@@ -1211,6 +1233,64 @@ const Portfolio = () => {
     setSelectedPortfolioId(portfolioId);
   };
 
+  const handleDeletePortfolio = async (portfolioId, portfolioName) => {
+    const name = portfolioName || 'this portfolio analysis';
+    const ok = window.confirm(
+      `Delete ${name}?\n\nThis will remove the analysis but keep your original projects.`
+    );
+    if (!ok) return;
+
+    setDeletingIds(prev => ({ ...prev, [portfolioId]: true }));
+    
+    try {
+      await portfoliosAPI.deletePortfolio(portfolioId);
+      
+      // Remove from portfolios list
+      setPortfolios(prev => prev.filter(p => p.analysis_uuid !== portfolioId));
+      
+      // Clear related details
+      setAllDetails(prev => {
+        const updated = new Map(prev);
+        updated.delete(portfolioId);
+        return updated;
+      });
+      
+      // Select another portfolio if we deleted the current one
+      if (selectedPortfolioId === portfolioId) {
+        const remaining = portfolios.filter(p => p.analysis_uuid !== portfolioId);
+        setSelectedPortfolioId(remaining[0]?.analysis_uuid || null);
+        setSelectedPortfolioDetail(null);
+      }
+      
+      setNotification({
+        type: 'success',
+        message: 'Portfolio analysis deleted successfully'
+      });
+      
+    } catch (error) {
+      console.error('Failed to delete portfolio:', error);
+      const message = error?.response?.data?.detail || error?.message || 'Failed to delete portfolio analysis';
+      setNotification({
+        type: 'error', 
+        message
+      });
+    } finally {
+      setDeletingIds(prev => {
+        const copy = { ...prev };
+        delete copy[portfolioId];
+        return copy;
+      });
+    }
+  };
+
+  // Auto-hide notifications
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
   const renderJsonBlock = (data) => (
     <pre
       style={{
@@ -1252,38 +1332,36 @@ const Portfolio = () => {
       
       <Navigation />
       
-      {/* Notification Component */}
+      {/* Notification Toast */}
       {notification && (
         <div style={{
           position: 'fixed',
-          top: '20px',
-          right: '20px',
-          backgroundColor: notification.type === 'success' ? '#10b981' : '#ef4444',
-          color: 'white',
-          padding: '12px 20px',
+          top: '24px',
+          right: '24px',
+          zIndex: 1000,
+          padding: '12px 16px',
           borderRadius: '8px',
+          backgroundColor: notification.type === 'success' ? '#f0fdf4' : '#fef2f2',
+          border: `1px solid ${notification.type === 'success' ? '#bbf7d0' : '#fecaca'}`,
+          color: notification.type === 'success' ? '#166534' : '#dc2626',
           fontSize: '14px',
-          fontWeight: '600',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-          zIndex: 1001,
+          fontWeight: '500',
+          boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
           display: 'flex',
           alignItems: 'center',
-          gap: '8px',
-          animation: 'slideIn 0.3s ease-out',
-          maxWidth: '400px'
+          gap: '8px'
         }}>
-          <span>{notification.type === 'success' ? '✅' : '❌'}</span>
-          {notification.message}
+          {notification.type === 'success' ? '✓' : '⚠️'} {notification.message}
           <button
             onClick={() => setNotification(null)}
             style={{
               background: 'none',
               border: 'none',
-              color: 'white',
-              cursor: 'pointer',
+              color: 'inherit',
               fontSize: '16px',
-              padding: '0',
-              marginLeft: '8px'
+              cursor: 'pointer',
+              marginLeft: '8px',
+              padding: '0 4px'
             }}
           >
             ×
@@ -1481,7 +1559,7 @@ const Portfolio = () => {
             }}
           >
             <h2 style={{ margin: '0 0 12px', fontSize: '28px', color: '#111827' }}>
-              No portfolio analyses yet
+              No portfolio analyses available
             </h2>
             <p style={{ margin: 0, color: '#4b5563' }}>
               Upload your project ZIP on the dashboard to start analyzing your work.
@@ -1953,15 +2031,6 @@ const Portfolio = () => {
                 )}
               </div>
 
-              <div style={{ marginTop: '32px' }}>
-                <details style={{ border: '1px solid #e5e7eb', borderRadius: '12px', padding: '12px' }}>
-                  <summary style={{ cursor: 'pointer', fontWeight: '600', color: '#0f172a' }}>
-                    Full portfolio payload (debug)
-                  </summary>
-                  <div style={{ marginTop: '12px' }}>{renderJsonBlock(selectedPortfolioDetail)}</div>
-                </details>
-              </div>
-
               <div style={{ 
                 marginTop: '32px',
                 position: 'relative',
@@ -2079,41 +2148,111 @@ const Portfolio = () => {
                 border: '1px solid #e5e7eb',
               }}
             >
-              <h2 style={{ margin: '0 0 16px', color: '#0f172a' }}>Available analyses</h2>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                <h2 style={{ margin: 0, color: '#0f172a' }}>Available analyses</h2>
+                <button
+                  onClick={loadPortfolios}
+                  disabled={loading}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid #d1d5db',
+                    backgroundColor: 'white',
+                    color: '#374151',
+                    fontSize: '13px',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    opacity: loading ? 0.6 : 1,
+                  }}
+                  title="Refresh portfolio list"
+                >
+                  {loading ? '⟳' : '↻'} Refresh
+                </button>
+              </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {portfolios.map((portfolio) => {
                   const isActive = portfolio.analysis_uuid === selectedPortfolioId;
+                  const isDeleting = deletingIds[portfolio.analysis_uuid];
                   const projectNames = Array.isArray(portfolio.project_names)
                     ? portfolio.project_names.filter(Boolean)
                     : [];
+                  const displayName = projectNames.length > 0 ? projectNames.join(', ') : 'Unnamed project';
+                  
                   return (
-                    <button
-                      data-testid={`portfolio-card-${portfolio.analysis_uuid}`}
+                    <div
                       key={portfolio.analysis_uuid}
-                      type="button"
-                      onClick={() => handleSelectPortfolio(portfolio.analysis_uuid)}
                       style={{
-                        textAlign: 'left',
-                        padding: '16px',
-                        borderRadius: '12px',
+                        position: 'relative',
                         border: isActive ? '2px solid #2563eb' : '1px solid #e5e7eb',
+                        borderRadius: '12px',
                         backgroundColor: isActive ? '#e0e7ff' : '#f8fafc',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '4px',
+                        overflow: 'hidden'
                       }}
                     >
-                      <span style={{ fontSize: '14px', fontWeight: '600', color: '#111827' }}>
-                        {projectNames.length > 0 ? projectNames.join(', ') : 'Unnamed project'}
-                      </span>
-                      <span style={{ fontSize: '13px', color: '#4b5563' }}>
-                        {formatTimestamp(portfolio.analysis_timestamp)}
-                      </span>
-                      <span style={{ fontSize: '14px', color: '#2563eb' }}>
-                        {portfolio.total_projects ?? 0} projects
-                      </span>
-                    </button>
+                      <button
+                        data-testid={`portfolio-card-${portfolio.analysis_uuid}`}
+                        type="button"
+                        onClick={() => handleSelectPortfolio(portfolio.analysis_uuid)}
+                        disabled={isDeleting}
+                        style={{
+                          width: '100%',
+                          textAlign: 'left',
+                          padding: '16px',
+                          border: 'none',
+                          backgroundColor: 'transparent',
+                          cursor: isDeleting ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '4px',
+                          opacity: isDeleting ? 0.6 : 1,
+                        }}
+                      >
+                        <span style={{ fontSize: '14px', fontWeight: '600', color: '#111827' }}>
+                          {displayName}
+                        </span>
+                        <span style={{ fontSize: '13px', color: '#4b5563' }}>
+                          {formatTimestamp(portfolio.analysis_timestamp)}
+                        </span>
+                        <span style={{ fontSize: '14px', color: '#2563eb' }}>
+                          {portfolio.total_projects ?? 0} projects
+                        </span>
+                      </button>
+                      
+                      {/* Delete button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeletePortfolio(portfolio.analysis_uuid, displayName);
+                        }}
+                        disabled={isDeleting}
+                        style={{
+                          position: 'absolute',
+                          top: '8px',
+                          right: '8px',
+                          width: '24px',
+                          height: '24px',
+                          border: 'none',
+                          borderRadius: '50%',
+                          backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                          color: '#dc2626',
+                          cursor: isDeleting ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '14px',
+                          fontWeight: 'bold',
+                          opacity: isDeleting ? 0.5 : 0.7,
+                          transition: 'opacity 0.2s ease',
+                        }}
+                        onMouseEnter={(e) => { if (!isDeleting) e.target.style.opacity = '1'; }}
+                        onMouseLeave={(e) => { if (!isDeleting) e.target.style.opacity = '0.7'; }}
+                        title={`Delete ${displayName} analysis`}
+                      >
+                        {isDeleting ? '⋯' : '×'}
+                      </button>
+                    </div>
                   );
                 })}
               </div>

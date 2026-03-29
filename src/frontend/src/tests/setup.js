@@ -31,3 +31,8 @@ if (typeof globalThis.localStorage === 'undefined' || typeof globalThis.localSto
     get length() { return Object.keys(store).length; },
   };
 }
+
+// JSDOM's scrollTo is a stub that throws "Not implemented" when called.
+if (typeof window !== 'undefined') {
+  window.scrollTo = vi.fn();
+}

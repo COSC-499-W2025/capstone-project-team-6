@@ -139,6 +139,35 @@ async def list_user_tasks(
     return result_list
 
 
+@router.post("/tasks/{task_id}/cancel")
+async def cancel_task(task_id: str, username: str = Depends(verify_token)):
+    """Cancel a running task."""
+    try:
+        task_manager = get_task_manager()
+        task = task_manager.get_task_status(task_id)
+
+        if not task:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Task {task_id} not found",
+            )
+
+        if task.username != username:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied to this task",
+            )
+
+        cancelled = task_manager.cancel_task(task_id)
+        return {"task_id": task_id, "cancelled": cancelled}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Error cancelling task")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
 @router.post("/admin/cleanup")
 async def cleanup_completed_tasks(username: str = Depends(verify_token)):
     """Admin endpoint to clean up old completed tasks (stub for now)."""

@@ -500,7 +500,7 @@ async def health_check():
 async def api_info():
     """API information endpoint."""
     return {
-        "name": "MDA Portfolio API",
+        "name": "Blume API",
         "version": "2.0.0",
         "docs": "/docs",
         "health": "/api/health",
