@@ -220,30 +220,21 @@ def delete_user_account(username: str) -> bool:
 
     from backend import analysis_database as analysis_db
 
-    # 1. Delete analysis-side rows (analyses, uploads, user_profile, user_resumes)
+    # 1. Delete analysis-side rows
     with analysis_db.get_connection() as aconn:
         aconn.execute("PRAGMA foreign_keys = ON;")
-        try:
-            aconn.execute("BEGIN;")
-            for table in ("analyses", "uploads", "user_profile", "user_resumes"):
-                aconn.execute(f"DELETE FROM {table} WHERE username = ?", (username,))
-            aconn.commit()
-        except Exception:
-            aconn.rollback()
-            raise
+        for table in ("analyses", "uploads", "user_profile", "user_resumes",
+                       "user_portfolio_settings"):
+            aconn.execute(f"DELETE FROM {table} WHERE username = ?", (username,))
+        aconn.commit()
 
     # 2. Delete auth-side rows (user_consent, users)
     with get_connection() as conn:
         conn.execute("PRAGMA foreign_keys = ON;")
-        try:
-            conn.execute("BEGIN;")
-            conn.execute("DELETE FROM user_consent WHERE username = ?", (username,))
-            cur = conn.execute("DELETE FROM users WHERE username = ?", (username,))
-            conn.commit()
-            return (cur.rowcount or 0) > 0
-        except Exception:
-            conn.rollback()
-            raise
+        conn.execute("DELETE FROM user_consent WHERE username = ?", (username,))
+        cur = conn.execute("DELETE FROM users WHERE username = ?", (username,))
+        conn.commit()
+        return (cur.rowcount or 0) > 0
 
 
 def get_user(username: str) -> Optional[sqlite3.Row]:
