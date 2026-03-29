@@ -14,8 +14,15 @@ const DEFAULT_PORTFOLIO_SETTINGS = {
   skillsDisplayLimit: 10,
   projectDisplayMode: 'full', // 'full' or 'summary'
   heatmapTimeRange: 'auto', // 'auto', '1year', '2years', '3years'
-  theme: 'default' // 'default', 'minimal', 'professional'
+  theme: 'default', // 'default', 'minimal', 'professional'
+  shareAllProjects: true,
+  publicProjectKeys: [],
+  publicAnalysisUuids: [],
 };
+
+const normalizeProjectShareKey = (value) => String(value || '').trim().toLowerCase();
+const getProjectShareKey = (project) =>
+  `${normalizeProjectShareKey(project?.project_name || project?.name)}::${normalizeProjectShareKey(project?.project_path)}`;
 
 const formatTimestamp = (value) => {
   if (!value) return 'N/A';
@@ -760,6 +767,7 @@ const Portfolio = () => {
   const [livePortfolioSettings, setLivePortfolioSettings] = useState({ ...DEFAULT_PORTFOLIO_SETTINGS });
 
   const [notification, setNotification] = useState(null);
+  const [visibilityLoading, setVisibilityLoading] = useState(false);
 
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
@@ -805,8 +813,8 @@ const Portfolio = () => {
   // Portfolio Settings Management
   const loadPortfolioSettings = async () => {
     try {
-      const response = await portfoliosAPI.getPortfolioSettings?.() || {};
-      const settings = response.data || response;
+      const response = await portfoliosAPI.getPortfolioSettings();
+      const settings = response?.settings || {};
       const mergedSettings = { ...DEFAULT_PORTFOLIO_SETTINGS, ...settings };
       setPortfolioSettings(mergedSettings);
       setLivePortfolioSettings(mergedSettings);
@@ -819,7 +827,7 @@ const Portfolio = () => {
 
   const savePortfolioSettings = async () => {
     try {
-      await portfoliosAPI.savePortfolioSettings?.(portfolioSettings);
+      await portfoliosAPI.savePortfolioSettings(portfolioSettings);
       setLivePortfolioSettings({ ...portfolioSettings });
       setHasUnsavedChanges(false);
       showNotification('Portfolio settings saved successfully!', 'success');
@@ -1055,6 +1063,61 @@ const Portfolio = () => {
     return listCopy;
   }, [projectList, curationSettings]);
 
+  const shareAllProjects = portfolioSettings?.shareAllProjects !== false;
+
+  const selectedPublicAnalyses = useMemo(() => {
+    const raw = portfolioSettings?.publicAnalysisUuids;
+    if (!Array.isArray(raw) || raw.length === 0) return new Set();
+    return new Set(raw);
+  }, [portfolioSettings]);
+
+  const publicPreviewProjects = useMemo(() => {
+    if (shareAllProjects) {
+      const seen = new Set();
+      const result = [];
+      for (const detail of allDetails.values()) {
+        for (const proj of (detail?.projects ?? [])) {
+          const key = getProjectShareKey(proj);
+          if (!seen.has(key)) { seen.add(key); result.push(proj); }
+        }
+      }
+      return result;
+    }
+    const projects = [];
+    const seen = new Set();
+    for (const uuid of selectedPublicAnalyses) {
+      const detail = allDetails.get(uuid);
+      if (!detail?.projects) continue;
+      for (const p of detail.projects) {
+        const key = getProjectShareKey(p);
+        if (!seen.has(key)) { seen.add(key); projects.push(p); }
+      }
+    }
+    return projects;
+  }, [shareAllProjects, selectedPublicAnalyses, allDetails]);
+
+  const publicPreviewProjectNameSet = useMemo(
+    () =>
+      new Set(
+        publicPreviewProjects
+          .map((project) => normalizeProjectShareKey(project?.project_name || project?.name))
+          .filter(Boolean)
+      ),
+    [publicPreviewProjects]
+  );
+
+  const publicPreviewPortfolioItems = useMemo(() => {
+    const allItems = [];
+    for (const detail of allDetails.values()) {
+      const items = detail?.portfolio_items || detail?.items || detail?.portfolio || [];
+      allItems.push(...items);
+    }
+    if (shareAllProjects) return allItems;
+    return allItems.filter((item) =>
+      publicPreviewProjectNameSet.has(normalizeProjectShareKey(item?.project_name || item?.title))
+    );
+  }, [allDetails, shareAllProjects, publicPreviewProjectNameSet]);
+
   const allProjectsForHeatmap = useMemo(() => {
     const seen = new Set();
     const result = [];
@@ -1144,6 +1207,72 @@ const Portfolio = () => {
   const handleSelectPortfolio = (portfolioId) => {
     if (portfolioId === selectedPortfolioId) return;
     setSelectedPortfolioId(portfolioId);
+  };
+
+  const toggleAnalysisPublicSelection = (uuid) => {
+    const current = new Set(selectedPublicAnalyses);
+    if (current.has(uuid)) {
+      current.delete(uuid);
+    } else {
+      current.add(uuid);
+    }
+    const allUuids = portfolios.map(p => p.analysis_uuid);
+    const allSelected = allUuids.length > 0 && allUuids.every(id => current.has(id));
+
+    const projectKeys = [];
+    for (const uid of current) {
+      const detail = allDetails.get(uid);
+      if (!detail?.projects) continue;
+      for (const p of detail.projects) {
+        projectKeys.push(getProjectShareKey(p));
+      }
+    }
+    updateSettings({
+      publicAnalysisUuids: Array.from(current),
+      shareAllProjects: allSelected,
+      publicProjectKeys: allSelected ? [] : [...new Set(projectKeys)],
+    });
+  };
+
+  const selectAllAnalysesForPublic = () => {
+    updateSettings({
+      publicAnalysisUuids: portfolios.map(p => p.analysis_uuid),
+      shareAllProjects: true,
+      publicProjectKeys: [],
+    });
+  };
+
+  const clearAllAnalysesForPublic = () => {
+    updateSettings({
+      publicAnalysisUuids: [],
+      shareAllProjects: false,
+      publicProjectKeys: [],
+    });
+  };
+
+  const togglePublicVisibility = async () => {
+    if (!selectedPortfolioId || visibilityLoading) return;
+    const currentlyPublic = Boolean(selectedSummaryEntry?.is_public);
+    const nextPublic = !currentlyPublic;
+    setVisibilityLoading(true);
+    try {
+      await portfoliosAPI.setVisibility(selectedPortfolioId, nextPublic);
+      await loadPortfolios();
+      setSelectedPortfolioId(selectedPortfolioId);
+      showNotification(
+        nextPublic
+          ? 'Portfolio published to community view.'
+          : 'Portfolio switched to private.',
+        'success'
+      );
+    } catch (err) {
+      showNotification(
+        err?.response?.data?.detail || err?.message || 'Failed to update portfolio visibility',
+        'error'
+      );
+    } finally {
+      setVisibilityLoading(false);
+    }
   };
 
   const renderJsonBlock = (data) => (
@@ -1290,6 +1419,29 @@ const Portfolio = () => {
           </div>
           
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <button
+              onClick={togglePublicVisibility}
+              disabled={!selectedPortfolioId || visibilityLoading}
+              style={{
+                padding: '10px 16px',
+                borderRadius: '8px',
+                border: selectedSummaryEntry?.is_public ? '1px solid #16a34a' : '1px solid #d1d5db',
+                backgroundColor: selectedSummaryEntry?.is_public ? '#f0fdf4' : 'white',
+                color: selectedSummaryEntry?.is_public ? '#166534' : '#374151',
+                cursor: (!selectedPortfolioId || visibilityLoading) ? 'not-allowed' : 'pointer',
+                fontSize: '14px',
+                fontWeight: '600',
+                opacity: visibilityLoading ? 0.7 : 1,
+              }}
+              title="Control whether this portfolio appears in Community"
+            >
+              {visibilityLoading
+                ? 'Updating...'
+                : selectedSummaryEntry?.is_public
+                  ? '🌐 Public'
+                  : '🔒 Private'}
+            </button>
+
             {isPrivateMode && (
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
@@ -1717,7 +1869,7 @@ const Portfolio = () => {
                   )}
                 </div>
                 
-                {portfolioSettings.showPortfolioItems && Array.isArray(orderedPortfolioItems) && orderedPortfolioItems.length > 0 ? (
+                {portfolioSettings.showPortfolioItems && Array.isArray(isPrivateMode ? publicPreviewPortfolioItems : orderedPortfolioItems) && (isPrivateMode ? publicPreviewPortfolioItems : orderedPortfolioItems).length > 0 ? (
                   <div
                     style={{
                       marginTop: '16px',
@@ -1726,7 +1878,7 @@ const Portfolio = () => {
                       gap: '16px',
                     }}
                   >
-                    {orderedPortfolioItems.map((item, idx) => (
+                    {(isPrivateMode ? publicPreviewPortfolioItems : orderedPortfolioItems).map((item, idx) => (
                       (() => {
                         const itemId = item.project_id ?? item.id;
                         const showcaseRank = showcaseRanks.get(itemId);
@@ -1881,7 +2033,7 @@ const Portfolio = () => {
                   )}
                 </div>
                 
-                {portfolioSettings.showProjects && orderedProjectList.length > 0 ? (
+                {portfolioSettings.showProjects && (isPrivateMode ? publicPreviewProjects.length : orderedProjectList.length) > 0 ? (
                   <ul
                     style={{
                       margin: '16px 0 0',
@@ -1890,7 +2042,7 @@ const Portfolio = () => {
                       lineHeight: 1.6,
                     }}
                   >
-                    {orderedProjectList.map((project, index) => {
+                    {(isPrivateMode ? publicPreviewProjects : orderedProjectList).map((project, index) => {
                       const showcaseRank = showcaseRanks.get(project.id);
                       const isShowcase = !!showcaseRank;
                       return (
@@ -1944,8 +2096,16 @@ const Portfolio = () => {
                   <p style={{ marginTop: '12px', color: '#6b7280' }}>
                     {!portfolioSettings.showProjects && isPrivateMode 
                       ? 'Projects section is hidden' 
-                      : 'We have not yet extracted the individual projects for this portfolio.'}
+                      : isPrivateMode
+                        ? 'No projects selected for public sharing.'
+                        : 'We have not yet extracted the individual projects for this portfolio.'}
                   </p>
+                )}
+                {isPrivateMode && (
+                  <div style={{ marginTop: '12px', fontSize: '12px', color: '#6b7280' }}>
+                    Showing {publicPreviewProjects.length} project{publicPreviewProjects.length !== 1 ? 's' : ''} from selected analyses.
+                    Manage sharing in the sidebar.
+                  </div>
                 )}
               </div>
             </section>
@@ -1960,40 +2120,113 @@ const Portfolio = () => {
               }}
             >
               <h2 style={{ margin: '0 0 16px', color: '#0f172a' }}>Available analyses</h2>
+              {isPrivateMode && (
+                <div style={{
+                  display: 'flex',
+                  gap: '8px',
+                  alignItems: 'center',
+                  marginBottom: '12px',
+                  padding: '8px 10px',
+                  backgroundColor: '#f5f3ff',
+                  borderRadius: '8px',
+                  border: '1px solid #ddd6fe',
+                }}>
+                  <button
+                    type="button"
+                    onClick={selectAllAnalysesForPublic}
+                    style={{
+                      padding: '4px 10px', borderRadius: '6px', border: '1px solid #c4b5fd',
+                      backgroundColor: 'white', cursor: 'pointer', fontSize: '12px', fontWeight: '600', color: '#7c3aed',
+                    }}
+                  >
+                    Share all
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clearAllAnalysesForPublic}
+                    style={{
+                      padding: '4px 10px', borderRadius: '6px', border: '1px solid #c4b5fd',
+                      backgroundColor: 'white', cursor: 'pointer', fontSize: '12px', fontWeight: '600', color: '#7c3aed',
+                    }}
+                  >
+                    Share none
+                  </button>
+                  <span style={{ fontSize: '11px', color: '#6b7280', marginLeft: 'auto' }}>
+                    {shareAllProjects
+                      ? `${portfolios.length}/${portfolios.length}`
+                      : `${selectedPublicAnalyses.size}/${portfolios.length}`} shared
+                  </span>
+                </div>
+              )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {portfolios.map((portfolio) => {
                   const isActive = portfolio.analysis_uuid === selectedPortfolioId;
+                  const isShared = shareAllProjects || selectedPublicAnalyses.has(portfolio.analysis_uuid);
                   const projectNames = Array.isArray(portfolio.project_names)
                     ? portfolio.project_names.filter(Boolean)
                     : [];
                   return (
-                    <button
+                    <div
                       data-testid={`portfolio-card-${portfolio.analysis_uuid}`}
                       key={portfolio.analysis_uuid}
-                      type="button"
+                      role="button"
+                      tabIndex={0}
                       onClick={() => handleSelectPortfolio(portfolio.analysis_uuid)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleSelectPortfolio(portfolio.analysis_uuid); }}
                       style={{
-                        textAlign: 'left',
-                        padding: '16px',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '10px',
+                        padding: '12px',
                         borderRadius: '12px',
                         border: isActive ? '2px solid #2563eb' : '1px solid #e5e7eb',
                         backgroundColor: isActive ? '#e0e7ff' : '#f8fafc',
                         cursor: 'pointer',
+                      }}
+                    >
+                      {isPrivateMode && (
+                        <input
+                          type="checkbox"
+                          checked={isShared}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={() => toggleAnalysisPublicSelection(portfolio.analysis_uuid)}
+                          title="Include this analysis in public portfolio"
+                          style={{ marginTop: '3px', cursor: 'pointer', accentColor: '#7c3aed' }}
+                        />
+                      )}
+                      <div style={{
+                        flex: 1,
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '4px',
-                      }}
-                    >
-                      <span style={{ fontSize: '14px', fontWeight: '600', color: '#111827' }}>
-                        {projectNames.length > 0 ? projectNames.join(', ') : 'Unnamed project'}
-                      </span>
-                      <span style={{ fontSize: '13px', color: '#4b5563' }}>
-                        {formatTimestamp(portfolio.analysis_timestamp)}
-                      </span>
-                      <span style={{ fontSize: '14px', color: '#2563eb' }}>
-                        {portfolio.total_projects ?? 0} projects
-                      </span>
-                    </button>
+                      }}>
+                        <span style={{ fontSize: '14px', fontWeight: '600', color: '#111827' }}>
+                          {projectNames.length > 0 ? projectNames.join(', ') : 'Unnamed project'}
+                        </span>
+                        <span style={{ fontSize: '13px', color: '#4b5563' }}>
+                          {formatTimestamp(portfolio.analysis_timestamp)}
+                        </span>
+                        <span style={{ fontSize: '14px', color: '#2563eb' }}>
+                          {portfolio.total_projects ?? 0} projects
+                        </span>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                          {portfolio.is_public && (
+                            <span style={{ fontSize: '12px', color: '#166534', fontWeight: '600' }}>
+                              Public
+                            </span>
+                          )}
+                          {isPrivateMode && isShared && (
+                            <span style={{
+                              fontSize: '11px', color: '#7c3aed', fontWeight: '600',
+                              padding: '1px 6px', borderRadius: '999px',
+                              backgroundColor: '#ede9fe', border: '1px solid #ddd6fe',
+                            }}>
+                              Shared
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
