@@ -71,6 +71,17 @@ async def signup(credentials: UserCredentials):
         from backend.database import UserAlreadyExistsError
 
         create_user(credentials.username, credentials.password)
+
+        # Clear stale data left by a previously deleted account with the same name
+        try:
+            from backend.analysis_database import get_connection as get_analysis_conn
+            with get_analysis_conn() as aconn:
+                aconn.execute("DELETE FROM user_portfolio_settings WHERE username = ?",
+                              (credentials.username,))
+                aconn.commit()
+        except Exception:
+            pass
+
         token = create_access_token(credentials.username)
 
         return TokenResponse(
