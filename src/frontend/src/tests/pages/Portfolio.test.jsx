@@ -23,13 +23,19 @@ vi.mock('../../services/api', () => {
     portfoliosAPI: {
       listPortfolios: vi.fn(),
       getPortfolioDetail: vi.fn(),
+      getPortfolioSettings: vi.fn(),
+      savePortfolioSettings: vi.fn(),
+      setVisibility: vi.fn(),
+    },
+    curationAPI: {
+      getSettings: vi.fn(),
     },
   };
 });
 
 import Portfolio from '../../pages/Portfolio';
 import { useAuth } from '../../contexts/AuthContext';
-import { portfoliosAPI } from '../../services/api';
+import { portfoliosAPI, curationAPI } from '../../services/api';
 
 const renderWithAuth = (isAuthenticated = true) => {
   useAuth.mockReturnValue({
@@ -133,6 +139,15 @@ describe('Portfolio page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    portfoliosAPI.getPortfolioSettings.mockResolvedValue({ settings: {} });
+    portfoliosAPI.savePortfolioSettings.mockResolvedValue({ settings: {} });
+    portfoliosAPI.setVisibility.mockResolvedValue({ analysis_uuid: 'run-1', is_public: true });
+    curationAPI.getSettings.mockResolvedValue({
+      comparison_attributes: [],
+      showcase_project_ids: [],
+      custom_project_order: [],
+      highlighted_skills: [],
+    });
   });
 
   it('redirects to login when not authenticated', async () => {
@@ -169,7 +184,7 @@ describe('Portfolio page', () => {
     renderWithAuth();
 
     await waitFor(() => {
-      expect(screen.getByText('Python')).toBeInTheDocument();
+      expect(screen.getAllByText('Python').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Alpha').length).toBeGreaterThan(0);
       expect(screen.getByText('Alpha highlight')).toBeInTheDocument();
       expect(screen.getByText(/Quality score: 45/)).toBeInTheDocument();
@@ -206,8 +221,8 @@ describe('Portfolio page', () => {
     renderWithAuth();
 
     await waitFor(() => {
-      expect(screen.getByText('Backend APIs')).toBeInTheDocument();
-      expect(screen.getByText('Testing')).toBeInTheDocument();
+      expect(screen.getAllByText('Backend APIs').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Testing').length).toBeGreaterThan(0);
     });
   });
 
@@ -225,9 +240,9 @@ describe('Portfolio page', () => {
 
   it('loads detail for another portfolio when selected', async () => {
     portfoliosAPI.listPortfolios.mockResolvedValue(mockPortfolioList);
-    portfoliosAPI.getPortfolioDetail
-      .mockResolvedValueOnce(mockDetailFirst)
-      .mockResolvedValueOnce(mockDetailSecond);
+    portfoliosAPI.getPortfolioDetail.mockImplementation(async (analysisId) => (
+      analysisId === 'run-2' ? mockDetailSecond : mockDetailFirst
+    ));
 
     renderWithAuth();
 
