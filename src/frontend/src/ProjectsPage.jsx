@@ -95,7 +95,7 @@ function SimpleMarkdown({ text }) {
         elements.push(
           <ul key={key++} style={{ margin: '8px 0', paddingLeft: '24px' }}>
             {listItems.map((li, i) => (
-              <li key={i} style={{ lineHeight: 1.7, fontSize: '15px', marginBottom: '4px' }}>
+              <li key={`${i}-${li.slice(0, 30)}`} style={{ lineHeight: 1.7, fontSize: '15px', marginBottom: '4px' }}>
                 {renderInline(li)}
               </li>
             ))}
@@ -105,7 +105,7 @@ function SimpleMarkdown({ text }) {
         elements.push(
           <ol key={key++} style={{ margin: '8px 0', paddingLeft: '24px' }}>
             {listItems.map((li, i) => (
-              <li key={i} style={{ lineHeight: 1.7, fontSize: '15px', marginBottom: '4px' }}>
+              <li key={`${i}-${li.slice(0, 30)}`} style={{ lineHeight: 1.7, fontSize: '15px', marginBottom: '4px' }}>
                 {renderInline(li)}
               </li>
             ))}
@@ -541,7 +541,7 @@ function LlmAnalysisPanel({ projectId, project }) {
             <>
               {(baseSection ? [baseSection] : sections.slice(0, 1)).map((s, i) => (
                 <div
-                  key={i}
+                  key={s.title || i}
                   style={{
                     backgroundColor: 'white',
                     border: '1px solid #e0e7ff',
@@ -740,7 +740,7 @@ function LlmAnalysisPanel({ projectId, project }) {
                       {ANALYSIS_MODULES[mod]}
                     </div>
                     {modSections.map((s, i) => (
-                      <SimpleMarkdown key={i} text={s.content} />
+                      <SimpleMarkdown key={s.title || i} text={s.content} />
                     ))}
                   </div>
                 );

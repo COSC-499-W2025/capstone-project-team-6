@@ -303,9 +303,6 @@ const Upload = () => {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
 
-        console.log('Upload response:', res.data);
-        console.log('Duplicate flag:', res?.data?.details?.duplicate);
-
         // Duplicate: this ZIP was already analysed — skip re-analysis
         if (res?.data?.details?.duplicate === true) {
           setDuplicateMessage('This project has already been analyzed. You can view it in your projects.');
