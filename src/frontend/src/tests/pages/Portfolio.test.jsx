@@ -32,7 +32,7 @@ vi.mock('../../services/api', () => {
 
 import Portfolio from '../../pages/Portfolio';
 import { useAuth } from '../../contexts/AuthContext';
-import { portfoliosAPI } from '../../services/api';
+import { portfoliosAPI, curationAPI } from '../../services/api';
 
 const renderWithAuth = (isAuthenticated = true) => {
   useAuth.mockReturnValue({
@@ -136,6 +136,10 @@ describe('Portfolio page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    portfoliosAPI.listPortfolios.mockReset();
+    portfoliosAPI.getPortfolioDetail.mockReset();
+    curationAPI.getSettings.mockReset();
+    curationAPI.getSettings.mockResolvedValue({});
   });
 
   it('redirects to login when not authenticated', async () => {
@@ -146,12 +150,15 @@ describe('Portfolio page', () => {
     });
   });
 
-  it('shows loading state while fetching portfolios', () => {
+  it('shows loading state while fetching portfolios', async () => {
     portfoliosAPI.listPortfolios.mockImplementation(() => new Promise(() => {}));
+    curationAPI.getSettings.mockImplementation(() => new Promise(() => {}));
 
     renderWithAuth();
 
-    expect(screen.getByText('Loading portfolios...')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Loading portfolios...')).toBeInTheDocument();
+    });
   });
 
   it('shows error message when portfolio list fails', async () => {

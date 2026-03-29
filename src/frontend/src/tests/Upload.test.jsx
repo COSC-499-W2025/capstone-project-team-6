@@ -144,13 +144,13 @@ describe('Upload', () => {
       expect(mockNavigate).not.toHaveBeenCalled();
     });
 
-    it('displays Analyze Project button for single tab', () => {
+    it('displays Analyze Project button for single tab', async () => {
       render(
         <BrowserRouter>
           <Upload />
         </BrowserRouter>
       );
-      expect(screen.getByText('Analyze Project')).toBeInTheDocument();
+      expect(await screen.findByText('Analyze Project')).toBeInTheDocument();
     });
   });
 
