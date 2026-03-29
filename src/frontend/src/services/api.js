@@ -237,6 +237,10 @@ export const resumeAPI = {
     return response.data;
   },
 
+  deleteStoredResume: async (resumeId) => {
+    await api.delete(`/resumes/${resumeId}`);
+  },
+
   addItemsToResume: async (resumeId, resumeItemIds) => {
     const response = await api.post(`/resumes/${resumeId}/items`, {
       resume_item_ids: resumeItemIds,
@@ -309,6 +313,16 @@ export const resumeAPI = {
       { job_description: jobDescription },
       { timeout: 60000 }
     );
+    return response.data;
+  },
+
+  listJobMatches: async () => {
+    const response = await api.get('/resume/job-matches');
+    return response.data;
+  },
+
+  deleteJobMatch: async (matchId) => {
+    const response = await api.delete(`/resume/job-matches/${matchId}`);
     return response.data;
   },
 };

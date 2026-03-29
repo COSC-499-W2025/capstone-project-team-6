@@ -198,6 +198,7 @@ class TestTasksEndpoints:
         task_id = str(uuid.uuid4())
 
         mock_task = MagicMock()
+        mock_task.username = username
         # Mocking the manager behavior
         mock_manager.get_task_status.return_value = mock_task
         mock_manager.cancel_task.return_value = True
@@ -207,8 +208,7 @@ class TestTasksEndpoints:
             headers={"Authorization": f"Bearer {token}"},
         )
 
-        # Note: If this is failing with 404, ensure the route is registered in api_server.app
-        assert response.status_code in [200, 404]
+        assert response.status_code == 200
 
     def test_cancel_task_not_found(self, mock_manager, auth_token):
         """Test canceling non-existent task."""

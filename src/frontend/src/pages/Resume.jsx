@@ -6,6 +6,72 @@ import remarkGfm from 'remark-gfm';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 
+const PdfPreview = ({ base64Content, narrow = false }) => {
+  const [url, setUrl] = useState(null);
+  const urlRef = useRef(null);
+
+  useEffect(() => {
+    if (!base64Content) return;
+    try {
+      const binaryString = atob(base64Content);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const blobUrl = URL.createObjectURL(blob);
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+      urlRef.current = blobUrl;
+      setUrl(blobUrl);
+    } catch {
+      setUrl(null);
+    }
+    return () => {
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+      urlRef.current = null;
+    };
+  }, [base64Content]);
+
+  if (!url) {
+    return <p style={{ color: '#737373', fontSize: '14px' }}>Unable to preview this PDF.</p>;
+  }
+
+  const iframe = (
+    <iframe
+      src={url}
+      title="PDF Preview"
+      style={{
+        width: '100%',
+        height: narrow ? 'min(400px, 52vh)' : 'min(280px, 38vh)',
+        maxHeight: narrow ? '480px' : '320px',
+        border: '1px solid #e5e7eb',
+        borderRadius: '6px',
+        display: 'block',
+        backgroundColor: '#f3f4f6',
+      }}
+    />
+  );
+
+  if (narrow) {
+    return (
+      <div
+        style={{
+          maxWidth: 'min(680px, 96%)',
+          margin: '0 auto',
+          padding: '14px',
+          backgroundColor: '#f9fafb',
+          borderRadius: '8px',
+          border: '1px solid #e5e7eb',
+        }}
+      >
+        {iframe}
+      </div>
+    );
+  }
+
+  return iframe;
+};
+
 const Resume = () => {
   const [projects, setProjects] = useState([]);
   const [selectedProjectIds, setSelectedProjectIds] = useState([]);
@@ -799,6 +865,46 @@ const Resume = () => {
     }
   };
 
+  const handleDeleteStoredResume = async (resumeId) => {
+    if (!window.confirm('Delete this saved resume? This cannot be undone.')) return;
+    try {
+      setDeletingResumeId(resumeId);
+      await resumeAPI.deleteStoredResume(resumeId);
+      setStoredResumes((prev) => prev.filter((r) => r.id !== resumeId));
+      if (storedResumeId === resumeId) {
+        setStoredResumeId('');
+        setStoredResumeTitle('');
+        setStoredResumeContent('');
+        setStoredResumeFormat('markdown');
+      }
+      if (viewingResumeId === resumeId) setViewingResumeId(null);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to delete resume');
+    } finally {
+      setDeletingResumeId(null);
+    }
+  };
+
+  const handleSaveGeneratedResume = async () => {
+    if (!saveResumeTitle.trim() || !generatedResume) return;
+    try {
+      setSaveResumeSaving(true);
+      const content = editableContent || generatedResume.content;
+      const created = await resumeAPI.createStoredResume({
+        title: saveResumeTitle.trim(),
+        format: resumeFormat,
+        content,
+      });
+      setStoredResumes((prev) => [created, ...prev]);
+      setShowSaveModal(false);
+      setSaveResumeTitle('');
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to save resume');
+    } finally {
+      setSaveResumeSaving(false);
+    }
+  };
+
   const toggleProject = (projectId) => {
     setSelectedProjectIds((prev) => {
       if (prev.includes(projectId)) {
@@ -911,7 +1017,16 @@ const Resume = () => {
       setIsEditing(false);
     } catch (err) {
       console.error('Error generating resume:', err);
-      setError(err.response?.data?.detail || 'Failed to generate resume');
+      const detail = err.response?.data?.detail;
+      const detailStr = typeof detail === 'string' ? detail : '';
+      if (detailStr.includes('pdflatex is required')) {
+        setError(
+          'PDF generation requires LaTeX to be installed on the server. ' +
+            'Try switching to Markdown format instead, or contact your administrator.'
+        );
+      } else {
+        setError(detailStr || 'Failed to generate resume');
+      }
       try { window.scrollTo(0, 0); } catch (_) {}
     } finally {
       setGenerating(false);
@@ -932,6 +1047,12 @@ const Resume = () => {
 
   const handleCancelEdit = () => {
     setEditableContent(generatedResume?.content || '');
+    setIsEditing(false);
+  };
+
+  const handleClosePreview = () => {
+    setGeneratedResume(null);
+    setEditableContent(null);
     setIsEditing(false);
   };
 
@@ -1414,6 +1535,89 @@ const Resume = () => {
         </div>
       )}
 
+      {showSaveModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={() => setShowSaveModal(false)}
+        >
+          <div
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              width: '420px',
+              boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ marginTop: 0, fontSize: '18px', fontWeight: '600', color: '#1a1a1a' }}>
+              Save Resume
+            </h3>
+            <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 16px 0' }}>
+              Give your resume a title so you can find it later.
+            </p>
+            <input
+              type="text"
+              placeholder="e.g. Software Engineer — Google"
+              value={saveResumeTitle}
+              onChange={(e) => setSaveResumeTitle(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSaveGeneratedResume()}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                fontSize: '14px',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                boxSizing: 'border-box',
+                marginBottom: '16px',
+              }}
+              autoFocus
+            />
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowSaveModal(false)}
+                style={{
+                  padding: '8px 16px',
+                  fontSize: '14px',
+                  color: '#374151',
+                  backgroundColor: '#f3f4f6',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveGeneratedResume}
+                disabled={saveResumeSaving || !saveResumeTitle.trim()}
+                style={{
+                  padding: '8px 16px',
+                  fontSize: '14px',
+                  color: 'white',
+                  backgroundColor:
+                    saveResumeSaving || !saveResumeTitle.trim() ? '#9ca3af' : '#16a34a',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor:
+                    saveResumeSaving || !saveResumeTitle.trim() ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {saveResumeSaving ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Navigation />
 
       <div
@@ -1468,12 +1672,12 @@ const Resume = () => {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: generatedResume ? '400px 1fr' : '1fr',
+            gridTemplateColumns: generatedResume ? 'minmax(0, 400px) minmax(0, 1fr)' : '1fr',
             gap: '24px',
           }}
         >
           {/* Left Panel */}
-          <div>
+          <div style={{ minWidth: 0 }}>
             {/* Personal Information */}
             <div
               style={{
@@ -1725,14 +1929,34 @@ const Resume = () => {
                             borderRadius: '8px',
                             backgroundColor: '#f9fafb',
                             border: '1px solid #e5e7eb',
+                            overflow: 'hidden',
+                            minWidth: 0,
                           }}
                         >
-                          <div style={{ fontSize: '14px', fontWeight: '700', color: '#1a1a1a', marginBottom: '6px' }}>
+                          <div
+                            style={{
+                              fontSize: '14px',
+                              fontWeight: '700',
+                              color: '#1a1a1a',
+                              marginBottom: '6px',
+                              overflowWrap: 'anywhere',
+                              wordBreak: 'break-word',
+                            }}
+                          >
                             {entry.degree && entry.university ? `${entry.degree} - ${entry.university}` : entry.degree || entry.university || 'Education'}
                           </div>
 
                           {hasAnyMeta && (
-                            <div style={{ fontSize: '13px', color: '#525252', lineHeight: '1.4', marginBottom: '10px' }}>
+                            <div
+                              style={{
+                                fontSize: '13px',
+                                color: '#525252',
+                                lineHeight: '1.4',
+                                marginBottom: '10px',
+                                overflowWrap: 'anywhere',
+                                wordBreak: 'break-word',
+                              }}
+                            >
                               {entry.location ? <div>{entry.location}</div> : null}
                               {(entry.start_date || entry.end_date) && (
                                 <div>{formatExperienceDateRange(entry.start_date, entry.end_date)}</div>
@@ -1830,9 +2054,8 @@ const Resume = () => {
                       boxSizing: 'border-box',
                     }}
                   />
-
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                    <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1 }}>
                       <MonthYearPicker
                         value={educationForm.start_date}
                         onChange={(v) => setEducationForm((prev) => ({ ...prev, start_date: v }))}
@@ -2553,6 +2776,7 @@ const Resume = () => {
                 borderRadius: '12px',
                 padding: '24px',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                minWidth: 0,
               }}
             >
               <div
@@ -2644,6 +2868,24 @@ const Resume = () => {
                   )}
 
                   <button
+                    onClick={() => {
+                      setSaveResumeTitle('');
+                      setShowSaveModal(true);
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      fontSize: '14px',
+                      color: 'white',
+                      backgroundColor: '#16a34a',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Save Resume
+                  </button>
+
+                  <button
                     onClick={downloadResume}
                     style={{
                       padding: '8px 16px',
@@ -2656,6 +2898,25 @@ const Resume = () => {
                     }}
                   >
                     Download
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleClosePreview}
+                    aria-label="Close preview"
+                    title="Close preview"
+                    style={{
+                      padding: '8px 12px',
+                      fontSize: '20px',
+                      lineHeight: 1,
+                      color: '#737373',
+                      backgroundColor: 'white',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ×
                   </button>
                 </div>
               </div>
@@ -2688,14 +2949,14 @@ const Resume = () => {
                 </div>
               </div>
 
-              {/* Resume Content */}
+              {/* Resume Content (no inner scroll; page scrolls for long markdown) */}
               <div
                 style={{
                   padding: '24px',
                   backgroundColor: '#fafafa',
                   borderRadius: '8px',
-                  maxHeight: '600px',
-                  overflowY: 'auto',
+                  overflowX: 'hidden',
+                  minWidth: 0,
                 }}
               >
                 {generatedResume?.format === 'docx' ? (
@@ -2750,10 +3011,13 @@ const Resume = () => {
                         src={pdfUrl}
                         style={{
                           width: '100%',
-                          height: '560px',
+                          // Tall preview: viewport share (not a large fixed subtract, which made it ~300px).
+                          // clamp(min, preferred, max) keeps it readable on small screens without a tiny strip.
+                          height: 'clamp(520px, 78dvh, 1320px)',
                           border: '1px solid #e5e7eb',
                           borderRadius: '8px',
                           backgroundColor: 'white',
+                          display: 'block',
                         }}
                       />
                     )}
@@ -2783,6 +3047,10 @@ const Resume = () => {
                       fontSize: '15px',
                       lineHeight: '1.7',
                       color: '#1a1a1a',
+                      minWidth: 0,
+                      maxWidth: '100%',
+                      overflowWrap: 'break-word',
+                      wordBreak: 'break-word',
                     }}
                   >
                     <ReactMarkdown
@@ -2835,7 +3103,17 @@ const Resume = () => {
                             {...props}
                           />
                         ),
-                        p: ({ node, ...props }) => <p style={{ marginBottom: '12px' }} {...props} />,
+                        p: ({ node, ...props }) => (
+                          <p
+                            style={{
+                              marginBottom: '12px',
+                              overflowWrap: 'break-word',
+                              wordBreak: 'break-word',
+                              maxWidth: '100%',
+                            }}
+                            {...props}
+                          />
+                        ),
                         ul: ({ node, ...props }) => (
                           <ul style={{ marginLeft: '20px', marginBottom: '12px', listStyleType: 'disc' }} {...props} />
                         ),

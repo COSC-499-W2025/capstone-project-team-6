@@ -4,6 +4,19 @@ import Navigation from '../components/Navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { portfoliosAPI, curationAPI } from '../services/api';
 
+const DEFAULT_PORTFOLIO_SETTINGS = {
+  showHeatmap: true,
+  showSkills: true,
+  showProjectDetails: true,
+  showPortfolioItems: true,
+  showProjects: true,
+  showProfileSummary: true,
+  skillsDisplayLimit: 10,
+  projectDisplayMode: 'full', // 'full' or 'summary'
+  heatmapTimeRange: 'auto', // 'auto', '1year', '2years', '3years'
+  theme: 'default' // 'default', 'minimal', 'professional'
+};
+
 const formatTimestamp = (value) => {
   if (!value) return 'N/A';
   const date = new Date(value);
@@ -15,6 +28,409 @@ const formatTimestamp = (value) => {
     hour: 'numeric',
     minute: '2-digit',
   });
+};
+
+const UserProfileSummary = ({ 
+  selectedPortfolioDetail, 
+  orderedProjectList, 
+  skillTags, 
+  auth, 
+  totalProjects,
+  analysisType,
+  isPrivateMode,
+  updateSettings,
+  portfolioSettings 
+}) => {
+  // Calculate overall role assessment
+  const roleAssessment = useMemo(() => {
+    const roles = orderedProjectList.map(p => p.curated_role || p.predicted_role).filter(Boolean);
+    const roleFreq = roles.reduce((acc, role) => {
+      acc[role] = (acc[role] || 0) + 1;
+      return acc;
+    }, {});
+    
+    if (Object.keys(roleFreq).length === 0) return null;
+    
+    const dominantRole = Object.entries(roleFreq)
+      .sort(([,a], [,b]) => b - a)[0];
+    
+    const avgConfidence = orderedProjectList
+      .filter(p => p.predicted_role_confidence)
+      .reduce((sum, p) => sum + p.predicted_role_confidence, 0) / 
+      orderedProjectList.filter(p => p.predicted_role_confidence).length;
+    
+    return {
+      role: dominantRole[0],
+      frequency: dominantRole[1],
+      totalProjects: roles.length,
+      confidence: avgConfidence || 0,
+      diversity: Object.keys(roleFreq).length
+    };
+  }, [orderedProjectList]);
+
+  // Top programming languages
+  const topLanguages = useMemo(() => {
+    const langFreq = orderedProjectList.reduce((acc, project) => {
+      if (project.primary_language) {
+        acc[project.primary_language] = (acc[project.primary_language] || 0) + 1;
+      }
+      return acc;
+    }, {});
+    
+    return Object.entries(langFreq)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5)
+      .map(([lang, count]) => ({ language: lang, projects: count }));
+  }, [orderedProjectList]);
+
+  return (
+    <section style={{
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      borderRadius: '24px',
+      padding: '40px',
+      marginBottom: '32px',
+      color: 'white',
+      position: 'relative',
+      overflow: 'hidden',
+      border: isPrivateMode ? '3px dashed #8b5cf6' : 'none',
+    }}>
+      {/* Background Pattern */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        width: '100%',
+        height: '100%',
+        background: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.05"%3E%3Ccircle cx="30" cy="30" r="4"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
+        zIndex: 1
+      }} />
+
+      {/* Customization Controls */}
+      {isPrivateMode && (
+        <div style={{
+          position: 'absolute',
+          top: '16px',
+          right: '16px',
+          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+          padding: '8px 12px',
+          borderRadius: '8px',
+          fontSize: '12px',
+          display: 'flex',
+          gap: '8px',
+          alignItems: 'center',
+          zIndex: 10
+        }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', color: '#1f2937' }}>
+            <input
+              type="checkbox"
+              checked={portfolioSettings.showProfileSummary !== false}
+              onChange={(e) => updateSettings({ showProfileSummary: e.target.checked })}
+            />
+            Show Profile Summary
+          </label>
+        </div>
+      )}
+
+      {(portfolioSettings.showProfileSummary !== false) && (
+        <div style={{ position: 'relative', zIndex: 2 }}>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
+            <div>
+              <div style={{
+                fontSize: '14px',
+                fontWeight: '600',
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                opacity: 0.8,
+                marginBottom: '8px'
+              }}>
+                Developer Profile
+              </div>
+              <h1 style={{
+                margin: 0,
+                fontSize: '42px',
+                fontWeight: '800',
+                background: 'linear-gradient(45deg, #ffffff, #f3f4f6)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text'
+              }}>
+                {auth.user?.email?.split('@')[0] ? `${auth.user.email.split('@')[0]}'s Portfolio` : 'Portfolio Owner'}
+              </h1>
+            </div>
+            
+            <div style={{
+              padding: '16px 24px',
+              backgroundColor: 'rgba(255, 255, 255, 0.15)',
+              borderRadius: '16px',
+              textAlign: 'center',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.2)'
+            }}>
+              <div style={{ fontSize: '24px', fontWeight: '700', marginBottom: '4px' }}>
+                {totalProjects}
+              </div>
+              <div style={{ fontSize: '12px', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Projects Analyzed
+              </div>
+            </div>
+          </div>
+
+          {/* Role & Skills Grid */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '24px',
+            marginBottom: '32px'
+          }}>
+            {/* Role Assessment Card */}
+            {roleAssessment && (
+              <div style={{
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                borderRadius: '16px',
+                padding: '24px',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255, 255, 255, 0.2)'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  marginBottom: '16px'
+                }}>
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '20px'
+                  }}>
+                    🎯
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>
+                      Primary Role
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '13px', opacity: 0.7 }}>
+                      Based on {roleAssessment.totalProjects} project{roleAssessment.totalProjects !== 1 ? 's' : ''} across all portfolios
+                    </p>
+                  </div>
+                </div>
+                
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{
+                    fontSize: '20px',
+                    fontWeight: '700',
+                    marginBottom: '6px'
+                  }}>
+                    {roleAssessment.role}
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '13px',
+                    opacity: 0.8
+                  }}>
+                    <div style={{
+                      width: `${roleAssessment.confidence * 100}%`,
+                      height: '4px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.6)',
+                      borderRadius: '2px'
+                    }} />
+                    <span>{Math.round(roleAssessment.confidence * 100)}% confidence</span>
+                  </div>
+                </div>
+                
+                {roleAssessment.diversity > 1 && (
+                  <div style={{
+                    fontSize: '12px',
+                    opacity: 0.7,
+                    padding: '8px 12px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                    borderRadius: '8px'
+                  }}>
+                    📊 {roleAssessment.diversity} role specializations detected
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Skills Highlight Card */}
+            <div style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              borderRadius: '16px',
+              padding: '24px',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.2)'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                marginBottom: '16px'
+              }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '20px'
+                }}>
+                  ⚡
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>
+                    Core Skills
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '13px', opacity: 0.7 }}>
+                    Top {Math.min(skillTags.length, 8)} across all projects
+                  </p>
+                </div>
+              </div>
+              
+              <div style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '8px'
+              }}>
+                {skillTags.slice(0, 8).map((skill, index) => (
+                  <span
+                    key={skill.skill || skill.name || index}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '20px',
+                      backgroundColor: skill.curated ? 
+                        'rgba(34, 197, 94, 0.2)' : 
+                        'rgba(255, 255, 255, 0.2)',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      border: skill.curated ? 
+                        '1px solid rgba(34, 197, 94, 0.4)' : 
+                        '1px solid rgba(255, 255, 255, 0.3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    {skill.curated && '✨'}
+                    {skill.skill || skill.name}
+                  </span>
+                ))}
+              </div>
+              
+              {skillTags.length > 8 && (
+                <p style={{ 
+                  margin: '12px 0 0',
+                  fontSize: '12px',
+                  opacity: 0.7,
+                  textAlign: 'center'
+                }}>
+                  +{skillTags.length - 8} more skills
+                </p>
+              )}
+            </div>
+
+            {/* Languages Card */}
+            {topLanguages.length > 0 && (
+              <div style={{
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                borderRadius: '16px',
+                padding: '24px',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255, 255, 255, 0.2)'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  marginBottom: '16px'
+                }}>
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '20px'
+                  }}>
+                    💻
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>
+                      Languages
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '13px', opacity: 0.7 }}>
+                      Primary technologies
+                    </p>
+                  </div>
+                </div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {topLanguages.map((lang, index) => (
+                    <div key={lang.language} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '8px 12px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                      borderRadius: '8px'
+                    }}>
+                      <span style={{ fontSize: '14px', fontWeight: '500' }}>
+                        {lang.language}
+                      </span>
+                      <span style={{
+                        fontSize: '12px',
+                        opacity: 0.8,
+                        padding: '2px 8px',
+                        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                        borderRadius: '12px'
+                      }}>
+                        {lang.projects} project{lang.projects !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Call to Action */}
+          <div style={{
+            textAlign: 'center',
+            padding: '20px',
+            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+            borderRadius: '16px',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)'
+          }}>
+            <p style={{
+              margin: '0 0 12px',
+              fontSize: '16px',
+              fontWeight: '500'
+            }}>
+              🚀 Explore detailed analysis of your projects below
+            </p>
+            <p style={{
+              margin: 0,
+              fontSize: '14px',
+              opacity: 0.8
+            }}>
+              Dive into code quality metrics, project insights, and technical assessments
+            </p>
+          </div>
+        </div>
+      )}
+    </section>
+  );
 };
 
 const ActivityHeatmap = ({ portfolios, projectList }) => {
@@ -322,7 +738,7 @@ const ActivityHeatmap = ({ portfolios, projectList }) => {
 
 const Portfolio = () => {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   const [portfolios, setPortfolios] = useState([]);
   const [selectedPortfolioId, setSelectedPortfolioId] = useState(null);
@@ -337,10 +753,25 @@ const Portfolio = () => {
   // Curation settings
   const [curationSettings, setCurationSettings] = useState(null);
 
+  // Private Mode State for Portfolio Customization
+  const [isPrivateMode, setIsPrivateMode] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [portfolioSettings, setPortfolioSettings] = useState({ ...DEFAULT_PORTFOLIO_SETTINGS });
+  const [livePortfolioSettings, setLivePortfolioSettings] = useState({ ...DEFAULT_PORTFOLIO_SETTINGS });
+
+  const [notification, setNotification] = useState(null);
+
+  const showNotification = (message, type = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 4000);
+  };
+
   const loadPortfolios = useCallback(async () => {
     setError('');
     setLoading(true);
     setSelectedPortfolioDetail(null);
+    setDetailError('');
+    setAllDetails(new Map());
     try {
       const data = await portfoliosAPI.listPortfolios();
       setPortfolios(data ?? []);
@@ -366,7 +797,78 @@ const Portfolio = () => {
     curationAPI.getSettings()
       .then((settings) => setCurationSettings(settings))
       .catch(() => setCurationSettings(null));
+
+    // Load portfolio settings
+    loadPortfolioSettings();
   }, [isAuthenticated, navigate, loadPortfolios]);
+
+  // Portfolio Settings Management
+  const loadPortfolioSettings = async () => {
+    try {
+      const response = await portfoliosAPI.getPortfolioSettings?.() || {};
+      const settings = response.data || response;
+      const mergedSettings = { ...DEFAULT_PORTFOLIO_SETTINGS, ...settings };
+      setPortfolioSettings(mergedSettings);
+      setLivePortfolioSettings(mergedSettings);
+    } catch (error) {
+      // Use defaults if no settings found
+      console.log('Using default portfolio settings');
+      setLivePortfolioSettings({ ...DEFAULT_PORTFOLIO_SETTINGS });
+    }
+  };
+
+  const savePortfolioSettings = async () => {
+    try {
+      await portfoliosAPI.savePortfolioSettings?.(portfolioSettings);
+      setLivePortfolioSettings({ ...portfolioSettings });
+      setHasUnsavedChanges(false);
+      showNotification('Portfolio settings saved successfully!', 'success');
+      setIsPrivateMode(false);
+    } catch (error) {
+      console.error('Error saving portfolio settings:', error);
+      showNotification('Error saving portfolio settings. Please try again.', 'error');
+    }
+  };
+
+  const refreshPortfolios = async () => {
+    try {
+      await loadPortfolios();
+      showNotification('Portfolio data refreshed successfully!', 'success');
+    } catch (error) {
+      showNotification('Failed to refresh portfolio data', 'error');
+    }
+  };
+
+  const togglePrivateMode = () => {
+    // If exiting preview mode and there are unsaved changes, ask for confirmation
+    if (isPrivateMode && hasUnsavedChanges) {
+      const confirm = window.confirm('You have unsaved changes. Do you want to discard them and exit preview mode?');
+      if (!confirm) return;
+      // Revert to live settings
+      if (livePortfolioSettings) {
+        setPortfolioSettings({ ...livePortfolioSettings });
+      }
+      setHasUnsavedChanges(false);
+    }
+    setIsPrivateMode(!isPrivateMode);
+  };
+
+  const exitPreviewMode = () => {
+    if (hasUnsavedChanges) {
+      const confirm = window.confirm('You have unsaved changes. Do you want to discard them and exit preview mode?');
+      if (!confirm) return;
+      if (livePortfolioSettings) {
+        setPortfolioSettings({ ...livePortfolioSettings });
+      }
+      setHasUnsavedChanges(false);
+    }
+    setIsPrivateMode(false);
+  };
+
+  const updateSettings = (newSettings) => {
+    setPortfolioSettings(prev => ({ ...prev, ...newSettings }));
+    setHasUnsavedChanges(true);
+  };
 
   useEffect(() => {
     if (!selectedPortfolioId) {
@@ -407,19 +909,61 @@ const Portfolio = () => {
     };
   }, [selectedPortfolioId]);
 
-  // Background-fetch details for all other portfolios so the heatmap shows ALL activity
   useEffect(() => {
-    if (portfolios.length === 0) return;
+    const handleVisibilityChange = () => {
+      if (!document.hidden && isAuthenticated) {
+        loadPortfolios();
+      }
+    };
+
+    const handleWindowFocus = () => {
+      if (isAuthenticated) {
+        loadPortfolios();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleWindowFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleWindowFocus);
+    };
+  }, [isAuthenticated, loadPortfolios]);
+
+  useEffect(() => {
+    if (portfolios.length === 0) {
+      setAllDetails(new Map());
+      return;
+    }
+    
     let cancelled = false;
-    const uuids = portfolios.map((p) => p.analysis_uuid).filter(Boolean);
-    uuids.forEach((uuid) => {
-      if (allDetails.has(uuid)) return; // already cached
-      portfoliosAPI.getPortfolioDetail(uuid).then((detail) => {
-        if (!cancelled) setAllDetails((prev) => new Map(prev).set(uuid, detail));
-      }).catch(() => {}); // silently ignore failures for background fetches
+    const currentUuids = new Set(portfolios.map((p) => p.analysis_uuid).filter(Boolean));
+    
+    setAllDetails((prev) => {
+      const cleaned = new Map();
+      for (const [uuid, detail] of prev.entries()) {
+        if (currentUuids.has(uuid)) {
+          cleaned.set(uuid, detail);
+        }
+      }
+      return cleaned;
     });
+    
+    const uuidsArray = Array.from(currentUuids);
+    uuidsArray.forEach((uuid) => {
+      setAllDetails((prev) => {
+        if (prev.has(uuid)) return prev; // already cached
+        portfoliosAPI.getPortfolioDetail(uuid).then((detail) => {
+          if (!cancelled) {
+            setAllDetails((current) => new Map(current).set(uuid, detail));
+          }
+        }).catch(() => {}); 
+        return prev;
+      });
+    });
+    
     return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [portfolios]);
 
   const selectedSummaryEntry = useMemo(
@@ -523,6 +1067,67 @@ const Portfolio = () => {
     return result;
   }, [allDetails]);
 
+  // Aggregate all portfolio items from all portfolios for comprehensive skill analysis
+  const allPortfolioItems = useMemo(() => {
+    const result = [];
+    for (const detail of allDetails.values()) {
+      const items = detail?.portfolio_items || detail?.items || detail?.portfolio || [];
+      result.push(...items);
+    }
+    return result;
+  }, [allDetails]);
+
+  // Aggregate skills from ALL portfolios
+  const aggregatedSkillTags = useMemo(() => {
+    const skillCounts = new Map();
+    
+    // First check for any curated skills from curation settings
+    const curatedSkills = curationSettings?.highlighted_skills;
+    if (Array.isArray(curatedSkills) && curatedSkills.length > 0) {
+      return curatedSkills.map((skill) => ({ skill, count: null, curated: true }));
+    }
+
+    // Aggregate skills from all portfolio details
+    for (const detail of allDetails.values()) {
+      const rawSkills = detail?.skills;
+      if (Array.isArray(rawSkills)) {
+        for (const skillObj of rawSkills) {
+          const skillName = skillObj.skill || skillObj.name;
+          if (skillName) {
+            const currentCount = skillCounts.get(skillName) || 0;
+            const skillCount = skillObj.count || 1;
+            skillCounts.set(skillName, currentCount + skillCount);
+          }
+        }
+      }
+
+      // Also get skills from portfolio items  
+      const items = detail?.portfolio_items || detail?.items || detail?.portfolio || [];
+      for (const item of items) {
+        const skills = item?.skills_exercised;
+        const normalizedSkills = Array.isArray(skills)
+          ? skills
+          : typeof skills === 'string'
+            ? skills.split(',').map((skill) => skill.trim())
+            : [];
+        for (const skill of normalizedSkills) {
+          if (!skill) continue;
+          skillCounts.set(skill, (skillCounts.get(skill) ?? 0) + 1);
+        }
+      }
+    }
+
+    return [...skillCounts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 15)  // Show more skills since we're aggregating
+      .map(([skill, count]) => ({ skill, count }));
+  }, [allDetails, curationSettings]);
+
+  // Calculate total projects from all portfolios
+  const totalAggregatedProjects = useMemo(() => {
+    return allProjectsForHeatmap.length;
+  }, [allProjectsForHeatmap]);
+
   // Showcase project IDs → rank (1, 2, 3)
   const showcaseRanks = useMemo(() => {
     const ids = curationSettings?.showcase_project_ids ?? [];
@@ -561,9 +1166,205 @@ const Portfolio = () => {
   );
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#fafafa' }}>
+    <div style={{ 
+      minHeight: '100vh', 
+      backgroundColor: '#fafafa',
+      position: 'relative'
+    }}>
+      {/* CSS Animation Styles */}
+      <style>{`
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      `}</style>
+      
       <Navigation />
+      
+      {/* Notification Component */}
+      {notification && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          backgroundColor: notification.type === 'success' ? '#10b981' : '#ef4444',
+          color: 'white',
+          padding: '12px 20px',
+          borderRadius: '8px',
+          fontSize: '14px',
+          fontWeight: '600',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+          zIndex: 1001,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          animation: 'slideIn 0.3s ease-out',
+          maxWidth: '400px'
+        }}>
+          <span>{notification.type === 'success' ? '✅' : '❌'}</span>
+          {notification.message}
+          <button
+            onClick={() => setNotification(null)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'white',
+              cursor: 'pointer',
+              fontSize: '16px',
+              padding: '0',
+              marginLeft: '8px'
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+      
+      {/* Private Mode Banner */}
+      {isPrivateMode && (
+        <div style={{
+          position: 'fixed',
+          top: '80px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: '#8b5cf6',
+          color: 'white',
+          padding: '8px 16px',
+          borderRadius: '20px',
+          fontSize: '14px',
+          fontWeight: '600',
+          zIndex: 1000,
+          boxShadow: '0 4px 12px rgba(139, 92, 246, 0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          🎨 Portfolio Preview Mode
+          {hasUnsavedChanges && (
+            <span style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              padding: '2px 8px',
+              borderRadius: '10px',
+              fontSize: '12px'
+            }}>
+              Unsaved
+            </span>
+          )}
+        </div>
+      )}
+      
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '32px 24px 48px' }}>
+        {/* Portfolio Header with Private Mode Controls */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '32px',
+          backgroundColor: 'white',
+          padding: '20px 24px',
+          borderRadius: '12px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+        }}>
+          <div>
+            <h1 style={{
+              margin: '0 0 4px 0',
+              fontSize: '28px',
+              fontWeight: '700',
+              color: '#1a1a1a'
+            }}>
+              Portfolio Showcase
+            </h1>
+            <p style={{
+              margin: 0,
+              color: '#6b7280',
+              fontSize: '14px'
+            }}>
+              {isPrivateMode ? 'Preview your changes - make edits and see how they look before publishing' : 'Your professional project showcase'}
+            </p>
+          </div>
+          
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            {isPrivateMode && (
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={exitPreviewMode}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: '1px solid #e5e5e5',
+                    backgroundColor: 'white',
+                    color: '#737373',
+                    cursor: 'pointer',
+                    fontSize: '14px'
+                  }}
+                >
+                  Discard Changes
+                </button>
+                <button
+                  onClick={savePortfolioSettings}
+                  disabled={!hasUnsavedChanges}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: '1px solid #8b5cf6',
+                    backgroundColor: hasUnsavedChanges ? '#8b5cf6' : '#e5e5e5',
+                    color: hasUnsavedChanges ? 'white' : '#737373',
+                    cursor: hasUnsavedChanges ? 'pointer' : 'not-allowed',
+                    fontSize: '14px',
+                    fontWeight: '600'
+                  }}
+                >
+                  Publish Changes
+                </button>
+              </div>
+            )}
+            
+            <button
+              onClick={refreshPortfolios}
+              style={{
+                padding: '10px 16px',
+                borderRadius: '8px',
+                border: '1px solid #e5e5e5',
+                backgroundColor: 'white',
+                color: '#737373',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+              title="Refresh portfolio data"
+            >
+              🔄 Refresh
+            </button>
+            
+            <button
+              onClick={togglePrivateMode}
+              style={{
+                padding: '10px 20px',
+                borderRadius: '8px',
+                border: isPrivateMode ? '2px solid #8b5cf6' : '1px solid #e5e5e5',
+                backgroundColor: isPrivateMode ? '#f3f4f6' : 'white',
+                color: isPrivateMode ? '#8b5cf6' : '#1a1a1a',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              {isPrivateMode ? 'Exit Preview' : '🎨 Preview Changes'}
+            </button>
+          </div>
+        </div>
         {loading ? (
           <div
             style={{
@@ -590,7 +1391,7 @@ const Portfolio = () => {
             <p style={{ margin: '8px 0 0' }}>{error}</p>
             <button
               type="button"
-              onClick={loadPortfolios}
+              onClick={refreshPortfolios}
               style={{
                 marginTop: '12px',
                 padding: '8px 16px',
@@ -623,7 +1424,72 @@ const Portfolio = () => {
           </div>
         ) : (
           <>
-            <ActivityHeatmap portfolios={portfolios} projectList={allProjectsForHeatmap} />
+            {/* Interactive User Profile Summary */}
+            <UserProfileSummary 
+              selectedPortfolioDetail={selectedPortfolioDetail}
+              orderedProjectList={allProjectsForHeatmap}  // Use ALL projects
+              skillTags={aggregatedSkillTags}  // Use aggregated skills
+              auth={{ user }}
+              totalProjects={totalAggregatedProjects}  // Use total from all portfolios
+              analysisType={analysisType}
+              isPrivateMode={isPrivateMode}
+              updateSettings={updateSettings}
+              portfolioSettings={portfolioSettings}
+            />
+            
+            {/* Activity Heatmap - Customizable */}
+            {(portfolioSettings.showHeatmap || isPrivateMode) && (
+              <div style={{ 
+                position: 'relative',
+                border: isPrivateMode ? '2px dashed #8b5cf6' : 'none',
+                borderRadius: isPrivateMode ? '12px' : '0',
+                padding: isPrivateMode ? '12px' : '0',
+                backgroundColor: isPrivateMode ? 'rgba(139, 92, 246, 0.02)' : 'transparent'
+              }}>
+                {isPrivateMode && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '8px',
+                    right: '8px',
+                    backgroundColor: 'white',
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    border: '1px solid #e5e5e5',
+                    fontSize: '12px',
+                    display: 'flex',
+                    gap: '8px',
+                    alignItems: 'center',
+                    zIndex: 10
+                  }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={portfolioSettings.showHeatmap}
+                        onChange={(e) => updateSettings({ showHeatmap: e.target.checked })}
+                      />
+                      Show Heatmap
+                    </label>
+                  </div>
+                )}
+                {portfolioSettings.showHeatmap ? (
+                  <ActivityHeatmap portfolios={portfolios} projectList={allProjectsForHeatmap} />
+                ) : (
+                  isPrivateMode && (
+                    <div style={{
+                      backgroundColor: 'white',
+                      borderRadius: '12px',
+                      border: '1px solid #e5e7eb',
+                      padding: '20px',
+                      color: '#6b7280',
+                      marginTop: '8px'
+                    }}>
+                      Heatmap section is hidden
+                    </div>
+                  )
+                )}
+              </div>
+            )}
+            
             <div
               style={{
                 display: 'grid',
@@ -638,6 +1504,7 @@ const Portfolio = () => {
                 padding: '32px',
                 borderRadius: '20px',
                 boxShadow: '0 20px 40px rgba(15, 23, 42, 0.06)',
+                border: isPrivateMode ? '2px dashed #8b5cf6' : 'none',
               }}
             >
               <div>
@@ -724,22 +1591,59 @@ const Portfolio = () => {
                 </div>
               </div>
 
-              <div style={{ marginTop: '32px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <h3 style={{ margin: 0, fontSize: '18px', color: '#0f172a' }}>Highlighted Skills</h3>
-                  {skillTags.length > 0 && skillTags[0]?.curated && (
-                    <span style={{
-                      padding: '2px 8px',
-                      borderRadius: '999px',
-                      backgroundColor: '#f0fdf4',
-                      color: '#166534',
-                      fontSize: '11px',
-                      fontWeight: '600',
-                      border: '1px solid #bbf7d0',
-                    }}>Curated</span>
+              <div style={{ 
+                marginTop: '32px',
+                position: 'relative',
+                border: isPrivateMode ? '2px dashed #8b5cf6' : 'none',
+                borderRadius: isPrivateMode ? '12px' : '0',
+                padding: isPrivateMode ? '12px' : '0',
+                backgroundColor: isPrivateMode ? 'rgba(139, 92, 246, 0.02)' : 'transparent'
+              }}>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between',
+                  marginBottom: '8px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 style={{ margin: 0, fontSize: '18px', color: '#0f172a' }}>Highlighted Skills</h3>
+                    {skillTags.length > 0 && skillTags[0]?.curated && (
+                      <span style={{
+                        padding: '2px 8px',
+                        borderRadius: '999px',
+                        backgroundColor: '#f0fdf4',
+                        color: '#166534',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        border: '1px solid #bbf7d0',
+                      }}>Curated</span>
+                    )}
+                  </div>
+                  
+                  {isPrivateMode && (
+                    <div style={{
+                      display: 'flex',
+                      gap: '8px',
+                      alignItems: 'center',
+                      fontSize: '12px',
+                      backgroundColor: 'white',
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      border: '1px solid #e5e5e5'
+                    }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={portfolioSettings.showSkills}
+                          onChange={(e) => updateSettings({ showSkills: e.target.checked })}
+                        />
+                        Show Skills
+                      </label>
+                    </div>
                   )}
                 </div>
-                {skillTags.length > 0 ? (
+                
+                {portfolioSettings.showSkills && skillTags.length > 0 ? (
                   <div
                     style={{
                       display: 'flex',
@@ -767,14 +1671,53 @@ const Portfolio = () => {
                   </div>
                 ) : (
                   <p style={{ margin: '8px 0 0', color: '#6b7280' }}>
-                    No skill highlights were captured for this run yet.
+                    {!portfolioSettings.showSkills && isPrivateMode 
+                      ? 'Skills section is hidden' 
+                      : 'No skill highlights were captured for this run yet.'}
                   </p>
                 )}
               </div>
 
-              <div style={{ marginTop: '32px' }}>
-                <h3 style={{ margin: 0, fontSize: '18px', color: '#0f172a' }}>Portfolio Items</h3>
-                {Array.isArray(orderedPortfolioItems) && orderedPortfolioItems.length > 0 ? (
+              <div style={{ 
+                marginTop: '32px',
+                position: 'relative',
+                border: isPrivateMode ? '2px dashed #8b5cf6' : 'none',
+                borderRadius: isPrivateMode ? '12px' : '0',
+                padding: isPrivateMode ? '12px' : '0',
+                backgroundColor: isPrivateMode ? 'rgba(139, 92, 246, 0.02)' : 'transparent'
+              }}>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between',
+                  marginBottom: '8px'
+                }}>
+                  <h3 style={{ margin: 0, fontSize: '18px', color: '#0f172a' }}>Portfolio Items</h3>
+                  
+                  {isPrivateMode && (
+                    <div style={{
+                      display: 'flex',
+                      gap: '8px',
+                      alignItems: 'center',
+                      fontSize: '12px',
+                      backgroundColor: 'white',
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      border: '1px solid #e5e5e5'
+                    }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={portfolioSettings.showPortfolioItems}
+                          onChange={(e) => updateSettings({ showPortfolioItems: e.target.checked })}
+                        />
+                        Show Portfolio Items
+                      </label>
+                    </div>
+                  )}
+                </div>
+                
+                {portfolioSettings.showPortfolioItems && Array.isArray(orderedPortfolioItems) && orderedPortfolioItems.length > 0 ? (
                   <div
                     style={{
                       marginTop: '16px',
@@ -883,7 +1826,9 @@ const Portfolio = () => {
                   </div>
                 ) : (
                   <p style={{ marginTop: '12px', color: '#6b7280' }}>
-                    No portfolio items were returned by the backend yet.
+                    {!portfolioSettings.showPortfolioItems && isPrivateMode 
+                      ? 'Portfolio items section is hidden' 
+                      : 'No portfolio items were returned by the backend yet.'}
                   </p>
                 )}
               </div>
@@ -897,9 +1842,46 @@ const Portfolio = () => {
                 </details>
               </div>
 
-              <div style={{ marginTop: '32px' }}>
-                <h3 style={{ margin: 0, fontSize: '18px', color: '#0f172a' }}>Projects</h3>
-                {orderedProjectList.length > 0 ? (
+              <div style={{ 
+                marginTop: '32px',
+                position: 'relative',
+                border: isPrivateMode ? '2px dashed #8b5cf6' : 'none',
+                borderRadius: isPrivateMode ? '12px' : '0',
+                padding: isPrivateMode ? '12px' : '0',
+                backgroundColor: isPrivateMode ? 'rgba(139, 92, 246, 0.02)' : 'transparent'
+              }}>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between',
+                  marginBottom: '8px'
+                }}>
+                  <h3 style={{ margin: 0, fontSize: '18px', color: '#0f172a' }}>Projects</h3>
+                  
+                  {isPrivateMode && (
+                    <div style={{
+                      display: 'flex',
+                      gap: '8px',
+                      alignItems: 'center',
+                      fontSize: '12px',
+                      backgroundColor: 'white',
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      border: '1px solid #e5e5e5'
+                    }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={portfolioSettings.showProjects}
+                          onChange={(e) => updateSettings({ showProjects: e.target.checked })}
+                        />
+                        Show Projects
+                      </label>
+                    </div>
+                  )}
+                </div>
+                
+                {portfolioSettings.showProjects && orderedProjectList.length > 0 ? (
                   <ul
                     style={{
                       margin: '16px 0 0',
@@ -960,7 +1942,9 @@ const Portfolio = () => {
                   </ul>
                 ) : (
                   <p style={{ marginTop: '12px', color: '#6b7280' }}>
-                    We have not yet extracted the individual projects for this portfolio.
+                    {!portfolioSettings.showProjects && isPrivateMode 
+                      ? 'Projects section is hidden' 
+                      : 'We have not yet extracted the individual projects for this portfolio.'}
                   </p>
                 )}
               </div>
