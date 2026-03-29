@@ -30,6 +30,57 @@ const formatTimestamp = (value) => {
   });
 };
 
+const COMPARISON_ATTRIBUTE_LABELS = {
+  primary_language: 'Primary Language',
+  total_files: 'Total Files',
+  has_tests: 'Has Tests',
+  has_readme: 'Has README',
+  has_ci_cd: 'Has CI/CD',
+  has_docker: 'Has Docker',
+  total_commits: 'Total Commits',
+  project_active_days: 'Active Days',
+  test_coverage_estimate: 'Test Coverage',
+};
+
+const formatComparisonValue = (value) => {
+  if (value === null || value === undefined || value === '') return 'N/A';
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (typeof value === 'number') return Number.isFinite(value) ? `${value}` : 'N/A';
+  return `${value}`;
+};
+
+const getProjectAttributeValue = (project, attributeKey) => {
+  if (!project) return null;
+  const stats = project.project_statistics || {};
+  switch (attributeKey) {
+    case 'primary_language':
+      return project.primary_language ?? stats.primary_language;
+    case 'total_files':
+      return project.total_files ?? stats.total_files;
+    case 'has_tests':
+      return project.has_tests ?? stats.has_tests;
+    case 'has_readme':
+      return project.has_readme ?? stats.has_readme;
+    case 'has_ci_cd':
+      return project.has_ci_cd ?? stats.has_ci_cd;
+    case 'has_docker':
+      return project.has_docker ?? stats.has_docker;
+    case 'total_commits':
+      return project.total_commits ?? stats.total_commits;
+    case 'project_active_days':
+      return project.project_active_days ?? stats.project_active_days;
+    case 'test_coverage_estimate':
+      return project.test_coverage_estimate ?? stats.test_coverage_estimate;
+    default:
+      return null;
+  }
+};
+
+const getProjectIdentityKey = (project) => {
+  if (!project) return '';
+  return `${project.id ?? ''}::${project.project_name ?? project.name ?? ''}`;
+};
+
 const UserProfileSummary = ({ 
   selectedPortfolioDetail, 
   orderedProjectList, 
@@ -1141,6 +1192,20 @@ const Portfolio = () => {
     return new Set(curationSettings?.comparison_attributes ?? []);
   }, [curationSettings]);
 
+  const comparisonAttributeKeys = useMemo(() => {
+    const keys = [...selectedAttributes].filter((key) => COMPARISON_ATTRIBUTE_LABELS[key]);
+    return keys.slice(0, 6);
+  }, [selectedAttributes]);
+
+  const comparisonProjects = useMemo(() => {
+    return allProjectsForHeatmap || [];
+  }, [allProjectsForHeatmap]);
+
+  const selectedPortfolioProjectKeys = useMemo(() => {
+    const selectedProjects = selectedPortfolioDetail?.projects || [];
+    return new Set(selectedProjects.map((project) => getProjectIdentityKey(project)));
+  }, [selectedPortfolioDetail]);
+
   const handleSelectPortfolio = (portfolioId) => {
     if (portfolioId === selectedPortfolioId) return;
     setSelectedPortfolioId(portfolioId);
@@ -1830,6 +1895,61 @@ const Portfolio = () => {
                       ? 'Portfolio items section is hidden' 
                       : 'No portfolio items were returned by the backend yet.'}
                   </p>
+                )}
+              </div>
+
+              <div style={{ marginTop: '32px' }}>
+                <h3 style={{ margin: 0, fontSize: '18px', color: '#0f172a' }}>Project Comparison</h3>
+                <p style={{ margin: '8px 0 0', color: '#6b7280', fontSize: '13px' }}>
+                  Controlled by Curate &rarr; Project Comparison Fields.
+                </p>
+                {comparisonAttributeKeys.length === 0 ? (
+                  <p style={{ marginTop: '12px', color: '#6b7280' }}>
+                    No comparison fields selected yet. Select at least one field in Curate.
+                  </p>
+                ) : comparisonProjects.length === 0 ? (
+                  <p style={{ marginTop: '12px', color: '#6b7280' }}>
+                    No projects available for comparison.
+                  </p>
+                ) : (
+                  <div style={{ marginTop: '12px', overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '760px' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ textAlign: 'left', padding: '10px', borderBottom: '1px solid #e5e7eb', color: '#111827' }}>
+                            Project
+                          </th>
+                          {comparisonAttributeKeys.map((key) => (
+                            <th
+                              key={key}
+                              style={{ textAlign: 'left', padding: '10px', borderBottom: '1px solid #e5e7eb', color: '#111827' }}
+                            >
+                              {COMPARISON_ATTRIBUTE_LABELS[key]}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {comparisonProjects.map((project, idx) => {
+                          const rowKey = `${project.id || project.project_name || idx}`;
+                          const isSelectedPortfolioProject = selectedPortfolioProjectKeys.has(
+                            getProjectIdentityKey(project)
+                          );
+                          return (
+                          <tr key={rowKey} style={{ backgroundColor: isSelectedPortfolioProject ? '#eef2ff' : 'transparent' }}>
+                            <td style={{ padding: '10px', borderBottom: '1px solid #f1f5f9', color: '#111827', fontWeight: '600' }}>
+                              {project.project_name || project.name || 'Unnamed project'}
+                            </td>
+                            {comparisonAttributeKeys.map((key) => (
+                              <td key={`${project.id || idx}-${key}`} style={{ padding: '10px', borderBottom: '1px solid #f1f5f9', color: '#374151' }}>
+                                {formatComparisonValue(getProjectAttributeValue(project, key))}
+                              </td>
+                            ))}
+                          </tr>
+                        )})}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
 
