@@ -414,14 +414,6 @@ export const curationAPI = {
     return response.data;
   },
 
-  // Save project order
-  saveOrder: async (projectIds) => {
-    const response = await api.post('/curation/order', {
-      project_ids: projectIds,
-    });
-    return response.data;
-  },
-
   // Save highlighted skills (max 10)
   saveSkills: async (skills) => {
     const response = await api.post('/curation/skills', {

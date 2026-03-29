@@ -141,18 +141,13 @@ describe('Portfolio page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
-    portfoliosAPI.listPortfolios.mockReset();
-    portfoliosAPI.getPortfolioDetail.mockReset();
-    curationAPI.getSettings.mockReset();
-    portfoliosAPI.getPortfolioSettings.mockResolvedValue({ settings: {} });
-    portfoliosAPI.savePortfolioSettings.mockResolvedValue({ settings: {} });
+    portfoliosAPI.listPortfolios.mockResolvedValue([]);
+    portfoliosAPI.getPortfolioDetail.mockResolvedValue({});
+    portfoliosAPI.getPortfolioSettings.mockResolvedValue({});
+    portfoliosAPI.savePortfolioSettings.mockResolvedValue({});
     portfoliosAPI.setVisibility.mockResolvedValue({ analysis_uuid: 'run-1', is_public: true });
-    curationAPI.getSettings.mockResolvedValue({
-      comparison_attributes: [],
-      showcase_project_ids: [],
-      custom_project_order: [],
-      highlighted_skills: [],
-    });
+    portfoliosAPI.deletePortfolio.mockResolvedValue({});
+    curationAPI.getSettings.mockResolvedValue({});
   });
 
   it('redirects to login when not authenticated', async () => {
@@ -192,9 +187,9 @@ describe('Portfolio page', () => {
     renderWithAuth();
 
     await waitFor(() => {
-      expect(screen.getAllByText('Python').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Alpha').length).toBeGreaterThan(0);
       expect(screen.getByText('Alpha highlight')).toBeInTheDocument();
+      expect(screen.getAllByText(/Python/).length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Alpha').length).toBeGreaterThan(0);
       expect(screen.getByText(/Quality score: 45/)).toBeInTheDocument();
       expect(screen.getByText(/Sophistication: intermediate/)).toBeInTheDocument();
     });
@@ -229,8 +224,9 @@ describe('Portfolio page', () => {
     renderWithAuth();
 
     await waitFor(() => {
-      expect(screen.getAllByText('Backend APIs').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Testing').length).toBeGreaterThan(0);
+      expect(screen.getByText('Skill fallback test')).toBeInTheDocument();
+      expect(screen.getAllByText(/Backend APIs/).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Testing/).length).toBeGreaterThan(0);
     });
   });
 
