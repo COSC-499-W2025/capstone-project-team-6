@@ -1554,3 +1554,63 @@ def test_delete_all_projects_for_user_does_not_delete_other_users_projects(temp_
             f"SELECT COUNT(*) AS c FROM projects WHERE id IN ({','.join(['?'] * len(bob_project_ids))})",
             tuple(bob_project_ids),
         ).fetchone()["c"] == len(bob_project_ids)
+
+
+# --- Job match persistence -------------------------------------------------
+
+SAMPLE_JOB_MATCH_RESULT = {
+    "overall_score": 72,
+    "skills_score": 80,
+    "experience_score": 65,
+    "matched_skills": ["Python", "SQL"],
+    "missing_skills": ["Kubernetes"],
+    "matched_requirements": ["Bachelor's degree"],
+    "unmet_requirements": ["5+ years distributed systems"],
+    "recommendations": ["Highlight cloud projects"],
+    "summary": "Strong technical overlap with gaps in ops tooling.",
+}
+
+
+def test_save_job_match_inserts_and_returns_id(temp_analysis_db):
+    jid = adb.save_job_match("alice", "Senior Python engineer role...", SAMPLE_JOB_MATCH_RESULT)
+    assert isinstance(jid, int) and jid > 0
+
+    row = adb.get_job_match(jid, "alice")
+    assert row is not None
+    assert row["id"] == jid
+    assert row["username"] == "alice"
+    assert row["job_description"] == "Senior Python engineer role..."
+    assert row["overall_score"] == 72
+    assert row["matched_skills"] == ["Python", "SQL"]
+    assert row["missing_skills"] == ["Kubernetes"]
+    assert row["recommendations"] == ["Highlight cloud projects"]
+    assert row["summary"] == "Strong technical overlap with gaps in ops tooling."
+
+
+def test_list_job_matches_returns_saved_rows(temp_analysis_db):
+    first = adb.save_job_match("alice", "Job A description text here", SAMPLE_JOB_MATCH_RESULT)
+    second = adb.save_job_match("alice", "Job B description text here", SAMPLE_JOB_MATCH_RESULT)
+
+    rows = adb.list_job_matches("alice")
+    assert len(rows) == 2
+    by_id = {r["id"]: r for r in rows}
+    assert by_id[first]["job_description"] == "Job A description text here"
+    assert by_id[second]["job_description"] == "Job B description text here"
+
+
+def test_get_job_match_wrong_user_returns_none(temp_analysis_db):
+    jid = adb.save_job_match("alice", "Only alice's job", SAMPLE_JOB_MATCH_RESULT)
+    assert adb.get_job_match(jid, "bob") is None
+
+
+def test_delete_job_match_scoped_to_user(temp_analysis_db):
+    jid = adb.save_job_match("alice", "To delete", SAMPLE_JOB_MATCH_RESULT)
+    assert adb.delete_job_match(jid, "bob") is False
+    assert adb.get_job_match(jid, "alice") is not None
+
+    assert adb.delete_job_match(jid, "alice") is True
+    assert adb.get_job_match(jid, "alice") is None
+
+
+def test_list_job_matches_empty_for_unknown_user(temp_analysis_db):
+    assert adb.list_job_matches("nonexistent_user_xyz") == []

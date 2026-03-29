@@ -5,11 +5,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Mock useNavigate
 const mockNavigate = vi.fn();
 
-// Mock AuthContext
-vi.mock('../contexts/AuthContext', () => ({
-  useAuth: vi.fn(),
-}));
-
 // Mock react-router-dom
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
@@ -47,10 +42,8 @@ vi.mock('../services/api', () => {
 // Import after mocks
 import Settings from '../pages/Settings';
 import { authAPI, consentAPI, resumeAPI } from '../services/api';
-import { useAuth } from '../contexts/AuthContext';
 
 const renderSettings = () => {
-  useAuth.mockReturnValue({ logout: vi.fn() });
   return render(
     <BrowserRouter>
       <Settings />

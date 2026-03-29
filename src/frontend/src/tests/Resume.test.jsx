@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -21,8 +21,9 @@ vi.mock('../services/api', () => ({
     createStoredResume: vi.fn(),
     updateStoredResume: vi.fn(),
     getStoredResume: vi.fn(),
-    listEducation: vi.fn().mockResolvedValue([]),
-    listWorkExperience: vi.fn().mockResolvedValue([]),
+    deleteStoredResume: vi.fn(),
+    listEducation: vi.fn(),
+    listWorkExperience: vi.fn(),
   },
   curationAPI: {
     getSettings: vi.fn(),
@@ -83,6 +84,8 @@ function setupDefaultMocks() {
   projectsAPI.getProjects.mockResolvedValue(MOCK_PROJECTS);
   resumeAPI.listStoredResumes.mockResolvedValue([]);
   resumeAPI.getPersonalInfo.mockResolvedValue({ personal_info: MOCK_VALID_PERSONAL_INFO });
+  resumeAPI.listEducation.mockResolvedValue([]);
+  resumeAPI.listWorkExperience.mockResolvedValue([]);
   curationAPI.getSettings.mockResolvedValue(MOCK_CURATION_SETTINGS);
   curationAPI.getProjects.mockResolvedValue([]);
 }
@@ -91,6 +94,8 @@ function setupShowcaseMocks() {
   projectsAPI.getProjects.mockResolvedValue(MOCK_PROJECTS);
   resumeAPI.listStoredResumes.mockResolvedValue([]);
   resumeAPI.getPersonalInfo.mockResolvedValue({ personal_info: MOCK_VALID_PERSONAL_INFO });
+  resumeAPI.listEducation.mockResolvedValue([]);
+  resumeAPI.listWorkExperience.mockResolvedValue([]);
   curationAPI.getSettings.mockResolvedValue(MOCK_SHOWCASE_CURATION_SETTINGS);
   curationAPI.getProjects.mockResolvedValue([]);
 }
@@ -101,6 +106,13 @@ const renderResume = () =>
       <Resume />
     </BrowserRouter>
   );
+
+/** Select a project row checkbox (not education/work/showcase-only checkboxes). */
+function selectProjectByName(projectName) {
+  const label = screen.getByText(projectName).closest('label');
+  expect(label).toBeTruthy();
+  fireEvent.click(within(label).getByRole('checkbox'));
+}
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -136,6 +148,8 @@ describe('Resume Page', () => {
       projectsAPI.getProjects.mockResolvedValue([]);
       resumeAPI.listStoredResumes.mockResolvedValue([]);
       resumeAPI.getPersonalInfo.mockResolvedValue({ personal_info: {} });
+      resumeAPI.listEducation.mockResolvedValue([]);
+      resumeAPI.listWorkExperience.mockResolvedValue([]);
       curationAPI.getSettings.mockResolvedValue(MOCK_CURATION_SETTINGS);
       curationAPI.getProjects.mockResolvedValue([]);
 
@@ -159,10 +173,7 @@ describe('Resume Page', () => {
       renderResume();
 
       await screen.findByText('CapstoneApp');
-      const checkboxes = screen.getAllByRole('checkbox');
-      // Index 0: educationEndCurrent, Index 1: workEndCurrent, Index 2: showShowcaseOnly
-      // Index 3: first project (CapstoneApp)
-      fireEvent.click(checkboxes[3]);
+      selectProjectByName('CapstoneApp');
 
       const btn = screen.getByRole('button', { name: /generate resume/i });
       expect(btn).not.toBeDisabled();
@@ -182,8 +193,7 @@ describe('Resume Page', () => {
       renderResume();
       await screen.findByText('CapstoneApp');
 
-      const checkboxes = screen.getAllByRole('checkbox');
-      fireEvent.click(checkboxes[3]);
+      selectProjectByName('CapstoneApp');
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
       await waitFor(() => {
@@ -208,8 +218,7 @@ describe('Resume Page', () => {
       renderResume();
       await screen.findByText('CapstoneApp');
 
-      const checkboxes = screen.getAllByRole('checkbox');
-      fireEvent.click(checkboxes[3]);
+      selectProjectByName('CapstoneApp');
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
       await waitFor(() => {
@@ -224,8 +233,7 @@ describe('Resume Page', () => {
       renderResume();
       await screen.findByText('CapstoneApp');
 
-      const checkboxes = screen.getAllByRole('checkbox');
-      fireEvent.click(checkboxes[3]);
+      selectProjectByName('CapstoneApp');
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
       await waitFor(() => {
@@ -244,8 +252,7 @@ describe('Resume Page', () => {
       renderResume();
       await screen.findByText('CapstoneApp');
 
-      const checkboxes = screen.getAllByRole('checkbox');
-      fireEvent.click(checkboxes[3]);
+      selectProjectByName('CapstoneApp');
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
       await waitFor(() => {
@@ -260,8 +267,7 @@ describe('Resume Page', () => {
       renderResume();
       await screen.findByText('CapstoneApp');
 
-      const checkboxes = screen.getAllByRole('checkbox');
-      fireEvent.click(checkboxes[3]);
+      selectProjectByName('CapstoneApp');
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
       await waitFor(() => {
@@ -276,8 +282,7 @@ describe('Resume Page', () => {
       renderResume();
       await screen.findByText('CapstoneApp');
 
-      const checkboxes = screen.getAllByRole('checkbox');
-      fireEvent.click(checkboxes[3]);
+      selectProjectByName('CapstoneApp');
 
       const btn = screen.getByRole('button', { name: /generate resume/i });
       fireEvent.click(btn);
@@ -311,8 +316,7 @@ describe('Resume Page', () => {
       renderResume();
       await screen.findByText('CapstoneApp');
 
-      const checkboxes = screen.getAllByRole('checkbox');
-      fireEvent.click(checkboxes[3]);
+      selectProjectByName('CapstoneApp');
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
       await waitFor(() => {
@@ -331,8 +335,7 @@ describe('Resume Page', () => {
       renderResume();
       await screen.findByText('CapstoneApp');
 
-      const checkboxes = screen.getAllByRole('checkbox');
-      fireEvent.click(checkboxes[3]);
+      selectProjectByName('CapstoneApp');
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
       await waitFor(() => {
@@ -351,8 +354,7 @@ describe('Resume Page', () => {
       renderResume();
       await screen.findByText('CapstoneApp');
 
-      const checkboxes = screen.getAllByRole('checkbox');
-      fireEvent.click(checkboxes[3]);
+      selectProjectByName('CapstoneApp');
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
       await waitFor(() => {
@@ -371,8 +373,7 @@ describe('Resume Page', () => {
       renderResume();
       await screen.findByText('CapstoneApp');
 
-      const checkboxes = screen.getAllByRole('checkbox');
-      fireEvent.click(checkboxes[3]);
+      selectProjectByName('CapstoneApp');
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
       await waitFor(() => {
@@ -389,8 +390,7 @@ describe('Resume Page', () => {
       renderResume();
       await screen.findByText('CapstoneApp');
 
-      const checkboxes = screen.getAllByRole('checkbox');
-      fireEvent.click(checkboxes[3]);
+      selectProjectByName('CapstoneApp');
       fireEvent.click(screen.getByRole('button', { name: /generate resume/i }));
 
       await waitFor(() => {
@@ -428,6 +428,8 @@ describe('Resume Page', () => {
       projectsAPI.getProjects.mockResolvedValue(MOCK_PROJECTS);
       resumeAPI.listStoredResumes.mockResolvedValue([]);
       resumeAPI.getPersonalInfo.mockResolvedValue({ personal_info: {} });
+      resumeAPI.listEducation.mockResolvedValue([]);
+      resumeAPI.listWorkExperience.mockResolvedValue([]);
       curationAPI.getSettings.mockResolvedValue(MOCK_CURATION_SETTINGS);
       curationAPI.getProjects.mockResolvedValue([]);
 
@@ -531,6 +533,79 @@ describe('Resume Page', () => {
 
       fireEvent.click(screen.getByRole('button', { name: /clear selection/i }));
       expect(screen.getByRole('button', { name: /select showcase projects/i })).not.toBeDisabled();
+    });
+  });
+
+  describe('Saved Resumes', () => {
+    it('shows empty state when there are no saved resumes', async () => {
+      setupDefaultMocks();
+      renderResume();
+      await screen.findByText('CapstoneApp');
+      expect(
+        await screen.findByText(/no saved resumes yet/i)
+      ).toBeInTheDocument();
+    });
+
+    it('lists saved resumes with titles and View / Delete actions', async () => {
+      projectsAPI.getProjects.mockResolvedValue(MOCK_PROJECTS);
+      resumeAPI.getPersonalInfo.mockResolvedValue({ personal_info: MOCK_VALID_PERSONAL_INFO });
+      resumeAPI.listEducation.mockResolvedValue([]);
+      resumeAPI.listWorkExperience.mockResolvedValue([]);
+      resumeAPI.deleteStoredResume.mockResolvedValue(undefined);
+      curationAPI.getSettings.mockResolvedValue(MOCK_CURATION_SETTINGS);
+      curationAPI.getProjects.mockResolvedValue([]);
+      resumeAPI.listStoredResumes.mockResolvedValue([
+        {
+          id: 1,
+          title: 'My Resume',
+          format: 'markdown',
+          content: '# Hello',
+          items: [],
+          created_at: '2026-03-27T12:00:00Z',
+          updated_at: '2026-03-27T12:00:00Z',
+        },
+      ]);
+      renderResume();
+      await screen.findByText('CapstoneApp');
+      const savedCard = screen.getByRole('heading', { name: /^saved resumes$/i }).parentElement;
+      expect(within(savedCard).getByText('My Resume')).toBeInTheDocument();
+      expect(within(savedCard).getByRole('button', { name: /^view$/i })).toBeInTheDocument();
+      expect(within(savedCard).getByRole('button', { name: /^delete$/i })).toBeInTheDocument();
+    });
+
+    it('calls deleteStoredResume when Delete is confirmed', async () => {
+      projectsAPI.getProjects.mockResolvedValue(MOCK_PROJECTS);
+      resumeAPI.getPersonalInfo.mockResolvedValue({ personal_info: MOCK_VALID_PERSONAL_INFO });
+      resumeAPI.listEducation.mockResolvedValue([]);
+      resumeAPI.listWorkExperience.mockResolvedValue([]);
+      resumeAPI.deleteStoredResume.mockResolvedValue(undefined);
+      curationAPI.getSettings.mockResolvedValue(MOCK_CURATION_SETTINGS);
+      curationAPI.getProjects.mockResolvedValue([]);
+      resumeAPI.listStoredResumes.mockResolvedValue([
+        {
+          id: 42,
+          title: 'To Remove',
+          format: 'markdown',
+          content: 'x',
+          items: [],
+          created_at: '2026-03-27T12:00:00Z',
+          updated_at: '2026-03-27T12:00:00Z',
+        },
+      ]);
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+      renderResume();
+      await screen.findByText('CapstoneApp');
+      const savedCard = screen.getByRole('heading', { name: /^saved resumes$/i }).parentElement;
+      await waitFor(() => {
+        expect(within(savedCard).getByText('To Remove')).toBeInTheDocument();
+      });
+      fireEvent.click(within(savedCard).getByRole('button', { name: /^delete$/i }));
+
+      await waitFor(() => {
+        expect(resumeAPI.deleteStoredResume).toHaveBeenCalledWith(42);
+      });
+      confirmSpy.mockRestore();
     });
   });
 });

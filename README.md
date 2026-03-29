@@ -1,3 +1,9 @@
+## Quick Start
+
+**New here? See [INITIALISATION.md](INITIALISATION.md) to run the project locally.**
+
+---
+
 # Team Contract
 Team Contract can be found [here](docs/Capstone%20Team%206%20Contract.pdf).
 

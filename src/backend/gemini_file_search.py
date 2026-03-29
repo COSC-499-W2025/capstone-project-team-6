@@ -17,6 +17,27 @@ from google.genai import types
 
 logger = logging.getLogger(__name__)
 
+# Shown when Gemini rejects the request because combined input exceeds the model context limit.
+LLM_INPUT_TOO_LARGE_USER_MESSAGE = "This project is too large for LLM analysis. Blume employees are working on a fix."
+
+
+def _is_input_token_limit_error(text: str) -> bool:
+    """Detect Gemini / Vertex errors for input exceeding max token count."""
+    t = text.lower()
+    return (
+        "input token count exceeds" in t
+        or "exceeds the maximum number of tokens allowed" in t
+        or "1048576" in text
+        or ("invalid_argument" in t and "token" in t and "exceed" in t)
+    )
+
+
+def humanize_gemini_generation_error(detail: str) -> str:
+    """Map raw API error text to a short user-facing message where possible."""
+    if _is_input_token_limit_error(detail):
+        return LLM_INPUT_TOO_LARGE_USER_MESSAGE
+    return detail
+
 
 class GeminiFileSearchClient:
     def __init__(self):
@@ -153,7 +174,9 @@ class GeminiFileSearchClient:
 
         except Exception as e:
             logger.error(f"Generation failed: {e}")
-            return f"Error executing analysis: {str(e)}"
+            raw = str(e)
+            friendly = humanize_gemini_generation_error(raw)
+            return f"Error executing analysis: {friendly}"
 
     def cleanup_files(self, files: List[types.File]):
         """Delete files from the Gemini Cloud storage to avoid storage costs."""
