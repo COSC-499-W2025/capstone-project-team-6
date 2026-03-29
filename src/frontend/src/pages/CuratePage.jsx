@@ -338,12 +338,14 @@ export default function CuratePage() {
                     Select Top 3 Showcase Projects
                   </h3>
                   <p style={{ fontSize: '14px', color: '#737373', marginBottom: '24px' }}>
-                    Choose up to 3 projects to highlight. Selected: {selectedShowcase.length}/3
+                    Choose up to 3 projects to highlight. Selected: {selectedShowcase.length}/3. The number in
+                    each row is the showcase order (1st–3rd pick).
                   </p>
 
                   <div style={{ display: 'grid', gap: '12px', marginBottom: '24px' }}>
                     {projects.map((project) => {
                       const isSelected = selectedShowcase.includes(project.id);
+                      const showcaseRank = isSelected ? selectedShowcase.indexOf(project.id) + 1 : null;
                       return (
                         <div
                           key={project.id}
@@ -359,9 +361,17 @@ export default function CuratePage() {
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                             <div
+                              role="img"
+                              aria-label={
+                                showcaseRank != null
+                                  ? `Showcase order ${showcaseRank} of 3`
+                                  : 'Not selected for showcase'
+                              }
                               style={{
-                                width: '20px',
-                                height: '20px',
+                                boxSizing: 'border-box',
+                                minWidth: '22px',
+                                width: '22px',
+                                height: '22px',
                                 border: isSelected ? '2px solid #1a1a1a' : '2px solid #d4d4d4',
                                 borderRadius: '4px',
                                 display: 'flex',
@@ -370,7 +380,18 @@ export default function CuratePage() {
                                 backgroundColor: isSelected ? '#1a1a1a' : 'white',
                               }}
                             >
-                              {isSelected && <span style={{ color: 'white', fontSize: '14px' }}>✓</span>}
+                              {showcaseRank != null && (
+                                <span
+                                  style={{
+                                    color: 'white',
+                                    fontSize: '12px',
+                                    fontWeight: '700',
+                                    lineHeight: 1,
+                                  }}
+                                >
+                                  {showcaseRank}
+                                </span>
+                              )}
                             </div>
                             <div style={{ flex: 1 }}>
                               <strong style={{ fontSize: '16px' }}>{project.project_name}</strong>
