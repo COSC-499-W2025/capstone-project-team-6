@@ -4,6 +4,18 @@ import { useAuth } from '../contexts/AuthContext';
 import { curationAPI } from '../services/api';
 import Navigation from '../components/Navigation';
 
+const SUPPORTED_COMPARISON_ATTRIBUTE_KEYS = new Set([
+  'primary_language',
+  'total_files',
+  'has_tests',
+  'has_readme',
+  'has_ci_cd',
+  'has_docker',
+  'total_commits',
+  'project_active_days',
+  'test_coverage_estimate',
+]);
+
 export default function CuratePage() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
@@ -27,7 +39,6 @@ export default function CuratePage() {
   const [selectedShowcase, setSelectedShowcase] = useState([]);
   const [selectedAttributes, setSelectedAttributes] = useState([]);
   const [selectedSkills, setSelectedSkills] = useState([]);
-  const [projectOrder, setProjectOrder] = useState([]);
   const [chronologyEdits, setChronologyEdits] = useState({});
 
   // Persist active tab to localStorage
@@ -57,16 +68,19 @@ export default function CuratePage() {
       setProjects(projectsData);
       setSettings(settingsData);
       setAvailableSkills(skillsData);
-      setAvailableAttributes(attributesData);
+      const filteredAttributes = (attributesData || []).filter((attr) =>
+        SUPPORTED_COMPARISON_ATTRIBUTE_KEYS.has(attr.key)
+      );
+      setAvailableAttributes(filteredAttributes);
 
       // Initialize working state
       setSelectedShowcase(settingsData.showcase_project_ids || []);
-      setSelectedAttributes(settingsData.comparison_attributes || []);
+      const initialAttributes = (settingsData.comparison_attributes || []).filter((key) =>
+        SUPPORTED_COMPARISON_ATTRIBUTE_KEYS.has(key)
+      );
+      setSelectedAttributes(initialAttributes);
       setSelectedSkills(settingsData.highlighted_skills || []);
       
-      // Initialize project order with all project IDs if empty
-      const customOrder = settingsData.custom_project_order || [];
-      setProjectOrder(customOrder.length > 0 ? customOrder : projectsData.map(p => p.id));
     } catch (e) {
       console.error('Error loading curation data:', e);
       setError(e?.response?.data?.detail || e?.message || 'Failed to load curation data');
@@ -91,12 +105,22 @@ export default function CuratePage() {
   }
 
   async function saveAttributes() {
+    if (selectedAttributes.length === 0) {
+      setError('Select at least 1 comparison field.');
+      setSuccess('');
+      return;
+    }
+    if (selectedAttributes.length > 6) {
+      setError('Select at most 6 comparison fields.');
+      setSuccess('');
+      return;
+    }
     setSaving(true);
     setError('');
     setSuccess('');
     try {
       await curationAPI.saveAttributes(selectedAttributes);
-      setSuccess('Comparison attributes saved successfully!');
+      setSuccess('Comparison fields saved. Updated on Portfolio.');
       setTimeout(() => setSuccess(''), 3000);
     } catch (e) {
       setError(e?.response?.data?.detail || e?.message || 'Failed to save attributes');
@@ -115,21 +139,6 @@ export default function CuratePage() {
       setTimeout(() => setSuccess(''), 3000);
     } catch (e) {
       setError(e?.response?.data?.detail || e?.message || 'Failed to save skills');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function saveOrder() {
-    setSaving(true);
-    setError('');
-    setSuccess('');
-    try {
-      await curationAPI.saveOrder(projectOrder);
-      setSuccess('Project order saved successfully!');
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (e) {
-      setError(e?.response?.data?.detail || e?.message || 'Failed to save project order');
     } finally {
       setSaving(false);
     }
@@ -180,20 +189,6 @@ export default function CuratePage() {
     } else if (selectedSkills.length < 10) {
       setSelectedSkills([...selectedSkills, skill]);
     }
-  }
-
-  function moveProjectUp(index) {
-    if (index === 0) return;
-    const newOrder = [...projectOrder];
-    [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
-    setProjectOrder(newOrder);
-  }
-
-  function moveProjectDown(index) {
-    if (index === projectOrder.length - 1) return;
-    const newOrder = [...projectOrder];
-    [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
-    setProjectOrder(newOrder);
   }
 
   // Styles
@@ -257,8 +252,25 @@ export default function CuratePage() {
             Curate Your Portfolio
           </h1>
           <p style={{ fontSize: '16px', margin: 0, color: '#737373' }}>
-            Customize how your projects are presented and highlighted
+            Customize what appears on your Portfolio page. Each tab below explains where your changes show up.
           </p>
+        </div>
+
+        <div
+          style={{
+            ...cardStyles,
+            padding: '16px 18px',
+            marginBottom: '24px',
+            backgroundColor: '#f8fafc',
+          }}
+        >
+          <div style={{ fontSize: '14px', color: '#374151', lineHeight: 1.6 }}>
+            <strong>What each section controls:</strong><br />
+            Showcase: highlights top projects on Portfolio cards and lists.<br />
+            Project Comparison Fields: controls columns in Portfolio&apos;s Project Comparison table.<br />
+            Highlighted Skills: controls prominent skills shown in the Portfolio profile section.<br />
+            Chronology Correction: fixes project date timelines used in portfolio insights.
+          </div>
         </div>
 
         {/* Success/Error Messages */}
@@ -316,16 +328,13 @@ export default function CuratePage() {
                 Showcase (Top 3)
               </button>
               <button style={tabStyles(activeTab === 'attributes')} onClick={() => setActiveTab('attributes')}>
-                Comparison Attributes
+                Project Comparison Fields
               </button>
               <button style={tabStyles(activeTab === 'skills')} onClick={() => setActiveTab('skills')}>
                 Highlighted Skills
               </button>
               <button style={tabStyles(activeTab === 'chronology')} onClick={() => setActiveTab('chronology')}>
                 Chronology Correction
-              </button>
-              <button style={tabStyles(activeTab === 'order')} onClick={() => setActiveTab('order')}>
-                Project Order
               </button>
             </div>
 
@@ -338,8 +347,8 @@ export default function CuratePage() {
                     Select Top 3 Showcase Projects
                   </h3>
                   <p style={{ fontSize: '14px', color: '#737373', marginBottom: '24px' }}>
-                    Choose up to 3 projects to highlight. Selected: {selectedShowcase.length}/3. The number in
-                    each row is the showcase order (1st–3rd pick).
+                    Choose up to 3 projects to highlight on Portfolio. Selected: {selectedShowcase.length}/3.
+                    The number in each row is the showcase order (1st–3rd pick).
                   </p>
 
                   <div style={{ display: 'grid', gap: '12px', marginBottom: '24px' }}>
@@ -415,10 +424,14 @@ export default function CuratePage() {
               {activeTab === 'attributes' && (
                 <div>
                   <h3 style={{ fontSize: '20px', fontWeight: '600', margin: '0 0 16px 0' }}>
-                    Select Comparison Attributes
+                    Select Project Comparison Fields
                   </h3>
                   <p style={{ fontSize: '14px', color: '#737373', marginBottom: '24px' }}>
-                    Choose which metrics to display when comparing projects. Selected: {selectedAttributes.length}
+                    Choose which fields appear in your Portfolio project comparison view. Selected:{' '}
+                    {selectedAttributes.length}/6
+                  </p>
+                  <p style={{ fontSize: '13px', color: '#737373', marginTop: '-12px', marginBottom: '20px' }}>
+                    Tip: after saving, open Portfolio to see the comparison block update.
                   </p>
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '12px', marginBottom: '24px' }}>
@@ -482,6 +495,19 @@ export default function CuratePage() {
                   <button disabled={saving} onClick={saveAttributes} style={buttonStyles}>
                     {saving ? 'Saving...' : 'Save Attributes'}
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/portfolio')}
+                    style={{
+                      ...buttonStyles,
+                      marginLeft: '10px',
+                      backgroundColor: 'white',
+                      color: '#1a1a1a',
+                      border: '1px solid #e5e5e5',
+                    }}
+                  >
+                    Go to Portfolio
+                  </button>
                 </div>
               )}
 
@@ -492,7 +518,7 @@ export default function CuratePage() {
                     Highlight Skills (Max 10)
                   </h3>
                   <p style={{ fontSize: '14px', color: '#737373', marginBottom: '24px' }}>
-                    Select up to 10 skills to emphasize in your portfolio. Selected: {selectedSkills.length}/10
+                    Select up to 10 skills to emphasize in your Portfolio profile summary. Selected: {selectedSkills.length}/10
                   </p>
 
                   <div
@@ -546,7 +572,7 @@ export default function CuratePage() {
                     Correct Project Dates
                   </h3>
                   <p style={{ fontSize: '14px', color: '#737373', marginBottom: '24px' }}>
-                    Override automatically detected dates with custom values (YYYY-MM-DD format)
+                    Override detected dates with custom values (YYYY-MM-DD). These updates affect portfolio timeline-based insights.
                   </p>
 
                   <div style={{ display: 'grid', gap: '24px' }}>
@@ -679,105 +705,6 @@ export default function CuratePage() {
                 </div>
               )}
 
-              {/* Order Tab */}
-              {activeTab === 'order' && (
-                <div>
-                  <h3 style={{ fontSize: '20px', fontWeight: '600', margin: '0 0 16px 0' }}>
-                    Customize Project Order
-                  </h3>
-                  <p style={{ fontSize: '14px', color: '#737373', marginBottom: '24px' }}>
-                    Reorder your projects to control how they appear in your portfolio
-                  </p>
-
-                  <div style={{ display: 'grid', gap: '12px', marginBottom: '24px' }}>
-                    {projectOrder.map((id) => projects.find((p) => p.id === id)).filter(Boolean).map(
-                      (project, index) => (
-                        <div
-                          key={project.id}
-                          style={{
-                            padding: '16px',
-                            border: '1px solid #e5e5e5',
-                            borderRadius: '12px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '16px',
-                          }}
-                        >
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <button
-                              disabled={index === 0}
-                              onClick={() => moveProjectUp(index)}
-                              style={{
-                                padding: '4px 8px',
-                                fontSize: '12px',
-                                border: '1px solid #e5e5e5',
-                                borderRadius: '4px',
-                                backgroundColor: 'white',
-                                cursor: index === 0 ? 'not-allowed' : 'pointer',
-                                opacity: index === 0 ? 0.5 : 1,
-                              }}
-                            >
-                              ▲
-                            </button>
-                            <button
-                              disabled={index === projectOrder.length - 1}
-                              onClick={() => moveProjectDown(index)}
-                              style={{
-                                padding: '4px 8px',
-                                fontSize: '12px',
-                                border: '1px solid #e5e5e5',
-                                borderRadius: '4px',
-                                backgroundColor: 'white',
-                                cursor: index === projectOrder.length - 1 ? 'not-allowed' : 'pointer',
-                                opacity: index === projectOrder.length - 1 ? 0.5 : 1,
-                              }}
-                            >
-                              ▼
-                            </button>
-                          </div>
-                          <div
-                            style={{
-                              width: '32px',
-                              height: '32px',
-                              borderRadius: '50%',
-                              backgroundColor: '#f5f5f5',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontWeight: '600',
-                              fontSize: '14px',
-                            }}
-                          >
-                            {index + 1}
-                          </div>
-                          <div style={{ flex: 1 }}>
-                            <strong style={{ fontSize: '16px' }}>{project.project_name}</strong>
-                            <div style={{ fontSize: '13px', color: '#737373', marginTop: '4px' }}>
-                              {project.primary_language} • {project.total_files} files
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    )}
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '12px' }}>
-                    <button disabled={saving} onClick={saveOrder} style={buttonStyles}>
-                      {saving ? 'Saving...' : 'Save Project Order'}
-                    </button>
-                    <button
-                      onClick={() => setProjectOrder(projects.map(p => p.id))}
-                      style={{
-                        ...buttonStyles,
-                        backgroundColor: 'white',
-                        color: '#1a1a1a',
-                      }}
-                    >
-                      Reset to Default
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         )}
