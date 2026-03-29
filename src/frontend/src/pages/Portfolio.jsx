@@ -761,8 +761,6 @@ const Portfolio = () => {
   const [portfolioSettings, setPortfolioSettings] = useState({ ...DEFAULT_PORTFOLIO_SETTINGS });
   const [livePortfolioSettings, setLivePortfolioSettings] = useState({ ...DEFAULT_PORTFOLIO_SETTINGS });
 
-  const [notification, setNotification] = useState(null);
-
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 4000);
@@ -787,6 +785,21 @@ const Portfolio = () => {
     }
   }, []);
 
+  const loadPortfolioSettings = useCallback(async () => {
+    try {
+      const response = await portfoliosAPI.getPortfolioSettings?.() || {};
+      const settings = response.data || response;
+      const mergedSettings = { ...DEFAULT_PORTFOLIO_SETTINGS, ...settings };
+      setPortfolioSettings(mergedSettings);
+      setLivePortfolioSettings(mergedSettings);
+    } catch (error) {
+      // Use defaults if no settings found
+      console.log('Using default portfolio settings');
+      setPortfolioSettings({ ...DEFAULT_PORTFOLIO_SETTINGS });
+      setLivePortfolioSettings({ ...DEFAULT_PORTFOLIO_SETTINGS });
+    }
+  }, []);
+
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login');
@@ -800,24 +813,8 @@ const Portfolio = () => {
       .then((settings) => setCurationSettings(settings))
       .catch(() => setCurationSettings(null));
 
-    // Load portfolio settings
     loadPortfolioSettings();
-  }, [isAuthenticated, navigate, loadPortfolios]);
-
-  // Portfolio Settings Management
-  const loadPortfolioSettings = async () => {
-    try {
-      const response = await portfoliosAPI.getPortfolioSettings?.() || {};
-      const settings = response.data || response;
-      const mergedSettings = { ...DEFAULT_PORTFOLIO_SETTINGS, ...settings };
-      setPortfolioSettings(mergedSettings);
-      setLivePortfolioSettings(mergedSettings);
-    } catch (error) {
-      // Use defaults if no settings found
-      console.log('Using default portfolio settings');
-      setLivePortfolioSettings({ ...DEFAULT_PORTFOLIO_SETTINGS });
-    }
-  };
+  }, [isAuthenticated, navigate, loadPortfolios, loadPortfolioSettings]);
 
   const savePortfolioSettings = async () => {
     try {
@@ -879,18 +876,18 @@ const Portfolio = () => {
       }
     };
 
-    const handleFocus = () => {
+    const handleWindowFocus = () => {
       if (isAuthenticated) {
         loadPortfolios();
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
+    window.addEventListener('focus', handleWindowFocus);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('focus', handleWindowFocus);
     };
   }, [isAuthenticated, loadPortfolios]);
 
@@ -932,28 +929,6 @@ const Portfolio = () => {
       cancelled = true;
     };
   }, [selectedPortfolioId]);
-
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden && isAuthenticated) {
-        loadPortfolios();
-      }
-    };
-
-    const handleWindowFocus = () => {
-      if (isAuthenticated) {
-        loadPortfolios();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleWindowFocus);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleWindowFocus);
-    };
-  }, [isAuthenticated, loadPortfolios]);
 
   useEffect(() => {
     if (portfolios.length === 0) {

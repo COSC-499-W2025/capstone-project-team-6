@@ -636,12 +636,12 @@ describe('Settings Page', () => {
 
       renderSettings();
 
+      const deleteAccountBtn = screen.getByRole('button', { name: /delete account/i });
       await waitFor(() => {
-        expect(screen.getAllByText('Delete Account').length).toBeGreaterThan(0);
+        expect(deleteAccountBtn).not.toBeDisabled();
       });
 
-      const deleteButtons = screen.getAllByRole('button', { name: /delete account/i });
-      fireEvent.click(deleteButtons[0]);
+      fireEvent.click(deleteAccountBtn);
 
       expect(screen.getByText('Delete account?')).toBeInTheDocument();
       expect(
@@ -656,12 +656,12 @@ describe('Settings Page', () => {
 
       renderSettings();
 
+      const deleteAccountBtn = screen.getByRole('button', { name: /delete account/i });
       await waitFor(() => {
-        expect(screen.getAllByText('Delete Account').length).toBeGreaterThan(0);
+        expect(deleteAccountBtn).not.toBeDisabled();
       });
 
-      const deleteButtons = screen.getAllByRole('button', { name: /delete account/i });
-      fireEvent.click(deleteButtons[0]);
+      fireEvent.click(deleteAccountBtn);
 
       expect(screen.getByText('Delete account?')).toBeInTheDocument();
 
