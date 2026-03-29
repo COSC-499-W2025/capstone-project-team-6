@@ -1,13 +1,7 @@
 
-# Architecture and Data Flow diagrams
+# Architecture 
 ![architecture diagram](docs/BLUME_architecture.png)
 
-![DFD0](docs/DFD0.png)
-
-![DFD1](docs/DFD1.png)
-
-link to DFD diagrams
-https://lucid.app/lucidspark/b2fa3ee5-7f6e-4a7c-bf92-82db62d3afb1/edit?viewport_loc=5104%2C-576%2C7464%2C3648%2C0_0&invitationId=inv_61a8cb5b-f54c-43e0-8880-d886a036329d
 
 
 ## Quick Start
@@ -247,7 +241,13 @@ Build the UI to consume the service. Generate one-page résumé and web-portfoli
 ## Overview
 This DFD shows how data flows between the user, system processes, local storage, and output in the **Mining Digital Work Artifacts** system.
 
-![Data Flow Diagram](docs/Images/DFD1.png)
+![DFD0](docs/DFD0.png)
+
+![DFD1](docs/DFD1.png)
+
+link to DFD diagrams
+https://lucid.app/lucidspark/b2fa3ee5-7f6e-4a7c-bf92-82db62d3afb1/edit?viewport_loc=5104%2C-576%2C7464%2C3648%2C0_0&invitationId=inv_61a8cb5b-f54c-43e0-8880-d886a036329d
+
 
 ## Entities
 - **User** – logs in, uploads files, views dashboard, and can request data deletion or exports.  
