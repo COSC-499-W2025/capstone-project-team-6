@@ -13,7 +13,8 @@ from dotenv import load_dotenv
 
 from ..analysis.deep_code_analyzer import generate_comprehensive_report
 from ..analysis.project_analyzer import FileClassifier
-from ..gemini_file_search import GeminiFileSearchClient
+from ..gemini_file_search import (GeminiFileSearchClient,
+                                  humanize_gemini_generation_error)
 
 # Load environment variables
 load_dotenv()
@@ -370,13 +371,18 @@ def run_gemini_analysis(
             response_text = client.generate_content(uploaded_files_refs, full_prompt)
 
             update_progress(95, 100, "Analysis generation complete. Finalizing...")
-            report["llm_summary"] = response_text
+            err_prefix = "Error executing analysis:"
+            if response_text.startswith(err_prefix):
+                raw_detail = response_text[len(err_prefix) :].strip()
+                report["llm_error"] = humanize_gemini_generation_error(raw_detail)
+            else:
+                report["llm_summary"] = response_text
             report["analysis_metadata"]["gemini_file_count"] = len(uploaded_files_refs)
             report["analysis_mode"] = f"Base + {', '.join(active_features)}" if active_features else "Standard"
 
         except Exception as e:
             logger.error(f"Error during Gemini analysis: {e}", exc_info=True)
-            report["llm_error"] = str(e)
+            report["llm_error"] = humanize_gemini_generation_error(str(e))
 
         finally:
             if uploaded_files_refs:

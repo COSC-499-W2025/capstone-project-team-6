@@ -1,11 +1,13 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigationBlock } from '../contexts/NavigationBlockContext';
 
 const Navigation = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { isNavigationBlocked } = useNavigationBlock();
 
   const navItems = [
     {
@@ -80,75 +82,88 @@ const Navigation = () => {
           display: 'flex',
           gap: '4px',
         }}>
-          {navItems.map((item) => (
-            <button
-              key={item.path}
-              onClick={() => navigate(item.path)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '10px 16px',
-                backgroundColor: location.pathname === item.path ? '#1a1a1a' : 'transparent',
-                color: location.pathname === item.path ? 'white' : '#666',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                if (location.pathname !== item.path) {
-                  e.currentTarget.style.backgroundColor = '#f5f5f5';
-                  e.currentTarget.style.color = '#1a1a1a';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (location.pathname !== item.path) {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                  e.currentTarget.style.color = '#666';
-                }
-              }}
-            >
-              <span>{item.icon}</span>
-              <span>{item.label}</span>
-            </button>
-          ))}
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            const disabled = isNavigationBlocked && !isActive;
+            return (
+              <button
+                key={item.path}
+                onClick={() => { if (!disabled) navigate(item.path); }}
+                disabled={disabled}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '10px 16px',
+                  backgroundColor: isActive ? '#1a1a1a' : 'transparent',
+                  color: isActive ? 'white' : disabled ? '#bbb' : '#666',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: disabled ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  transition: 'all 0.2s',
+                  opacity: disabled ? 0.5 : 1,
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive && !disabled) {
+                    e.currentTarget.style.backgroundColor = '#f5f5f5';
+                    e.currentTarget.style.color = '#1a1a1a';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive && !disabled) {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = '#666';
+                  }
+                }}
+              >
+                <span>{item.icon}</span>
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {!!user && (
         <button
           onClick={async () => {
+            if (isNavigationBlocked) return;
             try {
               await logout();
             } finally {
               navigate('/login');
             }
           }}
+          disabled={isNavigationBlocked}
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
             padding: '10px 16px',
             backgroundColor: 'transparent',
-            color: '#666',
+            color: isNavigationBlocked ? '#bbb' : '#666',
             border: 'none',
             borderRadius: '8px',
-            cursor: 'pointer',
+            cursor: isNavigationBlocked ? 'not-allowed' : 'pointer',
             fontSize: '14px',
             fontWeight: '500',
             transition: 'all 0.2s',
             whiteSpace: 'nowrap',
+            opacity: isNavigationBlocked ? 0.5 : 1,
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#f5f5f5';
-            e.currentTarget.style.color = '#1a1a1a';
+            if (!isNavigationBlocked) {
+              e.currentTarget.style.backgroundColor = '#f5f5f5';
+              e.currentTarget.style.color = '#1a1a1a';
+            }
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.color = '#666';
+            if (!isNavigationBlocked) {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = '#666';
+            }
           }}
         >
           <span>↗</span>

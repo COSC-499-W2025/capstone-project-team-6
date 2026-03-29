@@ -12,6 +12,14 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: vi.fn(() => ({ user: { token: 'test-token' }, isAuthenticated: true })),
+}));
+
+vi.mock('../components/Navigation', () => ({
+  default: () => <div data-testid="nav">Navigation</div>,
+}));
+
 vi.mock('../services/api', () => ({
   default: {
     post: vi.fn(),
@@ -136,13 +144,13 @@ describe('Upload', () => {
       expect(mockNavigate).not.toHaveBeenCalled();
     });
 
-    it('displays Analyze Project button for single tab', () => {
+    it('displays Analyze Project button for single tab', async () => {
       render(
         <BrowserRouter>
           <Upload />
         </BrowserRouter>
       );
-      expect(screen.getByText('Analyze Project')).toBeInTheDocument();
+      expect(await screen.findByText('Analyze Project')).toBeInTheDocument();
     });
   });
 

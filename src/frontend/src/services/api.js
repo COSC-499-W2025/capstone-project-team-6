@@ -199,7 +199,6 @@ export const portfoliosAPI = {
 };
 
 // Resume API calls
-// Resume API calls
 export const resumeAPI = {
   generateResume: async (projectIds, options = {}) => {
     const payload = {
@@ -236,6 +235,10 @@ export const resumeAPI = {
   updateStoredResume: async (resumeId, content) => {
     const response = await api.patch(`/resumes/${resumeId}`, { content });
     return response.data;
+  },
+
+  deleteStoredResume: async (resumeId) => {
+    await api.delete(`/resumes/${resumeId}`);
   },
 
   addItemsToResume: async (resumeId, resumeItemIds) => {
@@ -283,12 +286,43 @@ export const resumeAPI = {
     return response.data;
   },
 
+  // Work experience entries (separate from personal info)
+  listWorkExperience: async () => {
+    const response = await api.get('/resume/work-experience');
+    return response.data;
+  },
+
+  createWorkExperience: async (payload) => {
+    const response = await api.post('/resume/work-experience', payload);
+    return response.data;
+  },
+
+  updateWorkExperience: async (workId, payload) => {
+    const response = await api.patch(`/resume/work-experience/${workId}`, payload);
+    return response.data;
+  },
+
+  deleteWorkExperience: async (workId) => {
+    const response = await api.delete(`/resume/work-experience/${workId}`);
+    return response.data;
+  },
+
   analyzeJobMatch: async (jobDescription) => {
     const response = await api.post(
       '/resume/job-match',
       { job_description: jobDescription },
       { timeout: 60000 }
     );
+    return response.data;
+  },
+
+  listJobMatches: async () => {
+    const response = await api.get('/resume/job-matches');
+    return response.data;
+  },
+
+  deleteJobMatch: async (matchId) => {
+    const response = await api.delete(`/resume/job-matches/${matchId}`);
     return response.data;
   },
 };

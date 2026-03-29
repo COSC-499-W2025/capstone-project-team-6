@@ -39,6 +39,8 @@ vi.mock('../services/api', () => {
     },
     curationAPI: {
       getSettings: vi.fn(),
+      getAvailableRoles: vi.fn(),
+      saveRole: vi.fn(),
     },
   };
 });
@@ -113,6 +115,8 @@ describe('ProjectsPage — Showcase Filter', () => {
       highlighted_skills: [],
       custom_project_order: [],
     });
+    curationAPI.getAvailableRoles.mockResolvedValue([]);
+    curationAPI.saveRole.mockResolvedValue(undefined);
   });
 
   describe('Without showcase filter', () => {

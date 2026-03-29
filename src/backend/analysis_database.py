@@ -8,6 +8,7 @@ import os
 import sqlite3
 import uuid
 from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Union
 
@@ -102,6 +103,23 @@ def init_db() -> None:
             """
         )
 
+        # Per-user work experience entries (separate from personal profile)
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_work_experience (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+                company TEXT,
+                job_title TEXT,
+                location TEXT,
+                start_date TEXT,
+                end_date TEXT,
+                responsibilities_text TEXT,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS uploads (
@@ -153,6 +171,10 @@ def init_db() -> None:
         existing_columns = {row["name"] for row in conn.execute("PRAGMA table_info(analyses)")}
         if "zip_file_hash" not in existing_columns:
             conn.execute("ALTER TABLE analyses ADD COLUMN zip_file_hash TEXT;")
+            conn.commit()
+        existing_columns = {row["name"] for row in conn.execute("PRAGMA table_info(analyses)")}
+        if "llm_error" not in existing_columns:
+            conn.execute("ALTER TABLE analyses ADD COLUMN llm_error TEXT;")
             conn.commit()
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_analyses_hash_user "
@@ -558,6 +580,27 @@ def init_db() -> None:
                 )
                 """
             )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS job_matches (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+                job_description TEXT NOT NULL,
+                overall_score INTEGER NOT NULL,
+                skills_score INTEGER NOT NULL,
+                experience_score INTEGER NOT NULL,
+                matched_skills TEXT,
+                missing_skills TEXT,
+                matched_requirements TEXT,
+                unmet_requirements TEXT,
+                recommendations TEXT,
+                summary TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_job_matches_user ON job_matches(username);")
 
         conn.commit()
 
@@ -1690,6 +1733,17 @@ def get_user_resume_items(resume_id: int, username: str) -> List[sqlite3.Row]:
         ).fetchall()
 
 
+def delete_user_resume(resume_id: int, username: str) -> bool:
+    with get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+        cursor = conn.execute(
+            "DELETE FROM user_resumes WHERE id = ? AND username = ?",
+            (resume_id, username),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+
+
 def get_resume_items_for_project(project_id: int) -> List[sqlite3.Row]:
     """
     Backwards-compatible alias for older code/tests.
@@ -2026,6 +2080,24 @@ def get_llm_summary_for_analysis(uuid_str: str, username: str = None) -> Optiona
         return row["llm_summary"]
 
 
+def get_llm_analysis_for_api(uuid_str: str, username: str = None) -> Dict[str, Any]:
+    """Return llm_summary and llm_error for GET /projects/{id}/llm-analysis."""
+    with get_connection() as conn:
+        if username:
+            row = conn.execute(
+                "SELECT llm_summary, llm_error FROM analyses WHERE analysis_uuid = ? AND username = ?",
+                (uuid_str, username),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT llm_summary, llm_error FROM analyses WHERE analysis_uuid = ?",
+                (uuid_str,),
+            ).fetchone()
+        if not row:
+            return {"llm_summary": None, "llm_error": None}
+        return {"llm_summary": row["llm_summary"], "llm_error": row["llm_error"]}
+
+
 def update_llm_summary(uuid_str: str, llm_summary: str, username: str = None) -> bool:
     """Update the llm_summary column on an existing analysis row."""
     with get_connection() as conn:
@@ -2038,6 +2110,23 @@ def update_llm_summary(uuid_str: str, llm_summary: str, username: str = None) ->
             cursor = conn.execute(
                 "UPDATE analyses SET llm_summary = ? WHERE analysis_uuid = ?",
                 (llm_summary, uuid_str),
+            )
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+def update_llm_error(uuid_str: str, llm_error: Optional[str], username: str = None) -> bool:
+    """Set or clear the llm_error column (user-facing message when LLM step failed)."""
+    with get_connection() as conn:
+        if username:
+            cursor = conn.execute(
+                "UPDATE analyses SET llm_error = ? WHERE analysis_uuid = ? AND username = ?",
+                (llm_error, uuid_str, username),
+            )
+        else:
+            cursor = conn.execute(
+                "UPDATE analyses SET llm_error = ? WHERE analysis_uuid = ?",
+                (llm_error, uuid_str),
             )
         conn.commit()
         return cursor.rowcount > 0
@@ -2289,9 +2378,12 @@ def update_user_education(username: str, education_id: int, education: Dict[str,
         "end_date",
         "awards",
     ):
-        if key in education and education[key] is not None:
+        if key in education:
             val = education[key]
-            if isinstance(val, str):
+            # Allow explicit clears (null) during updates, e.g. removing awards.
+            if val is None:
+                cleaned[key] = None
+            elif isinstance(val, str):
                 cleaned[key] = val.strip()
             else:
                 cleaned[key] = str(val).strip()
@@ -2346,6 +2438,298 @@ def delete_user_education(username: str, education_id: int) -> bool:
         res = conn.execute(
             "DELETE FROM user_education WHERE username = ? AND id = ?",
             (username, education_id),
+        )
+        conn.commit()
+        return int(res.rowcount) > 0
+
+
+def _parse_year_month_sort_key(value: Any) -> Optional[int]:
+    """Map 'YYYY-MM' to a comparable int, or None if invalid."""
+    if value is None:
+        return None
+    s = str(value).strip()
+    if len(s) != 7 or s[4] != "-":
+        return None
+    try:
+        y = int(s[0:4])
+        mo = int(s[5:7])
+    except ValueError:
+        return None
+    if mo < 1 or mo > 12:
+        return None
+    return y * 12 + (mo - 1)
+
+
+def _work_experience_reverse_chronological(entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Most recent first: by effective end date (ongoing = current month), then by start date."""
+    now_m = datetime.now().year * 12 + datetime.now().month - 1
+
+    def sort_key(entry: Dict[str, Any]) -> tuple:
+        end = _parse_year_month_sort_key(entry.get("end_date"))
+        start = _parse_year_month_sort_key(entry.get("start_date"))
+        eff_end = end if end is not None else now_m
+        eff_start = start if start is not None else -1
+        return (-eff_end, -eff_start)
+
+    return sorted(entries, key=sort_key)
+
+
+def list_user_work_experience(username: str) -> List[Dict[str, Any]]:
+    """List saved work experience entries for a user."""
+    if not username:
+        return []
+
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                company,
+                job_title,
+                location,
+                start_date,
+                end_date,
+                responsibilities_text,
+                updated_at
+            FROM user_work_experience
+            WHERE username = ?
+            """,
+            (username,),
+        ).fetchall()
+
+        out = [dict(r) for r in rows]
+        return _work_experience_reverse_chronological(out)
+
+
+def create_user_work_experience(username: str, work: Dict[str, Any]) -> int:
+    """Create a new work experience entry for a user."""
+    if not username:
+        raise ValueError("username is required")
+
+    cleaned: Dict[str, Any] = {}
+    for key in (
+        "company",
+        "job_title",
+        "location",
+        "start_date",
+        "end_date",
+        "responsibilities_text",
+    ):
+        val = (work or {}).get(key)
+        if val is None:
+            continue
+        if isinstance(val, str):
+            cleaned[key] = val.strip()
+        else:
+            cleaned[key] = str(val).strip()
+
+    with get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+        conn.execute("INSERT OR IGNORE INTO users (username) VALUES (?)", (username,))
+        res = conn.execute(
+            """
+            INSERT INTO user_work_experience (
+                username,
+                company,
+                job_title,
+                location,
+                start_date,
+                end_date,
+                responsibilities_text
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                username,
+                cleaned.get("company"),
+                cleaned.get("job_title"),
+                cleaned.get("location"),
+                cleaned.get("start_date"),
+                cleaned.get("end_date"),
+                cleaned.get("responsibilities_text"),
+            ),
+        )
+        conn.commit()
+        return int(res.lastrowid)
+
+
+def update_user_work_experience(username: str, work_id: int, work: Dict[str, Any]) -> bool:
+    """Update an existing work experience entry."""
+    if not username:
+        raise ValueError("username is required")
+    if work_id is None:
+        raise ValueError("work_id is required")
+    if not work:
+        return False
+
+    cleaned: Dict[str, Any] = {}
+    for key in (
+        "company",
+        "job_title",
+        "location",
+        "start_date",
+        "end_date",
+        "responsibilities_text",
+    ):
+        if key in work and work[key] is not None:
+            val = work[key]
+            if isinstance(val, str):
+                cleaned[key] = val.strip()
+            else:
+                cleaned[key] = str(val).strip()
+
+    if not cleaned:
+        return False
+
+    allowed_keys = set(["company", "job_title", "location", "start_date", "end_date", "responsibilities_text"])
+    set_parts: List[str] = []
+    values: List[Any] = []
+    for k, v in cleaned.items():
+        if k not in allowed_keys:
+            continue
+        set_parts.append(f"{k} = ?")
+        values.append(v)
+
+    if not set_parts:
+        return False
+
+    values.extend([username, work_id])
+
+    with get_connection() as conn:
+        conn.execute(
+            f"""
+            UPDATE user_work_experience
+            SET {", ".join(set_parts)}, updated_at = CURRENT_TIMESTAMP
+            WHERE username = ? AND id = ?
+            """,
+            (*values,),
+        )
+        conn.commit()
+
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM user_work_experience WHERE username = ? AND id = ?",
+            (username, work_id),
+        ).fetchone()
+        return bool(row)
+
+
+def delete_user_work_experience(username: str, work_id: int) -> bool:
+    """Delete a work experience entry."""
+    if not username:
+        raise ValueError("username is required")
+    if work_id is None:
+        raise ValueError("work_id is required")
+
+    with get_connection() as conn:
+        res = conn.execute(
+            "DELETE FROM user_work_experience WHERE username = ? AND id = ?",
+            (username, work_id),
+        )
+        conn.commit()
+        return int(res.rowcount) > 0
+
+
+# ---------------------------------------------------------------------------
+# Job match persistence
+# ---------------------------------------------------------------------------
+
+
+def save_job_match(username: str, job_description: str, result: Dict[str, Any]) -> int:
+    """Persist a job-match analysis result and return the new row id."""
+    if not username:
+        raise ValueError("username is required")
+
+    init_db()
+    with get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+        conn.execute("INSERT OR IGNORE INTO users (username) VALUES (?)", (username,))
+        cur = conn.execute(
+            """
+            INSERT INTO job_matches (
+                username, job_description,
+                overall_score, skills_score, experience_score,
+                matched_skills, missing_skills,
+                matched_requirements, unmet_requirements,
+                recommendations, summary
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                username,
+                job_description,
+                result.get("overall_score", 0),
+                result.get("skills_score", 0),
+                result.get("experience_score", 0),
+                json.dumps(result.get("matched_skills", [])),
+                json.dumps(result.get("missing_skills", [])),
+                json.dumps(result.get("matched_requirements", [])),
+                json.dumps(result.get("unmet_requirements", [])),
+                json.dumps(result.get("recommendations", [])),
+                result.get("summary", ""),
+            ),
+        )
+        conn.commit()
+        return int(cur.lastrowid)
+
+
+def _deserialize_job_match_row(row: sqlite3.Row) -> Dict[str, Any]:
+    """Convert a job_matches row into a plain dict with parsed JSON arrays."""
+    item = dict(row)
+    for key in ("matched_skills", "missing_skills", "matched_requirements", "unmet_requirements", "recommendations"):
+        raw = item.get(key)
+        if raw:
+            try:
+                item[key] = json.loads(raw)
+            except (json.JSONDecodeError, TypeError):
+                item[key] = []
+        else:
+            item[key] = []
+    return item
+
+
+def list_job_matches(username: str, limit: int = 50) -> List[Dict[str, Any]]:
+    """Return saved job-match results for a user, newest first."""
+    if not username:
+        return []
+
+    init_db()
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT * FROM job_matches
+            WHERE username = ?
+            ORDER BY created_at DESC
+            LIMIT ?
+            """,
+            (username, limit),
+        ).fetchall()
+        return [_deserialize_job_match_row(r) for r in rows]
+
+
+def get_job_match(match_id: int, username: str) -> Optional[Dict[str, Any]]:
+    """Fetch a single job-match result by id with ownership check."""
+    if not username or match_id is None:
+        return None
+
+    init_db()
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM job_matches WHERE id = ? AND username = ?",
+            (match_id, username),
+        ).fetchone()
+        return _deserialize_job_match_row(row) if row else None
+
+
+def delete_job_match(match_id: int, username: str) -> bool:
+    """Delete a saved job-match result. Returns True if a row was removed."""
+    if not username or match_id is None:
+        return False
+
+    init_db()
+    with get_connection() as conn:
+        res = conn.execute(
+            "DELETE FROM job_matches WHERE id = ? AND username = ?",
+            (match_id, username),
         )
         conn.commit()
         return int(res.rowcount) > 0

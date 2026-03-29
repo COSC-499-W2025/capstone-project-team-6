@@ -91,7 +91,7 @@ export default function AnalyzePage() {
     let duplicateCount = 0;
     let lastAnalysisUuid = null;
     let lastError = null;
-    let maxProgress = 0;
+    let progressSum = 0;
 
     for (let i = 0; i < idList.length; i++) {
       const data = results[i];
@@ -99,24 +99,31 @@ export default function AnalyzePage() {
       const s = (data?.status || "").toLowerCase();
       statusMap[id] = s;
 
+      let slotContrib = 0;
+
       if (s === "completed") {
         completedCount++;
         if (data?.result?.duplicate === true) { anyDuplicate = true; duplicateCount++; }
         if (data?.result?.analysis_uuid) lastAnalysisUuid = data.result.analysis_uuid;
-        const p = typeof data?.progress === "number" ? data.progress : 100;
-        maxProgress = Math.max(maxProgress, p);
+        // Always count a finished task as 100% of its equal share so the bar hits k/N when k tasks complete
+        // (API may report progress < 100 on the final completed payload).
+        slotContrib = 100;
+        progressSum += slotContrib;
       } else if (s === "failed") {
         failedCount++;
         lastError = data?.error || "Analysis failed";
+        slotContrib = 0;
       } else {
-        const p = typeof data?.progress === "number" ? data.progress : 0;
-        maxProgress = Math.max(maxProgress, p);
+        slotContrib = typeof data?.progress === "number" ? data.progress : 0;
+        progressSum += slotContrib;
       }
       if (data?.analysis_phase) setAnalysisPhase(data.analysis_phase);
     }
 
+    const aggregatedProgress = idList.length ? Math.round(progressSum / idList.length) : 0;
+
     setTaskStatuses(statusMap);
-    setProgress(idList.length > 1 ? Math.round((completedCount / idList.length) * 100) : maxProgress);
+    setProgress(aggregatedProgress);
 
     const allTerminal = completedCount + failedCount === idList.length;
 

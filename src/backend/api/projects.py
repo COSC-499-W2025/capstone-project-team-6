@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from backend.analysis_database import (get_analysis_by_uuid,
-                                       get_llm_summary_for_analysis,
+                                       get_llm_analysis_for_api,
                                        get_project_by_path_and_portfolio,
                                        update_project_thumbnail)
 from backend.api.auth import verify_token
@@ -134,8 +134,12 @@ async def get_project_llm_analysis(project_id: int, username: str = Depends(veri
             detail="Project not found or access denied",
         )
 
-    llm_summary = get_llm_summary_for_analysis(row["analysis_uuid"], username)
-    return {"project_id": project_id, "llm_summary": llm_summary}
+    llm = get_llm_analysis_for_api(row["analysis_uuid"], username)
+    return {
+        "project_id": project_id,
+        "llm_summary": llm["llm_summary"],
+        "llm_error": llm["llm_error"],
+    }
 
 
 # Alias for upload endpoint (redirects to portfolios/upload)
