@@ -24,6 +24,7 @@ const Upload = () => {
 
   // Form state for multiple projects
   const [multipleFiles, setMultipleFiles] = useState([]);
+  const [duplicateFiles, setDuplicateFiles] = useState([]);
 
   // Form state for incremental upload
   const [portfolios, setPortfolios] = useState([]);
@@ -65,9 +66,10 @@ const Upload = () => {
   const effectiveAnalysisType = (hasConsented && useLLMAnalysis) ? 'llm' : 'non_llm';
 
   const canAnalyzeSingle = selectedFile && projectName.trim().length > 0;
+  const hasDuplicates = duplicateFiles.length > 0;
   const isSubmitDisabled = isUploading || (activeTab === 'single' && !canAnalyzeSingle)
     || (activeTab === 'incremental' && (!selectedPortfolio || !incrementalFile))
-    || (activeTab === 'multiple' && multipleFiles.length === 0);
+    || (activeTab === 'multiple' && (multipleFiles.length === 0 || hasDuplicates));
 
   // Load portfolios when incremental tab is selected
   useEffect(() => {
@@ -98,9 +100,11 @@ const Upload = () => {
     setMultipleFiles([]);
     setIncrementalFile(null);
     setSelectedPortfolio('');
+    setDuplicateFiles([]);
+    setError('');
+    setDuplicateMessage('');
     setProjectName('');
     setDescription('');
-    setError('');
     setUploadProgress({ current: 0, total: 0 });
     // Reset file input
     if (fileInputRef.current) {
@@ -150,6 +154,41 @@ const Upload = () => {
     processFiles(files);
   };
 
+  const createFileId = (file) => {
+    return `${file.name}::${file.size}::${file.lastModified || 0}`;
+  };
+
+  const checkForDuplicates = (existingFiles, newFiles) => {
+    const existingIds = new Set(existingFiles.map(createFileId));
+    const newIds = new Map();
+    const duplicates = [];
+    const uniqueNewFiles = [];
+
+    for (const file of newFiles) {
+      const fileId = createFileId(file);
+      if (existingIds.has(fileId)) {
+        duplicates.push({
+          file,
+          reason: 'Already in upload list'
+        });
+        continue;
+      }
+      
+      if (newIds.has(fileId)) {
+        duplicates.push({
+          file,
+          reason: 'Duplicate in current selection'
+        });
+        continue;
+      }
+      
+      newIds.set(fileId, file);
+      uniqueNewFiles.push(file);
+    }
+
+    return { duplicates, uniqueNewFiles };
+  };
+
   const handleFileSelect = (e) => {
     const files = Array.from(e.target.files);
     processFiles(files);
@@ -187,7 +226,17 @@ const Upload = () => {
     if (activeTab === 'single') {
       setSelectedFile(validFiles[0]);
     } else if (activeTab === 'multiple') {
-      setMultipleFiles(prev => [...prev, ...validFiles]);
+      const { duplicates, uniqueNewFiles } = checkForDuplicates(multipleFiles, validFiles);
+      
+      if (duplicates.length > 0) {
+        setDuplicateFiles(duplicates);
+        if (uniqueNewFiles.length > 0) {
+          setMultipleFiles(prev => [...prev, ...uniqueNewFiles]);
+        }
+      } else {
+        setMultipleFiles(prev => [...prev, ...validFiles]);
+        setDuplicateFiles([]);
+      }
     } else if (activeTab === 'incremental') {
       setIncrementalFile(validFiles[0]);
     }
@@ -201,7 +250,6 @@ const Upload = () => {
     } else if (activeTab === 'incremental') {
       setIncrementalFile(null);
     }
-    setError('');
   };
 
   const handleSubmit = async () => {
@@ -219,6 +267,11 @@ const Upload = () => {
       return;
     }
 
+    if (activeTab === 'multiple' && hasDuplicates) {
+      setError('Please remove duplicate files before proceeding with the analysis');
+      return;
+    }
+
     if (activeTab === 'incremental') {
       if (!selectedPortfolio) {
         setError('Please select a portfolio to add to');
@@ -233,6 +286,7 @@ const Upload = () => {
     setIsUploading(true);
     setError('');
     setDuplicateMessage('');
+    setDuplicateFiles([]);
 
     let taskIdForAnalyze = null;
     let taskIdsForAnalyze = [];
@@ -986,6 +1040,33 @@ const Upload = () => {
             </div>
           )}
 
+          {/* Duplicate Files Warning */}
+          {activeTab === 'multiple' && duplicateFiles.length > 0 && (
+            <div style={{ 
+              marginBottom: '16px',
+              padding: '12px 16px',
+              backgroundColor: '#fef2f2',
+              borderRadius: '6px',
+              border: '1px solid #fecaca'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2">
+                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                  <path d="M12 9v4"/>
+                  <path d="m12 17 .01 0"/>
+                </svg>
+                <p style={{ 
+                  fontSize: '13px', 
+                  color: '#dc2626', 
+                  margin: 0,
+                  fontWeight: '500'
+                }}>
+                  Duplicate file detected: {duplicateFiles.map(d => d.file.name).join(', ')}. Only the first instance will be uploaded. 
+                </p>
+              </div>
+            </div>
+          )}
+
           {activeTab === 'incremental' && incrementalFile && (
             <div style={{
               display: 'flex',
@@ -1097,7 +1178,9 @@ const Upload = () => {
           >
             {isUploading
               ? (uploadProgress.total > 1 ? `Uploading ${uploadProgress.current}/${uploadProgress.total}...` : 'Uploading...')
-              : (activeTab === 'incremental' ? 'Add to Portfolio' : activeTab === 'single' ? 'Analyze Project' : 'Analyze Projects')}
+              : hasDuplicates 
+                ? 'Remove Duplicates to Continue'
+                : (activeTab === 'incremental' ? 'Add to Portfolio' : activeTab === 'single' ? 'Analyze Project' : 'Analyze Projects')}
           </button>
         </div>
       </div>

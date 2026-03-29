@@ -44,7 +44,7 @@ const LoginPage = () => {
           margin: '0 0 16px 0',
           color: '#1a1a1a'
         }}>
-          MDA Portfolio Generator
+          Blume.
         </h1>
         <p style={{
           fontSize: '18px',
@@ -77,7 +77,7 @@ const LoginPage = () => {
             color: '#666',
             margin: 0
           }}>
-            Sign in to your MDA Portfolio account
+            Sign in to your Blume account
           </p>
         </div>
 
