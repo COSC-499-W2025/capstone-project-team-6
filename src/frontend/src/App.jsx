@@ -11,6 +11,7 @@ import AnalyzePage from './pages/AnalyzePage';
 import CuratePage from './pages/CuratePage';
 import Upload from './pages/Upload';
 import Portfolio from './pages/Portfolio';
+import PublicPortfolios from './pages/PublicPortfolios';
 import Resume from './pages/Resume';
 import JobMatch from './pages/JobMatch';
 import Settings from './pages/Settings';
@@ -144,6 +145,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Portfolio />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/community"
+            element={
+              <ProtectedRoute>
+                <PublicPortfolios />
               </ProtectedRoute>
             }
           />
