@@ -1437,12 +1437,12 @@ def delete_project_for_user(project_id: int, username: str) -> bool:
                 WHERE id = ?
                 """,
                 (analysis_id,),
-            )            
+            )
             empty_analysis = conn.execute(
                 "SELECT analysis_uuid FROM analyses WHERE id = ? AND total_projects = 0",
                 (analysis_id,),
             ).fetchone()
-            
+
             if empty_analysis:
                 analysis_uuid = empty_analysis["analysis_uuid"]
                 conn.execute("DELETE FROM analyses WHERE id = ?", (analysis_id,))
@@ -1515,7 +1515,7 @@ def delete_all_projects_for_user(username: str) -> int:
                 "SELECT analysis_uuid FROM analyses WHERE username = ? AND total_projects = 0",
                 (username,),
             ).fetchall()
-            
+
             if empty_analyses:
                 conn.execute("DELETE FROM analyses WHERE username = ? AND total_projects = 0", (username,))
                 empty_count = len(empty_analyses)

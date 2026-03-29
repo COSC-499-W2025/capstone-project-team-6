@@ -61,16 +61,16 @@ class ConsentResponse(BaseModel):
 async def list_portfolios(username: str = Depends(verify_token)):
     """List all portfolios for the authenticated user."""
     analyses = get_all_analyses_for_user(username)
-    
+
     empty_analyses = []
     valid_analyses = []
-    
+
     for analysis in analyses:
         if analysis["total_projects"] == 0:
             empty_analyses.append(analysis["analysis_uuid"])
         else:
             valid_analyses.append(analysis)
-    
+
     # Automatically clean up ALL empty analyses (no limit)
     for uuid in empty_analyses:
         try:
@@ -81,7 +81,7 @@ async def list_portfolios(username: str = Depends(verify_token)):
         PortfolioListItem(
             analysis_uuid=a["analysis_uuid"],
             zip_file=a["zip_file"],
-            analysis_timestamp=a["analysis_timestamp"], 
+            analysis_timestamp=a["analysis_timestamp"],
             total_projects=a["total_projects"],
             analysis_type=a["analysis_type"],
             project_names=a.get("project_names", []),
@@ -311,15 +311,12 @@ async def delete_portfolio(portfolio_id: str, username: str = Depends(verify_tok
 async def cleanup_empty_portfolios(username: str = Depends(verify_token)):
     """Clean up all empty portfolios (0 projects) for the user."""
     analyses = get_all_analyses_for_user(username)
-    
-    empty_analyses = [
-        a["analysis_uuid"] for a in analyses 
-        if a["total_projects"] == 0
-    ]
-    
+
+    empty_analyses = [a["analysis_uuid"] for a in analyses if a["total_projects"] == 0]
+
     cleaned_count = 0
     failed_count = 0
-    
+
     for uuid in empty_analyses:
         try:
             success = delete_analysis(uuid, username)
@@ -330,14 +327,10 @@ async def cleanup_empty_portfolios(username: str = Depends(verify_token)):
         except Exception as e:
             print(f"Failed to cleanup portfolio {uuid}: {e}")
             failed_count += 1
-    
+
     return MessageResponse(
         message=f"Cleanup completed: {cleaned_count} empty portfolios removed",
-        details={
-            "cleaned_count": cleaned_count,
-            "failed_count": failed_count,
-            "total_empty": len(empty_analyses)
-        }
+        details={"cleaned_count": cleaned_count, "failed_count": failed_count, "total_empty": len(empty_analyses)},
     )
 
 
