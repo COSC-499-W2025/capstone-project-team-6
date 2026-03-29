@@ -171,6 +171,16 @@ export const portfoliosAPI = {
     return response.data;
   },
 
+  getPortfolioSettings: async () => {
+    const response = await api.get('/portfolio/settings');
+    return response.data;
+  },
+
+  savePortfolioSettings: async (settings) => {
+    const response = await api.post('/portfolio/settings', { settings });
+    return response.data;
+  },
+
   generatePortfolioDocument: async (portfolioId) => {
     const response = await api.post('/portfolio/generate', { portfolio_id: portfolioId });
     return response.data;
@@ -184,6 +194,23 @@ export const portfoliosAPI = {
         'Content-Type': 'multipart/form-data',
       },
     });
+    return response.data;
+  },
+
+  setVisibility: async (portfolioId, isPublic) => {
+    const response = await api.post(`/portfolios/${portfolioId}/visibility`, {
+      is_public: isPublic,
+    });
+    return response.data;
+  },
+
+  listPublicPortfolios: async (params = {}) => {
+    const response = await api.get('/portfolios/public', { params });
+    return response.data;
+  },
+
+  getPublicPortfolioDetail: async (portfolioId) => {
+    const response = await api.get(`/portfolios/public/${portfolioId}`);
     return response.data;
   },
 };
