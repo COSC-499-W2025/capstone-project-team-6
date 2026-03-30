@@ -1,5 +1,85 @@
 # Mandira Samarasekara
 
+## Date Ranges
+
+March 16 - March 29
+<img width="1755" height="1025" alt="Screenshot 2026-03-29 213642" src="https://github.com/user-attachments/assets/ab4d47d3-71a7-4a9b-809d-8af2dd082363" />
+
+
+## What went well
+
+The presentation went well, the majority of the bugs were fixed, and we were able to finish the capstone project.
+
+## What didn’t go well
+
+There were a lot of last-minute bug fixes, and some regressions came up during the final stretch.
+
+## Coding tasks
+
+- Improved the Curate page to make the language clearer and more user friendly.
+- Renamed the “Comparison Attributes” section to “Project Comparison Fields.”
+- Added clearer guidance text so users understand that changes are reflected on the Portfolio page.
+- Added a quick “Go to Portfolio” action from the comparison fields section.
+- Removed the confusing and unnecessary Project Order section from Curate.
+- Updated the Portfolio comparison table behavior to support easier project comparison.
+- Implemented Portfolio public mode so users can choose to make selected analyses visible to others.
+- Added a new Community page where logged-in users can browse, search, and filter public portfolios.
+- Added backend support for storing per-user portfolio display settings and toggling public visibility.
+- Implemented sharing controls in Portfolio Preview Mode so users can choose exactly which analyses and projects are shared publicly.
+
+## Testing or debugging tasks
+
+- Manually tested the Curate page flow by updating settings, saving, and confirming that changes were reflected correctly on the Portfolio page.
+- Verified that the Project Order section was removed from Curate.
+- Ran frontend tests locally for Curate and Job Match related changes.
+- Tested public portfolio publishing flow, including selecting analyses to share and confirming the correct content appears publicly.
+- Verified Community page search, filtering, sorting, and reset functionality.
+- Confirmed that public portfolios are visible to other users while private portfolios remain hidden.
+
+## Document tasks
+
+- No major documentation tasks this sprint beyond clear PR descriptions, testing notes, and implementation details included with authored pull requests.
+
+## Reviewing or collaboration tasks
+
+- Reviewed a large set of frontend and backend bug-fix PRs during the sprint.
+- Reviewed PRs related to LLM analysis, portfolio private mode, Job Match UX, frontend bug fixes, auth token persistence, and logout/navigation improvements.
+- Provided detailed review feedback and approvals on multiple PRs, including fixes for portfolio state issues, test regressions, and merge conflict handling.
+- Helped ensure development stayed stable through code review, testing, and validation of bug fixes.
+
+## Issues / Blockers
+
+No major blockers this week.
+
+## PR's initiated
+
+- **Curation fixes #492**  
+  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/492
+
+- **Portfolio public mode #494**  
+  https://github.com/COSC-499-W2025/capstone-project-team-6/pull/494
+
+## PR's reviewed
+
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/512
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/511
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/510
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/503
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/500
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/483
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/481
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/477
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/473
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/471
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/470
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/465
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/458
+
+## Plan for next week
+
+- Tie up any remaining loose ends and address any last-minute fixes if needed.
+- Project complete.
+
 # Aakash Tirithdas
 
 ## Date Ranges
