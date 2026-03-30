@@ -2,6 +2,73 @@
 
 # Aakash Tirithdas
 
+## Date Ranges
+
+March 15 - March 29
+![Aakash Week 10](../images/aakasht2w12.png)
+
+
+## What went well
+The presentation went well
+majority of bugs were fixed
+
+
+
+## Coding tasks
+- implemented saving job analysis, can delete and view them
+
+## Testing or debugging tasks
+- partially fixed increamental upload. was a deep seeded bug which could not be fixed, small fixes were made
+- fixed bugs in portfolio tests
+- curate ranking debug to show numbers instead of checks
+- fixed  small bugs in multi-project analysis
+  - loading bar bug
+  - error message now more user friendly
+- fixed delete account bug
+
+
+
+## Document tasks
+- finalaized architecture and data flow diagrams for milestone 3
+
+
+## Reviewing or collaboration tasks
+Too many to refer to reviewed PR to find what was reviewed
+
+
+## Issues / Blockers
+
+No major blockers this week
+
+## PR's initiated
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/503
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/500
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/496
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/483
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/481
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/480
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/464
+
+## PR's reviewed
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/494
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/492
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/490
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/489
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/485
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/479
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/470
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/462
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/452
+- 
+
+
+## Plan for next week
+tie up loose ends and complete the project
+
+
+
+
+
 # Mithish Ravisankar Geetha
 ## Date Ranges
 
