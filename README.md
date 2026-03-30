@@ -17,6 +17,8 @@ Google Docs link to the team contract: https://docs.google.com/document/d/1QnISy
 
 Google Drive link to the test zip files: https://drive.google.com/drive/folders/1OcQmw6caoHSFL_DtbaS9mrlM4EpTM9vs?usp=drive_link
 
+# Known bugs List
+A comprehensive list of bugs for the future development team can be found [here](docs/KNOWN_BUGS.md).
 # Architecture diagram
 ![architecture](docs/Images/architectureM2.png)
 
