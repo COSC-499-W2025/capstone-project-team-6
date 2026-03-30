@@ -6,16 +6,16 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fastapi import (APIRouter, Depends, File, Form, HTTPException, UploadFile,
-                     Query, status)
+from fastapi import (APIRouter, Depends, File, Form, HTTPException, Query,
+                     UploadFile, status)
 from pydantic import BaseModel, Field
 
 from backend.analysis_database import (delete_analysis,
-                                       get_user_portfolio_settings,
                                        get_all_analyses_for_user,
                                        get_analysis_by_file_hash,
                                        get_analysis_by_uuid,
                                        get_public_portfolio_detail,
+                                       get_user_portfolio_settings,
                                        list_public_portfolios,
                                        set_portfolio_visibility,
                                        upsert_user_portfolio_settings)

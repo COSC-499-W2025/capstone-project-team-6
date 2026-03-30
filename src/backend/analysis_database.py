@@ -225,10 +225,7 @@ def init_db() -> None:
             "CREATE INDEX IF NOT EXISTS idx_analyses_hash_user "
             "ON analyses (zip_file_hash, username) WHERE zip_file_hash IS NOT NULL;"
         )
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_analyses_public_published "
-            "ON analyses (is_public, published_at DESC);"
-        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_analyses_public_published " "ON analyses (is_public, published_at DESC);")
 
         conn.execute(
             """
@@ -2201,7 +2198,9 @@ def _extract_public_portfolio_card(row: sqlite3.Row, portfolio_settings: Dict[st
         "analysis_type": row["analysis_type"],
         "analysis_timestamp": row["analysis_timestamp"],
         "published_at": row["published_at"],
-        "total_projects": row.get("aggregated_total_projects", row["total_projects"]) if isinstance(row, dict) else row["total_projects"],
+        "total_projects": (
+            row.get("aggregated_total_projects", row["total_projects"]) if isinstance(row, dict) else row["total_projects"]
+        ),
         "project_names": project_names[:8],
         "project_types": project_types[:8],
         "top_languages": top_languages[:8],
@@ -2216,11 +2215,7 @@ def _selected_project_keys_from_settings(portfolio_settings: Dict[str, Any]) -> 
     raw_keys = portfolio_settings.get("publicProjectKeys")
     if not isinstance(raw_keys, list):
         return set()
-    return {
-        _normalize_project_share_key(k)
-        for k in raw_keys
-        if isinstance(k, str) and k.strip()
-    }
+    return {_normalize_project_share_key(k) for k in raw_keys if isinstance(k, str) and k.strip()}
 
 
 def _derive_skills_from_items(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -2238,10 +2233,7 @@ def _derive_skills_from_items(items: List[Dict[str, Any]]) -> List[Dict[str, Any
                 continue
             key = skill.strip()
             counts[key] = counts.get(key, 0) + 1
-    return [
-        {"skill": name, "count": count}
-        for name, count in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0].lower()))
-    ]
+    return [{"skill": name, "count": count} for name, count in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0].lower()))]
 
 
 def _filter_aggregate_for_settings(aggregate: Dict[str, Any], portfolio_settings: Dict[str, Any]) -> Dict[str, Any]:
@@ -2250,21 +2242,16 @@ def _filter_aggregate_for_settings(aggregate: Dict[str, Any], portfolio_settings
         return aggregate
 
     all_projects = aggregate.get("projects", [])
-    projects = [
-        p for p in all_projects
-        if _normalize_project_share_key(p.get("public_project_key")) in selected
-    ]
+    projects = [p for p in all_projects if _normalize_project_share_key(p.get("public_project_key")) in selected]
 
     # If settings reference stale keys that match nothing, fall back to all
     if not projects and all_projects:
         return aggregate
 
-    shared_names = {
-        _normalize_project_share_key(p.get("project_name") or p.get("name"))
-        for p in projects
-    }
+    shared_names = {_normalize_project_share_key(p.get("project_name") or p.get("name")) for p in projects}
     portfolio_items = [
-        item for item in aggregate.get("portfolio_items", [])
+        item
+        for item in aggregate.get("portfolio_items", [])
         if _normalize_project_share_key(item.get("project_name")) in shared_names
     ]
     skills = _derive_skills_from_items(portfolio_items)
@@ -2350,8 +2337,7 @@ def _aggregate_user_public_portfolio(conn: sqlite3.Connection, username: str) ->
             continue
 
     skills = [
-        {"skill": name, "count": count}
-        for name, count in sorted(skill_counts.items(), key=lambda kv: (-kv[1], kv[0].lower()))
+        {"skill": name, "count": count} for name, count in sorted(skill_counts.items(), key=lambda kv: (-kv[1], kv[0].lower()))
     ]
 
     return {

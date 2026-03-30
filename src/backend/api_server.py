@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import bcrypt
-from fastapi import (Depends, FastAPI, File, Form, HTTPException, Query, Security,
-                     UploadFile, status)
+from fastapi import (Depends, FastAPI, File, Form, HTTPException, Query,
+                     Security, UploadFile, status)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -21,16 +21,15 @@ from backend.analysis_database import (delete_all_projects_for_user,
                                        delete_project_for_user,
                                        get_all_analyses_for_user,
                                        get_analysis_by_uuid,
-                                       get_public_portfolio_detail,
-                                       get_user_portfolio_settings,
                                        get_portfolio_item_for_project,
                                        get_projects_for_user,
+                                       get_public_portfolio_detail,
                                        get_resume_items_for_project_id,
-                                       list_public_portfolios,
+                                       get_user_portfolio_settings)
+from backend.analysis_database import init_db as init_analysis_db
+from backend.analysis_database import (list_public_portfolios, record_analysis,
                                        set_portfolio_visibility,
                                        upsert_user_portfolio_settings)
-from backend.analysis_database import init_db as init_analysis_db
-from backend.analysis_database import record_analysis
 # Import routers from modular API structure
 from backend.api.analysis import router as analysis_router
 from backend.api.auth import router as auth_router
@@ -348,9 +347,7 @@ async def save_portfolio_settings(
     request: PortfolioSettingsRequest,
     username: str = Depends(verify_token),
 ):
-    return PortfolioSettingsResponse(
-        settings=upsert_user_portfolio_settings(username, request.settings)
-    )
+    return PortfolioSettingsResponse(settings=upsert_user_portfolio_settings(username, request.settings))
 
 
 @app.post("/api/portfolios/{portfolio_id}/visibility", response_model=PortfolioVisibilityResponse)

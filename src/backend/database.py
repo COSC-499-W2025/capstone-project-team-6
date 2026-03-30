@@ -223,8 +223,7 @@ def delete_user_account(username: str) -> bool:
     # 1. Delete analysis-side rows
     with analysis_db.get_connection() as aconn:
         aconn.execute("PRAGMA foreign_keys = ON;")
-        for table in ("analyses", "uploads", "user_profile", "user_resumes",
-                       "user_portfolio_settings"):
+        for table in ("analyses", "uploads", "user_profile", "user_resumes", "user_portfolio_settings"):
             aconn.execute(f"DELETE FROM {table} WHERE username = ?", (username,))
         aconn.commit()
 
