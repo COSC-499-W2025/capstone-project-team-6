@@ -952,6 +952,17 @@ class TestJobMatchEndpoints:
     def test_job_matches_delete_unauthorized(self):
         assert client.delete("/api/resume/job-matches/1").status_code == 403
 
+    def test_job_match_without_consent_returns_403(self, auth_token):
+        token, _ = auth_token
+        headers = {"Authorization": f"Bearer {token}"}
+        response = client.post(
+            "/api/resume/job-match",
+            headers=headers,
+            json={"job_description": "a" * 50},
+        )
+        assert response.status_code == 403
+        assert "Consent required" in response.json().get("detail", "")
+
     def test_job_match_validation_too_short(self, auth_token):
         token, _ = auth_token
         headers = {"Authorization": f"Bearer {token}"}
@@ -965,7 +976,8 @@ class TestJobMatchEndpoints:
     @patch("backend.api.resume.analyze_job_match")
     @patch("backend.api.resume.get_projects_for_user")
     def test_job_match_persists_returns_id_and_lists(self, mock_projects, mock_analyze, auth_token):
-        token, _ = auth_token
+        token, username = auth_token
+        udb.save_user_consent(username, True)
         headers = {"Authorization": f"Bearer {token}"}
         mock_projects.return_value = []
         mock_analyze.return_value = dict(MOCK_JOB_MATCH_ANALYZER_RESULT)
@@ -1014,8 +1026,9 @@ class TestJobMatchEndpoints:
     @patch("backend.api.resume.analyze_job_match")
     @patch("backend.api.resume.get_projects_for_user")
     def test_job_match_delete_other_user_denied(self, mock_projects, mock_analyze, auth_token, second_auth_token):
-        token1, _ = auth_token
+        token1, username1 = auth_token
         token2, _ = second_auth_token
+        udb.save_user_consent(username1, True)
         headers1 = {"Authorization": f"Bearer {token1}"}
         headers2 = {"Authorization": f"Bearer {token2}"}
         mock_projects.return_value = []

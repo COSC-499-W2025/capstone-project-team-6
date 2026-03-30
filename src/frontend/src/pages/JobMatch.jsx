@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/Navigation';
-import { resumeAPI } from '../services/api';
+import { resumeAPI, consentAPI } from '../services/api';
 import { useNavigationBlock } from '../contexts/NavigationBlockContext';
 
 const ScoreBadge = ({ score, label, color }) => {
@@ -241,6 +242,7 @@ const SavedMatchCard = ({ match, isExpanded, onToggle, onDelete }) => {
 };
 
 const JobMatch = () => {
+  const navigate = useNavigate();
   const [jobDescription, setJobDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -250,7 +252,23 @@ const JobMatch = () => {
   const [savedMatches, setSavedMatches] = useState([]);
   const [expandedId, setExpandedId] = useState(null);
   const [loadingMatches, setLoadingMatches] = useState(true);
+  const [hasConsented, setHasConsented] = useState(false);
+  const [consentLoading, setConsentLoading] = useState(true);
   const { setNavigationBlocked } = useNavigationBlock();
+
+  useEffect(() => {
+    consentAPI
+      .getConsent()
+      .then((res) => {
+        setHasConsented(!!res?.has_consented);
+      })
+      .catch(() => {
+        setHasConsented(false);
+      })
+      .finally(() => {
+        setConsentLoading(false);
+      });
+  }, []);
 
   useEffect(() => {
     setNavigationBlocked(loading);
@@ -305,6 +323,9 @@ const JobMatch = () => {
   }, [fetchSavedMatches]);
 
   const handleAnalyze = async () => {
+    if (!hasConsented) {
+      return;
+    }
     if (jobDescription.trim().length < 50) {
       setError('Please paste a longer job description (at least 50 characters).');
       return;
@@ -388,20 +409,44 @@ const JobMatch = () => {
           {!loading && (
             <div style={{ marginTop: '16px' }}>
               <button
+                type="button"
+                disabled={consentLoading || !hasConsented}
                 onClick={handleAnalyze}
                 style={{
                   padding: '10px 24px',
-                  backgroundColor: '#1a1a1a',
+                  backgroundColor: consentLoading || !hasConsented ? '#d4d4d4' : '#1a1a1a',
                   color: 'white',
                   border: 'none',
                   borderRadius: '8px',
                   fontSize: '14px',
                   fontWeight: '600',
-                  cursor: 'pointer',
+                  cursor: consentLoading || !hasConsented ? 'not-allowed' : 'pointer',
                 }}
               >
-                Analyze Match
+                {consentLoading ? 'Loading…' : 'Analyze Match'}
               </button>
+              {!consentLoading && !hasConsented && (
+                <p style={{ marginTop: '12px', fontSize: '13px', color: '#737373', lineHeight: 1.5, marginBottom: 0 }}>
+                  Job match uses LLM features. Enable{' '}
+                  <strong style={{ color: '#525252' }}>Research / LLM consent</strong> in{' '}
+                  <button
+                    type="button"
+                    onClick={() => navigate('/settings')}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      color: '#1a1a1a',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      textDecoration: 'underline',
+                    }}
+                  >
+                    Settings
+                  </button>
+                  {' '}to analyze a match.
+                </p>
+              )}
             </div>
           )}
 
