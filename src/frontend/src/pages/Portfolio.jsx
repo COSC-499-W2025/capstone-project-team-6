@@ -15,7 +15,7 @@ const DEFAULT_PORTFOLIO_SETTINGS = {
   projectDisplayMode: 'full', // 'full' or 'summary'
   heatmapTimeRange: 'auto', // 'auto', '1year', '2years', '3years'
   theme: 'default', // 'default', 'minimal', 'professional'
-  shareAllProjects: true,
+  shareAllProjects: false,
   publicProjectKeys: [],
   publicAnalysisUuids: [],
 };
@@ -181,7 +181,7 @@ const UserProfileSummary = ({
           <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', color: '#1f2937' }}>
             <input
               type="checkbox"
-              checked={portfolioSettings.showProfileSummary !== false}
+              checked={(portfolioSettings?.showProfileSummary) !== false}
               onChange={(e) => updateSettings({ showProfileSummary: e.target.checked })}
             />
             Show Profile Summary
@@ -189,7 +189,7 @@ const UserProfileSummary = ({
         </div>
       )}
 
-      {(portfolioSettings.showProfileSummary !== false) && (
+      {((portfolioSettings?.showProfileSummary) !== false) && (
         <div style={{ position: 'relative', zIndex: 2 }}>
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
@@ -803,6 +803,7 @@ const Portfolio = () => {
   const [selectedPortfolioDetail, setSelectedPortfolioDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [visibilityLoading, setVisibilityLoading] = useState(false);
   const [error, setError] = useState('');
   const [detailError, setDetailError] = useState('');
   // Cache of all fetched portfolio details (uuid → detail) for the heatmap
@@ -816,7 +817,7 @@ const Portfolio = () => {
   // Private Mode State for Portfolio Customization
   const [isPrivateMode, setIsPrivateMode] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [portfolioSettings, setPortfolioSettings] = useState({ ...DEFAULT_PORTFOLIO_SETTINGS });
+  const [portfolioSettings, setPortfolioSettings] = useState(null);
   const [livePortfolioSettings, setLivePortfolioSettings] = useState({ ...DEFAULT_PORTFOLIO_SETTINGS });
 
   const showNotification = (message, type = 'success') => {
@@ -845,13 +846,16 @@ const Portfolio = () => {
   const loadPortfolioSettings = useCallback(async () => {
     try {
       const response = await portfoliosAPI.getPortfolioSettings?.() || {};
-      const settings = response.data || response;
-      const mergedSettings = { ...DEFAULT_PORTFOLIO_SETTINGS, ...settings };
+      const settings = response.data?.settings || response.settings || response;      
+      const mergedSettings = Object.keys(DEFAULT_PORTFOLIO_SETTINGS).reduce((acc, key) => {
+        acc[key] = key in settings ? settings[key] : DEFAULT_PORTFOLIO_SETTINGS[key];
+        return acc;
+      }, {});
+      
+      console.log('Final merged settings:', mergedSettings);
       setPortfolioSettings(mergedSettings);
       setLivePortfolioSettings(mergedSettings);
     } catch (error) {
-      // Use defaults if no settings found
-      console.log('Using default portfolio settings');
       setPortfolioSettings({ ...DEFAULT_PORTFOLIO_SETTINGS });
       setLivePortfolioSettings({ ...DEFAULT_PORTFOLIO_SETTINGS });
     }
@@ -922,7 +926,10 @@ const Portfolio = () => {
   };
 
   const updateSettings = (newSettings) => {
-    setPortfolioSettings(prev => ({ ...prev, ...newSettings }));
+    setPortfolioSettings(prev => ({ 
+      ...(prev || DEFAULT_PORTFOLIO_SETTINGS), 
+      ...newSettings 
+    }));
     setHasUnsavedChanges(true);
   };
 
@@ -1111,15 +1118,24 @@ const Portfolio = () => {
     return listCopy;
   }, [projectList, curationSettings]);
 
-  const shareAllProjects = portfolioSettings?.shareAllProjects !== false;
+  // Only show all projects if explicitly set to true in saved settings
+  const shareAllProjects = Boolean(portfolioSettings?.shareAllProjects);
 
   const selectedPublicAnalyses = useMemo(() => {
-    const raw = portfolioSettings?.publicAnalysisUuids;
+    if (!portfolioSettings) return new Set(); // Return empty set if settings haven't loaded
+    const raw = portfolioSettings.publicAnalysisUuids;
     if (!Array.isArray(raw) || raw.length === 0) return new Set();
     return new Set(raw);
   }, [portfolioSettings]);
 
   const publicPreviewProjects = useMemo(() => {
+    const expectedDetailsCount = portfolios.length;
+    const loadedDetailsCount = allDetails.size;
+    
+    if (!portfolioSettings || expectedDetailsCount === 0 || loadedDetailsCount < expectedDetailsCount) {
+      return [];
+    }
+    
     if (shareAllProjects) {
       const seen = new Set();
       const result = [];
@@ -1142,7 +1158,7 @@ const Portfolio = () => {
       }
     }
     return projects;
-  }, [shareAllProjects, selectedPublicAnalyses, allDetails]);
+  }, [shareAllProjects, selectedPublicAnalyses, allDetails, portfolios.length, portfolioSettings]);
 
   const publicPreviewProjectNameSet = useMemo(
     () =>
@@ -1155,6 +1171,13 @@ const Portfolio = () => {
   );
 
   const publicPreviewPortfolioItems = useMemo(() => {
+    const expectedDetailsCount = portfolios.length;
+    const loadedDetailsCount = allDetails.size;
+    
+    if (!portfolioSettings || expectedDetailsCount === 0 || loadedDetailsCount < expectedDetailsCount) {
+      return [];
+    }
+    
     const allItems = [];
     for (const detail of allDetails.values()) {
       const items = detail?.portfolio_items || detail?.items || detail?.portfolio || [];
@@ -1164,7 +1187,7 @@ const Portfolio = () => {
     return allItems.filter((item) =>
       publicPreviewProjectNameSet.has(normalizeProjectShareKey(item?.project_name || item?.title))
     );
-  }, [allDetails, shareAllProjects, publicPreviewProjectNameSet]);
+  }, [allDetails, shareAllProjects, publicPreviewProjectNameSet, portfolios.length, portfolioSettings]);
 
   const allProjectsForHeatmap = useMemo(() => {
     const seen = new Set();
@@ -1703,7 +1726,7 @@ const Portfolio = () => {
             />
             
             {/* Activity Heatmap - Customizable */}
-            {(portfolioSettings.showHeatmap || isPrivateMode) && (
+            {((portfolioSettings?.showHeatmap) || isPrivateMode) && (
               <div style={{ 
                 position: 'relative',
                 border: isPrivateMode ? '2px dashed #8b5cf6' : 'none',
@@ -1729,14 +1752,14 @@ const Portfolio = () => {
                     <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
                       <input
                         type="checkbox"
-                        checked={portfolioSettings.showHeatmap}
+                        checked={portfolioSettings?.showHeatmap}
                         onChange={(e) => updateSettings({ showHeatmap: e.target.checked })}
                       />
                       Show Heatmap
                     </label>
                   </div>
                 )}
-                {portfolioSettings.showHeatmap ? (
+                {portfolioSettings?.showHeatmap ? (
                   <ActivityHeatmap portfolios={portfolios} projectList={allProjectsForHeatmap} />
                 ) : (
                   isPrivateMode && (
@@ -1899,7 +1922,7 @@ const Portfolio = () => {
                       <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
                         <input
                           type="checkbox"
-                          checked={portfolioSettings.showSkills}
+                          checked={portfolioSettings?.showSkills}
                           onChange={(e) => updateSettings({ showSkills: e.target.checked })}
                         />
                         Show Skills
@@ -1908,7 +1931,7 @@ const Portfolio = () => {
                   )}
                 </div>
                 
-                {portfolioSettings.showSkills && skillTags.length > 0 ? (
+                {portfolioSettings?.showSkills && skillTags.length > 0 ? (
                   <div
                     style={{
                       display: 'flex',
@@ -1936,7 +1959,7 @@ const Portfolio = () => {
                   </div>
                 ) : (
                   <p style={{ margin: '8px 0 0', color: '#6b7280' }}>
-                    {!portfolioSettings.showSkills && isPrivateMode 
+                    {!portfolioSettings?.showSkills && isPrivateMode 
                       ? 'Skills section is hidden' 
                       : 'No skill highlights were captured for this run yet.'}
                   </p>
@@ -1973,7 +1996,7 @@ const Portfolio = () => {
                       <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
                         <input
                           type="checkbox"
-                          checked={portfolioSettings.showPortfolioItems}
+                          checked={portfolioSettings?.showPortfolioItems}
                           onChange={(e) => updateSettings({ showPortfolioItems: e.target.checked })}
                         />
                         Show Portfolio Items
@@ -1982,7 +2005,7 @@ const Portfolio = () => {
                   )}
                 </div>
                 
-                {portfolioSettings.showPortfolioItems && Array.isArray(isPrivateMode ? publicPreviewPortfolioItems : orderedPortfolioItems) && (isPrivateMode ? publicPreviewPortfolioItems : orderedPortfolioItems).length > 0 ? (
+                {portfolioSettings?.showPortfolioItems && Array.isArray(isPrivateMode ? publicPreviewPortfolioItems : orderedPortfolioItems) && (isPrivateMode ? publicPreviewPortfolioItems : orderedPortfolioItems).length > 0 ? (
                   <div
                     style={{
                       marginTop: '16px',
@@ -2091,7 +2114,7 @@ const Portfolio = () => {
                   </div>
                 ) : (
                   <p style={{ marginTop: '12px', color: '#6b7280' }}>
-                    {!portfolioSettings.showPortfolioItems && isPrivateMode 
+                    {!portfolioSettings?.showPortfolioItems && isPrivateMode 
                       ? 'Portfolio items section is hidden' 
                       : 'No portfolio items were returned by the backend yet.'}
                   </p>
@@ -2183,7 +2206,7 @@ const Portfolio = () => {
                       <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
                         <input
                           type="checkbox"
-                          checked={portfolioSettings.showProjects}
+                          checked={portfolioSettings?.showProjects}
                           onChange={(e) => updateSettings({ showProjects: e.target.checked })}
                         />
                         Show Projects
@@ -2192,7 +2215,7 @@ const Portfolio = () => {
                   )}
                 </div>
                 
-                {portfolioSettings.showProjects && (isPrivateMode ? publicPreviewProjects.length : orderedProjectList.length) > 0 ? (
+                {portfolioSettings?.showProjects && (isPrivateMode ? publicPreviewProjects.length : orderedProjectList.length) > 0 ? (
                   <ul
                     style={{
                       margin: '16px 0 0',
@@ -2253,7 +2276,7 @@ const Portfolio = () => {
                   </ul>
                 ) : (
                   <p style={{ marginTop: '12px', color: '#6b7280' }}>
-                    {!portfolioSettings.showProjects && isPrivateMode 
+                    {!portfolioSettings?.showProjects && isPrivateMode 
                       ? 'Projects section is hidden' 
                       : isPrivateMode
                         ? 'No projects selected for public sharing.'
