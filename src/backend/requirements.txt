@@ -52,3 +52,4 @@ google-genai
 
 # Resume Generation
 reportlab==4.2.5
+pypdf>=4.0.0

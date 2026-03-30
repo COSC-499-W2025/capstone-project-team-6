@@ -1,8 +1,9 @@
 """Resume generation API endpoints."""
 
+import io
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 
 from backend.analysis.job_match_analyzer import analyze_job_match
@@ -20,6 +21,7 @@ from backend.analysis_database import (add_items_to_user_resume,
                                        get_projects_for_user,
                                        get_resume_items_for_project_id,
                                        get_user_personal_info, get_user_resume,
+                                       get_user_resume_blob,
                                        get_user_resume_items, list_job_matches,
                                        list_user_education, list_user_resumes,
                                        list_user_work_experience,
@@ -261,6 +263,32 @@ def _merge_resume_content(base_content: str, generated_content: str) -> str:
 
     merged_lines = base_lines[:insert_idx] + [generated_projects, ""] + base_lines[insert_idx:]
     return "\n".join(merged_lines).rstrip() + "\n"
+
+
+def _extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
+    """Extract plain text from PDF bytes using pypdf (fast, no OCR)."""
+    try:
+        from pypdf import PdfReader
+        reader = PdfReader(io.BytesIO(pdf_bytes))
+        pages_text = []
+        for page in reader.pages:
+            text = page.extract_text() or ""
+            pages_text.append(text)
+        return "\n".join(pages_text).strip() or "(No extractable text found in PDF)"
+    except Exception as exc:
+        return f"(PDF text extraction failed: {exc})"
+
+
+def _merge_pdfs(original_pdf: bytes, appended_pdf: bytes) -> bytes:
+    """Merge two PDFs: append all pages of appended_pdf after original_pdf."""
+    from pypdf import PdfReader, PdfWriter
+    writer = PdfWriter()
+    for reader in (PdfReader(io.BytesIO(original_pdf)), PdfReader(io.BytesIO(appended_pdf))):
+        for page in reader.pages:
+            writer.add_page(page)
+    out = io.BytesIO()
+    writer.write(out)
+    return out.getvalue()
 
 
 @router.post("/resume/job-match", response_model=JobMatchResponse)
@@ -573,16 +601,24 @@ async def generate_resume(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="Stored resume not found",
                 )
-            if request.format != "markdown":
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Merging with a stored resume requires markdown output format",
-                )
-            if stored_resume["format"] != "markdown":
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Stored resume must be in markdown format to merge",
-                )
+            if stored_resume["format"] == "pdf_upload":
+                # PDF uploads require PDF output so we can append to the original file
+                if request.format != "pdf":
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="PDF upload templates require PDF output format",
+                    )
+            else:
+                if request.format != "markdown":
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Merging with a stored resume requires markdown output format",
+                    )
+                if stored_resume["format"] != "markdown":
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Stored resume must be in markdown format to merge",
+                    )
 
         # Fetch all projects belonging to the user and build a lookup map
         user_projects = get_projects_for_user(username)
@@ -714,24 +750,51 @@ async def generate_resume(
                 or personal_info_for_gen.get("responsibilities_text"),
             )
 
-        # Generate the resume content
-        resume_content = generate_resume_impl(
-            projects=bundles,
-            format=request.format,
-            include_skills=request.include_skills,
-            include_projects=request.include_projects,
-            max_projects=request.max_projects,
-            personal_info=personal_info_for_gen,
-            highlighted_skills=request.highlighted_skills,
-        )
+        # When appending to an uploaded PDF use reportlab (no LaTeX needed).
+        # Only include project names + their resume bullets — no personal info,
+        # contact details, skills, education, or work experience.
+        if stored_resume is not None and stored_resume["format"] == "pdf_upload":
+            from backend.analysis.resume_generator import \
+                _convert_markdown_to_pdf as _md_to_pdf
+            markdown_content = generate_resume_impl(
+                projects=bundles,
+                format="markdown",
+                include_skills=False,
+                include_projects=True,
+                max_projects=request.max_projects,
+                personal_info=None,
+                highlighted_skills=None,
+            )
+            # Strip the "## Projects" heading when the user hasn't opted in to the section title
+            if not request.include_projects:
+                import re as _re
+                markdown_content = _re.sub(r"^##\s+Projects\s*\n+", "", markdown_content, count=1).strip()
+            appended_pdf = _md_to_pdf(markdown_content)
+            original_blob = get_user_resume_blob(stored_resume["id"], username)
+            if original_blob:
+                merged = _merge_pdfs(original_blob, appended_pdf)
+            else:
+                merged = appended_pdf
+            resume_content = base64.b64encode(merged).decode("utf-8")
+        else:
+            # Standard generation path
+            resume_content = generate_resume_impl(
+                projects=bundles,
+                format=request.format,
+                include_skills=request.include_skills,
+                include_projects=request.include_projects,
+                max_projects=request.max_projects,
+                personal_info=personal_info_for_gen,
+                highlighted_skills=request.highlighted_skills,
+            )
 
-        # Encode binary formats (pdf / latex) as base64 for JSON transport
-        if request.format in ("pdf", "latex") and isinstance(resume_content, bytes):
-            resume_content = base64.b64encode(resume_content).decode("utf-8")
+            # Encode binary formats (pdf / latex) as base64 for JSON transport
+            if request.format in ("pdf", "latex") and isinstance(resume_content, bytes):
+                resume_content = base64.b64encode(resume_content).decode("utf-8")
 
-        # Merge generated content into the stored resume when requested
-        if stored_resume is not None and isinstance(resume_content, str):
-            resume_content = _merge_resume_content(stored_resume["content_text"], resume_content)
+            # Merge generated markdown content into the stored markdown resume when requested
+            elif stored_resume is not None and isinstance(resume_content, str):
+                resume_content = _merge_resume_content(stored_resume["content_text"], resume_content)
 
         return ResumeResponse(
             resume_id=str(uuid.uuid4()),
@@ -789,6 +852,46 @@ async def create_stored_resume(request: StoredResumeCreateRequest, username: str
         title=request.title,
         format=request.format,
         content_text=request.content,
+    )
+    row = get_user_resume(resume_id, username)
+    return StoredResumeResponse(
+        id=row["id"],
+        title=row["title"],
+        format=row["format"],
+        content=row["content_text"],
+        items=[],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+    )
+
+
+@router.post("/resumes/upload-pdf", response_model=StoredResumeResponse)
+async def upload_pdf_resume(
+    title: str = Form(...),
+    file: UploadFile = File(...),
+    username: str = Depends(verify_token),
+):
+    """Upload a PDF resume to use as a base template. Project bullet points will be appended to it on generation."""
+    if file.content_type not in ("application/pdf", "application/octet-stream") and not (file.filename or "").lower().endswith(".pdf"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only PDF files are accepted",
+        )
+
+    pdf_bytes = await file.read()
+    if not pdf_bytes:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file is empty")
+
+    extracted_text = _extract_text_from_pdf_bytes(pdf_bytes)
+
+    resume_id = create_user_resume(
+        username=username,
+        title=title.strip() or (file.filename or "Uploaded Resume"),
+        format="pdf_upload",
+        content_text=extracted_text,
+        original_filename=file.filename,
+        original_mime="application/pdf",
+        original_blob=pdf_bytes,
     )
     row = get_user_resume(resume_id, username)
     return StoredResumeResponse(

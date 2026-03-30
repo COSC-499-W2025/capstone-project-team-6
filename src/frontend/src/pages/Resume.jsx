@@ -92,6 +92,9 @@ const Resume = () => {
   const [storedResumeLoading, setStoredResumeLoading] = useState(false);
   const [storedResumeSaving, setStoredResumeSaving] = useState(false);
   const [deletingResumeId, setDeletingResumeId] = useState(null);
+  const [pdfUploadMode, setPdfUploadMode] = useState(false);
+  const [pdfUploadFile, setPdfUploadFile] = useState(null);
+  const [pdfUploading, setPdfUploading] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveResumeTitle, setSaveResumeTitle] = useState('');
   const [saveResumeSaving, setSaveResumeSaving] = useState(false);
@@ -795,6 +798,32 @@ const Resume = () => {
     }
   };
 
+  const handleUploadPdfResume = async () => {
+    if (!storedResumeTitle.trim()) {
+      setError('Please enter a title for the uploaded resume.');
+      return;
+    }
+    if (!pdfUploadFile) {
+      setError('Please select a PDF file to upload.');
+      return;
+    }
+
+    try {
+      setPdfUploading(true);
+      setError('');
+      const created = await resumeAPI.uploadPdfResume(storedResumeTitle.trim(), pdfUploadFile);
+      setStoredResumes((prev) => [created, ...prev]);
+      setStoredResumeId(created.id);
+      setPdfUploadFile(null);
+      setStoredResumeTitle('');
+    } catch (err) {
+      console.error('Error uploading PDF resume:', err);
+      setError(err.response?.data?.detail || 'Failed to upload PDF resume');
+    } finally {
+      setPdfUploading(false);
+    }
+  };
+
   const handleUpdateStoredResume = async () => {
     if (!storedResumeId) {
       setError('Select a stored resume to update.');
@@ -829,6 +858,12 @@ const Resume = () => {
       setStoredResumeTitle(resume.title);
       setStoredResumeContent(resume.content);
       setStoredResumeFormat(resume.format);
+      // Auto-switch output format to match the template type
+      if (resume.format === 'pdf_upload') {
+        setResumeFormat('pdf');
+      } else {
+        setResumeFormat('markdown');
+      }
     } catch (err) {
       console.error('Error loading stored resume:', err);
       setError(err.response?.data?.detail || 'Failed to load stored resume');
@@ -965,12 +1000,18 @@ const Resume = () => {
         'education_awards',
       ].forEach((k) => delete personalInfoForResume[k]);
 
+      const selectedTemplate = storedResumes.find((r) => r.id === storedResumeId);
+      const isPdfUploadTemplate = selectedTemplate?.format === 'pdf_upload';
+      const templateCompatible =
+        (isPdfUploadTemplate && resumeFormat === 'pdf') ||
+        (!isPdfUploadTemplate && resumeFormat === 'markdown');
+
       const resume = await resumeAPI.generateResume(selectedProjectIds, {
         format: resumeFormat,
         include_skills: includeSkills,
         include_projects: includeProjects,
         personal_info: personalInfoForResume,
-        stored_resume_id: resumeFormat === 'markdown' ? (storedResumeId || null) : null,
+        stored_resume_id: templateCompatible ? (storedResumeId || null) : null,
         highlighted_skills: curationSettings?.highlighted_skills?.length > 0
           ? curationSettings.highlighted_skills
           : undefined,
@@ -2309,7 +2350,7 @@ const Resume = () => {
                         display: 'block',
                       }}
                     >
-                      Use Stored Resume (Markdown only)
+                      Use Stored Resume as Base
                     </label>
                     <select
                       value={storedResumeId || ''}
@@ -2326,10 +2367,15 @@ const Resume = () => {
                       <option value="">None</option>
                       {storedResumes.map((resume) => (
                         <option key={resume.id} value={resume.id}>
-                          {resume.title}
+                          {resume.format === 'pdf_upload' ? `📄 ${resume.title} (PDF)` : resume.title}
                         </option>
                       ))}
                     </select>
+                    {storedResumeId && storedResumes.find((r) => r.id === storedResumeId)?.format === 'pdf_upload' && (
+                      <p style={{ fontSize: '12px', color: '#2563eb', margin: '4px 0 0 0' }}>
+                        PDF template selected — output format auto-set to PDF. Project points will be appended as new pages.
+                      </p>
+                    )}
                   </div>
 
                   {/* Include Projects Section */}
@@ -2937,8 +2983,43 @@ const Resume = () => {
           Resume Template
         </h2>
         <p style={{ fontSize: '13px', color: '#6b7280', margin: '0 0 16px 0' }}>
-          Paste an existing resume to use as a base template when generating.
+          Paste an existing resume or upload a PDF to use as a base. Project bullet points will be appended on generation.
         </p>
+
+        {/* Mode toggle */}
+        <div style={{ display: 'flex', gap: '0', marginBottom: '16px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #e5e7eb' }}>
+          <button
+            onClick={() => setPdfUploadMode(false)}
+            style={{
+              flex: 1,
+              padding: '8px',
+              fontSize: '13px',
+              fontWeight: pdfUploadMode ? '400' : '600',
+              color: pdfUploadMode ? '#6b7280' : '#2563eb',
+              backgroundColor: pdfUploadMode ? '#f9fafb' : '#eff6ff',
+              border: 'none',
+              cursor: 'pointer',
+              borderRight: '1px solid #e5e7eb',
+            }}
+          >
+            Paste Text
+          </button>
+          <button
+            onClick={() => setPdfUploadMode(true)}
+            style={{
+              flex: 1,
+              padding: '8px',
+              fontSize: '13px',
+              fontWeight: pdfUploadMode ? '600' : '400',
+              color: pdfUploadMode ? '#2563eb' : '#6b7280',
+              backgroundColor: pdfUploadMode ? '#eff6ff' : '#f9fafb',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            Upload PDF
+          </button>
+        </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <input
@@ -2956,74 +3037,130 @@ const Resume = () => {
             }}
           />
 
-          <select
-            value={storedResumeFormat}
-            onChange={(e) => setStoredResumeFormat(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              fontSize: '14px',
-              border: '1px solid #d1d5db',
-              borderRadius: '6px',
-              backgroundColor: 'white',
-            }}
-          >
-            <option value="markdown">Markdown</option>
-            <option value="text">Plain text</option>
-          </select>
+          {pdfUploadMode ? (
+            <>
+              <label
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '28px 16px',
+                  border: '2px dashed #d1d5db',
+                  borderRadius: '8px',
+                  backgroundColor: '#f9fafb',
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                }}
+              >
+                <span style={{ fontSize: '28px' }}>📄</span>
+                <span style={{ fontSize: '14px', color: '#374151', fontWeight: '500' }}>
+                  {pdfUploadFile ? pdfUploadFile.name : 'Click to select a PDF file'}
+                </span>
+                {pdfUploadFile && (
+                  <span style={{ fontSize: '12px', color: '#6b7280' }}>
+                    {(pdfUploadFile.size / 1024).toFixed(1)} KB
+                  </span>
+                )}
+                <input
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  style={{ display: 'none' }}
+                  onChange={(e) => setPdfUploadFile(e.target.files?.[0] || null)}
+                />
+              </label>
+              <p style={{ fontSize: '12px', color: '#6b7280', margin: 0 }}>
+                Your PDF will be stored and the generated project bullet points will be appended to it as new pages.
+              </p>
+              <button
+                onClick={handleUploadPdfResume}
+                disabled={pdfUploading || !pdfUploadFile}
+                style={{
+                  padding: '10px 12px',
+                  fontSize: '14px',
+                  color: 'white',
+                  backgroundColor: pdfUploadFile ? '#2563eb' : '#93c5fd',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: pdfUploadFile ? 'pointer' : 'not-allowed',
+                }}
+              >
+                {pdfUploading ? 'Uploading...' : 'Upload PDF Template'}
+              </button>
+            </>
+          ) : (
+            <>
+              <select
+                value={storedResumeFormat}
+                onChange={(e) => setStoredResumeFormat(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  fontSize: '14px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  backgroundColor: 'white',
+                }}
+              >
+                <option value="markdown">Markdown</option>
+                <option value="text">Plain text</option>
+              </select>
 
-          <textarea
-            value={storedResumeContent}
-            onChange={(e) => setStoredResumeContent(e.target.value)}
-            placeholder="Paste your existing resume here..."
-            style={{
-              width: '100%',
-              minHeight: '180px',
-              padding: '12px',
-              border: '1px solid #e5e7eb',
-              borderRadius: '6px',
-              fontSize: '13px',
-              fontFamily: 'monospace',
-              lineHeight: '1.5',
-              resize: 'vertical',
-              boxSizing: 'border-box',
-            }}
-          />
+              <textarea
+                value={storedResumeContent}
+                onChange={(e) => setStoredResumeContent(e.target.value)}
+                placeholder="Paste your existing resume here..."
+                style={{
+                  width: '100%',
+                  minHeight: '180px',
+                  padding: '12px',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontFamily: 'monospace',
+                  lineHeight: '1.5',
+                  resize: 'vertical',
+                  boxSizing: 'border-box',
+                }}
+              />
 
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              onClick={handleCreateStoredResume}
-              disabled={storedResumeSaving || storedResumeLoading}
-              style={{
-                flex: 1,
-                padding: '10px 12px',
-                fontSize: '14px',
-                color: 'white',
-                backgroundColor: '#2563eb',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-              }}
-            >
-              {storedResumeSaving ? 'Saving...' : 'Save Template'}
-            </button>
-            <button
-              onClick={handleUpdateStoredResume}
-              disabled={storedResumeSaving || !storedResumeId}
-              style={{
-                flex: 1,
-                padding: '10px 12px',
-                fontSize: '14px',
-                color: '#2563eb',
-                backgroundColor: 'white',
-                border: '1px solid #2563eb',
-                borderRadius: '6px',
-                cursor: storedResumeId ? 'pointer' : 'not-allowed',
-              }}
-            >
-              Update Template
-            </button>
-          </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={handleCreateStoredResume}
+                  disabled={storedResumeSaving || storedResumeLoading}
+                  style={{
+                    flex: 1,
+                    padding: '10px 12px',
+                    fontSize: '14px',
+                    color: 'white',
+                    backgroundColor: '#2563eb',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {storedResumeSaving ? 'Saving...' : 'Save Template'}
+                </button>
+                <button
+                  onClick={handleUpdateStoredResume}
+                  disabled={storedResumeSaving || !storedResumeId}
+                  style={{
+                    flex: 1,
+                    padding: '10px 12px',
+                    fontSize: '14px',
+                    color: '#2563eb',
+                    backgroundColor: 'white',
+                    border: '1px solid #2563eb',
+                    borderRadius: '6px',
+                    cursor: storedResumeId ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  Update Template
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

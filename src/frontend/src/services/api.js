@@ -222,6 +222,16 @@ export const resumeAPI = {
     return response.data;
   },
 
+  uploadPdfResume: async (title, file) => {
+    const formData = new FormData();
+    formData.append('title', title);
+    formData.append('file', file);
+    const response = await api.post('/resumes/upload-pdf', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
   listStoredResumes: async () => {
     const response = await api.get('/resumes');
     return response.data;

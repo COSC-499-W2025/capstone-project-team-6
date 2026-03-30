@@ -1672,6 +1672,18 @@ def get_user_resume(resume_id: int, username: str) -> Optional[sqlite3.Row]:
         ).fetchone()
 
 
+def get_user_resume_blob(resume_id: int, username: str) -> Optional[bytes]:
+    """Return the original PDF blob for a stored resume, or None if absent."""
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT original_blob FROM user_resumes WHERE id = ? AND username = ?",
+            (resume_id, username),
+        ).fetchone()
+        if row:
+            return row["original_blob"]
+        return None
+
+
 def update_user_resume_content(resume_id: int, username: str, content_text: str) -> None:
     with get_connection() as conn:
         conn.execute(
