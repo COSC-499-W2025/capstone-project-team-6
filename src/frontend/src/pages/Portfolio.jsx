@@ -819,8 +819,6 @@ const Portfolio = () => {
   const [portfolioSettings, setPortfolioSettings] = useState({ ...DEFAULT_PORTFOLIO_SETTINGS });
   const [livePortfolioSettings, setLivePortfolioSettings] = useState({ ...DEFAULT_PORTFOLIO_SETTINGS });
 
-  const [visibilityLoading, setVisibilityLoading] = useState(false);
-
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
   };

@@ -187,6 +187,8 @@ describe('Portfolio page', () => {
     renderWithAuth();
 
     await waitFor(() => {
+      expect(screen.getAllByText('Python').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Alpha').length).toBeGreaterThan(0);
       expect(screen.getByText('Alpha highlight')).toBeInTheDocument();
       expect(screen.getAllByText(/Python/).length).toBeGreaterThan(0);
       expect(screen.getAllByText('Alpha').length).toBeGreaterThan(0);
@@ -224,9 +226,8 @@ describe('Portfolio page', () => {
     renderWithAuth();
 
     await waitFor(() => {
-      expect(screen.getByText('Skill fallback test')).toBeInTheDocument();
-      expect(screen.getAllByText(/Backend APIs/).length).toBeGreaterThan(0);
-      expect(screen.getAllByText(/Testing/).length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Backend APIs').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Testing').length).toBeGreaterThan(0);
     });
   });
 

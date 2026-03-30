@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock useNavigate
 const mockNavigate = vi.fn();
@@ -100,6 +100,14 @@ describe('ProjectsPage', () => {
   });
 
   describe('Error Handling', () => {
+    let restoreConsole;
+    beforeEach(() => {
+      restoreConsole = vi.spyOn(console, 'error').mockImplementation(() => {});
+    });
+    afterEach(() => {
+      restoreConsole.mockRestore();
+    });
+
     it('displays error message when API call fails', async () => {
       const errorMessage = 'Failed to fetch projects';
       projectsAPI.getProjects.mockRejectedValue({

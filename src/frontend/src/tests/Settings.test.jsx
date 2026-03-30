@@ -1,6 +1,6 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock useNavigate
 const mockNavigate = vi.fn();
@@ -52,6 +52,7 @@ const renderSettings = () => {
 };
 
 describe('Settings Page', () => {
+  let restoreConsole;
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
@@ -59,6 +60,12 @@ describe('Settings Page', () => {
     localStorage.setItem('access_token', 'fake-token');
     localStorage.setItem('username', 'deleteaccount');
     localStorage.setItem('token_expiry', 'fake-expiry');
+
+    restoreConsole = vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    restoreConsole.mockRestore();
   });
 
   describe('Header + Navigation', () => {
@@ -636,14 +643,16 @@ describe('Settings Page', () => {
 
       renderSettings();
 
-      const deleteAccountBtn = screen.getByRole('button', { name: /delete account/i });
+      const deleteBtn = screen.getByRole('button', { name: /^delete account$/i });
       await waitFor(() => {
-        expect(deleteAccountBtn).not.toBeDisabled();
+        expect(deleteBtn).not.toBeDisabled();
       });
 
-      fireEvent.click(deleteAccountBtn);
+      fireEvent.click(deleteBtn);
 
-      expect(screen.getByText('Delete account?')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /delete account\?/i })).toBeInTheDocument();
+      });
       expect(
         screen.getByText(/this will permanently delete your account and everything associated with it/i)
       ).toBeInTheDocument();
@@ -656,19 +665,21 @@ describe('Settings Page', () => {
 
       renderSettings();
 
-      const deleteAccountBtn = screen.getByRole('button', { name: /delete account/i });
+      const deleteBtn = screen.getByRole('button', { name: /^delete account$/i });
       await waitFor(() => {
-        expect(deleteAccountBtn).not.toBeDisabled();
+        expect(deleteBtn).not.toBeDisabled();
       });
 
-      fireEvent.click(deleteAccountBtn);
+      fireEvent.click(deleteBtn);
 
-      expect(screen.getByText('Delete account?')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /delete account\?/i })).toBeInTheDocument();
+      });
 
       fireEvent.click(screen.getByRole('button', { name: /^cancel$/i }));
 
       await waitFor(() => {
-        expect(screen.queryByText('Delete account?')).not.toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: /delete account\?/i })).not.toBeInTheDocument();
       });
 
       expect(authAPI.deleteAccount).not.toHaveBeenCalled();
@@ -683,11 +694,12 @@ describe('Settings Page', () => {
     
       renderSettings();
     
+      const deleteBtn = screen.getByRole('button', { name: /^delete account$/i });
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete account/i })).toBeInTheDocument();
+        expect(deleteBtn).not.toBeDisabled();
       });
     
-      fireEvent.click(screen.getByRole('button', { name: /delete account/i }));
+      fireEvent.click(deleteBtn);
       fireEvent.click(screen.getByRole('button', { name: /yes, delete/i }));
     
       await waitFor(() => {
@@ -716,11 +728,12 @@ describe('Settings Page', () => {
     
       renderSettings();
     
+      const deleteBtnFail = screen.getByRole('button', { name: /^delete account$/i });
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete account/i })).toBeInTheDocument();
+        expect(deleteBtnFail).not.toBeDisabled();
       });
     
-      fireEvent.click(screen.getByRole('button', { name: /delete account/i }));
+      fireEvent.click(deleteBtnFail);
       fireEvent.click(screen.getByRole('button', { name: /yes, delete/i }));
     
       await waitFor(() => {

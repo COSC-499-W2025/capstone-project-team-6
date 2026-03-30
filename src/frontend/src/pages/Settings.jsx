@@ -167,6 +167,13 @@ const Settings = () => {
           linkedIn: info?.linkedIn || '',
           github: info?.github || '',
           website: info?.website || '',
+          education: info?.education || '',
+          education_university: info?.education_university || '',
+          education_location: info?.education_location || '',
+          education_degree: info?.education_degree || '',
+          education_start_date: info?.education_start_date || '',
+          education_end_date: info?.education_end_date || '',
+          education_awards: info?.education_awards || '',
         };
 
         setPersonalInfo(loaded);
