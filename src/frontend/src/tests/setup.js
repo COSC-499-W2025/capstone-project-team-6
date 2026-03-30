@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom";
-import { vi } from 'vitest';
+import { vi } from "vitest";
 
 // Mock localStorage
 const localStorageMock = {
@@ -30,4 +30,9 @@ if (typeof globalThis.localStorage === 'undefined' || typeof globalThis.localSto
     key: (index) => Object.keys(store)[index] ?? null,
     get length() { return Object.keys(store).length; },
   };
+}
+
+// JSDOM's scrollTo is a stub that throws "Not implemented" when called.
+if (typeof window !== 'undefined') {
+  window.scrollTo = vi.fn();
 }

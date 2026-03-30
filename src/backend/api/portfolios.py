@@ -6,14 +6,19 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fastapi import (APIRouter, Depends, File, Form, HTTPException, UploadFile,
-                     status)
+from fastapi import (APIRouter, Depends, File, Form, HTTPException, Query,
+                     UploadFile, status)
 from pydantic import BaseModel, Field
 
 from backend.analysis_database import (delete_analysis,
                                        get_all_analyses_for_user,
                                        get_analysis_by_file_hash,
-                                       get_analysis_by_uuid)
+                                       get_analysis_by_uuid,
+                                       get_public_portfolio_detail,
+                                       get_user_portfolio_settings,
+                                       list_public_portfolios,
+                                       set_portfolio_visibility,
+                                       upsert_user_portfolio_settings)
 from backend.api.auth import verify_token
 from backend.database import check_user_consent
 from backend.task_manager import TaskType, get_task_manager
@@ -28,6 +33,8 @@ class PortfolioListItem(BaseModel):
     total_projects: int
     analysis_type: str
     project_names: List[str] = Field(default_factory=list)
+    is_public: bool = False
+    published_at: Optional[str] = None
 
 
 class PortfolioDetail(BaseModel):
@@ -57,11 +64,81 @@ class ConsentResponse(BaseModel):
     message: str
 
 
+class PortfolioVisibilityRequest(BaseModel):
+    is_public: bool
+
+
+class PortfolioVisibilityResponse(BaseModel):
+    analysis_uuid: str
+    is_public: bool
+    message: str
+
+
+class PublicPortfolioCard(BaseModel):
+    analysis_uuid: str
+    username: str
+    analysis_type: str
+    analysis_timestamp: str
+    published_at: Optional[str] = None
+    total_projects: int
+    project_names: List[str] = Field(default_factory=list)
+    project_types: List[str] = Field(default_factory=list)
+    top_languages: List[str] = Field(default_factory=list)
+    top_skills: List[str] = Field(default_factory=list)
+    has_tests: bool = False
+
+
+class PublicPortfolioListResponse(BaseModel):
+    items: List[PublicPortfolioCard] = Field(default_factory=list)
+    total: int
+    page: int
+    page_size: int
+
+
+class PublicPortfolioDetail(BaseModel):
+    analysis_uuid: str
+    username: str
+    analysis_type: str
+    zip_file: str
+    analysis_timestamp: str
+    published_at: Optional[str] = None
+    total_projects: int
+    projects: List[Dict[str, Any]] = Field(default_factory=list)
+    skills: List[Dict[str, Any]] = Field(default_factory=list)
+    summary: Optional[Dict[str, Any]] = None
+    portfolio_items: List[Dict[str, Any]] = Field(default_factory=list)
+    portfolio_settings: Dict[str, Any] = Field(default_factory=dict)
+    analysis_timestamps: List[str] = Field(default_factory=list)
+
+
+class PortfolioSettingsRequest(BaseModel):
+    settings: Dict[str, Any] = Field(default_factory=dict)
+
+
+class PortfolioSettingsResponse(BaseModel):
+    settings: Dict[str, Any] = Field(default_factory=dict)
+
+
 @router.get("/portfolios", response_model=List[PortfolioListItem], operation_id="list_portfolios")
 async def list_portfolios(username: str = Depends(verify_token)):
     """List all portfolios for the authenticated user."""
     analyses = get_all_analyses_for_user(username)
 
+    empty_analyses = []
+    valid_analyses = []
+
+    for analysis in analyses:
+        if analysis["total_projects"] == 0:
+            empty_analyses.append(analysis["analysis_uuid"])
+        else:
+            valid_analyses.append(analysis)
+
+    # Automatically clean up ALL empty analyses (no limit)
+    for uuid in empty_analyses:
+        try:
+            delete_analysis(uuid, username)
+        except Exception as e:
+            print(f"Auto-cleanup failed for portfolio {uuid}: {e}")
     return [
         PortfolioListItem(
             analysis_uuid=a["analysis_uuid"],
@@ -70,9 +147,108 @@ async def list_portfolios(username: str = Depends(verify_token)):
             total_projects=a["total_projects"],
             analysis_type=a["analysis_type"],
             project_names=a.get("project_names", []),
+            is_public=bool(a.get("is_public")),
+            published_at=a.get("published_at"),
         )
-        for a in analyses
+        for a in valid_analyses
     ]
+
+
+@router.get(
+    "/portfolio/settings",
+    response_model=PortfolioSettingsResponse,
+    operation_id="get_portfolio_settings",
+)
+async def get_portfolio_settings(username: str = Depends(verify_token)):
+    settings = get_user_portfolio_settings(username)
+    return PortfolioSettingsResponse(settings=settings)
+
+
+@router.post(
+    "/portfolio/settings",
+    response_model=PortfolioSettingsResponse,
+    operation_id="save_portfolio_settings",
+)
+async def save_portfolio_settings(
+    request: PortfolioSettingsRequest,
+    username: str = Depends(verify_token),
+):
+    settings = upsert_user_portfolio_settings(username, request.settings)
+    return PortfolioSettingsResponse(settings=settings)
+
+
+@router.post(
+    "/portfolios/{portfolio_id}/visibility",
+    response_model=PortfolioVisibilityResponse,
+    operation_id="set_portfolio_visibility",
+)
+async def update_portfolio_visibility(
+    portfolio_id: str,
+    request: PortfolioVisibilityRequest,
+    username: str = Depends(verify_token),
+):
+    """Update whether a portfolio is publicly visible."""
+    updated = set_portfolio_visibility(portfolio_id, username, request.is_public)
+    if not updated:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Portfolio {portfolio_id} not found",
+        )
+
+    return PortfolioVisibilityResponse(
+        analysis_uuid=portfolio_id,
+        is_public=request.is_public,
+        message="Portfolio published successfully" if request.is_public else "Portfolio set to private",
+    )
+
+
+@router.get(
+    "/portfolios/public",
+    response_model=PublicPortfolioListResponse,
+    operation_id="list_public_portfolios",
+)
+async def get_public_portfolios(
+    q: Optional[str] = Query(None, description="Search text for user/projects/skills"),
+    username: Optional[str] = Query(None, description="Username filter (partial match)"),
+    project_type: Optional[str] = Query(None, description="Project type / role filter"),
+    language: Optional[str] = Query(None, description="Primary language filter"),
+    has_tests: Optional[bool] = Query(None, description="Whether projects with tests should be included"),
+    sort: str = Query("newest", description="Sort mode: newest, oldest, projects_desc, username"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(12, ge=1, le=50),
+    _: str = Depends(verify_token),
+):
+    """List public portfolios with search, filter, and pagination."""
+    payload = list_public_portfolios(
+        q=q,
+        username=username,
+        project_type=project_type,
+        language=language,
+        has_tests=has_tests,
+        sort=sort,
+        page=page,
+        page_size=page_size,
+    )
+    return PublicPortfolioListResponse(**payload)
+
+
+@router.get(
+    "/portfolios/public/{portfolio_id}",
+    response_model=PublicPortfolioDetail,
+    operation_id="get_public_portfolio",
+)
+async def get_public_portfolio(
+    portfolio_id: str,
+    _: str = Depends(verify_token),
+):
+    """Get detail for a public portfolio."""
+    detail = get_public_portfolio_detail(portfolio_id)
+    if not detail:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Public portfolio {portfolio_id} not found",
+        )
+    return PublicPortfolioDetail(**detail)
 
 
 @router.get("/portfolios/{portfolio_id}", response_model=PortfolioDetail, operation_id="get_portfolio")
@@ -163,8 +339,9 @@ async def upload_new_portfolio(
 
     _file_hash = FileManager().calculate_file_hash(zip_path)
     existing = get_analysis_by_file_hash(_file_hash, username)
-    print(f"[DUPLICATE CHECK] user={username!r} hash={_file_hash!r} existing={existing is not None}")
-    if existing:
+    has_projects = existing is not None and (existing["total_projects"] or 0) > 0
+    print(f"[DUPLICATE CHECK] user={username!r} hash={_file_hash!r} existing={existing is not None} has_projects={has_projects}")
+    if has_projects:
         shutil.rmtree(temp_dir, ignore_errors=True)
         return MessageResponse(
             message="Duplicate upload: returning existing analysis",
@@ -288,6 +465,33 @@ async def delete_portfolio(portfolio_id: str, username: str = Depends(verify_tok
 
     return MessageResponse(
         message=f"Portfolio {portfolio_id} deleted successfully",
+    )
+
+
+@router.post("/portfolios/cleanup", response_model=MessageResponse, operation_id="cleanup_empty_portfolios")
+async def cleanup_empty_portfolios(username: str = Depends(verify_token)):
+    """Clean up all empty portfolios (0 projects) for the user."""
+    analyses = get_all_analyses_for_user(username)
+
+    empty_analyses = [a["analysis_uuid"] for a in analyses if a["total_projects"] == 0]
+
+    cleaned_count = 0
+    failed_count = 0
+
+    for uuid in empty_analyses:
+        try:
+            success = delete_analysis(uuid, username)
+            if success:
+                cleaned_count += 1
+            else:
+                failed_count += 1
+        except Exception as e:
+            print(f"Failed to cleanup portfolio {uuid}: {e}")
+            failed_count += 1
+
+    return MessageResponse(
+        message=f"Cleanup completed: {cleaned_count} empty portfolios removed",
+        details={"cleaned_count": cleaned_count, "failed_count": failed_count, "total_empty": len(empty_analyses)},
     )
 
 

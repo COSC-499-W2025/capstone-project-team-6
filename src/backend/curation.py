@@ -162,6 +162,7 @@ def get_user_projects(user_id: str) -> List[Dict[str, Any]]:
                    a.analysis_timestamp,
                    a.zip_file,
                    a.analysis_uuid AS analysis_uuid,
+                   a.analysis_type,
                    -- Use corrections if available, otherwise original values
                    COALESCE(pcc.last_commit_date, p.last_commit_date) as effective_last_commit_date,
                    COALESCE(pcc.last_modified_date, p.last_modified_date) as effective_last_modified_date,

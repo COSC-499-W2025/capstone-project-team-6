@@ -83,7 +83,7 @@ const SignupPage = () => {
           margin: '0 0 16px 0',
           color: '#1a1a1a'
         }}>
-          MDA Portfolio Generator
+          Blume
         </h1>
         <p style={{
           fontSize: '18px',
@@ -116,7 +116,7 @@ const SignupPage = () => {
             color: '#666',
             margin: 0
           }}>
-            Create your MDA Portfolio account
+            Create your Blume account
           </p>
         </div>
 

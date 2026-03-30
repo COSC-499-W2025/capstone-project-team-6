@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import subprocess
@@ -564,7 +565,6 @@ def format_resume_items(items: List[str]) -> str:
 def generate_formatted_resume_entry(project: Dict[str, Any]) -> str:
     """Generate a formatted resume entry for a single project."""
     project_name = project.get("project_name", "Project")
-    timeline = project.get("timeline", "")
 
     bullets = _generate_project_items(project)
     languages = list(project.get("languages", {}).keys())
@@ -609,12 +609,7 @@ def generate_formatted_resume_entry(project: Dict[str, Any]) -> str:
     tech_stack = sorted(set([t for t in tech_stack if t]))[:8]
     tech_str = ", ".join(tech_stack)
 
-    # Jake's LaTeX style: table-like layout with project name | tech stack on left, timeline on right
-    # Using markdown table-like formatting
-    if timeline:
-        header_line = f"**{project_name}** | *{tech_str}*<span style='float:right'>{timeline}</span>"
-    else:
-        header_line = f"**{project_name}** | *{tech_str}*"
+    header_line = f"**{project_name}** | *{tech_str}*"
 
     # Bullet points (limit to 4 like Jake's resume for conciseness)
     bullet_lines = []
@@ -713,14 +708,81 @@ def generate_latex_resume(
     github_display = github.replace("https://", "").replace("http://", "")
     website_display = website.replace("https://", "").replace("http://", "") if website else ""
 
-    contact_parts = [phone]
-    contact_parts.append(rf"\href{{mailto:{email}}}{{\underline{{{email}}}}}")
+    def _safe(s: str) -> str:
+        # Normalize common unicode punctuation into ASCII so pdflatex can compile reliably.
+        s = (s or "").replace("•", "-")
+        s = s.replace("–", "-").replace("—", "-").replace("−", "-")
+        s = s.replace("’", "'").replace("‘", "'")
+        s = s.replace("“", '"').replace("”", '"')
+        s = s.replace("…", "...")
+        s = s.replace("\n", " ").replace("\r", " ")
+
+        # Ensure ASCII compatibility for this pdflatex toolchain.
+        s = s.encode("ascii", errors="replace").decode("ascii")
+
+        # Escape LaTeX special characters used in our template.
+        return (
+            s.replace("\\", "\\textbackslash ")
+            .replace("&", "\\&")
+            .replace("%", "\\%")
+            .replace("_", "\\_")
+            .replace("#", "\\#")
+            .replace("$", "\\$")
+            .replace("{", "\\{")
+            .replace("}", "\\}")
+            .replace("~", "\\textasciitilde ")
+            .replace("^", "\\textasciicircum ")
+        )
+
+    def _format_month_year(value: Any) -> str:
+        """
+        Convert stored month values (from <input type="month"> => "YYYY-MM")
+        into a readable "Mon YYYY" string.
+        """
+        if value is None:
+            return ""
+        s = str(value).strip()
+        m = re.match(r"^(\d{4})-(\d{2})$", s)
+        if not m:
+            return s
+        year = int(m.group(1))
+        month = int(m.group(2))
+        if month < 1 or month > 12:
+            return s
+        month_names = [
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "May",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Oct",
+            "Nov",
+            "Dec",
+        ]
+        return f"{month_names[month - 1]} {year}"
+
+    safe_phone = _safe(phone)
+    safe_email = _safe(email)
+    safe_location = _safe(location)
+    safe_linkedin = _safe(linkedin)
+    safe_github = _safe(github)
+    safe_website = _safe(website)
+    safe_linkedin_display = _safe(linkedin_display)
+    safe_github_display = _safe(github_display)
+    safe_website_display = _safe(website_display)
+
+    contact_parts = [safe_phone]
+    contact_parts.append(rf"\href{{mailto:{safe_email}}}{{\underline{{{safe_email}}}}}")
     if location:
-        contact_parts.append(location)
-    contact_parts.append(rf"\href{{{linkedin}}}{{\underline{{{linkedin_display}}}}}")
-    contact_parts.append(rf"\href{{{github}}}{{\underline{{{github_display}}}}}")
+        contact_parts.append(safe_location)
+    contact_parts.append(rf"\href{{{safe_linkedin}}}{{\underline{{{safe_linkedin_display}}}}}")
+    contact_parts.append(rf"\href{{{safe_github}}}{{\underline{{{safe_github_display}}}}}")
     if website:
-        contact_parts.append(rf"\href{{{website}}}{{\underline{{{website_display}}}}}")
+        contact_parts.append(rf"\href{{{safe_website}}}{{\underline{{{safe_website_display}}}}}")
 
     contact_line = " $|$ ".join(contact_parts)
 
@@ -732,11 +794,147 @@ def generate_latex_resume(
 \end{{center}}
 """
 
-    # 2. Education Section
-    if info.get("university"):
-        latex += r"\section{Education}" + "\n\\resumeSubHeadingListStart\n"
-        latex += rf"  \resumeSubheading{{{info.get('university', '')}}}{{{info.get('location', '')}}}"
-        latex += rf"{{{info.get('degree', '')}}}{{{info.get('grad_date', '')}}}\n"
+    # 2. Education Section (Jake's format: subheading + date + awards list)
+    education_entries = info.get("education_entries")
+    if isinstance(education_entries, list) and len(education_entries) > 0:
+        education_blocks: List[str] = []
+        for entry in education_entries:
+            if not isinstance(entry, dict):
+                continue
+
+            university = (entry.get("education_university") or entry.get("university") or "").strip()
+            location = (entry.get("education_location") or entry.get("location") or "").strip()
+            degree = (entry.get("education_degree") or entry.get("degree") or "").strip()
+            start_date = (entry.get("education_start_date") or entry.get("start_date") or "").strip()
+            end_date = (entry.get("education_end_date") or entry.get("end_date") or entry.get("grad_date") or "").strip()
+            start_date_fmt = _format_month_year(start_date)
+            end_date_fmt = _format_month_year(end_date)
+            if start_date_fmt and end_date_fmt:
+                date_range = f"{start_date_fmt} -- {end_date_fmt}"
+            elif start_date_fmt and not end_date_fmt:
+                date_range = f"{start_date_fmt} -- Present"
+            else:
+                date_range = end_date_fmt or start_date_fmt or " "
+
+            awards = (entry.get("education_awards") or entry.get("awards") or "").strip()
+            education_text = (entry.get("education_text") or entry.get("education") or "").strip()
+            # Keep education text on one line for LaTeX safety.
+            education_text_single_line = education_text.replace(chr(10), " ").replace(chr(13), " ")
+
+            if university or degree:
+                block = "  \\resumeSubheading{"
+                block += _safe(university or " ") + "}{" + _safe(location) + "}{"
+                block += _safe(degree) + "}{\\textnormal{" + _safe(date_range) + "}}\n"
+                if awards:
+                    block += "  \\resumeItemListStart\n"
+                    block += "    \\resumeItem{\\textbf{Awards}: " + _safe(awards) + "}\n"
+                    block += "  \\resumeItemListEnd\n"
+                education_blocks.append(block)
+            elif education_text:
+                education_blocks.append(f"  \\item \\small{{{_safe(education_text_single_line)}}}\n")
+            elif date_range.strip():
+                # Keep list non-empty even when user only saved date fields.
+                education_blocks.append(f"  \\item \\small{{{_safe(date_range)}}}\n")
+
+        if education_blocks:
+            latex += r"\section{Education}" + "\n\\resumeSubHeadingListStart\n"
+            for block in education_blocks:
+                latex += block
+            latex += "\\resumeSubHeadingListEnd\n\n"
+
+    else:
+        university = (info.get("education_university") or info.get("university") or "").strip()
+        location = (info.get("education_location") or info.get("location") or "").strip()
+        degree = (info.get("education_degree") or info.get("degree") or "").strip()
+        start_date = (info.get("education_start_date") or "").strip()
+        end_date = (info.get("education_end_date") or info.get("grad_date") or "").strip()
+        start_date_fmt = _format_month_year(start_date)
+        end_date_fmt = _format_month_year(end_date)
+        if start_date_fmt and end_date_fmt:
+            date_range = f"{start_date_fmt} -- {end_date_fmt}"
+        elif start_date_fmt and not end_date_fmt:
+            date_range = f"{start_date_fmt} -- Present"
+        else:
+            date_range = end_date_fmt or start_date_fmt or " "
+        awards = (info.get("education_awards") or "").strip()
+
+        if university or degree or (info.get("education") or "").strip():
+            latex += r"\section{Education}" + "\n\\resumeSubHeadingListStart\n"
+            if university or degree:
+                latex += "  \\resumeSubheading{"
+                latex += _safe(university or " ") + "}{" + _safe(location) + "}{"
+                latex += _safe(degree) + "}{\\textnormal{" + _safe(date_range) + "}}\n"
+                if awards:
+                    latex += "  \\resumeItemListStart\n"
+                    latex += "    \\resumeItem{\\textbf{Awards}: " + _safe(awards) + "}\n"
+                    latex += "  \\resumeItemListEnd\n"
+            else:
+                education_text = (info.get("education") or "").strip().replace("\n", " ")
+                latex += f"  \\item \\small{{{_safe(education_text)}}}\n"
+            latex += "\\resumeSubHeadingListEnd\n\n"
+
+    # 3. Work Experience Section
+    # Supports multiple entries via `work_experience_entries`.
+    def _parse_responsibility_bullets(raw_text: Any) -> List[str]:
+        """Normalize responsibility text into clean bullet items."""
+        if raw_text is None:
+            return []
+        text = str(raw_text).replace("\r", "\n")
+        bullets: List[str] = []
+        for line in text.split("\n"):
+            # Allow users to type with '-' bullets or plain lines.
+            cleaned = line.strip().lstrip("-*•").strip()
+            if cleaned:
+                bullets.append(cleaned)
+        return bullets
+
+    work_entries = info.get("work_experience_entries")
+    if isinstance(work_entries, list) and len(work_entries) > 0:
+        latex += r"\section{Work Experience}" + "\n\\resumeSubHeadingListStart\n"
+        for entry in work_entries:
+            if not isinstance(entry, dict):
+                continue
+
+            job_title = (entry.get("job_title") or entry.get("work_job_title") or "").strip()
+            company = (entry.get("company") or entry.get("work_company") or "").strip()
+            location = (entry.get("location") or entry.get("work_location") or "").strip()
+            start_date = (entry.get("start_date") or entry.get("work_start_date") or "").strip()
+            end_date = (entry.get("end_date") or entry.get("work_end_date") or entry.get("work_grad_date") or "").strip()
+            start_date_fmt = _format_month_year(start_date)
+            end_date_fmt = _format_month_year(end_date)
+            if start_date_fmt and end_date_fmt:
+                date_range = f"{start_date_fmt} -- {end_date_fmt}"
+            elif start_date_fmt and not end_date_fmt:
+                date_range = f"{start_date_fmt} -- Present"
+            else:
+                date_range = end_date_fmt or start_date_fmt or " "
+
+            responsibilities_text = (
+                entry.get("responsibilities_text")
+                or entry.get("work_responsibilities_text")
+                or entry.get("responsibilities")
+                or ""
+            )
+            responsibilities = _parse_responsibility_bullets(responsibilities_text)
+
+            latex += "  \\resumeSubheading{"
+            latex += (
+                _safe(job_title or " ")
+                + "}{"
+                + _safe(company or " ")
+                + "}{"
+                + _safe(location or " ")
+                + "}{"
+                + _safe(date_range)
+                + "}\n"
+            )
+
+            if responsibilities:
+                latex += "  \\resumeItemListStart\n"
+                for bullet in responsibilities[:4]:
+                    latex += f"    \\resumeItem{{{_safe(bullet)}}}\n"
+                latex += "  \\resumeItemListEnd\n"
+
         latex += "\\resumeSubHeadingListEnd\n\n"
 
     # 3. Projects Section
@@ -744,7 +942,7 @@ def generate_latex_resume(
         latex += r"\section{Projects}" + "\n\\resumeSubHeadingListStart\n"
         for project in all_projects:
             project_name = project.get("project_name", "Project")
-            timeline = project.get("timeline", "Present")
+            timeline = ""  # Timestamp not shown on resume projects
 
             # Extract Tech Stack
             langs = list(project.get("languages", {}).keys())
@@ -781,26 +979,19 @@ def generate_latex_resume(
             tech_stack = (langs + fws + notable_deps[:3])[:6]  # Limit to 6 items
             tech_str = ", ".join(tech_stack)
 
-            safe_name = project_name.replace("&", "\\&").replace("%", "\\%").replace("_", "\\_").replace("#", "\\#")
-            safe_tech = tech_str.replace("&", "\\&").replace("%", "\\%").replace("_", "\\_").replace("#", "\\#")
+            safe_name = _safe(project_name)
+            safe_tech = _safe(tech_str)
 
             latex += f"    \\resumeProjectHeading{{\\textbf{{{safe_name}}} $|$ \\emph{{{safe_tech}}}}}{{{timeline}}}\n"
             latex += "      \\resumeItemListStart\n"
-            # Generate bullet points
-            bullets = _generate_project_items(project)
+            # Use stored resume bullets if provided (from DB), else generate from project dict
+            resume_bullets = project.get("resume_bullets")
+            if resume_bullets and isinstance(resume_bullets, list):
+                bullets = [b for b in resume_bullets if isinstance(b, str) and b.strip()]
+            else:
+                bullets = _generate_project_items(project)
             for bullet in bullets[:4]:
-                safe_bullet = (
-                    bullet.replace("\\", "\\textbackslash ")
-                    .replace("%", "\\%")
-                    .replace("$", "\\$")
-                    .replace("&", "\\&")
-                    .replace("_", "\\_")
-                    .replace("#", "\\#")
-                    .replace("{", "\\{")
-                    .replace("}", "\\}")
-                    .replace("~", "\\textasciitilde ")
-                    .replace("^", "\\textasciicircum ")
-                )
+                safe_bullet = _safe(bullet)
                 latex += f"        \\resumeItem{{{safe_bullet}}}\n"
 
             latex += "      \\resumeItemListEnd\n"
@@ -834,13 +1025,13 @@ def generate_latex_resume(
 
         latex += r"\section{Technical Skills}" + "\n\\begin{itemize}[leftmargin=0.15in, label={}]\n  \\small{\\item{\n"
         if langs:
-            safe_langs = ", ".join(langs).replace("&", "\\&").replace("%", "\\%").replace("_", "\\_").replace("#", "\\#")
+            safe_langs = _safe(", ".join(langs))
             latex += f"    \\textbf{{Languages}}{{: {safe_langs}}} \\\\\n"
         if fws:
-            safe_fws = ", ".join(fws).replace("&", "\\&").replace("%", "\\%").replace("_", "\\_").replace("#", "\\#")
+            safe_fws = _safe(", ".join(fws))
             latex += f"    \\textbf{{Frameworks}}{{: {safe_fws}}} \\\\\n"
         if tools:
-            safe_tools = ", ".join(tools[:10]).replace("&", "\\&").replace("%", "\\%").replace("_", "\\_").replace("#", "\\#")
+            safe_tools = _safe(", ".join(tools[:10]))
             latex += f"    \\textbf{{Developer Tools}}{{: {safe_tools}}}\n"
         latex += "  }}\n\\end{itemize}\n\n"
 
@@ -875,7 +1066,9 @@ def _compile_latex_to_pdf(latex_content: str) -> bytes:
 
     if not pdflatex_cmd:
         raise FileNotFoundError(
-            "pdflatex not found. To fix this, ensure BasicTeX is installed and " "run: export PATH='/Library/TeX/texbin:$PATH'"
+            "pdflatex is required to generate the resume as PDF (Jake's format). "
+            "Install BasicTeX or MacTeX (e.g. brew install --cask basictex), then run: "
+            "export PATH='/Library/TeX/texbin:$PATH'"
         )
 
     # 2. Run compilation in a temporary directory
@@ -904,6 +1097,50 @@ def _compile_latex_to_pdf(latex_content: str) -> bytes:
 
         except subprocess.TimeoutExpired:
             raise RuntimeError("LaTeX compilation timed out.")
+
+
+def _bundles_to_portfolios(
+    bundles: List[Dict[str, Any]],
+    skills_set: Set[str],
+    include_skills: bool,
+) -> List[Dict[str, Any]]:
+    """Convert API project bundles to the portfolio shape expected by generate_latex_resume."""
+    all_projects: List[Dict[str, Any]] = []
+    all_skills: Set[str] = set(skills_set) if skills_set else set()
+    for bundle in bundles:
+        proj_row = bundle.get("project") or {}
+        port = bundle.get("portfolio") or {}
+        items = bundle.get("resume_items") or []
+        name = proj_row.get("project_name") or proj_row.get("name") or "Project"
+        timeline = proj_row.get("last_modified_date") or "Present"
+        primary = proj_row.get("primary_language") or ""
+        languages = {primary: 1} if primary else {}
+        tech_stack = port.get("tech_stack")
+        if isinstance(tech_stack, str):
+            try:
+                tech_stack = json.loads(tech_stack) if tech_stack else []
+            except Exception:
+                tech_stack = []
+        frameworks = [t for t in (tech_stack if isinstance(tech_stack, list) else []) if isinstance(t, str)][:10]
+        for s in port.get("skills") or port.get("skills_exercised") or []:
+            if isinstance(s, str) and s.strip():
+                all_skills.add(s.strip())
+        resume_bullets = []
+        for r in items:
+            text = r.get("resume_text") or r.get("content") or r.get("bullet_text") or ""
+            if isinstance(text, str) and text.strip():
+                resume_bullets.append(text.strip())
+        all_projects.append(
+            {
+                "project_name": name,
+                "timeline": timeline,
+                "languages": languages,
+                "frameworks": frameworks,
+                "dependencies": {},
+                "resume_bullets": resume_bullets,
+            }
+        )
+    return [{"projects": all_projects, "skills": list(all_skills)}]
 
 
 def generate_resume(
@@ -962,6 +1199,37 @@ def generate_resume(
                             for s in vals:
                                 if isinstance(s, str) and s.strip():
                                     skills_set.add(s.strip())
+
+    def _format_month_year(value: Any) -> str:
+        """
+        Convert stored month values (from <input type="month"> => "YYYY-MM")
+        into a readable "Mon YYYY" string.
+        """
+        if value is None:
+            return ""
+        s = str(value).strip()
+        m = re.match(r"^(\d{4})-(\d{2})$", s)
+        if not m:
+            return s
+        year = int(m.group(1))
+        month = int(m.group(2))
+        if month < 1 or month > 12:
+            return s
+        month_names = [
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "May",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Oct",
+            "Nov",
+            "Dec",
+        ]
+        return f"{month_names[month - 1]} {year}"
 
     def _extract_bullet_text(row: Dict[str, Any]) -> Optional[str]:
         """Extract resume bullet text from a resume_items database row."""
@@ -1027,6 +1295,125 @@ def generate_resume(
         if contact_bits:
             md_parts.append(" • ".join(contact_bits))
 
+        education_entries = personal_info.get("education_entries")
+        if isinstance(education_entries, list) and len(education_entries) > 0:
+            md_parts.append("## Education")
+            for entry in education_entries:
+                if not isinstance(entry, dict):
+                    continue
+
+                education_text = (entry.get("education_text") or entry.get("education") or "").strip()
+                u = (entry.get("education_university") or entry.get("university") or "").strip()
+                d = (entry.get("education_degree") or entry.get("degree") or "").strip()
+
+                if u or d:
+                    loc = (entry.get("education_location") or entry.get("location") or "").strip()
+                    line = ", ".join(x for x in [d, u, loc] if x)
+
+                    start_d = (entry.get("education_start_date") or entry.get("start_date") or "").strip()
+                    end_d = (entry.get("education_end_date") or entry.get("end_date") or entry.get("grad_date") or "").strip()
+                    start_d_fmt = _format_month_year(start_d)
+                    end_d_fmt = _format_month_year(end_d)
+                    if start_d_fmt or end_d_fmt:
+                        if start_d_fmt and end_d_fmt:
+                            line += f" ({start_d_fmt} -- {end_d_fmt})"
+                        elif start_d_fmt and not end_d_fmt:
+                            line += f" ({start_d_fmt} -- Present)"
+                        else:
+                            line += f" ({start_d_fmt or end_d_fmt})"
+
+                    awards = (entry.get("education_awards") or entry.get("awards") or "").strip()
+                    if awards:
+                        line += f"\n- **Awards**: {awards}"
+
+                    md_parts.append(line)
+                elif education_text:
+                    md_parts.append(education_text)
+        else:
+            education = (personal_info.get("education") or "").strip()
+            u = (personal_info.get("education_university") or personal_info.get("university") or "").strip()
+            d = (personal_info.get("education_degree") or personal_info.get("degree") or "").strip()
+            if u or d:
+                line = ", ".join(x for x in [d, u, (personal_info.get("education_location") or "").strip()] if x)
+                start_d = (personal_info.get("education_start_date") or "").strip()
+                end_d = (personal_info.get("education_end_date") or personal_info.get("grad_date") or "").strip()
+                start_d_fmt = _format_month_year(start_d)
+                end_d_fmt = _format_month_year(end_d)
+                if start_d_fmt or end_d_fmt:
+                    if start_d_fmt and end_d_fmt:
+                        line += f" ({start_d_fmt} -- {end_d_fmt})"
+                    elif start_d_fmt and not end_d_fmt:
+                        line += f" ({start_d_fmt} -- Present)"
+                    else:
+                        line += f" ({start_d_fmt or end_d_fmt})"
+                awards = (personal_info.get("education_awards") or "").strip()
+                if awards:
+                    line += f"\n- **Awards**: {awards}"
+                md_parts.append("## Education")
+                md_parts.append(line)
+            elif education:
+                md_parts.append("## Education")
+                md_parts.append(education)
+
+        def _parse_responsibility_bullets(raw_text: Any) -> List[str]:
+            """Normalize responsibility text into clean bullet items."""
+            if raw_text is None:
+                return []
+            text = str(raw_text).replace("\r", "\n")
+            bullets: List[str] = []
+            for line in text.split("\n"):
+                cleaned = line.strip().lstrip("-*•").strip()
+                if cleaned:
+                    bullets.append(cleaned)
+            return bullets
+
+        work_entries = personal_info.get("work_experience_entries")
+        if isinstance(work_entries, list) and len(work_entries) > 0:
+            md_parts.append("## Work Experience")
+            for entry in work_entries:
+                if not isinstance(entry, dict):
+                    continue
+
+                job_title = (entry.get("job_title") or entry.get("work_job_title") or "").strip()
+                company = (entry.get("company") or entry.get("work_company") or "").strip()
+                location = (entry.get("location") or entry.get("work_location") or "").strip()
+                start_d = (entry.get("start_date") or entry.get("work_start_date") or "").strip()
+                end_d = (entry.get("end_date") or entry.get("work_end_date") or "").strip()
+                start_d_fmt = _format_month_year(start_d)
+                end_d_fmt = _format_month_year(end_d)
+
+                if start_d_fmt and end_d_fmt:
+                    date_range = f"{start_d_fmt} -- {end_d_fmt}"
+                elif start_d_fmt and not end_d_fmt:
+                    date_range = f"{start_d_fmt} -- Present"
+                else:
+                    date_range = end_d_fmt or start_d_fmt or ""
+                line_bits = []
+                if job_title:
+                    line_bits.append(f"**{job_title}**")
+                if company:
+                    line_bits.append(f"at **{company}**")
+                line = " ".join(line_bits) if line_bits else "Work Experience"
+
+                if location:
+                    line += f" ({location})"
+                if date_range:
+                    line += f" ({date_range})"
+
+                responsibilities_text = (
+                    entry.get("responsibilities_text")
+                    or entry.get("work_responsibilities_text")
+                    or entry.get("responsibilities")
+                    or ""
+                )
+                bullets = _parse_responsibility_bullets(responsibilities_text)
+
+                if bullets:
+                    block = line + "\n" + "\n".join([f"- {b}" for b in bullets[:4]])
+                    md_parts.append(block)
+                else:
+                    md_parts.append(line)
+
     # Skills section
     if include_skills and skills_set:
         md_parts.append("## Skills")
@@ -1045,7 +1432,16 @@ def generate_resume(
     elif format == "latex":
         return markdown_resume
     elif format == "pdf":
-        return markdown_resume
+        # LaTeX (Jake's format) resume compiled to PDF via pdflatex — requires pdflatex on the system
+        portfolios = _bundles_to_portfolios(selected, skills_set, include_skills)
+        latex_content = generate_latex_resume(
+            portfolios,
+            personal_info=personal_info,
+            include_skills=include_skills,
+            include_projects=include_projects,
+            max_projects=max_projects,
+        )
+        return _compile_latex_to_pdf(latex_content)
     else:
         return markdown_resume
 

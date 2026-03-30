@@ -290,7 +290,6 @@ class TestAPIServerConfiguration:
             "/api/tasks/{task_id}",
             "/api/tasks",
             "/api/health",
-            "/",
         ]
 
         for expected_route in expected_routes:

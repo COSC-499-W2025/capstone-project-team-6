@@ -261,6 +261,17 @@ class TaskManager:
         user_tasks.sort(key=lambda t: t.created_at, reverse=True)
         return user_tasks[:limit]
 
+    def cancel_task(self, task_id: str) -> bool:
+        """Cancel a pending or running task. Returns True if cancelled, False otherwise."""
+        task = self.tasks.get(task_id)
+        if not task:
+            return False
+        if task.status in (TaskStatus.PENDING, TaskStatus.RUNNING):
+            task.status = TaskStatus.FAILED
+            task.error = "Cancelled by user"
+            return True
+        return False
+
     async def _process_task(self, task_id: str):
         """Process a task asynchronously."""
         task = self.tasks.get(task_id)
@@ -355,13 +366,14 @@ class TaskManager:
                                         record_analysis)
         from .cli import analyze_folder
 
-        await asyncio.sleep(1)
-        task.progress = 50
+        task.progress = 32
 
-        # Duplicate check: if this ZIP was already analysed for this user, reuse the result
+        # Duplicate check: if this ZIP was already analysed for this user and still has projects, reuse the result
+        # (If the user deleted the project, total_projects is 0 and we allow re-analysis.)
         if task.file_hash:
             existing = get_analysis_by_file_hash(task.file_hash, task.username)
-            if existing:
+            has_projects = existing is not None and (existing["total_projects"] or 0) > 0
+            if has_projects:
                 logger.info(f"Task {task.task_id}: duplicate ZIP hash, reusing analysis {existing['analysis_uuid']}")
                 task.progress = 100
                 return {
@@ -381,8 +393,16 @@ class TaskManager:
         loop = asyncio.get_event_loop()
 
         # 1) NON-LLM ANALYSIS (always)
+        # Map analyze_folder's 0-100% progress to task progress 35-80%
+        def _analysis_progress(pct, msg=""):
+            mapped = 35 + int(pct * 0.45)  # 0→35, 100→80
+            task.progress = min(80, mapped)
+            task.updated_at = datetime.now()
+
         task.analysis_phase = "non_llm"
-        analysis_result = await loop.run_in_executor(_executor, analyze_folder, file_path)
+        analysis_result = await loop.run_in_executor(
+            _executor, lambda: analyze_folder(file_path, progress_callback=_analysis_progress)
+        )
         task.progress = 80
 
         # Override project name with user-provided value if set
@@ -400,7 +420,7 @@ class TaskManager:
             task.analysis_type or "non_llm", analysis_result, username=task.username, zip_file_hash=task.file_hash
         )
         row = get_analysis(analysis_id)
-        analysis_uuid = row["analysis_uuid"] if row and "analysis_uuid" in row else None
+        analysis_uuid = row["analysis_uuid"] if row else None
 
         task.progress = 90
 
@@ -414,48 +434,74 @@ class TaskManager:
             "llm_error": None,
         }
 
-        # 2) LLM ANALYSIS (only if consent)
+        # 2) LLM ANALYSIS (runs only when user consented AND explicitly requested it)
         try:
             has_consented = check_user_consent(task.username)
         except Exception as e:
             has_consented = False
             result_payload["llm_error"] = f"Consent check failed: {e}"
 
-        if has_consented and (task.analysis_type or "non_llm") == "llm":
+        if has_consented and task.analysis_type == "llm":
             task.analysis_phase = "llm"
-            task.progress = 92
+            task.progress = 82
+            logger.info(f"Task {task.task_id}: Starting LLM analysis")
             try:
                 from .analysis.llm_pipeline import run_gemini_analysis
+                from .analysis_database import (update_llm_error,
+                                                update_llm_summary)
 
-                # Choose active features
                 active_features = ["architecture", "complexity", "security", "skills", "domain", "resume"]
 
-                # Run LLM analysis
+                def _llm_progress(current, total, msg):
+                    fraction = current / total if total > 0 else 0
+                    mapped = 82 + int(fraction * 16)
+                    task.progress = min(98, mapped)
+                    task.updated_at = datetime.now()
+
                 llm_results = await loop.run_in_executor(
                     _executor,
-                    run_gemini_analysis,
-                    file_path,
-                    active_features,
-                    None,  # prompt_override
-                    None,  # progress_callback
+                    lambda: run_gemini_analysis(
+                        file_path,
+                        active_features,
+                        None,
+                        _llm_progress,
+                    ),
                 )
 
-                task.progress = 97
+                task.progress = 98
 
-                # Store LLM under same user. Use empty projects to avoid duplicate project rows
-                # (non_llm analysis already stored the projects; LLM only adds enhancements)
-                llm_results["non_llm_results"] = analysis_result
-                llm_payload = {**llm_results, "projects": []}
-                llm_analysis_id = record_analysis("llm", llm_payload, username=task.username, zip_file_hash=task.file_hash)
+                llm_summary_text = llm_results.get("llm_summary")
+                llm_error_text = llm_results.get("llm_error")
 
-                result_payload["llm_ran"] = True
-                result_payload["llm_analysis_id"] = llm_analysis_id
-                result_payload["llm_error"] = None
+                logger.info(
+                    f"Task {task.task_id}: LLM pipeline finished. "
+                    f"summary={'present (' + str(len(llm_summary_text)) + ' chars)' if llm_summary_text else 'ABSENT'}, "
+                    f"analysis_uuid={analysis_uuid}, "
+                    f"llm_error={llm_error_text}"
+                )
+
+                if llm_summary_text and analysis_uuid:
+                    update_llm_summary(analysis_uuid, llm_summary_text, task.username)
+                    update_llm_error(analysis_uuid, None, task.username)
+                    logger.info(f"Task {task.task_id}: LLM summary saved to analysis {analysis_uuid}")
+                    result_payload["llm_ran"] = True
+                else:
+                    result_payload["llm_ran"] = False
+                    if llm_error_text and analysis_uuid:
+                        update_llm_error(analysis_uuid, llm_error_text, task.username)
+
+                result_payload["llm_error"] = llm_error_text
 
             except Exception as e:
-                # do NOT fail entire task if LLM fails
                 result_payload["llm_ran"] = False
-                result_payload["llm_error"] = str(e)
+                from .gemini_file_search import \
+                    humanize_gemini_generation_error
+
+                err_msg = humanize_gemini_generation_error(str(e))
+                result_payload["llm_error"] = err_msg
+                if analysis_uuid:
+                    update_llm_error(analysis_uuid, err_msg, task.username)
+                logger.error(f"Task {task.task_id}: LLM analysis failed: {e}", exc_info=True)
 
         task.progress = 99
         return result_payload
@@ -464,7 +510,8 @@ class TaskManager:
         """Process an incremental upload to existing portfolio."""
         from .analysis_database import get_analysis_by_uuid, get_connection
         from .cli import analyze_folder
-        from .project_comparison import process_incremental_projects
+        from .project_comparison import (DEFAULT_INCREMENTAL_CHANGE_THRESHOLD,
+                                         process_incremental_projects)
 
         # Get existing portfolio
         existing_portfolio = get_analysis_by_uuid(task.portfolio_id, task.username)
@@ -485,13 +532,14 @@ class TaskManager:
 
         task.progress = 60
 
-        # Process projects: add new, update existing with >50% change
+        # Process projects: add new, update existing when change > threshold (~5%)
         existing_projects = existing_portfolio.get("projects", [])
         new_projects = new_analysis.get("projects", [])
 
-        # Use utility function to process incremental projects
         result = process_incremental_projects(
-            existing_projects=existing_projects, new_projects=new_projects, change_threshold=30.0
+            existing_projects=existing_projects,
+            new_projects=new_projects,
+            change_threshold=DEFAULT_INCREMENTAL_CHANGE_THRESHOLD,
         )
 
         merged_projects = result["merged_projects"]

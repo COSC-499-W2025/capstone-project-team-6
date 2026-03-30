@@ -8,6 +8,42 @@ import { consentAPI, portfoliosAPI } from '../services/api';
 const MAX_FILE_SIZE_MB = 500;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
+/** Incremental upload: show project name(s) first, then date, analysis type, and count (matches Portfolio page intent). */
+const formatIncrementalPortfolioOptionLabel = (portfolio) => {
+  const projectNames = Array.isArray(portfolio.project_names)
+    ? portfolio.project_names.filter(Boolean)
+    : [];
+
+  let primaryLabel;
+  if (projectNames.length === 0) {
+    const base = (portfolio.zip_file || '').replace(/\\/g, '/').split('/').pop() || '';
+    primaryLabel = base.replace(/\.zip$/i, '') || 'Unnamed project';
+  } else if (projectNames.length === 1) {
+    primaryLabel = projectNames[0];
+  } else if (projectNames.length <= 3) {
+    primaryLabel = projectNames.join(', ');
+  } else {
+    primaryLabel = `${projectNames.slice(0, 2).join(', ')} + ${projectNames.length - 2} more`;
+  }
+
+  const date = new Date(portfolio.analysis_timestamp);
+  const dateTimeStr = Number.isNaN(date.getTime())
+    ? (portfolio.analysis_timestamp || '—')
+    : date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+
+  const typeStr = (portfolio.analysis_type || '').toUpperCase() || '—';
+  const n = portfolio.total_projects ?? 0;
+  const projectsStr = `${n} project${n !== 1 ? 's' : ''}`;
+
+  return `${primaryLabel} — ${dateTimeStr} · ${typeStr} · ${projectsStr}`;
+};
+
 const Upload = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -24,6 +60,7 @@ const Upload = () => {
 
   // Form state for multiple projects
   const [multipleFiles, setMultipleFiles] = useState([]);
+  const [duplicateFiles, setDuplicateFiles] = useState([]);
 
   // Form state for incremental upload
   const [portfolios, setPortfolios] = useState([]);
@@ -39,22 +76,36 @@ const Upload = () => {
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [incrementalResults, setIncrementalResults] = useState(null);
 
-  // Consent and analysis type: fetch consent on mount; useLLMAnalysis only when consented
+  // Consent and analysis type: fetch consent on mount; default LLM on when consented
   const [hasConsented, setHasConsented] = useState(false);
-  const [useLLMAnalysis, setUseLLMAnalysis] = useState(false);
+  const [useLLMAnalysis, setUseLLMAnalysis] = useState(true);
 
   useEffect(() => {
     consentAPI.getConsent()
-      .then((res) => setHasConsented(!!res?.has_consented))
-      .catch(() => setHasConsented(false));
+      .then((res) => {
+        const consented = !!res?.has_consented;
+        setHasConsented(consented);
+        setUseLLMAnalysis(consented);
+      })
+      .catch(() => {
+        setHasConsented(false);
+        setUseLLMAnalysis(false);
+      });
   }, []);
+
+  // Sync duplicateMessage from navigation state (e.g. when AnalyzePage navigates back)
+  useEffect(() => {
+    const msg = location.state?.duplicateMessage;
+    if (msg) setDuplicateMessage(msg);
+  }, [location.state?.duplicateMessage]);
 
   const effectiveAnalysisType = (hasConsented && useLLMAnalysis) ? 'llm' : 'non_llm';
 
   const canAnalyzeSingle = selectedFile && projectName.trim().length > 0;
+  const hasDuplicates = duplicateFiles.length > 0;
   const isSubmitDisabled = isUploading || (activeTab === 'single' && !canAnalyzeSingle)
     || (activeTab === 'incremental' && (!selectedPortfolio || !incrementalFile))
-    || (activeTab === 'multiple' && multipleFiles.length === 0);
+    || (activeTab === 'multiple' && (multipleFiles.length === 0 || hasDuplicates));
 
   // Load portfolios when incremental tab is selected
   useEffect(() => {
@@ -71,8 +122,8 @@ const Upload = () => {
       // API returns array directly, not wrapped in object
       setPortfolios(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error('Error loading portfolios:', err);
-      setError('Failed to load portfolios');
+      console.error('Error loading projects for incremental upload:', err);
+      setError('Failed to load projects');
     } finally {
       setLoadingPortfolios(false);
     }
@@ -85,9 +136,11 @@ const Upload = () => {
     setMultipleFiles([]);
     setIncrementalFile(null);
     setSelectedPortfolio('');
+    setDuplicateFiles([]);
+    setError('');
+    setDuplicateMessage('');
     setProjectName('');
     setDescription('');
-    setError('');
     setUploadProgress({ current: 0, total: 0 });
     // Reset file input
     if (fileInputRef.current) {
@@ -137,6 +190,41 @@ const Upload = () => {
     processFiles(files);
   };
 
+  const createFileId = (file) => {
+    return `${file.name}::${file.size}::${file.lastModified || 0}`;
+  };
+
+  const checkForDuplicates = (existingFiles, newFiles) => {
+    const existingIds = new Set(existingFiles.map(createFileId));
+    const newIds = new Map();
+    const duplicates = [];
+    const uniqueNewFiles = [];
+
+    for (const file of newFiles) {
+      const fileId = createFileId(file);
+      if (existingIds.has(fileId)) {
+        duplicates.push({
+          file,
+          reason: 'Already in upload list'
+        });
+        continue;
+      }
+      
+      if (newIds.has(fileId)) {
+        duplicates.push({
+          file,
+          reason: 'Duplicate in current selection'
+        });
+        continue;
+      }
+      
+      newIds.set(fileId, file);
+      uniqueNewFiles.push(file);
+    }
+
+    return { duplicates, uniqueNewFiles };
+  };
+
   const handleFileSelect = (e) => {
     const files = Array.from(e.target.files);
     processFiles(files);
@@ -174,7 +262,17 @@ const Upload = () => {
     if (activeTab === 'single') {
       setSelectedFile(validFiles[0]);
     } else if (activeTab === 'multiple') {
-      setMultipleFiles(prev => [...prev, ...validFiles]);
+      const { duplicates, uniqueNewFiles } = checkForDuplicates(multipleFiles, validFiles);
+      
+      if (duplicates.length > 0) {
+        setDuplicateFiles(duplicates);
+        if (uniqueNewFiles.length > 0) {
+          setMultipleFiles(prev => [...prev, ...uniqueNewFiles]);
+        }
+      } else {
+        setMultipleFiles(prev => [...prev, ...validFiles]);
+        setDuplicateFiles([]);
+      }
     } else if (activeTab === 'incremental') {
       setIncrementalFile(validFiles[0]);
     }
@@ -188,7 +286,6 @@ const Upload = () => {
     } else if (activeTab === 'incremental') {
       setIncrementalFile(null);
     }
-    setError('');
   };
 
   const handleSubmit = async () => {
@@ -206,9 +303,14 @@ const Upload = () => {
       return;
     }
 
+    if (activeTab === 'multiple' && hasDuplicates) {
+      setError('Please remove duplicate files before proceeding with the analysis');
+      return;
+    }
+
     if (activeTab === 'incremental') {
       if (!selectedPortfolio) {
-        setError('Please select a portfolio to add to');
+        setError('Please select a project to add to');
         return;
       }
       if (!incrementalFile) {
@@ -220,8 +322,12 @@ const Upload = () => {
     setIsUploading(true);
     setError('');
     setDuplicateMessage('');
+    setDuplicateFiles([]);
 
     let taskIdForAnalyze = null;
+    let taskIdsForAnalyze = [];
+    let multipleSkippedDuplicates = [];
+    let multipleTotalFiles = 0;
     try {
       if (activeTab === 'single') {
         const formData = new FormData();
@@ -232,9 +338,6 @@ const Upload = () => {
         const res = await api.post('/portfolios/upload', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
-
-        console.log('Upload response:', res.data);
-        console.log('Duplicate flag:', res?.data?.details?.duplicate);
 
         // Duplicate: this ZIP was already analysed — skip re-analysis
         if (res?.data?.details?.duplicate === true) {
@@ -252,14 +355,19 @@ const Upload = () => {
         // Go straight to Analyze page; persist taskId for refresh/back navigation
         taskIdForAnalyze = taskId;
         sessionStorage.setItem("analyze_task_id", taskId);
-        navigate("/analyze", { state: { taskId } });
+        sessionStorage.setItem("analyze_project_type", "single");
+        sessionStorage.setItem("analyze_analysis_type", effectiveAnalysisType);
+        sessionStorage.setItem("analyze_project_name", projectName.trim());
+        navigate("/analyze", { state: { taskId, projectType: 'single', analysisType: effectiveAnalysisType, projectName: projectName.trim() } });
         return;
 
 
       } else if (activeTab === 'multiple') {
         // Upload multiple files with progress tracking and error aggregation
-        const errors = [];
+        const uploadErrors = [];
+        const duplicates = [];
         const total = multipleFiles.length;
+        multipleTotalFiles = total;
         setUploadProgress({ current: 0, total });
 
         for (let i = 0; i < multipleFiles.length; i++) {
@@ -273,34 +381,44 @@ const Upload = () => {
 
             const res = await api.post('/portfolios/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
             if (res?.data?.details?.duplicate) {
-              errors.push(`${file.name}: Already analyzed (duplicate)`);
+              duplicates.push(file.name);
             } else {
               const taskId = res?.data?.task_id || res?.data?.details?.task_id;
               if (taskId) {
-                taskIdForAnalyze = taskId;
-                sessionStorage.setItem("analyze_task_id", taskId);
+                taskIdsForAnalyze.push(taskId);
               }
             }
           } catch (err) {
             const errorMsg = err.response?.data?.detail || 'Upload failed';
-            errors.push(`${file.name}: ${errorMsg}`);
+            uploadErrors.push(`${file.name}: ${errorMsg}`);
           }
         }
 
-        // If some uploads failed, show aggregated errors
-        if (errors.length > 0) {
-          const successCount = total - errors.length;
+        // If there were actual upload errors (not duplicates), show them
+        if (uploadErrors.length > 0) {
+          const successCount = taskIdsForAnalyze.length;
+          const errorLines = uploadErrors.join('\n');
+          const dupNote = duplicates.length > 0 ? `\nAlready analyzed (skipped): ${duplicates.join(', ')}` : '';
           if (successCount > 0) {
-            setError(`${successCount}/${total} files uploaded successfully.\nFailed:\n${errors.join('\n')}`);
+            setError(`${successCount} file(s) uploaded. Failed:\n${errorLines}${dupNote}`);
           } else {
-            setError(`All uploads failed:\n${errors.join('\n')}`);
+            setError(`All uploads failed:\n${errorLines}${dupNote}`);
           }
+          if (taskIdsForAnalyze.length === 0) {
+            setIsUploading(false);
+            setUploadProgress({ current: 0, total: 0 });
+            return;
+          }
+        } else if (duplicates.length > 0 && taskIdsForAnalyze.length === 0) {
+          // All files were duplicates — nothing new to analyze
+          setError(`All ${duplicates.length} ${duplicates.length === 1 ? 'project has' : 'projects have'} already been analyzed. You can view them in your projects.`);
           setIsUploading(false);
           setUploadProgress({ current: 0, total: 0 });
           return;
         }
+        multipleSkippedDuplicates = duplicates;
       } else if (activeTab === 'incremental') {
-        // Upload to existing portfolio
+        // Upload to existing analysis (selected project)
         const response = await portfoliosAPI.addToPortfolio(selectedPortfolio, incrementalFile);
         
         // Poll for task completion and show results
@@ -385,8 +503,19 @@ const Upload = () => {
         fileInputRef.current.value = '';
       }
 
-      // Navigate to analyze page after successful upload (with taskId for multiple)
-      if (taskIdForAnalyze) {
+      // Navigate to analyze page after successful upload
+      if (activeTab === 'multiple' && taskIdsForAnalyze.length > 0) {
+        sessionStorage.setItem("analyze_task_ids", JSON.stringify(taskIdsForAnalyze));
+        sessionStorage.setItem("analyze_analysis_type", effectiveAnalysisType);
+        navigate("/analyze", {
+          state: {
+            taskIds: taskIdsForAnalyze,
+            analysisType: effectiveAnalysisType,
+            skippedDuplicates: multipleSkippedDuplicates,
+            totalFiles: multipleTotalFiles,
+          },
+        });
+      } else if (taskIdForAnalyze) {
         navigate("/analyze", { state: { taskId: taskIdForAnalyze } });
       } else {
         navigate('/analyze');
@@ -584,40 +713,7 @@ const Upload = () => {
                 />
               </div>
 
-              {/* Description */}
-              <div style={{ marginBottom: '24px' }}>
-                <label style={{
-                  display: 'block',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  color: '#1a1a1a',
-                  marginBottom: '8px',
-                }}>
-                  Description (Optional)
-                </label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Describe your project..."
-                  rows={3}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    border: '1px solid #e5e5e5',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    color: '#1a1a1a',
-                    backgroundColor: '#fafafa',
-                    outline: 'none',
-                    transition: 'border-color 0.2s ease',
-                    boxSizing: 'border-box',
-                    resize: 'vertical',
-                    fontFamily: 'inherit',
-                  }}
-                  onFocus={(e) => e.target.style.borderColor = '#1a1a1a'}
-                  onBlur={(e) => e.target.style.borderColor = '#e5e5e5'}
-                />
-              </div>
+             
 
               {/* AI-enhanced analysis (requires consent) */}
               <div style={{ marginBottom: '24px' }}>
@@ -699,18 +795,18 @@ const Upload = () => {
                   color: '#1a1a1a',
                   margin: '0 0 4px 0',
                 }}>
-                  Add to Existing Portfolio
+                  Add to Existing Project
                 </h2>
                 <p style={{
                   fontSize: '14px',
                   color: '#737373',
                   margin: 0,
                 }}>
-                  Upload additional projects to an existing portfolio
+                  Upload additional projects to an existing project
                 </p>
               </div>
 
-              {/* Portfolio Selector */}
+              {/* Project selector (existing analysis to extend) */}
               <div style={{ marginBottom: '24px' }}>
                 <label style={{
                   display: 'block',
@@ -719,7 +815,7 @@ const Upload = () => {
                   color: '#1a1a1a',
                   marginBottom: '8px',
                 }}>
-                  Select Portfolio
+                  Select Project
                 </label>
                 {loadingPortfolios ? (
                   <div style={{
@@ -729,7 +825,7 @@ const Upload = () => {
                     fontSize: '14px',
                     color: '#737373',
                   }}>
-                    Loading portfolios...
+                    Loading projects...
                   </div>
                 ) : portfolios.length === 0 ? (
                   <div style={{
@@ -740,7 +836,7 @@ const Upload = () => {
                     fontSize: '14px',
                     color: '#dc2626',
                   }}>
-                    No portfolios found. Please create a portfolio first by uploading a project.
+                    No projects found. Please create a project first by uploading one.
                   </div>
                 ) : (
                   <select
@@ -762,18 +858,12 @@ const Upload = () => {
                     onFocus={(e) => e.target.style.borderColor = '#1a1a1a'}
                     onBlur={(e) => e.target.style.borderColor = '#e5e5e5'}
                   >
-                    <option value="">-- Select a portfolio --</option>
-                    {portfolios.map((portfolio) => {
-                      const date = new Date(portfolio.analysis_timestamp);
-                      const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                      const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-                      const displayName = `${portfolio.analysis_type.toUpperCase()} - ${dateStr} at ${timeStr}`;
-                      return (
-                        <option key={portfolio.analysis_uuid} value={portfolio.analysis_uuid}>
-                          {displayName} ({portfolio.total_projects} project{portfolio.total_projects !== 1 ? 's' : ''})
-                        </option>
-                      );
-                    })}
+                    <option value="">-- Select a project --</option>
+                    {portfolios.map((portfolio) => (
+                      <option key={portfolio.analysis_uuid} value={portfolio.analysis_uuid}>
+                        {formatIncrementalPortfolioOptionLabel(portfolio)}
+                      </option>
+                    ))}
                   </select>
                 )}
               </div>
@@ -944,6 +1034,33 @@ const Upload = () => {
             </div>
           )}
 
+          {/* Duplicate Files Warning */}
+          {activeTab === 'multiple' && duplicateFiles.length > 0 && (
+            <div style={{ 
+              marginBottom: '16px',
+              padding: '12px 16px',
+              backgroundColor: '#fef2f2',
+              borderRadius: '6px',
+              border: '1px solid #fecaca'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2">
+                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                  <path d="M12 9v4"/>
+                  <path d="m12 17 .01 0"/>
+                </svg>
+                <p style={{ 
+                  fontSize: '13px', 
+                  color: '#dc2626', 
+                  margin: 0,
+                  fontWeight: '500'
+                }}>
+                  Duplicate file detected: {duplicateFiles.map(d => d.file.name).join(', ')}. Only the first instance will be uploaded. 
+                </p>
+              </div>
+            </div>
+          )}
+
           {activeTab === 'incremental' && incrementalFile && (
             <div style={{
               display: 'flex',
@@ -1055,7 +1172,9 @@ const Upload = () => {
           >
             {isUploading
               ? (uploadProgress.total > 1 ? `Uploading ${uploadProgress.current}/${uploadProgress.total}...` : 'Uploading...')
-              : (activeTab === 'incremental' ? 'Add to Portfolio' : activeTab === 'single' ? 'Analyze Project' : 'Analyze Projects')}
+              : hasDuplicates 
+                ? 'Remove Duplicates to Continue'
+                : (activeTab === 'incremental' ? 'Add to Project' : activeTab === 'single' ? 'Analyze Project' : 'Analyze Projects')}
           </button>
         </div>
       </div>
@@ -1089,7 +1208,7 @@ const Upload = () => {
               marginTop: 0,
               marginBottom: '16px',
             }}>
-              {incrementalResults.completed ? 'Portfolio Updated' : 'Upload Processing'}
+              {incrementalResults.completed ? 'Project Updated' : 'Upload Processing'}
             </h2>
             
             {incrementalResults.completed && incrementalResults.details ? (
@@ -1102,7 +1221,7 @@ const Upload = () => {
                   marginBottom: '24px',
                 }}>
                   <p style={{ fontSize: '14px', color: '#15803d', margin: 0, fontWeight: '500' }}>
-                    Successfully updated portfolio!
+                    Successfully updated project!
                   </p>
                 </div>
 
@@ -1194,12 +1313,12 @@ const Upload = () => {
                   marginBottom: '24px',
                 }}>
                   <p style={{ fontSize: '14px', color: '#737373', margin: '0 0 8px 0' }}>
-                    Your portfolio is being updated in the background. The system will:
+                    Your project is being updated in the background. The system will:
                   </p>
                   <ul style={{ fontSize: '14px', color: '#1a1a1a', margin: 0, paddingLeft: '20px' }}>
                     <li style={{ marginBottom: '4px' }}>Add new projects found in the ZIP file</li>
-                    <li style={{ marginBottom: '4px' }}>Update existing projects if changes exceed 30%</li>
-                    <li style={{ marginBottom: '4px' }}>Skip projects with minor changes (less than 30%)</li>
+                    <li style={{ marginBottom: '4px' }}>Update existing projects if changes exceed about 5%</li>
+                    <li style={{ marginBottom: '4px' }}>Skip projects with smaller detected changes (about 5% or less)</li>
                   </ul>
                 </div>
               </>

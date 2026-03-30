@@ -1,26 +1,28 @@
 """
 Unit tests for task manager LLM analysis behavior.
 
-Verifies the fix for duplicate projects when LLM analysis runs:
-LLM record_analysis must be called with projects=[] to avoid creating duplicate project rows.
+Verifies that the LLM summary is stored by calling update_llm_summary() on the
+existing analysis row rather than creating a second record_analysis() entry.
+This prevents duplicate project rows in the database.
 """
+
+from __future__ import annotations
 
 import asyncio
 import sys
-import tempfile
 import zipfile
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-src_dir = Path(__file__).resolve().parent.parent.parent
+src_dir = Path(__file__).resolve().parents[2]
 if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
 
-from datetime import datetime
 
-from backend.task_manager import TaskInfo, TaskManager, TaskStatus, TaskType
+SAMPLE_LLM_SUMMARY = "## Architecture\nWell structured.\n## Security\nNo issues found."
 
 
 @pytest.fixture
@@ -33,65 +35,231 @@ def minimal_zip(tmp_path):
     return zip_path
 
 
-@pytest.fixture
-def task_with_llm(minimal_zip):
-    """Create a TaskInfo for new portfolio with LLM analysis type."""
-    return TaskInfo(
-        task_id="test-llm-1",
-        task_type=TaskType.NEW_PORTFOLIO,
-        status=TaskStatus.RUNNING,
-        created_at=datetime.now(),
-        updated_at=datetime.now(),
-        username="testuser",
-        filename="test.zip",
-        file_path=str(minimal_zip),
-        file_hash="abc123",
-        analysis_type="llm",
-    )
+class TestLlmStoredViaUpdateNotRecordAnalysis:
+    """
+    LLM results must be persisted by calling update_llm_summary() on the existing
+    analysis row, NOT by calling record_analysis() a second time.
 
+    Calling record_analysis() a second time was the old approach and caused
+    duplicate project rows in the database.
+    """
 
-@patch("backend.database.check_user_consent")
-@patch("backend.analysis_database.get_analysis")
-@patch("backend.analysis_database.record_analysis")
-@patch("backend.analysis.llm_pipeline.run_gemini_analysis")
-@patch("backend.cli.analyze_folder")
-def test_llm_analysis_passes_empty_projects_to_record_analysis(
-    mock_analyze,
-    mock_run_gemini,
-    mock_record,
-    mock_get_analysis,
-    mock_consent,
-    task_with_llm,
-):
-    """When LLM analysis runs, record_analysis('llm', payload) must receive projects=[]."""
-    mock_consent.return_value = True
-    mock_get_analysis.return_value = {"analysis_uuid": "uuid-123"}
+    @patch("backend.database.check_user_consent", return_value=True)
+    @patch("backend.analysis.llm_pipeline.run_gemini_analysis")
+    @patch("backend.analysis_database.update_llm_summary")
+    @patch("backend.analysis_database.get_analysis")
+    @patch("backend.analysis_database.record_analysis", return_value=1)
+    @patch("backend.cli.analyze_folder")
+    def test_llm_summary_stored_via_update_llm_summary(
+        self,
+        mock_analyze,
+        mock_record,
+        mock_get_analysis,
+        mock_update_llm,
+        mock_run_gemini,
+        mock_consent,
+        minimal_zip,
+    ):
+        """update_llm_summary is called with the correct UUID and summary text."""
+        from backend.task_manager import (TaskInfo, TaskManager, TaskStatus,
+                                          TaskType)
 
-    non_llm_result = {
-        "projects": [{"project_name": "Test", "project_path": "project"}],
-        "analysis_metadata": {"analysis_uuid": "uuid-123"},
-    }
-    mock_analyze.return_value = non_llm_result
+        mock_analyze.return_value = {
+            "projects": [{"project_name": "Test", "project_path": "project"}],
+            "analysis_metadata": {
+                "zip_file": str(minimal_zip),
+                "analysis_timestamp": "2025-01-01T00:00:00",
+            },
+            "summary": {},
+        }
 
-    llm_result = {"skills": [], "architecture": {}}
-    mock_run_gemini.return_value = llm_result
+        fake_row = MagicMock()
+        fake_row.__getitem__ = lambda self, k: "uuid-123" if k == "analysis_uuid" else None
+        fake_row.__bool__ = lambda self: True
+        mock_get_analysis.return_value = fake_row
 
-    mock_record.return_value = 1
+        mock_run_gemini.return_value = {"llm_summary": SAMPLE_LLM_SUMMARY, "llm_error": None}
 
-    manager = TaskManager()
+        task = TaskInfo(
+            task_id="t-llm-1",
+            task_type=TaskType.NEW_PORTFOLIO,
+            status=TaskStatus.RUNNING,
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            username="testuser",
+            filename="test.zip",
+            file_path=str(minimal_zip),
+            file_hash="abc123",
+            analysis_type="llm",
+        )
 
-    result = asyncio.run(manager._process_new_portfolio(task_with_llm))
+        manager = TaskManager()
+        result = asyncio.run(manager._process_new_portfolio(task))
 
-    assert result.get("llm_ran") is True
+        assert result.get("llm_ran") is True
+        assert result.get("llm_error") is None
+        mock_update_llm.assert_called_once_with("uuid-123", SAMPLE_LLM_SUMMARY, "testuser")
 
-    # Find the LLM call (the one with non_llm_results and projects=[])
-    record_calls = mock_record.call_args_list
-    llm_call = None
-    for call in record_calls:
-        payload = call[0][1]
-        if "non_llm_results" in payload:
-            llm_call = call
-            break
-    assert llm_call is not None, "Expected record_analysis call with non_llm_results"
-    llm_payload = llm_call[0][1]
-    assert llm_payload.get("projects") == [], "LLM record_analysis must receive projects=[] to avoid duplicate project rows"
+    @patch("backend.database.check_user_consent", return_value=True)
+    @patch("backend.analysis.llm_pipeline.run_gemini_analysis")
+    @patch("backend.analysis_database.update_llm_summary")
+    @patch("backend.analysis_database.get_analysis")
+    @patch("backend.analysis_database.record_analysis", return_value=1)
+    @patch("backend.cli.analyze_folder")
+    def test_record_analysis_called_only_once(
+        self,
+        mock_analyze,
+        mock_record,
+        mock_get_analysis,
+        mock_update_llm,
+        mock_run_gemini,
+        mock_consent,
+        minimal_zip,
+    ):
+        """record_analysis must only be called once (for the non-LLM analysis)."""
+        from backend.task_manager import (TaskInfo, TaskManager, TaskStatus,
+                                          TaskType)
+
+        mock_analyze.return_value = {
+            "projects": [{"project_name": "Test", "project_path": "project"}],
+            "analysis_metadata": {
+                "zip_file": str(minimal_zip),
+                "analysis_timestamp": "2025-01-01T00:00:00",
+            },
+            "summary": {},
+        }
+
+        fake_row = MagicMock()
+        fake_row.__getitem__ = lambda self, k: "uuid-456" if k == "analysis_uuid" else None
+        fake_row.__bool__ = lambda self: True
+        mock_get_analysis.return_value = fake_row
+
+        mock_run_gemini.return_value = {"llm_summary": SAMPLE_LLM_SUMMARY, "llm_error": None}
+
+        task = TaskInfo(
+            task_id="t-llm-2",
+            task_type=TaskType.NEW_PORTFOLIO,
+            status=TaskStatus.RUNNING,
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            username="testuser",
+            filename="test.zip",
+            file_path=str(minimal_zip),
+            file_hash="abc456",
+            analysis_type="llm",
+        )
+
+        manager = TaskManager()
+        asyncio.run(manager._process_new_portfolio(task))
+
+        assert mock_record.call_count == 1, (
+            "record_analysis must only be called once. " "A second call would create duplicate project rows in the database."
+        )
+
+    @patch("backend.database.check_user_consent", return_value=True)
+    @patch("backend.analysis.llm_pipeline.run_gemini_analysis")
+    @patch("backend.analysis_database.update_llm_summary")
+    @patch("backend.analysis_database.get_analysis")
+    @patch("backend.analysis_database.record_analysis", return_value=1)
+    @patch("backend.cli.analyze_folder")
+    def test_llm_skipped_when_analysis_type_is_non_llm(
+        self,
+        mock_analyze,
+        mock_record,
+        mock_get_analysis,
+        mock_update_llm,
+        mock_run_gemini,
+        mock_consent,
+        minimal_zip,
+    ):
+        """LLM pipeline must NOT run when analysis_type is 'non_llm', even if the user has consented."""
+        from backend.task_manager import (TaskInfo, TaskManager, TaskStatus,
+                                          TaskType)
+
+        mock_analyze.return_value = {
+            "projects": [{"project_name": "Test", "project_path": "project"}],
+            "analysis_metadata": {
+                "zip_file": str(minimal_zip),
+                "analysis_timestamp": "2025-01-01T00:00:00",
+            },
+            "summary": {},
+        }
+
+        fake_row = MagicMock()
+        fake_row.__getitem__ = lambda self, k: "uuid-789" if k == "analysis_uuid" else None
+        fake_row.__bool__ = lambda self: True
+        mock_get_analysis.return_value = fake_row
+
+        task = TaskInfo(
+            task_id="t-non-llm-1",
+            task_type=TaskType.NEW_PORTFOLIO,
+            status=TaskStatus.RUNNING,
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            username="testuser",
+            filename="test.zip",
+            file_path=str(minimal_zip),
+            file_hash="abc789",
+            analysis_type="non_llm",
+        )
+
+        manager = TaskManager()
+        result = asyncio.run(manager._process_new_portfolio(task))
+
+        mock_run_gemini.assert_not_called()
+        mock_update_llm.assert_not_called()
+        assert result.get("llm_ran") is False
+
+    @patch("backend.database.check_user_consent", return_value=False)
+    @patch("backend.analysis.llm_pipeline.run_gemini_analysis")
+    @patch("backend.analysis_database.update_llm_summary")
+    @patch("backend.analysis_database.get_analysis")
+    @patch("backend.analysis_database.record_analysis", return_value=1)
+    @patch("backend.cli.analyze_folder")
+    def test_llm_skipped_when_no_consent(
+        self,
+        mock_analyze,
+        mock_record,
+        mock_get_analysis,
+        mock_update_llm,
+        mock_run_gemini,
+        mock_consent,
+        minimal_zip,
+    ):
+        """LLM pipeline must NOT run when the user has not consented, even if analysis_type is 'llm'."""
+        from backend.task_manager import (TaskInfo, TaskManager, TaskStatus,
+                                          TaskType)
+
+        mock_analyze.return_value = {
+            "projects": [{"project_name": "Test", "project_path": "project"}],
+            "analysis_metadata": {
+                "zip_file": str(minimal_zip),
+                "analysis_timestamp": "2025-01-01T00:00:00",
+            },
+            "summary": {},
+        }
+
+        fake_row = MagicMock()
+        fake_row.__getitem__ = lambda self, k: "uuid-noconsent" if k == "analysis_uuid" else None
+        fake_row.__bool__ = lambda self: True
+        mock_get_analysis.return_value = fake_row
+
+        task = TaskInfo(
+            task_id="t-no-consent-1",
+            task_type=TaskType.NEW_PORTFOLIO,
+            status=TaskStatus.RUNNING,
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            username="testuser",
+            filename="test.zip",
+            file_path=str(minimal_zip),
+            file_hash="abcnoconsent",
+            analysis_type="llm",
+        )
+
+        manager = TaskManager()
+        result = asyncio.run(manager._process_new_portfolio(task))
+
+        mock_run_gemini.assert_not_called()
+        mock_update_llm.assert_not_called()
+        assert result.get("llm_ran") is False

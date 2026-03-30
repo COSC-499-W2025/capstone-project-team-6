@@ -9,7 +9,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "backend"))
 
-from project_comparison import (calculate_project_change_percentage,
+from project_comparison import (DEFAULT_INCREMENTAL_CHANGE_THRESHOLD,
+                                calculate_project_change_percentage,
                                 process_incremental_projects)
 
 
@@ -90,6 +91,38 @@ def test_complete_rewrite(base_project):
 
     change = calculate_project_change_percentage(base_project, project_rewrite)
     assert change > 80, f"Expected >80% change for complete rewrite, got {change:.2f}%"
+
+
+def test_default_threshold_updates_modest_metadata_change():
+    """With DEFAULT_INCREMENTAL_CHANGE_THRESHOLD (~5%), modest deltas update; skips only near-identical."""
+    assert DEFAULT_INCREMENTAL_CHANGE_THRESHOLD == 5.0
+
+    existing = [
+        {
+            "project_path": "project_a",
+            "code_files": 10,
+            "total_files": 15,
+            "total_commits": 50,
+            "languages": {"python": 80, "javascript": 20},
+        }
+    ]
+    # Slightly larger than +1/+1/+2 so aggregate change stays above 5% (strict > threshold).
+    new = [
+        {
+            "project_path": "project_a",
+            "code_files": 12,
+            "total_files": 18,
+            "total_commits": 56,
+            "languages": {"python": 80, "javascript": 20},
+        }
+    ]
+
+    result = process_incremental_projects(existing, new, change_threshold=DEFAULT_INCREMENTAL_CHANGE_THRESHOLD)
+
+    assert len(result["updated_projects"]) == 1
+    assert len(result["skipped_projects"]) == 0
+    assert result["updated_projects"][0]["project_path"] == "project_a"
+    assert result["updated_projects"][0]["change_percentage"] > DEFAULT_INCREMENTAL_CHANGE_THRESHOLD
 
 
 def test_process_incremental_mixed():

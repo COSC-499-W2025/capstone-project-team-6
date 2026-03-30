@@ -245,3 +245,168 @@ class TestTokenFunctions:
 
         assert response.status_code == 401
         assert token not in active_tokens  # Should be removed
+
+
+class TestChangePassword:
+    """Test suite for change password functionality."""
+
+    def test_change_password_success(self):
+        """Test successful password change."""
+        test_username = f"testuser_{uuid.uuid4().hex[:8]}"
+        old_password = "oldpassword123"
+        new_password = "newpassword456"
+
+        # Signup
+        signup_response = client.post(
+            "/api/auth/signup",
+            json={"username": test_username, "password": old_password},
+        )
+        token = signup_response.json()["access_token"]
+
+        # Change password
+        response = client.post(
+            "/api/auth/change-password",
+            json={"current_password": old_password, "new_password": new_password},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 200
+        assert "success" in response.json()["message"].lower()
+
+    def test_change_password_then_login_with_new(self):
+        """Test that after password change, new password works for login."""
+        test_username = f"testuser_{uuid.uuid4().hex[:8]}"
+        old_password = "oldpassword123"
+        new_password = "newpassword456"
+
+        # Signup
+        signup_response = client.post(
+            "/api/auth/signup",
+            json={"username": test_username, "password": old_password},
+        )
+        token = signup_response.json()["access_token"]
+
+        # Change password
+        client.post(
+            "/api/auth/change-password",
+            json={"current_password": old_password, "new_password": new_password},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        # Try logging in with new password
+        response = client.post(
+            "/api/auth/login",
+            json={"username": test_username, "password": new_password},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["username"] == test_username
+
+    def test_change_password_old_password_no_longer_works(self):
+        """Test that after password change, old password no longer works."""
+        test_username = f"testuser_{uuid.uuid4().hex[:8]}"
+        old_password = "oldpassword123"
+        new_password = "newpassword456"
+
+        signup_response = client.post(
+            "/api/auth/signup",
+            json={"username": test_username, "password": old_password},
+        )
+        token = signup_response.json()["access_token"]
+
+        client.post(
+            "/api/auth/change-password",
+            json={"current_password": old_password, "new_password": new_password},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        response = client.post(
+            "/api/auth/login",
+            json={"username": test_username, "password": old_password},
+        )
+
+        assert response.status_code == 401
+
+    def test_change_password_wrong_current_password(self):
+        """Test password change fails with incorrect current password."""
+        test_username = f"testuser_{uuid.uuid4().hex[:8]}"
+        password = "password123"
+
+        signup_response = client.post(
+            "/api/auth/signup",
+            json={"username": test_username, "password": password},
+        )
+        token = signup_response.json()["access_token"]
+
+        response = client.post(
+            "/api/auth/change-password",
+            json={"current_password": "wrongpassword", "new_password": "newpassword456"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 401
+        assert "incorrect" in response.json()["detail"].lower()
+
+    def test_change_password_without_authentication(self):
+        """Test password change without authentication fails."""
+        response = client.post(
+            "/api/auth/change-password",
+            json={"current_password": "oldpass123", "new_password": "newpass456"},
+        )
+
+        assert response.status_code == 403
+
+    def test_change_password_invalid_token(self):
+        """Test password change with invalid token fails."""
+        response = client.post(
+            "/api/auth/change-password",
+            json={"current_password": "oldpass123", "new_password": "newpass456"},
+            headers={"Authorization": "Bearer invalid-token"},
+        )
+
+        assert response.status_code == 401
+
+    def test_change_password_new_password_too_short(self):
+        """Test password change fails when new password is too short."""
+        test_username = f"testuser_{uuid.uuid4().hex[:8]}"
+        password = "password123"
+
+        signup_response = client.post(
+            "/api/auth/signup",
+            json={"username": test_username, "password": password},
+        )
+        token = signup_response.json()["access_token"]
+
+        response = client.post(
+            "/api/auth/change-password",
+            json={"current_password": password, "new_password": "12345"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 422
+
+    def test_change_password_same_as_current(self):
+        """Test password can be changed to the same value (edge case)."""
+        test_username = f"testuser_{uuid.uuid4().hex[:8]}"
+        password = "password123"
+
+        signup_response = client.post(
+            "/api/auth/signup",
+            json={"username": test_username, "password": password},
+        )
+        token = signup_response.json()["access_token"]
+
+        response = client.post(
+            "/api/auth/change-password",
+            json={"current_password": password, "new_password": password},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 200
+
+        login_response = client.post(
+            "/api/auth/login",
+            json={"username": test_username, "password": password},
+        )
+
+        assert login_response.status_code == 200

@@ -8,11 +8,12 @@ from typing import Any, Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 from fastapi import (APIRouter, Depends, File, HTTPException, Request,
-                     UploadFile, status)
+                     Response, UploadFile, status)
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from backend.analysis_database import (get_analysis_by_uuid,
+                                       get_llm_analysis_for_api,
                                        get_project_by_path_and_portfolio,
                                        update_project_thumbnail)
 from backend.api.auth import verify_token
@@ -109,6 +110,36 @@ async def get_project_detail(project_id: str, username: str = Depends(verify_tok
         metadata=project.get("metadata", {}),
         thumbnail_url=thumbnail_url,
     )
+
+
+@router.get("/projects/{project_id}/llm-analysis", operation_id="get_project_llm_analysis")
+async def get_project_llm_analysis(project_id: int, username: str = Depends(verify_token)):
+    """Get the LLM analysis summary for a project by its integer ID."""
+    from backend.analysis_database import get_connection
+
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT a.analysis_uuid
+            FROM projects p
+            JOIN analyses a ON a.id = p.analysis_id
+            WHERE p.id = ? AND a.username = ?
+            """,
+            (project_id, username),
+        ).fetchone()
+
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found or access denied",
+        )
+
+    llm = get_llm_analysis_for_api(row["analysis_uuid"], username)
+    return {
+        "project_id": project_id,
+        "llm_summary": llm["llm_summary"],
+        "llm_error": llm["llm_error"],
+    }
 
 
 # Alias for upload endpoint (redirects to portfolios/upload)

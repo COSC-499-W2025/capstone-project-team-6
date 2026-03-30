@@ -3,14 +3,42 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sqlite3
 import uuid
 from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Union
 
+logger = logging.getLogger(__name__)
+
 VALID_ANALYSIS_TYPES = {"llm", "non_llm"}
+DEFAULT_PORTFOLIO_SETTINGS: Dict[str, Any] = {
+    "showHeatmap": True,
+    "showSkills": True,
+    "showProjectDetails": True,
+    "showPortfolioItems": True,
+    "showProjects": True,
+    "showProfileSummary": True,
+    "skillsDisplayLimit": 10,
+    "projectDisplayMode": "full",
+    "heatmapTimeRange": "auto",
+    "theme": "default",
+    "shareAllProjects": True,
+    "publicProjectKeys": [],
+}
+
+
+def _normalize_project_share_key(value: Any) -> str:
+    return str(value or "").strip().lower()
+
+
+def build_public_project_key(project: Dict[str, Any]) -> str:
+    name = _normalize_project_share_key(project.get("project_name") or project.get("name"))
+    path = _normalize_project_share_key(project.get("project_path"))
+    return f"{name}::{path}"
 
 
 def _default_db_path() -> Path:
@@ -81,6 +109,52 @@ def init_db() -> None:
             """
         )
 
+        # Per-user education entries (separate from personal profile)
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_education (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+                education_text TEXT,
+                university TEXT,
+                location TEXT,
+                degree TEXT,
+                start_date TEXT,
+                end_date TEXT,
+                awards TEXT,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+
+        # Per-user work experience entries (separate from personal profile)
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_work_experience (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+                company TEXT,
+                job_title TEXT,
+                location TEXT,
+                start_date TEXT,
+                end_date TEXT,
+                responsibilities_text TEXT,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+
+        # Per-user portfolio presentation settings (used by private preview and public view)
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_portfolio_settings (
+                username TEXT PRIMARY KEY REFERENCES users(username) ON DELETE CASCADE,
+                settings_json TEXT NOT NULL,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS uploads (
@@ -113,6 +187,8 @@ def init_db() -> None:
                 summary_frameworks TEXT,
                 llm_summary TEXT,
                 username TEXT REFERENCES users(username),
+                is_public INTEGER NOT NULL DEFAULT 0 CHECK(is_public IN (0, 1)),
+                published_at TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
             """
@@ -133,10 +209,23 @@ def init_db() -> None:
         if "zip_file_hash" not in existing_columns:
             conn.execute("ALTER TABLE analyses ADD COLUMN zip_file_hash TEXT;")
             conn.commit()
+        existing_columns = {row["name"] for row in conn.execute("PRAGMA table_info(analyses)")}
+        if "llm_error" not in existing_columns:
+            conn.execute("ALTER TABLE analyses ADD COLUMN llm_error TEXT;")
+            conn.commit()
+        existing_columns = {row["name"] for row in conn.execute("PRAGMA table_info(analyses)")}
+        if "is_public" not in existing_columns:
+            conn.execute("ALTER TABLE analyses ADD COLUMN is_public INTEGER NOT NULL DEFAULT 0 CHECK(is_public IN (0, 1));")
+            conn.commit()
+        existing_columns = {row["name"] for row in conn.execute("PRAGMA table_info(analyses)")}
+        if "published_at" not in existing_columns:
+            conn.execute("ALTER TABLE analyses ADD COLUMN published_at TEXT;")
+            conn.commit()
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_analyses_hash_user "
             "ON analyses (zip_file_hash, username) WHERE zip_file_hash IS NOT NULL;"
         )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_analyses_public_published " "ON analyses (is_public, published_at DESC);")
 
         conn.execute(
             """
@@ -538,6 +627,27 @@ def init_db() -> None:
                 """
             )
 
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS job_matches (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+                job_description TEXT NOT NULL,
+                overall_score INTEGER NOT NULL,
+                skills_score INTEGER NOT NULL,
+                experience_score INTEGER NOT NULL,
+                matched_skills TEXT,
+                missing_skills TEXT,
+                matched_requirements TEXT,
+                unmet_requirements TEXT,
+                recommendations TEXT,
+                summary TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_job_matches_user ON job_matches(username);")
+
         conn.commit()
 
 
@@ -762,6 +872,12 @@ def record_analysis(
         analysis_id = cursor.lastrowid
         obsolete_analysis_ids: set[int] = set()
         owner_username = _normalize_username_value(username)
+
+        logger.info(
+            f"record_analysis: created analysis id={analysis_id}, "
+            f"total_projects={metadata.get('total_projects', len(projects))}, "
+            f"projects_to_insert={len(projects)}"
+        )
 
         for project in projects:
             target_user_stats = project.get("target_user_stats") or {}
@@ -1202,6 +1318,9 @@ def record_analysis(
 
         conn.commit()
 
+        final_count = conn.execute("SELECT COUNT(*) as c FROM projects WHERE analysis_id = ?", (analysis_id,)).fetchone()["c"]
+        logger.info(f"record_analysis: committed. analysis_id={analysis_id}, projects_in_db={final_count}")
+
     return analysis_id
 
 
@@ -1265,7 +1384,6 @@ def get_analysis_by_zip_file(zip_file: str, username: Optional[str] = None) -> O
 def get_analysis_by_file_hash(
     file_hash: str,
     username: str,
-    analysis_type: str = "non_llm",
 ) -> Optional[sqlite3.Row]:
     """Return the most recent analysis for a ZIP content hash scoped to a user."""
     if not file_hash or not username:
@@ -1274,10 +1392,11 @@ def get_analysis_by_file_hash(
         return conn.execute(
             """
             SELECT * FROM analyses
-            WHERE zip_file_hash = ? AND username = ? AND analysis_type = ?
+            WHERE zip_file_hash = ? AND username = ?
+            AND total_projects > 0
             ORDER BY created_at DESC LIMIT 1
             """,
-            (file_hash, username, analysis_type),
+            (file_hash, username),
         ).fetchone()
 
 
@@ -1365,6 +1484,15 @@ def delete_project_for_user(project_id: int, username: str) -> bool:
                 """,
                 (analysis_id,),
             )
+            empty_analysis = conn.execute(
+                "SELECT analysis_uuid FROM analyses WHERE id = ? AND total_projects = 0",
+                (analysis_id,),
+            ).fetchone()
+
+            if empty_analysis:
+                analysis_uuid = empty_analysis["analysis_uuid"]
+                conn.execute("DELETE FROM analyses WHERE id = ?", (analysis_id,))
+                print(f"Auto-cleaned up empty portfolio analysis: {analysis_uuid}")
 
         conn.commit()
         return cur.rowcount > 0
@@ -1429,6 +1557,16 @@ def delete_all_projects_for_user(username: str) -> int:
                     """,
                     (cnt, cnt, analysis_id, username),
                 )
+            empty_analyses = conn.execute(
+                "SELECT analysis_uuid FROM analyses WHERE username = ? AND total_projects = 0",
+                (username,),
+            ).fetchall()
+
+            if empty_analyses:
+                conn.execute("DELETE FROM analyses WHERE username = ? AND total_projects = 0", (username,))
+                empty_count = len(empty_analyses)
+                empty_uuids = [row["analysis_uuid"] for row in empty_analyses]
+                print(f"Auto-cleaned up {empty_count} empty portfolio analyses: {empty_uuids}")
 
             conn.execute("COMMIT;")
             return deleted_count
@@ -1641,6 +1779,17 @@ def get_user_resume_items(resume_id: int, username: str) -> List[sqlite3.Row]:
         ).fetchall()
 
 
+def delete_user_resume(resume_id: int, username: str) -> bool:
+    with get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+        cursor = conn.execute(
+            "DELETE FROM user_resumes WHERE id = ? AND username = ?",
+            (resume_id, username),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+
+
 def get_resume_items_for_project(project_id: int) -> List[sqlite3.Row]:
     """
     Backwards-compatible alias for older code/tests.
@@ -1709,7 +1858,10 @@ def get_portfolio_items_for_analysis(analysis_uuid: str, username: Optional[str]
                     pi.quality_score,
                     pi.sophistication_level,
                     pi.project_statistics,
-                    pi.created_at
+                    pi.created_at,
+                    p.predicted_role,
+                    p.predicted_role_confidence,
+                    p.curated_role
                 FROM portfolio_items pi
                 JOIN projects p ON p.id = pi.project_id
                 JOIN analyses a ON a.id = p.analysis_id
@@ -1736,7 +1888,10 @@ def get_portfolio_items_for_analysis(analysis_uuid: str, username: Optional[str]
                     pi.quality_score,
                     pi.sophistication_level,
                     pi.project_statistics,
-                    pi.created_at
+                    pi.created_at,
+                    p.predicted_role,
+                    p.predicted_role_confidence,
+                    p.curated_role
                 FROM portfolio_items pi
                 JOIN projects p ON p.id = pi.project_id
                 JOIN analyses a ON a.id = p.analysis_id
@@ -1843,7 +1998,7 @@ def get_all_analyses_for_user(username: str) -> List[Dict[str, Any]]:
         rows = conn.execute(
             """
             SELECT analysis_uuid, analysis_type, zip_file, analysis_timestamp, 
-                   total_projects, raw_json
+                   total_projects, raw_json, is_public, published_at
             FROM analyses 
             WHERE username = ?
             ORDER BY created_at DESC
@@ -1877,10 +2032,524 @@ def get_all_analyses_for_user(username: str) -> List[Dict[str, Any]]:
                     "analysis_timestamp": row["analysis_timestamp"],
                     "total_projects": row["total_projects"],
                     "project_names": project_names,
+                    "is_public": bool(row["is_public"]),
+                    "published_at": row["published_at"],
                 }
             )
 
         return payloads
+
+
+def get_user_portfolio_settings(username: str) -> Dict[str, Any]:
+    """Get persisted portfolio settings for a user, merged with defaults."""
+    if not username:
+        return dict(DEFAULT_PORTFOLIO_SETTINGS)
+
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT settings_json
+            FROM user_portfolio_settings
+            WHERE username = ?
+            """,
+            (username,),
+        ).fetchone()
+
+    if not row or not row["settings_json"]:
+        return dict(DEFAULT_PORTFOLIO_SETTINGS)
+
+    try:
+        parsed = json.loads(row["settings_json"])
+    except json.JSONDecodeError:
+        parsed = {}
+
+    if not isinstance(parsed, dict):
+        parsed = {}
+
+    merged = dict(DEFAULT_PORTFOLIO_SETTINGS)
+    merged.update(parsed)
+    return merged
+
+
+def upsert_user_portfolio_settings(username: str, settings: Dict[str, Any]) -> Dict[str, Any]:
+    """Save portfolio settings for a user and return the merged payload."""
+    if not username:
+        raise ValueError("username is required")
+
+    merged = dict(DEFAULT_PORTFOLIO_SETTINGS)
+    if isinstance(settings, dict):
+        merged.update(settings)
+
+    with get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+        conn.execute("INSERT OR IGNORE INTO users (username) VALUES (?)", (username,))
+        conn.execute(
+            """
+            INSERT INTO user_portfolio_settings (username, settings_json)
+            VALUES (?, ?)
+            ON CONFLICT(username) DO UPDATE SET
+                settings_json = excluded.settings_json,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (username, json.dumps(merged, separators=(",", ":"))),
+        )
+        conn.commit()
+
+    return merged
+
+
+def set_portfolio_visibility(analysis_uuid: str, username: str, is_public: bool) -> bool:
+    """
+    Toggle public visibility for one portfolio.
+
+    If publishing, unpublish any other public portfolio for the same user to keep a single
+    active public portfolio per user.
+    """
+    with get_connection() as conn:
+        owned = conn.execute(
+            "SELECT id FROM analyses WHERE analysis_uuid = ? AND username = ?",
+            (analysis_uuid, username),
+        ).fetchone()
+        if not owned:
+            return False
+
+        now_iso = datetime.now().isoformat()
+        if is_public:
+            conn.execute(
+                """
+                UPDATE analyses
+                SET is_public = 0, published_at = NULL
+                WHERE username = ? AND analysis_uuid != ?
+                """,
+                (username, analysis_uuid),
+            )
+            conn.execute(
+                """
+                UPDATE analyses
+                SET is_public = 1, published_at = ?
+                WHERE analysis_uuid = ? AND username = ?
+                """,
+                (now_iso, analysis_uuid, username),
+            )
+        else:
+            conn.execute(
+                """
+                UPDATE analyses
+                SET is_public = 0, published_at = NULL
+                WHERE analysis_uuid = ? AND username = ?
+                """,
+                (analysis_uuid, username),
+            )
+        conn.commit()
+        return True
+
+
+def _extract_public_portfolio_card(row: sqlite3.Row, portfolio_settings: Dict[str, Any]) -> Dict[str, Any]:
+    projects = row.get("aggregated_projects", []) if isinstance(row, dict) else []
+    skills = row.get("aggregated_skills", []) if isinstance(row, dict) else []
+
+    project_names: List[str] = []
+    project_types: List[str] = []
+    top_languages: List[str] = []
+    has_tests = False
+    language_set = set()
+    project_type_set = set()
+
+    if isinstance(projects, list) and portfolio_settings.get("showProjects", True):
+        for project in projects:
+            if not isinstance(project, dict):
+                continue
+            name = project.get("project_name") or project.get("name")
+            if isinstance(name, str) and name.strip():
+                project_names.append(name.strip())
+
+            role = project.get("curated_role") or project.get("predicted_role")
+            if isinstance(role, str) and role.strip():
+                normalized = role.strip()
+                if normalized not in project_type_set:
+                    project_type_set.add(normalized)
+                    project_types.append(normalized)
+
+            lang = project.get("primary_language")
+            if isinstance(lang, str) and lang.strip():
+                normalized_lang = lang.strip()
+                if normalized_lang not in language_set:
+                    language_set.add(normalized_lang)
+                    top_languages.append(normalized_lang)
+
+            if bool(project.get("has_tests")):
+                has_tests = True
+
+    top_skills: List[str] = []
+    if isinstance(skills, list) and portfolio_settings.get("showSkills", True):
+        for skill in skills:
+            if isinstance(skill, dict):
+                name = skill.get("skill") or skill.get("name")
+            else:
+                name = skill
+            if isinstance(name, str) and name.strip():
+                top_skills.append(name.strip())
+            if len(top_skills) >= 8:
+                break
+
+    return {
+        "analysis_uuid": row["analysis_uuid"],
+        "username": row["username"],
+        "analysis_type": row["analysis_type"],
+        "analysis_timestamp": row["analysis_timestamp"],
+        "published_at": row["published_at"],
+        "total_projects": (
+            row.get("aggregated_total_projects", row["total_projects"]) if isinstance(row, dict) else row["total_projects"]
+        ),
+        "project_names": project_names[:8],
+        "project_types": project_types[:8],
+        "top_languages": top_languages[:8],
+        "top_skills": top_skills,
+        "has_tests": has_tests,
+    }
+
+
+def _selected_project_keys_from_settings(portfolio_settings: Dict[str, Any]) -> Optional[set]:
+    if portfolio_settings.get("shareAllProjects", True):
+        return None
+    raw_keys = portfolio_settings.get("publicProjectKeys")
+    if not isinstance(raw_keys, list):
+        return set()
+    return {_normalize_project_share_key(k) for k in raw_keys if isinstance(k, str) and k.strip()}
+
+
+def _derive_skills_from_items(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    counts: Dict[str, int] = {}
+    for item in items:
+        raw = item.get("skills_exercised")
+        if isinstance(raw, list):
+            skills = raw
+        elif isinstance(raw, str):
+            skills = [s.strip() for s in raw.split(",")]
+        else:
+            skills = []
+        for skill in skills:
+            if not isinstance(skill, str) or not skill.strip():
+                continue
+            key = skill.strip()
+            counts[key] = counts.get(key, 0) + 1
+    return [{"skill": name, "count": count} for name, count in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0].lower()))]
+
+
+def _filter_aggregate_for_settings(aggregate: Dict[str, Any], portfolio_settings: Dict[str, Any]) -> Dict[str, Any]:
+    selected = _selected_project_keys_from_settings(portfolio_settings)
+    if selected is None:
+        return aggregate
+
+    all_projects = aggregate.get("projects", [])
+    projects = [p for p in all_projects if _normalize_project_share_key(p.get("public_project_key")) in selected]
+
+    # If settings reference stale keys that match nothing, fall back to all
+    if not projects and all_projects:
+        return aggregate
+
+    shared_names = {_normalize_project_share_key(p.get("project_name") or p.get("name")) for p in projects}
+    portfolio_items = [
+        item
+        for item in aggregate.get("portfolio_items", [])
+        if _normalize_project_share_key(item.get("project_name")) in shared_names
+    ]
+    skills = _derive_skills_from_items(portfolio_items)
+
+    return {
+        **aggregate,
+        "projects": projects,
+        "portfolio_items": portfolio_items,
+        "skills": skills,
+        "total_projects": len(projects),
+    }
+
+
+def _aggregate_user_public_portfolio(conn: sqlite3.Connection, username: str) -> Dict[str, Any]:
+    rows = conn.execute(
+        """
+        SELECT analysis_uuid, analysis_timestamp, raw_json
+        FROM analyses
+        WHERE username = ?
+        ORDER BY created_at DESC
+        """,
+        (username,),
+    ).fetchall()
+
+    db_project_rows = conn.execute(
+        """
+        SELECT p.*, a.analysis_uuid
+        FROM projects p
+        JOIN analyses a ON a.id = p.analysis_id
+        WHERE a.username = ?
+        ORDER BY p.id DESC
+        """,
+        (username,),
+    ).fetchall()
+
+    project_seen: set = set()
+    projects: List[Dict[str, Any]] = []
+    skill_counts: Dict[str, int] = {}
+    analysis_timestamps: List[str] = []
+    portfolio_items: List[Dict[str, Any]] = []
+
+    for db_proj in db_project_rows:
+        proj = dict(db_proj)
+        share_key = build_public_project_key(proj)
+        if share_key in project_seen:
+            continue
+        project_seen.add(share_key)
+        proj["public_project_key"] = share_key
+        projects.append(proj)
+
+    for row in rows:
+        if row["analysis_timestamp"]:
+            analysis_timestamps.append(row["analysis_timestamp"])
+        raw_json = row["raw_json"]
+        parsed = {}
+        if raw_json:
+            try:
+                maybe = json.loads(raw_json)
+                if isinstance(maybe, dict):
+                    parsed = maybe
+            except json.JSONDecodeError:
+                parsed = {}
+
+        for skill in parsed.get("skills", []) if isinstance(parsed.get("skills"), list) else []:
+            if isinstance(skill, dict):
+                skill_name = skill.get("skill") or skill.get("name")
+                skill_count = skill.get("count") or 1
+            else:
+                skill_name = skill
+                skill_count = 1
+            if not isinstance(skill_name, str) or not skill_name.strip():
+                continue
+            normalized = skill_name.strip()
+            try:
+                as_int = int(skill_count)
+            except Exception:
+                as_int = 1
+            skill_counts[normalized] = skill_counts.get(normalized, 0) + max(as_int, 1)
+
+        try:
+            portfolio_items.extend(get_portfolio_items_for_analysis(row["analysis_uuid"], username))
+        except Exception:
+            continue
+
+    skills = [
+        {"skill": name, "count": count} for name, count in sorted(skill_counts.items(), key=lambda kv: (-kv[1], kv[0].lower()))
+    ]
+
+    return {
+        "projects": projects,
+        "skills": skills,
+        "analysis_timestamps": analysis_timestamps,
+        "portfolio_items": portfolio_items,
+        "total_projects": len(projects),
+    }
+
+
+def list_public_portfolios(
+    q: Optional[str] = None,
+    username: Optional[str] = None,
+    project_type: Optional[str] = None,
+    language: Optional[str] = None,
+    has_tests: Optional[bool] = None,
+    sort: str = "newest",
+    page: int = 1,
+    page_size: int = 12,
+) -> Dict[str, Any]:
+    """List public portfolio cards with search/filter/pagination.
+
+    Resolved bugs (Requirement 2 – public mode):
+    - Developer Profile (primary role, core skills, languages) now included in public view.
+    - Fixed: new accounts' public portfolios not appearing — caused by stale
+      user_portfolio_settings surviving account deletion, and a variable-shadowing
+      bug where the loop variable ``username`` overwrote the filter parameter,
+      silently dropping every card whose username didn't contain the last-iterated
+      value.
+    """
+    page = max(1, page)
+    page_size = min(max(1, page_size), 50)
+
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT analysis_uuid, username, analysis_type, analysis_timestamp, total_projects,
+                   raw_json, published_at
+            FROM analyses
+            WHERE is_public = 1
+            ORDER BY COALESCE(published_at, analysis_timestamp) DESC
+            """
+        ).fetchall()
+        setting_rows = conn.execute(
+            """
+            SELECT username, settings_json
+            FROM user_portfolio_settings
+            """
+        ).fetchall()
+
+    settings_by_user: Dict[str, Dict[str, Any]] = {}
+    for row in setting_rows:
+        parsed = {}
+        raw = row["settings_json"]
+        if raw:
+            try:
+                maybe_dict = json.loads(raw)
+                if isinstance(maybe_dict, dict):
+                    parsed = maybe_dict
+            except json.JSONDecodeError:
+                parsed = {}
+        merged = dict(DEFAULT_PORTFOLIO_SETTINGS)
+        merged.update(parsed)
+        settings_by_user[row["username"]] = merged
+
+    cards: List[Dict[str, Any]] = []
+    with get_connection() as conn:
+        for row in rows:
+            row_user = row["username"]
+            aggregate = _aggregate_user_public_portfolio(conn, row_user)
+            filtered_aggregate = _filter_aggregate_for_settings(
+                aggregate,
+                settings_by_user.get(row_user, dict(DEFAULT_PORTFOLIO_SETTINGS)),
+            )
+            row_payload = {
+                "analysis_uuid": row["analysis_uuid"],
+                "username": row_user,
+                "analysis_type": row["analysis_type"],
+                "analysis_timestamp": row["analysis_timestamp"],
+                "published_at": row["published_at"],
+                "total_projects": row["total_projects"],
+                "aggregated_total_projects": filtered_aggregate["total_projects"],
+                "aggregated_projects": filtered_aggregate["projects"],
+                "aggregated_skills": filtered_aggregate["skills"],
+            }
+            cards.append(
+                _extract_public_portfolio_card(
+                    row_payload,
+                    settings_by_user.get(row_user, dict(DEFAULT_PORTFOLIO_SETTINGS)),
+                )
+            )
+
+    q_norm = (q or "").strip().lower()
+    username_norm = (username or "").strip().lower()
+    project_type_norm = (project_type or "").strip().lower()
+    language_norm = (language or "").strip().lower()
+
+    def matches(card: Dict[str, Any]) -> bool:
+        if username_norm and username_norm not in card["username"].lower():
+            return False
+        if project_type_norm:
+            types = [value.lower() for value in card.get("project_types", []) if isinstance(value, str)]
+            if project_type_norm not in types:
+                return False
+        if language_norm:
+            langs = [value.lower() for value in card.get("top_languages", []) if isinstance(value, str)]
+            if language_norm not in langs:
+                return False
+        if has_tests is not None and bool(card.get("has_tests")) != has_tests:
+            return False
+        if q_norm:
+            haystack = " ".join(
+                [
+                    card.get("username", ""),
+                    " ".join(card.get("project_names", [])),
+                    " ".join(card.get("project_types", [])),
+                    " ".join(card.get("top_languages", [])),
+                    " ".join(card.get("top_skills", [])),
+                ]
+            ).lower()
+            if q_norm not in haystack:
+                return False
+        return True
+
+    filtered = [card for card in cards if matches(card)]
+
+    if sort == "oldest":
+        filtered.sort(key=lambda x: x.get("published_at") or x.get("analysis_timestamp") or "")
+    elif sort == "projects_desc":
+        filtered.sort(key=lambda x: x.get("total_projects") or 0, reverse=True)
+    elif sort == "username":
+        filtered.sort(key=lambda x: x.get("username") or "")
+    else:
+        filtered.sort(
+            key=lambda x: x.get("published_at") or x.get("analysis_timestamp") or "",
+            reverse=True,
+        )
+
+    total = len(filtered)
+    start = (page - 1) * page_size
+    end = start + page_size
+    return {
+        "items": filtered[start:end],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
+
+
+def get_public_portfolio_detail(analysis_uuid: str) -> Optional[Dict[str, Any]]:
+    """Return portfolio detail for a publicly visible portfolio."""
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT analysis_uuid, analysis_type, zip_file, analysis_timestamp,
+                   total_projects, raw_json, username, published_at
+            FROM analyses
+            WHERE analysis_uuid = ? AND is_public = 1
+            """,
+            (analysis_uuid,),
+        ).fetchone()
+
+        if not row:
+            return None
+        aggregate = _aggregate_user_public_portfolio(conn, row["username"])
+
+    portfolio_settings = get_user_portfolio_settings(row["username"])
+    filtered_aggregate = _filter_aggregate_for_settings(aggregate, portfolio_settings)
+    skills = filtered_aggregate["skills"] if portfolio_settings.get("showSkills", True) else []
+    projects = filtered_aggregate["projects"] if portfolio_settings.get("showProjects", True) else []
+    portfolio_items = filtered_aggregate["portfolio_items"] if portfolio_settings.get("showPortfolioItems", True) else []
+
+    if portfolio_settings.get("projectDisplayMode") == "summary":
+        condensed_projects: List[Dict[str, Any]] = []
+        for project in projects if isinstance(projects, list) else []:
+            if not isinstance(project, dict):
+                continue
+            condensed_projects.append(
+                {
+                    "project_name": project.get("project_name") or project.get("name"),
+                    "primary_language": project.get("primary_language"),
+                    "total_files": project.get("total_files"),
+                    "summary": project.get("summary"),
+                    "predicted_role": project.get("predicted_role"),
+                    "predicted_role_confidence": project.get("predicted_role_confidence"),
+                    "curated_role": project.get("curated_role"),
+                }
+            )
+        projects = condensed_projects
+
+    summary = None
+    if portfolio_settings.get("showProfileSummary", True):
+        # Use public analysis summary as hero summary while still aggregating projects/skills.
+        raw_data = json.loads(row["raw_json"]) if row["raw_json"] else {}
+        summary = raw_data.get("summary")
+
+    return {
+        "analysis_uuid": row["analysis_uuid"],
+        "analysis_type": row["analysis_type"],
+        "zip_file": row["zip_file"],
+        "analysis_timestamp": row["analysis_timestamp"],
+        "published_at": row["published_at"],
+        "username": row["username"],
+        "total_projects": filtered_aggregate["total_projects"],
+        "projects": projects,
+        "skills": skills,
+        "summary": summary,
+        "portfolio_items": portfolio_items,
+        "portfolio_settings": portfolio_settings,
+        "analysis_timestamps": aggregate["analysis_timestamps"],
+    }
 
 
 def get_analysis_by_uuid(uuid_str: str, username: str = None) -> Optional[Dict[str, Any]]:
@@ -1913,17 +2582,114 @@ def get_analysis_by_uuid(uuid_str: str, username: str = None) -> Optional[Dict[s
         # Parse the JSON data to get projects and other details
         raw_data = json.loads(row["raw_json"]) if row["raw_json"] else {}
 
+        # Enrich raw projects with role prediction data from the projects table
+        projects_list = raw_data.get("projects", [])
+        analysis_id_row = conn.execute("SELECT id FROM analyses WHERE analysis_uuid = ?", (uuid_str,)).fetchone()
+        if analysis_id_row:
+            db_projects = conn.execute(
+                """SELECT project_name, project_path, predicted_role,
+                          predicted_role_confidence, curated_role
+                   FROM projects WHERE analysis_id = ?""",
+                (analysis_id_row["id"],),
+            ).fetchall()
+            role_map = {}
+            for dbp in db_projects:
+                key = (dbp["project_name"] or "", dbp["project_path"] or "")
+                role_map[key] = {
+                    "predicted_role": dbp["predicted_role"],
+                    "predicted_role_confidence": dbp["predicted_role_confidence"],
+                    "curated_role": dbp["curated_role"],
+                }
+            for proj in projects_list:
+                pname = proj.get("project_name") or proj.get("name") or ""
+                ppath = proj.get("project_path") or ""
+                role_info = role_map.get((pname, ppath))
+                if role_info:
+                    proj["predicted_role"] = role_info["predicted_role"]
+                    proj["predicted_role_confidence"] = role_info["predicted_role_confidence"]
+                    proj["curated_role"] = role_info["curated_role"]
+
         return {
             "analysis_uuid": row["analysis_uuid"],
             "analysis_type": row["analysis_type"],
             "zip_file": row["zip_file"],
             "analysis_timestamp": row["analysis_timestamp"],
             "total_projects": row["total_projects"],
-            "projects": raw_data.get("projects", []),
+            "projects": projects_list,
             "skills": raw_data.get("skills", []),
             "summary": raw_data.get("summary"),
             "portfolio_items": get_portfolio_items_for_analysis(uuid_str, username),
         }
+
+
+def get_llm_summary_for_analysis(uuid_str: str, username: str = None) -> Optional[str]:
+    """Get the LLM summary text for an analysis by UUID."""
+    with get_connection() as conn:
+        if username:
+            row = conn.execute(
+                "SELECT llm_summary FROM analyses WHERE analysis_uuid = ? AND username = ?",
+                (uuid_str, username),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT llm_summary FROM analyses WHERE analysis_uuid = ?",
+                (uuid_str,),
+            ).fetchone()
+        if not row:
+            return None
+        return row["llm_summary"]
+
+
+def get_llm_analysis_for_api(uuid_str: str, username: str = None) -> Dict[str, Any]:
+    """Return llm_summary and llm_error for GET /projects/{id}/llm-analysis."""
+    with get_connection() as conn:
+        if username:
+            row = conn.execute(
+                "SELECT llm_summary, llm_error FROM analyses WHERE analysis_uuid = ? AND username = ?",
+                (uuid_str, username),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT llm_summary, llm_error FROM analyses WHERE analysis_uuid = ?",
+                (uuid_str,),
+            ).fetchone()
+        if not row:
+            return {"llm_summary": None, "llm_error": None}
+        return {"llm_summary": row["llm_summary"], "llm_error": row["llm_error"]}
+
+
+def update_llm_summary(uuid_str: str, llm_summary: str, username: str = None) -> bool:
+    """Update the llm_summary column on an existing analysis row."""
+    with get_connection() as conn:
+        if username:
+            cursor = conn.execute(
+                "UPDATE analyses SET llm_summary = ? WHERE analysis_uuid = ? AND username = ?",
+                (llm_summary, uuid_str, username),
+            )
+        else:
+            cursor = conn.execute(
+                "UPDATE analyses SET llm_summary = ? WHERE analysis_uuid = ?",
+                (llm_summary, uuid_str),
+            )
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+def update_llm_error(uuid_str: str, llm_error: Optional[str], username: str = None) -> bool:
+    """Set or clear the llm_error column (user-facing message when LLM step failed)."""
+    with get_connection() as conn:
+        if username:
+            cursor = conn.execute(
+                "UPDATE analyses SET llm_error = ? WHERE analysis_uuid = ? AND username = ?",
+                (llm_error, uuid_str, username),
+            )
+        else:
+            cursor = conn.execute(
+                "UPDATE analyses SET llm_error = ? WHERE analysis_uuid = ?",
+                (llm_error, uuid_str),
+            )
+        conn.commit()
+        return cursor.rowcount > 0
 
 
 def delete_analysis(uuid_str: str, username: str = None) -> bool:
@@ -2067,3 +2833,463 @@ def upsert_user_personal_info(username: str, personal_info: Dict[str, str]) -> N
             (username, json.dumps(cleaned, separators=(",", ":"))),
         )
         conn.commit()
+
+
+def list_user_education(username: str) -> List[Dict[str, Any]]:
+    """List saved education entries for a user."""
+    if not username:
+        return []
+
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                education_text,
+                university,
+                location,
+                degree,
+                start_date,
+                end_date,
+                awards,
+                updated_at
+            FROM user_education
+            WHERE username = ?
+            ORDER BY id DESC
+            """,
+            (username,),
+        ).fetchall()
+
+        return [dict(r) for r in rows]
+
+
+def create_user_education(username: str, education: Dict[str, Any]) -> int:
+    """Create a new education entry for a user."""
+    if not username:
+        raise ValueError("username is required")
+
+    cleaned: Dict[str, Any] = {}
+    for key in (
+        "education_text",
+        "university",
+        "location",
+        "degree",
+        "start_date",
+        "end_date",
+        "awards",
+    ):
+        val = (education or {}).get(key)
+        if val is None:
+            continue
+        if isinstance(val, str):
+            cleaned[key] = val.strip()
+        else:
+            cleaned[key] = str(val).strip()
+
+    with get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+        conn.execute("INSERT OR IGNORE INTO users (username) VALUES (?)", (username,))
+        res = conn.execute(
+            """
+            INSERT INTO user_education (
+                username,
+                education_text,
+                university,
+                location,
+                degree,
+                start_date,
+                end_date,
+                awards
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                username,
+                cleaned.get("education_text"),
+                cleaned.get("university"),
+                cleaned.get("location"),
+                cleaned.get("degree"),
+                cleaned.get("start_date"),
+                cleaned.get("end_date"),
+                cleaned.get("awards"),
+            ),
+        )
+        conn.commit()
+        return int(res.lastrowid)
+
+
+def update_user_education(username: str, education_id: int, education: Dict[str, Any]) -> bool:
+    """Update an existing education entry."""
+    if not username:
+        raise ValueError("username is required")
+    if education_id is None:
+        raise ValueError("education_id is required")
+
+    if not education:
+        return False
+
+    cleaned: Dict[str, Any] = {}
+    for key in (
+        "education_text",
+        "university",
+        "location",
+        "degree",
+        "start_date",
+        "end_date",
+        "awards",
+    ):
+        if key in education:
+            val = education[key]
+            # Allow explicit clears (null) during updates, e.g. removing awards.
+            if val is None:
+                cleaned[key] = None
+            elif isinstance(val, str):
+                cleaned[key] = val.strip()
+            else:
+                cleaned[key] = str(val).strip()
+
+    if not cleaned:
+        return False
+
+    # Build dynamic SET clause
+    allowed_keys = set(["education_text", "university", "location", "degree", "start_date", "end_date", "awards"])
+    set_parts = []
+    values = []
+    for k, v in cleaned.items():
+        if k not in allowed_keys:
+            continue
+        set_parts.append(f"{k} = ?")
+        values.append(v)
+
+    if not set_parts:
+        return False
+
+    values.extend([username, education_id])
+
+    with get_connection() as conn:
+        conn.execute(
+            f"""
+            UPDATE user_education
+            SET {", ".join(set_parts)}, updated_at = CURRENT_TIMESTAMP
+            WHERE username = ? AND id = ?
+            """,
+            (*values,),
+        )
+        res = conn.total_changes
+        conn.commit()
+
+    # We can't rely on total_changes reliably across drivers; do a simple existence check.
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM user_education WHERE username = ? AND id = ?",
+            (username, education_id),
+        ).fetchone()
+        return bool(row)
+
+
+def delete_user_education(username: str, education_id: int) -> bool:
+    """Delete an education entry."""
+    if not username:
+        raise ValueError("username is required")
+    if education_id is None:
+        raise ValueError("education_id is required")
+
+    with get_connection() as conn:
+        res = conn.execute(
+            "DELETE FROM user_education WHERE username = ? AND id = ?",
+            (username, education_id),
+        )
+        conn.commit()
+        return int(res.rowcount) > 0
+
+
+def _parse_year_month_sort_key(value: Any) -> Optional[int]:
+    """Map 'YYYY-MM' to a comparable int, or None if invalid."""
+    if value is None:
+        return None
+    s = str(value).strip()
+    if len(s) != 7 or s[4] != "-":
+        return None
+    try:
+        y = int(s[0:4])
+        mo = int(s[5:7])
+    except ValueError:
+        return None
+    if mo < 1 or mo > 12:
+        return None
+    return y * 12 + (mo - 1)
+
+
+def _work_experience_reverse_chronological(entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Most recent first: by effective end date (ongoing = current month), then by start date."""
+    now_m = datetime.now().year * 12 + datetime.now().month - 1
+
+    def sort_key(entry: Dict[str, Any]) -> tuple:
+        end = _parse_year_month_sort_key(entry.get("end_date"))
+        start = _parse_year_month_sort_key(entry.get("start_date"))
+        eff_end = end if end is not None else now_m
+        eff_start = start if start is not None else -1
+        return (-eff_end, -eff_start)
+
+    return sorted(entries, key=sort_key)
+
+
+def list_user_work_experience(username: str) -> List[Dict[str, Any]]:
+    """List saved work experience entries for a user."""
+    if not username:
+        return []
+
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                company,
+                job_title,
+                location,
+                start_date,
+                end_date,
+                responsibilities_text,
+                updated_at
+            FROM user_work_experience
+            WHERE username = ?
+            """,
+            (username,),
+        ).fetchall()
+
+        out = [dict(r) for r in rows]
+        return _work_experience_reverse_chronological(out)
+
+
+def create_user_work_experience(username: str, work: Dict[str, Any]) -> int:
+    """Create a new work experience entry for a user."""
+    if not username:
+        raise ValueError("username is required")
+
+    cleaned: Dict[str, Any] = {}
+    for key in (
+        "company",
+        "job_title",
+        "location",
+        "start_date",
+        "end_date",
+        "responsibilities_text",
+    ):
+        val = (work or {}).get(key)
+        if val is None:
+            continue
+        if isinstance(val, str):
+            cleaned[key] = val.strip()
+        else:
+            cleaned[key] = str(val).strip()
+
+    with get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+        conn.execute("INSERT OR IGNORE INTO users (username) VALUES (?)", (username,))
+        res = conn.execute(
+            """
+            INSERT INTO user_work_experience (
+                username,
+                company,
+                job_title,
+                location,
+                start_date,
+                end_date,
+                responsibilities_text
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                username,
+                cleaned.get("company"),
+                cleaned.get("job_title"),
+                cleaned.get("location"),
+                cleaned.get("start_date"),
+                cleaned.get("end_date"),
+                cleaned.get("responsibilities_text"),
+            ),
+        )
+        conn.commit()
+        return int(res.lastrowid)
+
+
+def update_user_work_experience(username: str, work_id: int, work: Dict[str, Any]) -> bool:
+    """Update an existing work experience entry."""
+    if not username:
+        raise ValueError("username is required")
+    if work_id is None:
+        raise ValueError("work_id is required")
+    if not work:
+        return False
+
+    cleaned: Dict[str, Any] = {}
+    for key in (
+        "company",
+        "job_title",
+        "location",
+        "start_date",
+        "end_date",
+        "responsibilities_text",
+    ):
+        if key in work and work[key] is not None:
+            val = work[key]
+            if isinstance(val, str):
+                cleaned[key] = val.strip()
+            else:
+                cleaned[key] = str(val).strip()
+
+    if not cleaned:
+        return False
+
+    allowed_keys = set(["company", "job_title", "location", "start_date", "end_date", "responsibilities_text"])
+    set_parts: List[str] = []
+    values: List[Any] = []
+    for k, v in cleaned.items():
+        if k not in allowed_keys:
+            continue
+        set_parts.append(f"{k} = ?")
+        values.append(v)
+
+    if not set_parts:
+        return False
+
+    values.extend([username, work_id])
+
+    with get_connection() as conn:
+        conn.execute(
+            f"""
+            UPDATE user_work_experience
+            SET {", ".join(set_parts)}, updated_at = CURRENT_TIMESTAMP
+            WHERE username = ? AND id = ?
+            """,
+            (*values,),
+        )
+        conn.commit()
+
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM user_work_experience WHERE username = ? AND id = ?",
+            (username, work_id),
+        ).fetchone()
+        return bool(row)
+
+
+def delete_user_work_experience(username: str, work_id: int) -> bool:
+    """Delete a work experience entry."""
+    if not username:
+        raise ValueError("username is required")
+    if work_id is None:
+        raise ValueError("work_id is required")
+
+    with get_connection() as conn:
+        res = conn.execute(
+            "DELETE FROM user_work_experience WHERE username = ? AND id = ?",
+            (username, work_id),
+        )
+        conn.commit()
+        return int(res.rowcount) > 0
+
+
+# ---------------------------------------------------------------------------
+# Job match persistence
+# ---------------------------------------------------------------------------
+
+
+def save_job_match(username: str, job_description: str, result: Dict[str, Any]) -> int:
+    """Persist a job-match analysis result and return the new row id."""
+    if not username:
+        raise ValueError("username is required")
+
+    init_db()
+    with get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+        conn.execute("INSERT OR IGNORE INTO users (username) VALUES (?)", (username,))
+        cur = conn.execute(
+            """
+            INSERT INTO job_matches (
+                username, job_description,
+                overall_score, skills_score, experience_score,
+                matched_skills, missing_skills,
+                matched_requirements, unmet_requirements,
+                recommendations, summary
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                username,
+                job_description,
+                result.get("overall_score", 0),
+                result.get("skills_score", 0),
+                result.get("experience_score", 0),
+                json.dumps(result.get("matched_skills", [])),
+                json.dumps(result.get("missing_skills", [])),
+                json.dumps(result.get("matched_requirements", [])),
+                json.dumps(result.get("unmet_requirements", [])),
+                json.dumps(result.get("recommendations", [])),
+                result.get("summary", ""),
+            ),
+        )
+        conn.commit()
+        return int(cur.lastrowid)
+
+
+def _deserialize_job_match_row(row: sqlite3.Row) -> Dict[str, Any]:
+    """Convert a job_matches row into a plain dict with parsed JSON arrays."""
+    item = dict(row)
+    for key in ("matched_skills", "missing_skills", "matched_requirements", "unmet_requirements", "recommendations"):
+        raw = item.get(key)
+        if raw:
+            try:
+                item[key] = json.loads(raw)
+            except (json.JSONDecodeError, TypeError):
+                item[key] = []
+        else:
+            item[key] = []
+    return item
+
+
+def list_job_matches(username: str, limit: int = 50) -> List[Dict[str, Any]]:
+    """Return saved job-match results for a user, newest first."""
+    if not username:
+        return []
+
+    init_db()
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT * FROM job_matches
+            WHERE username = ?
+            ORDER BY created_at DESC
+            LIMIT ?
+            """,
+            (username, limit),
+        ).fetchall()
+        return [_deserialize_job_match_row(r) for r in rows]
+
+
+def get_job_match(match_id: int, username: str) -> Optional[Dict[str, Any]]:
+    """Fetch a single job-match result by id with ownership check."""
+    if not username or match_id is None:
+        return None
+
+    init_db()
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM job_matches WHERE id = ? AND username = ?",
+            (match_id, username),
+        ).fetchone()
+        return _deserialize_job_match_row(row) if row else None
+
+
+def delete_job_match(match_id: int, username: str) -> bool:
+    """Delete a saved job-match result. Returns True if a row was removed."""
+    if not username or match_id is None:
+        return False
+
+    init_db()
+    with get_connection() as conn:
+        res = conn.execute(
+            "DELETE FROM job_matches WHERE id = ? AND username = ?",
+            (match_id, username),
+        )
+        conn.commit()
+        return int(res.rowcount) > 0

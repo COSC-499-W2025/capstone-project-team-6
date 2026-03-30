@@ -89,6 +89,16 @@ def init_db() -> None:
             );
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS tokens (
+                token TEXT PRIMARY KEY,
+                username TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL
+            );
+            """
+        )
         _migrate_user_consent(conn)
         conn.commit()
 
@@ -113,6 +123,55 @@ def reset_db() -> None:
     if db_path.exists():
         db_path.unlink()
     init_db()
+
+
+def save_token_to_db(token: str, username: str, created_at: str, expires_at: str) -> None:
+    """Upsert a token record into the tokens table."""
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO tokens (token, username, created_at, expires_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (token, username, created_at, expires_at),
+        )
+        conn.commit()
+
+
+def delete_token_from_db(token: str) -> None:
+    """Remove a single token from the tokens table."""
+    with get_connection() as conn:
+        conn.execute("DELETE FROM tokens WHERE token = ?", (token,))
+        conn.commit()
+
+
+def clear_tokens_from_db() -> None:
+    """Remove all tokens from the tokens table."""
+    with get_connection() as conn:
+        conn.execute("DELETE FROM tokens")
+        conn.commit()
+
+
+def load_active_tokens_from_db() -> dict:
+    """Load all non-expired tokens from the DB into a plain dict."""
+    from datetime import datetime
+
+    result = {}
+    with get_connection() as conn:
+        rows = conn.execute("SELECT token, username, created_at, expires_at FROM tokens").fetchall()
+    for row in rows:
+        try:
+            expires_at = datetime.fromisoformat(row["expires_at"])
+            created_at = datetime.fromisoformat(row["created_at"])
+        except (ValueError, TypeError):
+            continue
+        if datetime.now() < expires_at:
+            result[row["token"]] = {
+                "username": row["username"],
+                "created_at": created_at,
+                "expires_at": expires_at,
+            }
+    return result
 
 
 def hash_password(password: str) -> str:
@@ -148,6 +207,35 @@ def create_user(username: str, password: str) -> int:
         return cursor.lastrowid
 
 
+def delete_user_account(username: str) -> bool:
+    """
+    Permanently delete a user and all associated data.
+
+    In Docker the auth DB (myapp.db) and analysis DB (analysis.db) may be
+    separate files, so we must delete from each using its own connection.
+    Locally they default to the same file, so this still works.
+    """
+    if not username:
+        raise ValueError("username is required")
+
+    from backend import analysis_database as analysis_db
+
+    # 1. Delete analysis-side rows
+    with analysis_db.get_connection() as aconn:
+        aconn.execute("PRAGMA foreign_keys = ON;")
+        for table in ("analyses", "uploads", "user_profile", "user_resumes", "user_portfolio_settings"):
+            aconn.execute(f"DELETE FROM {table} WHERE username = ?", (username,))
+        aconn.commit()
+
+    # 2. Delete auth-side rows (user_consent, users)
+    with get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+        conn.execute("DELETE FROM user_consent WHERE username = ?", (username,))
+        cur = conn.execute("DELETE FROM users WHERE username = ?", (username,))
+        conn.commit()
+        return (cur.rowcount or 0) > 0
+
+
 def get_user(username: str) -> Optional[sqlite3.Row]:
     with get_connection() as conn:
         return conn.execute(
@@ -166,6 +254,25 @@ def authenticate_user(username: str, password: str) -> bool:
         save_session(username)
         return True
     return False
+
+
+def update_user_password(username: str, new_password: str) -> None:
+    if not username:
+        raise ValueError("Username is required")
+    if not new_password:
+        raise ValueError("New password is required")
+
+    if get_user(username) is None:
+        raise ValueError("User does not exist")
+
+    hashed = hash_password(new_password)
+
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE users SET password_hash = ? WHERE username = ?",
+            (hashed, username),
+        )
+        conn.commit()
 
 
 def check_user_consent(username: str) -> bool:

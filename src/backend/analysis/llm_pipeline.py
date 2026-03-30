@@ -13,7 +13,8 @@ from dotenv import load_dotenv
 
 from ..analysis.deep_code_analyzer import generate_comprehensive_report
 from ..analysis.project_analyzer import FileClassifier
-from ..gemini_file_search import GeminiFileSearchClient
+from ..gemini_file_search import (GeminiFileSearchClient,
+                                  humanize_gemini_generation_error)
 
 # Load environment variables
 load_dotenv()
@@ -193,8 +194,11 @@ def run_gemini_analysis(
         else:
             logger.info(msg)
 
-    # Temporarily silence INFO logging if using progress bar to avoid interfering with it
-    # This prevents the "bar per log" issue where logs break the progress bar display
+    import os
+
+    api_key = os.getenv("GOOGLE_API_KEY")
+    logger.info(f"LLM pipeline: GOOGLE_API_KEY={'set (' + str(len(api_key)) + ' chars)' if api_key else 'NOT SET'}")
+
     original_log_level = logging.getLogger().getEffectiveLevel()
     if progress_callback:
         logging.getLogger().setLevel(logging.ERROR)
@@ -254,8 +258,7 @@ def run_gemini_analysis(
         # Check if Gemini client is available
         if GeminiFileSearchClient is None:
             error_msg = "Google Cloud AI Platform libraries not installed. Install with: pip install google-cloud-aiplatform google-auth google-generativeai"
-            if not progress_callback:
-                logger.error(error_msg)
+            logger.error(error_msg)
             report["llm_error"] = error_msg
             return report
 
@@ -263,8 +266,7 @@ def run_gemini_analysis(
         try:
             client = GeminiFileSearchClient()
         except Exception as e:
-            if not progress_callback:
-                logger.error(f"Failed to initialize Gemini Client: {e}")
+            logger.error(f"Failed to initialize Gemini Client: {e}", exc_info=True)
             report["llm_error"] = f"Client Initialization Error: {str(e)}"
             return report
 
@@ -369,14 +371,18 @@ def run_gemini_analysis(
             response_text = client.generate_content(uploaded_files_refs, full_prompt)
 
             update_progress(95, 100, "Analysis generation complete. Finalizing...")
-            report["llm_summary"] = response_text
+            err_prefix = "Error executing analysis:"
+            if response_text.startswith(err_prefix):
+                raw_detail = response_text[len(err_prefix) :].strip()
+                report["llm_error"] = humanize_gemini_generation_error(raw_detail)
+            else:
+                report["llm_summary"] = response_text
             report["analysis_metadata"]["gemini_file_count"] = len(uploaded_files_refs)
             report["analysis_mode"] = f"Base + {', '.join(active_features)}" if active_features else "Standard"
 
         except Exception as e:
-            if not progress_callback:
-                logger.error(f"Error during Gemini analysis: {e}")
-            report["llm_error"] = str(e)
+            logger.error(f"Error during Gemini analysis: {e}", exc_info=True)
+            report["llm_error"] = humanize_gemini_generation_error(str(e))
 
         finally:
             if uploaded_files_refs:

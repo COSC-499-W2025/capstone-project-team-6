@@ -314,11 +314,18 @@ class MetadataExtractor:
         project_indicators = set()
 
         for file_path in all_files:
+            normalized_path = file_path.replace("\\", "/")
+            parts = normalized_path.split("/")
+            if ".git" in parts:
+                git_idx = parts.index(".git")
+                project_root = "/".join(parts[:git_idx]) if git_idx > 0 else ""
+                if not self._is_excluded_directory(project_root):
+                    project_indicators.add(project_root)
+                continue
+
             if file_path.endswith("/"):
                 continue
 
-            normalized_path = file_path.replace("\\", "/")
-            parts = normalized_path.split("/")
             filename = parts[-1].lower()
 
             # Skip files in excluded directories
@@ -625,7 +632,8 @@ class MetadataExtractor:
         # Check if git directory exists
         has_git = False
         for file_path in self.zip_file.namelist():
-            if file_path.startswith(git_path):
+            normalized = file_path.replace("\\", "/")
+            if normalized == git_path or normalized.startswith(git_path + "/"):
                 has_git = True
                 break
 
@@ -648,9 +656,13 @@ class MetadataExtractor:
 
                 prefix = f"{project_path}/" if project_path else ""
                 for member in self.zip_file.namelist():
-                    if member.startswith(prefix):
-                        # Extract to temp location
-                        self.zip_file.extract(member, temp_project_path)
+                    normalized_member = member.replace("\\", "/")
+                    if normalized_member.startswith(prefix):
+                        # Extract to temp location (use original member name for ZipFile API)
+                        try:
+                            self.zip_file.extract(member, temp_project_path)
+                        except Exception as ex:
+                            print(f"[git_extract] skipping member {member!r}: {ex}")
 
                 # Point to the extracted project directory
                 extracted_path = temp_project_path / project_path if project_path else temp_project_path
@@ -658,13 +670,17 @@ class MetadataExtractor:
                 if (extracted_path / ".git").exists():
                     analyzer = GitAnalyzer(str(extracted_path))
 
-                    if analyzer.check_git_available() and analyzer.check_git_repo():
+                    git_avail = analyzer.check_git_available()
+                    git_repo = analyzer.check_git_repo()
+                    print(f"[git_analysis] path={extracted_path} git_available={git_avail} git_repo={git_repo}")
+
+                    if git_avail and git_repo:
                         git_result = analyzer.analyze(target_user_email=self.target_user_email)
+                        if git_result.error_message:
+                            print(f"[git_analysis] error: {git_result.error_message}")
                         git_details = git_result.to_dict()
                         total_commits = git_result.total_commits
-                        last_commit_date = (
-                            git_result.last_commit_date or git_result.project_end_date or git_result.project_start_date
-                        )
+                        last_commit_date = git_result.project_end_date or git_result.project_start_date
 
                         # Normalize contributors for downstream compatibility
                         for contributor in git_result.contributors or []:
@@ -683,9 +699,12 @@ class MetadataExtractor:
                                 first_commit=first_commit,
                                 last_commit=last_commit,
                             )
-        except Exception:
-            # If git analysis fails, just return what we have
-            pass
+                    elif not git_avail:
+                        print("[git_analysis] git CLI not available — install git in the environment")
+                else:
+                    print(f"[git_analysis] .git not found at {extracted_path} after extraction")
+        except Exception as e:
+            print(f"[git_analysis] exception in parse_git_log for project '{project_path}': {e}")
 
         return contributors, total_commits, last_commit_date, git_details
 
@@ -795,15 +814,18 @@ class MetadataExtractor:
         return metadata
 
     def _check_git_files(self, project_path: str) -> bool:
-        """Check if git-related files exist in the project."""
-        git_indicators = [".git/", ".gitignore", ".gitattributes"]
+        """Check if .git directory or git-related files exist in the project."""
         prefix = f"{project_path}/" if project_path else ""
+        git_dir = prefix + ".git"
 
         for file_path in self.zip_file.namelist():
             normalized = file_path.replace("\\", "/")
-            for indicator in git_indicators:
-                if normalized.startswith(prefix + indicator) or normalized == prefix.rstrip("/") + "/" + indicator:
-                    return True
+            # Exact .git directory entry or contents inside .git/
+            if normalized == git_dir or normalized.startswith(git_dir + "/"):
+                return True
+            # Standalone .gitignore / .gitattributes at the project root
+            if normalized == prefix + ".gitignore" or normalized == prefix + ".gitattributes":
+                return True
 
         return False
 

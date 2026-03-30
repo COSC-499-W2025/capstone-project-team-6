@@ -121,6 +121,16 @@ def multi_project_zip(tmp_path):
 
 
 @pytest.fixture
+def second_minimal_zip(tmp_path):
+    """Create a second distinct minimal ZIP (different content to avoid duplicate hash)."""
+    zip_path = tmp_path / "project_two.zip"
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.writestr("project_two/app.py", "def main(): pass")
+        zf.writestr("project_two/README.md", "# Project Two")
+    return zip_path
+
+
+@pytest.fixture
 def auth_headers_no_consent(client):
     """Sign up without consent and return auth headers."""
     username = f"no_consent_{int(time.time())}"
@@ -268,6 +278,76 @@ class TestUploadAnalysisCycle:
         projects_data = r.json()
         projects = projects_data.get("projects", [])
         assert len(projects) >= 2, f"Expected at least 2 projects in list, got {len(projects)}"
+
+    @pytest.mark.asyncio
+    async def test_multiple_separate_uploads_all_projects_displayed(
+        self, client, async_client, auth_headers, minimal_zip, second_minimal_zip
+    ):
+        """Multiple separate ZIP uploads each create a task; all projects appear after all complete.
+
+        Simulates the multi-upload flow: upload ZIP1, upload ZIP2, poll both tasks until
+        complete, then verify /api/projects returns projects from both analyses.
+        """
+        headers, username = auth_headers
+        task_ids = []
+
+        # Upload first ZIP
+        with open(minimal_zip, "rb") as f:
+            r1 = await async_client.post(
+                "/api/portfolios/upload",
+                files={"file": ("project_one.zip", f, "application/zip")},
+                data={"analysis_type": "non_llm", "project_name": "Project One"},
+                headers=headers,
+            )
+        assert r1.status_code == 202, f"First upload failed: {r1.text}"
+        task_ids.append(r1.json()["details"]["task_id"])
+
+        # Upload second ZIP (distinct content to avoid duplicate hash)
+        with open(second_minimal_zip, "rb") as f:
+            r2 = await async_client.post(
+                "/api/portfolios/upload",
+                files={"file": ("project_two.zip", f, "application/zip")},
+                data={"analysis_type": "non_llm", "project_name": "Project Two"},
+                headers=headers,
+            )
+        assert r2.status_code == 202, f"Second upload failed: {r2.text}"
+        task_ids.append(r2.json()["details"]["task_id"])
+
+        assert len(task_ids) == 2, "Expected 2 task IDs"
+        assert task_ids[0] != task_ids[1], "Each upload should return a distinct task ID"
+
+        # Poll both tasks until both complete
+        max_wait = 120
+        poll_interval = 1
+        elapsed = 0
+        completed = set()
+        while elapsed < max_wait:
+            for tid in task_ids:
+                if tid in completed:
+                    continue
+                r = await async_client.get(f"/api/tasks/{tid}", headers=headers)
+                assert r.status_code == 200, f"Task status failed: {r.text}"
+                data = r.json()
+                if data["status"] == "completed":
+                    completed.add(tid)
+                elif data["status"] == "failed":
+                    pytest.fail(f"Task {tid} failed: {data.get('error', 'Unknown error')}")
+            if len(completed) == 2:
+                break
+            await asyncio.sleep(poll_interval)
+            elapsed += poll_interval
+        else:
+            pytest.fail(f"Tasks did not complete within timeout. Completed: {completed}")
+
+        # Verify both projects appear in /api/projects
+        r = await async_client.get("/api/projects", headers=headers)
+        assert r.status_code == 200
+        projects_data = r.json()
+        projects = projects_data.get("projects", [])
+        assert len(projects) >= 2, (
+            f"Expected at least 2 projects (one per upload), got {len(projects)}. "
+            "Multi-upload should persist each analysis separately."
+        )
 
     @pytest.mark.skip(reason="LLM requires Gemini API; run manually with API key")
     def test_llm_analysis_no_duplicate_projects(self, client, auth_headers, minimal_zip):

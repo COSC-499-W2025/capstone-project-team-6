@@ -129,13 +129,14 @@ def create_temp_zip(directory: Path) -> Path:
     return temp_zip
 
 
-def analyze_folder(path: Path, target_user_email: Optional[str] = None, quick_mode: bool = False) -> dict:
+def analyze_folder(path: Path, target_user_email: Optional[str] = None, quick_mode: bool = False, progress_callback=None) -> dict:
     """Analyze a folder or ZIP file using the comprehensive analysis pipeline.
 
     Args:
         path: Path to the folder or ZIP file to analyze
         target_user_email: Optional email to focus git analysis on specific user
         quick_mode: If True, skip heavy operations like deep git blame analysis
+        progress_callback: Optional callable(percent, message) to report progress
 
     Returns:
         dict: Comprehensive analysis results from the pipeline
@@ -148,11 +149,16 @@ def analyze_folder(path: Path, target_user_email: Optional[str] = None, quick_mo
     import zipfile as zipfile_module
     from datetime import datetime
 
+    def _report(pct, msg=""):
+        if progress_callback:
+            progress_callback(pct, msg)
+
     temp_zip = None
     temp_extract_dir = None
     original_path = path  # Store original path before any temp zip creation
     try:
         # Determine if we need to create a ZIP
+        _report(0, "Preparing files…")
         if path.is_dir():
             if not quick_mode:
                 print(f"Creating temporary archive...")
@@ -168,6 +174,7 @@ def analyze_folder(path: Path, target_user_email: Optional[str] = None, quick_mo
             raise ValueError(f"Path must be a directory or ZIP file: {path}")
 
         # Run comprehensive analysis (Python/Java)
+        _report(10, "Running analysis pipeline…")
         if not quick_mode:
             print(f"Running analysis pipeline...")
         else:
@@ -175,6 +182,7 @@ def analyze_folder(path: Path, target_user_email: Optional[str] = None, quick_mo
 
         report = generate_comprehensive_report(zip_path, target_user_email=target_user_email, quick_mode=quick_mode)
 
+        _report(45, "Analyzing C/C++ code…")
         # Add C++ and C analysis to the report
         for i, project in enumerate(report["projects"]):
             project_path = project.get("project_path", "")
@@ -213,6 +221,7 @@ def analyze_folder(path: Path, target_user_email: Optional[str] = None, quick_mo
                     pass  # Silently skip if no C code found
 
         # Git Analysis
+        _report(60, "Running git analysis…")
         # For directories, analyze directly; for ZIPs, extract if .git exists
         if analysis_dir and (analysis_dir / ".git").exists():
             # Direct directory with .git
@@ -260,6 +269,7 @@ def analyze_folder(path: Path, target_user_email: Optional[str] = None, quick_mo
                 print(f"Warning: Git analysis failed: {e}")
 
         # Add role prediction to each project
+        _report(85, "Predicting developer roles…")
         for i, project in enumerate(report["projects"]):
             try:
                 # Calculate composite score for role prediction
@@ -290,6 +300,7 @@ def analyze_folder(path: Path, target_user_email: Optional[str] = None, quick_mo
                 }
 
         # Add analysis metadata - use original path, not temp zip path
+        _report(95, "Finalizing…")
         report["analysis_metadata"] = {
             "zip_file": str(original_path.absolute()),
             "analysis_timestamp": datetime.now().isoformat(),
@@ -1329,15 +1340,17 @@ def main() -> int:
                                     )
 
                                     # Merge with existing results using smart comparison
-                                    from .project_comparison import \
-                                        process_incremental_projects
+                                    from .project_comparison import (
+                                        DEFAULT_INCREMENTAL_CHANGE_THRESHOLD,
+                                        process_incremental_projects)
 
                                     existing_projects = results.get("projects", [])
                                     new_projects = new_results.get("projects", [])
 
-                                    # Process projects with 50% change threshold
                                     merge_result = process_incremental_projects(
-                                        existing_projects=existing_projects, new_projects=new_projects, change_threshold=50.0
+                                        existing_projects=existing_projects,
+                                        new_projects=new_projects,
+                                        change_threshold=DEFAULT_INCREMENTAL_CHANGE_THRESHOLD,
                                     )
 
                                     merged_projects = merge_result["merged_projects"]

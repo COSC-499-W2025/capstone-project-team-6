@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/Navigation';
-import { consentAPI, resumeAPI } from '../services/api';
+import { consentAPI, resumeAPI, authAPI } from '../services/api';
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -18,6 +18,13 @@ const Settings = () => {
   const [statusMsg, setStatusMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordStatusMsg, setPasswordStatusMsg] = useState('');
+  const [passwordErrorMsg, setPasswordErrorMsg] = useState('');
+
   // --- Personal Info state ---
   const emptyPersonal = {
     name: '',
@@ -27,6 +34,13 @@ const Settings = () => {
     linkedIn: '',
     github: '',
     website: '',
+    education: '',
+    education_university: '',
+    education_location: '',
+    education_degree: '',
+    education_start_date: '',
+    education_end_date: '',
+    education_awards: '',
   };
 
   const [personalInfo, setPersonalInfo] = useState(emptyPersonal);
@@ -44,6 +58,10 @@ const Settings = () => {
   const [removingPersonalInfo, setRemovingPersonalInfo] = useState(false);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
 
+  // Delete account state
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false);
+
   const normalize = (v) => (v || '').trim();
 
   const infosEqual = (a, b) => {
@@ -55,6 +73,54 @@ const Settings = () => {
   };
 
   const hasPersonalChanges = !infosEqual(personalInfo, originalPersonalInfo);
+
+  const [personalErrors, setPersonalErrors] = useState({});
+
+  const validatePersonalInfo = (info) => {
+    const errs = {};
+
+    if (!info.name.trim()) {
+      errs.name = 'Full name is required.';
+    } else if (!/^[A-Za-z\s\-'.]+$/.test(info.name.trim())) {
+      errs.name = 'Name may only contain letters, spaces, hyphens, and apostrophes.';
+    } else if (info.name.trim().length > 100) {
+      errs.name = 'Name must be 100 characters or fewer.';
+    }
+
+    if (!info.email.trim()) {
+      errs.email = 'Email is required.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(info.email.trim())) {
+      errs.email = 'Enter a valid email address.';
+    }
+
+    const phoneTrim = info.phone.trim();
+    if (phoneTrim) {
+      if (!/^[+\d][\d\s\-().]{7,20}$/.test(phoneTrim)) {
+        errs.phone = 'Phone may only contain digits, spaces, dashes, parentheses, or a leading +. Minimum of 7 digits required.';
+      } else if ((phoneTrim.replace(/\D/g, '').length || 0) < 7) {
+        errs.phone = 'Phone may only contain digits, spaces, dashes, parentheses, or a leading +. Minimum of 7 digits required.';
+      }
+    }
+
+    if (info.location.trim().length > 100) {
+      errs.location = 'Location must be 100 characters or fewer.';
+    }
+
+    const linkedInPattern = /^https?:\/\/(www\.)?linkedin\.com\//i;
+    if (info.linkedIn.trim() && !linkedInPattern.test(info.linkedIn.trim())) {
+      errs.linkedIn = 'Must start with https://linkedin.com/ or https://www.linkedin.com/';
+    }
+
+    if (info.github.trim() && !/^https?:\/\/(www\.)?github\.com\//i.test(info.github.trim())) {
+      errs.github = 'Must start with https://github.com/';
+    }
+
+    if (info.website.trim() && !/^https?:\/\/.+\..+/.test(info.website.trim())) {
+      errs.website = 'Must be a valid URL starting with http:// or https://';
+    }
+
+    return errs;
+  };
 
   const hasAnyPersonalInfoSaved = () => {
     const values = Object.values(personalInfo || {});
@@ -101,6 +167,13 @@ const Settings = () => {
           linkedIn: info?.linkedIn || '',
           github: info?.github || '',
           website: info?.website || '',
+          education: info?.education || '',
+          education_university: info?.education_university || '',
+          education_location: info?.education_location || '',
+          education_degree: info?.education_degree || '',
+          education_start_date: info?.education_start_date || '',
+          education_end_date: info?.education_end_date || '',
+          education_awards: info?.education_awards || '',
         };
 
         setPersonalInfo(loaded);
@@ -173,18 +246,36 @@ const Settings = () => {
   };
 
   const onChangePersonalField = (key, value) => {
-    setPersonalInfo((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
+    const updated = { ...personalInfo, [key]: value };
+    setPersonalInfo(updated);
+    if (Object.keys(personalErrors).length > 0) {
+      setPersonalErrors(validatePersonalInfo(updated));
+    }
+  };
+
+  const hasOriginalPersonalInfoSaved = Object.values(originalPersonalInfo).some(
+    (v) => (v || '').trim().length > 0
+  );
+
+  const onCancelPersonalChanges = () => {
+    setPersonalInfo({ ...originalPersonalInfo });
+    setPersonalErrors({});
+    setPersonalErrorMsg('');
+    setPersonalStatusMsg('');
   };
 
   const onSavePersonalInfo = async () => {
     setPersonalErrorMsg('');
     setPersonalStatusMsg('');
 
-    // ✅ Nothing changed -> do nothing (and show no "saved" popup)
     if (!hasPersonalChanges) return;
+
+    const errs = validatePersonalInfo(personalInfo);
+    if (Object.keys(errs).length > 0) {
+      setPersonalErrors(errs);
+      return;
+    }
+    setPersonalErrors({});
 
     setSavingPersonalInfo(true);
 
@@ -237,6 +328,83 @@ const Settings = () => {
     } finally {
       setRemovingPersonalInfo(false);
       setShowRemoveConfirm(false);
+    }
+  };
+
+  // --- Change Password Handlers ---
+  const onChangePassword = async () => {
+    setPasswordErrorMsg('');
+    setPasswordStatusMsg('');
+
+    // Validation
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordErrorMsg('All fields are required.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordErrorMsg('New password must be at least 6 characters.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordErrorMsg('New passwords do not match.');
+      return;
+    }
+
+    setChangingPassword(true);
+
+    try {
+      await authAPI.changePassword(currentPassword, newPassword);
+      setPasswordStatusMsg('Password changed successfully!');
+
+      // Clear form
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setPasswordErrorMsg(
+        err?.response?.data?.detail || 'Failed to change password. Please try again.'
+      );
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  const onClickDeleteAccount = () => {
+    setErrorMsg('');
+    setStatusMsg('');
+    setPersonalErrorMsg('');
+    setPersonalStatusMsg('');
+    setShowDeleteAccountConfirm(true);
+  };
+
+  const onCancelDeleteAccount = () => {
+    if (deletingAccount) return;
+    setShowDeleteAccountConfirm(false);
+  };
+
+  const onConfirmDeleteAccount = async () => {
+    setDeletingAccount(true);
+    setErrorMsg('');
+    setStatusMsg('');
+    setPersonalErrorMsg('');
+    setPersonalStatusMsg('');
+
+    try {
+      await authAPI.deleteAccount();
+
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('username');
+      localStorage.removeItem('token_expiry');
+
+      navigate('/login');
+    } catch (err) {
+      setErrorMsg(
+        err?.response?.data?.detail || 'Failed to delete account. Please try again.'
+      );
+      setDeletingAccount(false);
+      setShowDeleteAccountConfirm(false);
     }
   };
 
@@ -340,35 +508,37 @@ const Settings = () => {
             </p>
           </div>
 
-          <button
-            onClick={() => navigate('/dashboard')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '10px 20px',
-              backgroundColor: 'white',
-              color: '#1a1a1a',
-              border: '1px solid #e5e5e5',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-              transition: 'all 0.2s',
-              whiteSpace: 'nowrap',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#f5f5f5';
-              e.currentTarget.style.borderColor = '#d4d4d4';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'white';
-              e.currentTarget.style.borderColor = '#e5e5e5';
-            }}
-          >
-            <span style={{ opacity: 0.8 }}>←</span>
-            <span>Back to Dashboard</span>
-          </button>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <button
+              onClick={() => navigate('/dashboard')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 20px',
+                backgroundColor: 'white',
+                color: '#1a1a1a',
+                border: '1px solid #e5e5e5',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                transition: 'all 0.2s',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f5f5f5';
+                e.currentTarget.style.borderColor = '#d4d4d4';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'white';
+                e.currentTarget.style.borderColor = '#e5e5e5';
+              }}
+            >
+              <span style={{ opacity: 0.8 }}>←</span>
+              <span>Back to Dashboard</span>
+            </button>
+          </div>
         </div>
 
         {/* Consent Card */}
@@ -578,6 +748,29 @@ const Settings = () => {
                 {removingPersonalInfo ? 'Removing…' : 'Remove Info'}
               </button>
 
+              {hasOriginalPersonalInfoSaved && hasPersonalChanges && (
+                <button
+                  type="button"
+                  onClick={onCancelPersonalChanges}
+                  disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: '12px',
+                    border: '1px solid #e5e5e5',
+                    backgroundColor: '#ffffff',
+                    color: '#374151',
+                    fontWeight: 700,
+                    cursor:
+                      loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo
+                        ? 'not-allowed'
+                        : 'pointer',
+                    minWidth: '120px',
+                  }}
+                >
+                  Cancel
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={onSavePersonalInfo}
@@ -634,78 +827,182 @@ const Settings = () => {
             <div style={{ gridColumn: '1 / -1' }}>
               <div style={labelStyle}>Full Name</div>
               <input
-                style={inputStyle}
+                style={{ ...inputStyle, ...(personalErrors.name ? { borderColor: '#dc2626' } : {}) }}
+                type="text"
                 value={personalInfo.name}
                 onChange={(e) => onChangePersonalField('name', e.target.value)}
                 placeholder="Full Name"
                 disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
               />
+              {personalErrors.name && (
+                <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                  {personalErrors.name}
+                </div>
+              )}
             </div>
 
             <div>
               <div style={labelStyle}>Email</div>
               <input
-                style={inputStyle}
+                style={{ ...inputStyle, ...(personalErrors.email ? { borderColor: '#dc2626' } : {}) }}
+                type="email"
                 value={personalInfo.email}
                 onChange={(e) => onChangePersonalField('email', e.target.value)}
                 placeholder="Email Address"
                 disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
               />
+              {personalErrors.email && (
+                <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                  {personalErrors.email}
+                </div>
+              )}
             </div>
 
             <div>
               <div style={labelStyle}>Phone</div>
               <input
-                style={inputStyle}
+                style={{ ...inputStyle, ...(personalErrors.phone ? { borderColor: '#dc2626' } : {}) }}
+                type="tel"
                 value={personalInfo.phone}
                 onChange={(e) => onChangePersonalField('phone', e.target.value)}
                 placeholder="Phone Number"
                 disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
               />
+              {personalErrors.phone && (
+                <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                  {personalErrors.phone}
+                </div>
+              )}
             </div>
 
             {/* Location (full width) */}
             <div style={{ gridColumn: '1 / -1' }}>
               <div style={labelStyle}>Location</div>
               <input
-                style={inputStyle}
+                style={{ ...inputStyle, ...(personalErrors.location ? { borderColor: '#dc2626' } : {}) }}
+                type="text"
                 value={personalInfo.location}
                 onChange={(e) => onChangePersonalField('location', e.target.value)}
                 placeholder="Location (e.g., City, State)"
                 disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
               />
+              {personalErrors.location && (
+                <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                  {personalErrors.location}
+                </div>
+              )}
             </div>
 
             <div>
               <div style={labelStyle}>LinkedIn</div>
               <input
-                style={inputStyle}
+                style={{ ...inputStyle, ...(personalErrors.linkedIn ? { borderColor: '#dc2626' } : {}) }}
+                type="url"
                 value={personalInfo.linkedIn}
                 onChange={(e) => onChangePersonalField('linkedIn', e.target.value)}
                 placeholder="LinkedIn URL"
                 disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
               />
+              {personalErrors.linkedIn && (
+                <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                  {personalErrors.linkedIn}
+                </div>
+              )}
             </div>
 
             <div>
               <div style={labelStyle}>GitHub</div>
               <input
-                style={inputStyle}
+                style={{ ...inputStyle, ...(personalErrors.github ? { borderColor: '#dc2626' } : {}) }}
+                type="url"
                 value={personalInfo.github}
                 onChange={(e) => onChangePersonalField('github', e.target.value)}
                 placeholder="GitHub URL"
                 disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
               />
+              {personalErrors.github && (
+                <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                  {personalErrors.github}
+                </div>
+              )}
             </div>
 
             {/* Website (full width) */}
             <div style={{ gridColumn: '1 / -1' }}>
               <div style={labelStyle}>Website</div>
               <input
-                style={inputStyle}
+                style={{ ...inputStyle, ...(personalErrors.website ? { borderColor: '#dc2626' } : {}) }}
+                type="url"
                 value={personalInfo.website}
                 onChange={(e) => onChangePersonalField('website', e.target.value)}
                 placeholder="Personal Website"
+                disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
+              />
+              {personalErrors.website && (
+                <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                  {personalErrors.website}
+                </div>
+              )}
+            </div>
+
+            {/* Education (for PDF resume) */}
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div style={labelStyle}>Education (University)</div>
+              <input
+                style={inputStyle}
+                value={personalInfo.education_university}
+                onChange={(e) => onChangePersonalField('education_university', e.target.value)}
+                placeholder="University Name"
+                disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
+              />
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div style={labelStyle}>Education (Location)</div>
+              <input
+                style={inputStyle}
+                value={personalInfo.education_location}
+                onChange={(e) => onChangePersonalField('education_location', e.target.value)}
+                placeholder="City, State"
+                disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
+              />
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div style={labelStyle}>Education (Degree)</div>
+              <input
+                style={inputStyle}
+                value={personalInfo.education_degree}
+                onChange={(e) => onChangePersonalField('education_degree', e.target.value)}
+                placeholder="e.g., B.S. Computer Science"
+                disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
+              />
+            </div>
+            <div>
+              <div style={labelStyle}>Start Date</div>
+              <input
+                style={inputStyle}
+                value={personalInfo.education_start_date}
+                onChange={(e) => onChangePersonalField('education_start_date', e.target.value)}
+                placeholder="e.g., Aug 2020"
+                disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
+              />
+            </div>
+            <div>
+              <div style={labelStyle}>End Date</div>
+              <input
+                style={inputStyle}
+                value={personalInfo.education_end_date}
+                onChange={(e) => onChangePersonalField('education_end_date', e.target.value)}
+                placeholder="e.g., May 2024"
+                disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
+              />
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div style={labelStyle}>Education (Awards)</div>
+              <input
+                style={inputStyle}
+                value={personalInfo.education_awards}
+                onChange={(e) => onChangePersonalField('education_awards', e.target.value)}
+                placeholder="e.g., Dean's List, Scholarship Name"
                 disabled={loadingPersonalInfo || savingPersonalInfo || removingPersonalInfo}
               />
             </div>
@@ -728,6 +1025,188 @@ const Settings = () => {
               {personalErrorMsg || personalStatusMsg}
             </div>
           )}
+        </div>
+
+        {/* Change Password Card */}
+        <div style={{ ...cardStyles, padding: '24px', marginTop: '20px' }}>
+          <div style={{ marginBottom: '18px' }}>
+            <h2
+              style={{
+                fontSize: '18px',
+                fontWeight: '600',
+                color: '#1a1a1a',
+                margin: '0 0 8px 0',
+              }}
+            >
+              Change Password
+            </h2>
+            <p style={{ fontSize: '14px', color: '#666', margin: 0, lineHeight: 1.5 }}>
+              Update your password to keep your account secure.
+            </p>
+          </div>
+
+          {/* Divider */}
+          <div style={{ height: '1px', backgroundColor: '#e5e5e5', marginBottom: '18px' }} />
+
+          {/* Password Form */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(1, minmax(0, 1fr))',
+              gap: '14px',
+              maxWidth: '500px',
+            }}
+          >
+            <div>
+              <div style={labelStyle}>Current Password</div>
+              <input
+                type="password"
+                style={inputStyle}
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="Enter current password"
+                disabled={changingPassword}
+              />
+            </div>
+
+            <div>
+              <div style={labelStyle}>New Password</div>
+              <input
+                type="password"
+                style={inputStyle}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password (min. 6 characters)"
+                disabled={changingPassword}
+              />
+            </div>
+
+            <div>
+              <div style={labelStyle}>Confirm New Password</div>
+              <input
+                type="password"
+                style={inputStyle}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm new password"
+                disabled={changingPassword}
+              />
+            </div>
+
+            <div style={{ marginTop: '8px' }}>
+              <button
+                type="button"
+                onClick={onChangePassword}
+                disabled={changingPassword}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '12px',
+                  border: 'none',
+                  backgroundColor: '#111827',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  cursor: changingPassword ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  opacity: changingPassword ? 0.6 : 1,
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  if (!changingPassword) {
+                    e.currentTarget.style.backgroundColor = '#1f2937';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#111827';
+                }}
+              >
+                {changingPassword ? 'Changing Password...' : 'Change Password'}
+              </button>
+            </div>
+          </div>
+
+          {(passwordStatusMsg || passwordErrorMsg) && (
+            <div
+              style={{
+                marginTop: '16px',
+                borderRadius: '12px',
+                padding: '12px 14px',
+                border: '1px solid #e5e5e5',
+                backgroundColor: passwordErrorMsg ? '#fff1f2' : '#ecfeff',
+                color: passwordErrorMsg ? '#991b1b' : '#0f766e',
+                fontSize: '13px',
+                lineHeight: 1.4,
+              }}
+            >
+              {passwordErrorMsg || passwordStatusMsg}
+            </div>
+          )}
+        </div>
+
+        {/* Delete Account Card */}
+        <div style={{ ...cardStyles, padding: '24px', marginTop: '20px' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              gap: '16px',
+              flexWrap: 'wrap',
+            }}
+          >
+            <div style={{ flex: 1, minWidth: '260px' }}>
+              <h2
+                style={{
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  color: '#1a1a1a',
+                  margin: '0 0 8px 0',
+                }}
+              >
+                Delete Account
+              </h2>
+
+              <p style={{ fontSize: '14px', color: '#666', margin: 0, lineHeight: 1.5 }}>
+                Permanently delete your account and all associated data, including your
+                projects, analyses, saved resumes, personal info, and consent settings.
+                This action cannot be undone.
+              </p>
+            </div>
+
+            <div>
+              <button
+                type="button"
+                onClick={onClickDeleteAccount}
+                disabled={
+                  deletingAccount ||
+                  loading ||
+                  saving ||
+                  loadingPersonalInfo ||
+                  savingPersonalInfo ||
+                  removingPersonalInfo
+                }
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '12px',
+                  border: '1px solid #e5e5e5',
+                  backgroundColor: '#991b1b',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  cursor:
+                    deletingAccount ||
+                    loading ||
+                    saving ||
+                    loadingPersonalInfo ||
+                    savingPersonalInfo ||
+                    removingPersonalInfo
+                      ? 'not-allowed'
+                      : 'pointer',
+                  minWidth: '170px',
+                }}
+              >
+                {deletingAccount ? 'Deleting…' : 'Delete Account'}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -913,6 +1392,97 @@ const Settings = () => {
         </div>
       )}
       {/* End Remove Personal Info Confirmation Modal */}
+
+      {/* Delete Account Confirmation Modal */}
+      {showDeleteAccountConfirm && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px',
+            zIndex: 9999,
+          }}
+          onClick={onCancelDeleteAccount}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '520px',
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              border: '1px solid #e5e5e5',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+              padding: '18px',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ marginBottom: '12px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#111827' }}>
+                Delete account?
+              </h3>
+              <p
+                style={{
+                  margin: '8px 0 0 0',
+                  fontSize: '14px',
+                  color: '#4b5563',
+                  lineHeight: 1.5,
+                }}
+              >
+                This will permanently delete your account and everything associated with it.
+                This action cannot be undone.
+              </p>
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '10px',
+                marginTop: '16px',
+              }}
+            >
+              <button
+                type="button"
+                onClick={onCancelDeleteAccount}
+                disabled={deletingAccount}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  border: '1px solid #e5e5e5',
+                  backgroundColor: '#ffffff',
+                  color: '#111827',
+                  fontWeight: 600,
+                  cursor: deletingAccount ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={onConfirmDeleteAccount}
+                disabled={deletingAccount}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  border: '1px solid #e5e5e5',
+                  backgroundColor: '#991b1b',
+                  color: '#ffffff',
+                  fontWeight: 600,
+                  cursor: deletingAccount ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {deletingAccount ? 'Deleting…' : 'Yes, delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* End Delete Account Confirmation Modal */}
     </div>
   );
 };

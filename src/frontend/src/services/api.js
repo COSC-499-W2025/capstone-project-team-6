@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance with base configuration
 const api = axios.create({
-  baseURL: 'http://localhost:8000/api',
+  baseURL: '/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -53,6 +53,19 @@ export const authAPI = {
 
   logout: async () => {
     const response = await api.post('/auth/logout');
+    return response.data;
+  },
+
+  changePassword: async (currentPassword, newPassword) => {
+    const response = await api.post('/auth/change-password', {
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+    return response.data;
+  },
+
+  deleteAccount: async () => {
+    const response = await api.delete('/user/account');
     return response.data;
   },
 };
@@ -140,6 +153,11 @@ export const projectsAPI = {
     const response = await api.delete(`/projects/${encodedId}/thumbnail`);
     return response.data;
   },
+
+  getLlmAnalysis: async (projectId) => {
+    const response = await api.get(`/projects/${projectId}/llm-analysis`);
+    return response.data;
+  },
 };
 
 export const portfoliosAPI = {
@@ -150,6 +168,16 @@ export const portfoliosAPI = {
 
   getPortfolioDetail: async (portfolioId) => {
     const response = await api.get(`/portfolios/${portfolioId}`);
+    return response.data;
+  },
+
+  getPortfolioSettings: async () => {
+    const response = await api.get('/portfolio/settings');
+    return response.data;
+  },
+
+  savePortfolioSettings: async (settings) => {
+    const response = await api.post('/portfolio/settings', { settings });
     return response.data;
   },
 
@@ -168,9 +196,35 @@ export const portfoliosAPI = {
     });
     return response.data;
   },
+
+  setVisibility: async (portfolioId, isPublic) => {
+    const response = await api.post(`/portfolios/${portfolioId}/visibility`, {
+      is_public: isPublic,
+    });
+    return response.data;
+  },
+
+  listPublicPortfolios: async (params = {}) => {
+    const response = await api.get('/portfolios/public', { params });
+    return response.data;
+  },
+
+  getPublicPortfolioDetail: async (portfolioId) => {
+    const response = await api.get(`/portfolios/public/${portfolioId}`);
+    return response.data;
+  },
+
+  deletePortfolio: async (portfolioId) => {
+    const response = await api.delete(`/portfolios/${portfolioId}`);
+    return response.data;
+  },
+
+  cleanupEmptyPortfolios: async () => {
+    const response = await api.post('/portfolios/cleanup');
+    return response.data;
+  },
 };
 
-// Resume API calls
 // Resume API calls
 export const resumeAPI = {
   generateResume: async (projectIds, options = {}) => {
@@ -210,6 +264,10 @@ export const resumeAPI = {
     return response.data;
   },
 
+  deleteStoredResume: async (resumeId) => {
+    await api.delete(`/resumes/${resumeId}`);
+  },
+
   addItemsToResume: async (resumeId, resumeItemIds) => {
     const response = await api.post(`/resumes/${resumeId}/items`, {
       resume_item_ids: resumeItemIds,
@@ -231,6 +289,67 @@ export const resumeAPI = {
 
   deletePersonalInfo: async () => {
     const response = await api.delete('/resume/personal-info');
+    return response.data;
+  },
+
+  // Education entries (separate from personal info)
+  listEducation: async () => {
+    const response = await api.get('/resume/education');
+    return response.data;
+  },
+
+  createEducation: async (payload) => {
+    const response = await api.post('/resume/education', payload);
+    return response.data;
+  },
+
+  updateEducation: async (educationId, payload) => {
+    const response = await api.patch(`/resume/education/${educationId}`, payload);
+    return response.data;
+  },
+
+  deleteEducation: async (educationId) => {
+    const response = await api.delete(`/resume/education/${educationId}`);
+    return response.data;
+  },
+
+  // Work experience entries (separate from personal info)
+  listWorkExperience: async () => {
+    const response = await api.get('/resume/work-experience');
+    return response.data;
+  },
+
+  createWorkExperience: async (payload) => {
+    const response = await api.post('/resume/work-experience', payload);
+    return response.data;
+  },
+
+  updateWorkExperience: async (workId, payload) => {
+    const response = await api.patch(`/resume/work-experience/${workId}`, payload);
+    return response.data;
+  },
+
+  deleteWorkExperience: async (workId) => {
+    const response = await api.delete(`/resume/work-experience/${workId}`);
+    return response.data;
+  },
+
+  analyzeJobMatch: async (jobDescription) => {
+    const response = await api.post(
+      '/resume/job-match',
+      { job_description: jobDescription },
+      { timeout: 60000 }
+    );
+    return response.data;
+  },
+
+  listJobMatches: async () => {
+    const response = await api.get('/resume/job-matches');
+    return response.data;
+  },
+
+  deleteJobMatch: async (matchId) => {
+    const response = await api.delete(`/resume/job-matches/${matchId}`);
     return response.data;
   },
 };
@@ -295,18 +414,25 @@ export const curationAPI = {
     return response.data;
   },
 
-  // Save project order
-  saveOrder: async (projectIds) => {
-    const response = await api.post('/curation/order', {
-      project_ids: projectIds,
-    });
-    return response.data;
-  },
-
   // Save highlighted skills (max 10)
   saveSkills: async (skills) => {
     const response = await api.post('/curation/skills', {
       skills: skills,
+    });
+    return response.data;
+  },
+
+  // Get available developer roles
+  getAvailableRoles: async () => {
+    const response = await api.get('/curation/roles');
+    return response.data;
+  },
+
+  // Save curated role for a project
+  saveRole: async (projectId, curatedRole) => {
+    const response = await api.post('/curation/role', {
+      project_id: projectId,
+      curated_role: curatedRole || null,
     });
     return response.data;
   },

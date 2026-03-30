@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock useNavigate
 const mockNavigate = vi.fn();
@@ -28,6 +28,12 @@ vi.mock('../services/api', () => {
       getProjects: vi.fn(),
       getResumeItems: vi.fn(),
       getPortfolioItem: vi.fn(),
+      getLlmAnalysis: vi.fn(),
+      getThumbnail: vi.fn().mockResolvedValue(null),
+    },
+    curationAPI: {
+      getSettings: vi.fn().mockResolvedValue({}),
+      getAvailableRoles: vi.fn().mockResolvedValue([]),
     },
   };
 });
@@ -74,11 +80,13 @@ describe('ProjectsPage', () => {
   });
 
   describe('Loading State', () => {
-    it('displays loading message initially', () => {
+    it('displays loading message initially', async () => {
       projectsAPI.getProjects.mockImplementation(() => new Promise(() => {}));
       renderWithAuth();
-      
-      expect(screen.getByText('Loading projects...')).toBeInTheDocument();
+
+      await waitFor(() => {
+        expect(screen.getByText('Loading projects...')).toBeInTheDocument();
+      });
     });
 
     it('hides loading message after data loads', async () => {
@@ -92,6 +100,14 @@ describe('ProjectsPage', () => {
   });
 
   describe('Error Handling', () => {
+    let restoreConsole;
+    beforeEach(() => {
+      restoreConsole = vi.spyOn(console, 'error').mockImplementation(() => {});
+    });
+    afterEach(() => {
+      restoreConsole.mockRestore();
+    });
+
     it('displays error message when API call fails', async () => {
       const errorMessage = 'Failed to fetch projects';
       projectsAPI.getProjects.mockRejectedValue({
@@ -244,15 +260,19 @@ describe('ProjectsPage', () => {
     it('displays page title', async () => {
       projectsAPI.getProjects.mockResolvedValue([]);
       renderWithAuth();
-      
-      expect(screen.getByText('My Projects')).toBeInTheDocument();
+
+      await waitFor(() => {
+        expect(screen.getByText('My Projects')).toBeInTheDocument();
+      });
     });
 
     it('displays total projects label', async () => {
       projectsAPI.getProjects.mockResolvedValue([]);
       renderWithAuth();
-      
-      expect(screen.getByText('Total Projects')).toBeInTheDocument();
+
+      await waitFor(() => {
+        expect(screen.getByText('Total Projects')).toBeInTheDocument();
+      });
     });
   });
 
@@ -420,6 +440,99 @@ describe('ProjectsPage', () => {
         // Initially shows the project
         expect(screen.getByText('Python Project')).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('Analysis Panel visibility', () => {
+    it('does not render analysis panel for project with analysis_type non_llm', async () => {
+      projectsAPI.getProjects.mockResolvedValue([
+        {
+          id: 1,
+          project_name: 'Non-LLM Project',
+          analysis_type: 'non_llm',
+          primary_language: 'JavaScript',
+          total_files: 10,
+          has_tests: false,
+        },
+      ]);
+      renderWithAuth();
+
+      await waitFor(() => {
+        expect(screen.getByText('Non-LLM Project')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText('Analysis Output')).not.toBeInTheDocument();
+      expect(screen.queryByText('AI Analysis')).not.toBeInTheDocument();
+    });
+
+    it('does not render analysis panel for project with no analysis_type', async () => {
+      projectsAPI.getProjects.mockResolvedValue([
+        {
+          id: 1,
+          project_name: 'No Type Project',
+          primary_language: 'Python',
+          total_files: 5,
+          has_tests: true,
+        },
+      ]);
+      renderWithAuth();
+
+      await waitFor(() => {
+        expect(screen.getByText('No Type Project')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText('Analysis Output')).not.toBeInTheDocument();
+      expect(screen.queryByText('AI Analysis')).not.toBeInTheDocument();
+    });
+
+    it('renders AI Analysis panel for project with analysis_type llm', async () => {
+      projectsAPI.getProjects.mockResolvedValue([
+        {
+          id: 1,
+          project_name: 'LLM Project',
+          analysis_type: 'llm',
+          primary_language: 'TypeScript',
+          total_files: 20,
+          has_tests: true,
+        },
+      ]);
+      renderWithAuth();
+
+      await waitFor(() => {
+        expect(screen.getByText('LLM Project')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('AI Analysis')).toBeInTheDocument();
+    });
+
+    it('renders analysis panel only for llm projects in mixed list', async () => {
+      projectsAPI.getProjects.mockResolvedValue([
+        {
+          id: 1,
+          project_name: 'LLM Project',
+          analysis_type: 'llm',
+          primary_language: 'Go',
+          total_files: 30,
+          has_tests: false,
+        },
+        {
+          id: 2,
+          project_name: 'Non-LLM Project',
+          analysis_type: 'non_llm',
+          primary_language: 'Rust',
+          total_files: 15,
+          has_tests: true,
+        },
+      ]);
+      renderWithAuth();
+
+      await waitFor(() => {
+        expect(screen.getByText('LLM Project')).toBeInTheDocument();
+        expect(screen.getByText('Non-LLM Project')).toBeInTheDocument();
+      });
+
+      expect(screen.getAllByText('AI Analysis')).toHaveLength(1);
+      expect(screen.queryByText('Analysis Output')).not.toBeInTheDocument();
     });
   });
 });
