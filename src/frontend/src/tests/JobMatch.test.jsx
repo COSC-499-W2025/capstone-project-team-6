@@ -12,10 +12,13 @@ vi.mock('../services/api', () => ({
     listJobMatches: vi.fn(),
     deleteJobMatch: vi.fn(),
   },
+  consentAPI: {
+    getConsent: vi.fn(),
+  },
 }));
 
 import JobMatch from '../pages/JobMatch';
-import { resumeAPI } from '../services/api';
+import { resumeAPI, consentAPI } from '../services/api';
 import { NavigationBlockProvider } from '../contexts/NavigationBlockContext';
 
 const MOCK_MATCH = {
@@ -60,6 +63,7 @@ function renderJobMatch() {
 describe('JobMatch', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    consentAPI.getConsent.mockResolvedValue({ has_consented: true });
     resumeAPI.listJobMatches.mockResolvedValue([]);
     resumeAPI.analyzeJobMatch.mockResolvedValue(MOCK_ANALYZE_RESPONSE);
     resumeAPI.deleteJobMatch.mockResolvedValue({ ok: true });
@@ -87,6 +91,16 @@ describe('JobMatch', () => {
 
     expect(await screen.findByText('Overall Match')).toBeInTheDocument();
     expect(screen.getByText('Minimize')).toBeInTheDocument();
+  });
+
+  it('disables Analyze Match when LLM consent is off', async () => {
+    consentAPI.getConsent.mockResolvedValue({ has_consented: false });
+    renderJobMatch();
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Analyze Match/i })).toBeDisabled();
+    });
+    expect(screen.getByText(/Research \/ LLM consent/i)).toBeInTheDocument();
+    expect(resumeAPI.analyzeJobMatch).not.toHaveBeenCalled();
   });
 
   it('runs analyze and shows latest analysis', async () => {

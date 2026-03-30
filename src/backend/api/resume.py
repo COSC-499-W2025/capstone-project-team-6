@@ -28,6 +28,7 @@ from backend.analysis_database import (add_items_to_user_resume,
                                        update_user_work_experience,
                                        upsert_user_personal_info)
 from backend.api.auth import verify_token
+from backend.database import check_user_consent
 
 router = APIRouter(prefix="/api", tags=["Resume"])
 
@@ -266,6 +267,12 @@ def _merge_resume_content(base_content: str, generated_content: str) -> str:
 @router.post("/resume/job-match", response_model=JobMatchResponse)
 async def job_match(request: JobMatchRequest, username: str = Depends(verify_token)):
     """Match a job description against the user's skills, portfolio, and resume bullets."""
+    if not check_user_consent(username):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Consent required for job match. Enable Research / LLM consent in Settings.",
+        )
+
     import json as _json
 
     try:
