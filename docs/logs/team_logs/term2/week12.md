@@ -80,6 +80,10 @@
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/431  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/439
 
+**Issues**
+<img width="1018" height="293" alt="image" src="https://github.com/user-attachments/assets/e771cab6-49a0-4bd9-8c5d-de7031889f27" />
+
+
 ---
 
 ### Aakash Tirithdas (**aakash-tir**)
@@ -103,6 +107,11 @@
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/452  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/441
 
+**Issues**
+
+<img width="1044" height="288" alt="image" src="https://github.com/user-attachments/assets/d615f409-cd75-41e9-8b7f-b0515ef1faed" />
+<img width="688" height="131" alt="image" src="https://github.com/user-attachments/assets/0c9650cc-6dff-4a28-9244-739549e3bfb7" />
+
 ---
 
 ### Mithish Ravisankar Geetha (**MithishR**)
@@ -125,6 +134,10 @@
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/439  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/444  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/443
+
+**Issues**
+<img width="1399" height="444" alt="image" src="https://github.com/user-attachments/assets/85ceb058-4aa7-4e81-bce9-5a92f8342d77" />
+
 
 ---
 
@@ -150,6 +163,10 @@
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/431  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/440
 
+**Issues**
+<img width="1150" height="614" alt="image" src="https://github.com/user-attachments/assets/2a0b5ce0-aa06-4842-a13f-f40725ba12b0" />
+<img width="1303" height="953" alt="image" src="https://github.com/user-attachments/assets/62d26ff0-530c-4f11-8746-7d0d2563ffd2" />
+
 ---
 
 ### Mohamed Sakr (**mgjim101**)
@@ -168,6 +185,10 @@
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/443  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/441
 
+**Issues**
+
+<img width="1087" height="412" alt="image" src="https://github.com/user-attachments/assets/a6e13a2f-3e9f-46bc-8766-5164a28f7302" />
+
 ---
 
 ### Ansh Rastogi (**anshr18**)
@@ -184,6 +205,12 @@
   **Description:** Reviewed Delete project bug fix and Education section for Resume; confirmed project deletion and Education section work correctly end-to-end.  
   **Reviewed PRs:**  
   - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/440
+
+**Issues**
+
+<img width="676" height="400" alt="image" src="https://github.com/user-attachments/assets/3eeb1d77-ba35-4568-b9d1-976a8fd9ae55" />
+<img width="689" height="111" alt="image" src="https://github.com/user-attachments/assets/f4b532a8-b884-475b-a8df-c8b418ee9494" />
+
 
 ---
 
@@ -267,4 +294,5 @@
 
 ## Project Burnup Chart
 
+<img width="1780" height="936" alt="image" src="https://github.com/user-attachments/assets/7d49fa94-e0e0-4b5e-8a18-b876eec54a80" />
 
