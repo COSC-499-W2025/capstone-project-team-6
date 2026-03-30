@@ -84,7 +84,7 @@ FIXED_ZIP_PATH = Path(r"C:/Users/aakas/uni/cosc499/Project13_FreeCodeCamp.zip")
 **Actual behavior:** JavaScript errors during loading states
 
 
-### 6. Inconsistent API Response Handling (UNFIXED)
+### 6. Inconsistent API Response Handling 
 **File:** `src/frontend/src/services/api.js`
 
 **Issue:** Different endpoints return data in different envelope structures
@@ -96,7 +96,7 @@ FIXED_ZIP_PATH = Path(r"C:/Users/aakas/uni/cosc499/Project13_FreeCodeCamp.zip")
 
 **Impact:** Requires complex parsing logic and prone to errors when API changes
 
-### 7. Form Validation Edge Cases (UNFIXED)
+### 7. Form Validation Edge Cases 
 **File:** `src/frontend/src/pages/auth/LoginPage.jsx`
 
 **Issue:** Username/password validation doesn't handle edge cases
@@ -109,5 +109,28 @@ FIXED_ZIP_PATH = Path(r"C:/Users/aakas/uni/cosc499/Project13_FreeCodeCamp.zip")
 
 **Expected behavior:** Consistent validation with clear error messages
 **Actual behavior:** Some edge cases pass validation but fail at server
+
+### 8. Incremental Upload Adds to Portfolio Items Instead of Projects
+**File:** Upload functionality (multiple files involved)
+
+**Issue:** When using incremental upload feature, files are incorrectly added to portfolio items instead of being processed as new projects
+
+**How to reproduce:**
+1. Go to Upload page
+2. Select "Incremental Upload" option
+3. Upload additional files to an existing project
+4. Navigate to Portfolio page
+5. Observe files appear as portfolio items instead of being integrated into the project
+
+**Additional related issue:**
+1. Delete a project from the Projects page
+2. Go to Upload page and select "Incremental Upload"  
+3. The deleted project still appears in the available projects list
+4. This occurs because incremental upload polls available portfolios instead of active projects
+
+**Expected behavior:** Incremental uploads should add files to existing projects and update project analysis. Deleted projects should not appear in the incremental upload options.
+
+**Actual behavior:** Uploaded files are treated as separate portfolio items, and deleted projects remain visible for incremental upload
+
 
 ---
