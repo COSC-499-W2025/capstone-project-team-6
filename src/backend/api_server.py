@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import bcrypt
-from fastapi import (Depends, FastAPI, File, Form, HTTPException, Security,
+from fastapi import (Depends, FastAPI, File, Form, HTTPException, Query, Security,
                      UploadFile, status)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -21,9 +21,14 @@ from backend.analysis_database import (delete_all_projects_for_user,
                                        delete_project_for_user,
                                        get_all_analyses_for_user,
                                        get_analysis_by_uuid,
+                                       get_public_portfolio_detail,
+                                       get_user_portfolio_settings,
                                        get_portfolio_item_for_project,
                                        get_projects_for_user,
-                                       get_resume_items_for_project_id)
+                                       get_resume_items_for_project_id,
+                                       list_public_portfolios,
+                                       set_portfolio_visibility,
+                                       upsert_user_portfolio_settings)
 from backend.analysis_database import init_db as init_analysis_db
 from backend.analysis_database import record_analysis
 # Import routers from modular API structure
@@ -86,6 +91,8 @@ class PortfolioListItem(BaseModel):
     total_projects: int
     analysis_type: str
     project_names: List[str] = Field(default_factory=list)
+    is_public: bool = False
+    published_at: Optional[str] = None
 
 
 class PortfolioDetail(BaseModel):
@@ -117,6 +124,61 @@ class ConsentRequest(BaseModel):
 class ConsentResponse(BaseModel):
     has_consented: bool
     message: str
+
+
+class PortfolioVisibilityRequest(BaseModel):
+    is_public: bool
+
+
+class PortfolioVisibilityResponse(BaseModel):
+    analysis_uuid: str
+    is_public: bool
+    message: str
+
+
+class PublicPortfolioCard(BaseModel):
+    analysis_uuid: str
+    username: str
+    analysis_type: str
+    analysis_timestamp: str
+    published_at: Optional[str] = None
+    total_projects: int
+    project_names: List[str] = Field(default_factory=list)
+    project_types: List[str] = Field(default_factory=list)
+    top_languages: List[str] = Field(default_factory=list)
+    top_skills: List[str] = Field(default_factory=list)
+    has_tests: bool = False
+
+
+class PublicPortfolioListResponse(BaseModel):
+    items: List[PublicPortfolioCard] = Field(default_factory=list)
+    total: int
+    page: int
+    page_size: int
+
+
+class PublicPortfolioDetail(BaseModel):
+    analysis_uuid: str
+    username: str
+    analysis_type: str
+    zip_file: str
+    analysis_timestamp: str
+    published_at: Optional[str] = None
+    total_projects: int
+    projects: List[Dict[str, Any]] = Field(default_factory=list)
+    skills: List[Dict[str, Any]] = Field(default_factory=list)
+    summary: Optional[Dict[str, Any]] = None
+    portfolio_items: List[Dict[str, Any]] = Field(default_factory=list)
+    portfolio_settings: Dict[str, Any] = Field(default_factory=dict)
+    analysis_timestamps: List[str] = Field(default_factory=list)
+
+
+class PortfolioSettingsRequest(BaseModel):
+    settings: Dict[str, Any] = Field(default_factory=dict)
+
+
+class PortfolioSettingsResponse(BaseModel):
+    settings: Dict[str, Any] = Field(default_factory=dict)
 
 
 def create_access_token(username: str) -> str:
@@ -269,9 +331,84 @@ async def list_portfolios(username: str = Depends(verify_token)):
             total_projects=a["total_projects"],
             analysis_type=a["analysis_type"],
             project_names=a.get("project_names", []),
+            is_public=bool(a.get("is_public")),
+            published_at=a.get("published_at"),
         )
         for a in analyses
     ]
+
+
+@app.get("/api/portfolio/settings", response_model=PortfolioSettingsResponse)
+async def get_portfolio_settings(username: str = Depends(verify_token)):
+    return PortfolioSettingsResponse(settings=get_user_portfolio_settings(username))
+
+
+@app.post("/api/portfolio/settings", response_model=PortfolioSettingsResponse)
+async def save_portfolio_settings(
+    request: PortfolioSettingsRequest,
+    username: str = Depends(verify_token),
+):
+    return PortfolioSettingsResponse(
+        settings=upsert_user_portfolio_settings(username, request.settings)
+    )
+
+
+@app.post("/api/portfolios/{portfolio_id}/visibility", response_model=PortfolioVisibilityResponse)
+async def update_portfolio_visibility(
+    portfolio_id: str,
+    request: PortfolioVisibilityRequest,
+    username: str = Depends(verify_token),
+):
+    updated = set_portfolio_visibility(portfolio_id, username, request.is_public)
+    if not updated:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Portfolio {portfolio_id} not found",
+        )
+    return PortfolioVisibilityResponse(
+        analysis_uuid=portfolio_id,
+        is_public=request.is_public,
+        message="Portfolio published successfully" if request.is_public else "Portfolio set to private",
+    )
+
+
+@app.get("/api/portfolios/public", response_model=PublicPortfolioListResponse)
+async def get_public_portfolios(
+    q: Optional[str] = Query(None),
+    username: Optional[str] = Query(None),
+    project_type: Optional[str] = Query(None),
+    language: Optional[str] = Query(None),
+    has_tests: Optional[bool] = Query(None),
+    sort: str = Query("newest"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(12, ge=1, le=50),
+    _: str = Depends(verify_token),
+):
+    payload = list_public_portfolios(
+        q=q,
+        username=username,
+        project_type=project_type,
+        language=language,
+        has_tests=has_tests,
+        sort=sort,
+        page=page,
+        page_size=page_size,
+    )
+    return PublicPortfolioListResponse(**payload)
+
+
+@app.get("/api/portfolios/public/{portfolio_id}", response_model=PublicPortfolioDetail)
+async def get_public_portfolio(
+    portfolio_id: str,
+    _: str = Depends(verify_token),
+):
+    detail = get_public_portfolio_detail(portfolio_id)
+    if not detail:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Public portfolio {portfolio_id} not found",
+        )
+    return PublicPortfolioDetail(**detail)
 
 
 @app.get("/api/portfolios/{portfolio_id}", response_model=PortfolioDetail)

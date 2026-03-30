@@ -25,7 +25,9 @@ vi.mock('../../services/api', () => {
       getPortfolioDetail: vi.fn(),
       getPortfolioSettings: vi.fn(),
       savePortfolioSettings: vi.fn(),
+      setVisibility: vi.fn(),
       deletePortfolio: vi.fn(),
+      cleanupEmptyPortfolios: vi.fn(),
     },
     curationAPI: {
       getSettings: vi.fn().mockResolvedValue({}),
@@ -143,6 +145,7 @@ describe('Portfolio page', () => {
     portfoliosAPI.getPortfolioDetail.mockResolvedValue({});
     portfoliosAPI.getPortfolioSettings.mockResolvedValue({});
     portfoliosAPI.savePortfolioSettings.mockResolvedValue({});
+    portfoliosAPI.setVisibility.mockResolvedValue({ analysis_uuid: 'run-1', is_public: true });
     portfoliosAPI.deletePortfolio.mockResolvedValue({});
     curationAPI.getSettings.mockResolvedValue({});
   });

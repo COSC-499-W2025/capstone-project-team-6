@@ -36,6 +36,11 @@ const Navigation = () => {
       icon: '🎨'
     },
     {
+      label: 'Community',
+      path: '/community',
+      icon: '🌐'
+    },
+    {
       label: 'Resume',
       path: '/resume',
       icon: '📄'
