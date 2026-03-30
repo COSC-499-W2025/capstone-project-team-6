@@ -117,9 +117,7 @@ def test_default_threshold_updates_modest_metadata_change():
         }
     ]
 
-    result = process_incremental_projects(
-        existing, new, change_threshold=DEFAULT_INCREMENTAL_CHANGE_THRESHOLD
-    )
+    result = process_incremental_projects(existing, new, change_threshold=DEFAULT_INCREMENTAL_CHANGE_THRESHOLD)
 
     assert len(result["updated_projects"]) == 1
     assert len(result["skipped_projects"]) == 0

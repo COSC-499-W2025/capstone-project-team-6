@@ -1342,8 +1342,7 @@ def main() -> int:
                                     # Merge with existing results using smart comparison
                                     from .project_comparison import (
                                         DEFAULT_INCREMENTAL_CHANGE_THRESHOLD,
-                                        process_incremental_projects,
-                                    )
+                                        process_incremental_projects)
 
                                     existing_projects = results.get("projects", [])
                                     new_projects = new_results.get("projects", [])

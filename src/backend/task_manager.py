@@ -510,10 +510,8 @@ class TaskManager:
         """Process an incremental upload to existing portfolio."""
         from .analysis_database import get_analysis_by_uuid, get_connection
         from .cli import analyze_folder
-        from .project_comparison import (
-            DEFAULT_INCREMENTAL_CHANGE_THRESHOLD,
-            process_incremental_projects,
-        )
+        from .project_comparison import (DEFAULT_INCREMENTAL_CHANGE_THRESHOLD,
+                                         process_incremental_projects)
 
         # Get existing portfolio
         existing_portfolio = get_analysis_by_uuid(task.portfolio_id, task.username)
