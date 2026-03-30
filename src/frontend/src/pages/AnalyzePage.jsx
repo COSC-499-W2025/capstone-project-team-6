@@ -436,7 +436,7 @@ export default function AnalyzePage() {
 
           {isFailed && (
             <button
-              onClick={() => taskIdsFromNav && beginPolling(taskIdsFromNav)}
+              onClick={() => navigate("/upload")}
               style={{
                 padding: "10px 20px",
                 backgroundColor: "#fef2f2",
@@ -455,7 +455,7 @@ export default function AnalyzePage() {
                 e.currentTarget.style.backgroundColor = "#fef2f2";
               }}
             >
-              ↻ Retry
+              ↻ Try Again
             </button>
           )}
         </div>
