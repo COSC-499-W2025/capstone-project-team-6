@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { BrowserRouter, MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -387,6 +388,105 @@ describe('AnalyzePage', () => {
       await waitFor(() => {
         expect(screen.getByText(/50%/)).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('Retry button', () => {
+    it('shows "Try Again" button when analysis fails', async () => {
+      getTaskStatus.mockResolvedValue({
+        status: 'failed',
+        error: 'Something went wrong',
+      });
+      renderWithState();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Try Again/i })).toBeInTheDocument();
+      });
+    });
+
+    it('does not show "Try Again" button while analysis is running', async () => {
+      getTaskStatus.mockResolvedValue({ status: 'running', progress: 50 });
+      renderWithState();
+
+      await waitFor(() => {
+        expect(getTaskStatus).toHaveBeenCalled();
+      });
+      expect(screen.queryByRole('button', { name: /Try Again/i })).not.toBeInTheDocument();
+    });
+
+    it('does not show "Try Again" button when analysis succeeds', async () => {
+      getTaskStatus.mockResolvedValue({
+        status: 'completed',
+        progress: 100,
+        result: { analysis_uuid: 'uuid-1' },
+      });
+      renderWithState();
+
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith('/projects');
+      });
+      expect(screen.queryByRole('button', { name: /Try Again/i })).not.toBeInTheDocument();
+    });
+
+    it('navigates to /upload when "Try Again" is clicked', async () => {
+      getTaskStatus.mockResolvedValue({
+        status: 'failed',
+        error: 'Analysis failed: timeout',
+      });
+      renderWithState();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Try Again/i })).toBeInTheDocument();
+      });
+
+      await userEvent.click(screen.getByRole('button', { name: /Try Again/i }));
+
+      expect(mockNavigate).toHaveBeenCalledWith('/upload');
+    });
+
+    it('does not trigger additional getTaskStatus calls when "Try Again" is clicked', async () => {
+      getTaskStatus.mockResolvedValue({
+        status: 'failed',
+        error: 'Analysis failed',
+      });
+      renderWithState();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Try Again/i })).toBeInTheDocument();
+      });
+
+      const callsBefore = getTaskStatus.mock.calls.length;
+      await userEvent.click(screen.getByRole('button', { name: /Try Again/i }));
+
+      expect(getTaskStatus.mock.calls.length).toBe(callsBefore);
+    });
+
+    it('shows "Try Again" button when all tasks in a multi-task run fail', async () => {
+      getTaskStatus.mockResolvedValue({
+        status: 'failed',
+        error: 'All analyses failed',
+      });
+      renderWithTaskIds(['task-1', 'task-2']);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Try Again/i })).toBeInTheDocument();
+      });
+    });
+
+    it('navigates to /upload when "Try Again" is clicked after a multi-task failure', async () => {
+      getTaskStatus.mockResolvedValue({
+        status: 'failed',
+        error: 'All analyses failed',
+      });
+      renderWithTaskIds(['task-1', 'task-2']);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Try Again/i })).toBeInTheDocument();
+      });
+
+      await userEvent.click(screen.getByRole('button', { name: /Try Again/i }));
+
+      expect(mockNavigate).toHaveBeenCalledWith('/upload');
     });
   });
 });
