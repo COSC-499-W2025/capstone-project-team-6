@@ -113,14 +113,14 @@ FIXED_ZIP_PATH = Path(r"C:/Users/aakas/uni/cosc499/Project13_FreeCodeCamp.zip")
 ### 8. Incremental Upload Adds to Portfolio Items Instead of Projects
 **File:** Upload functionality (multiple files involved)
 
-**Issue:** When using incremental upload feature, files are incorrectly added to portfolio items instead of being processed as new projects
+**Issue:** When using incremental upload feature, files are incorrectly added to existing portfolio items instead of being processed as part of a project
 
 **How to reproduce:**
 1. Go to Upload page
 2. Select "Incremental Upload" option
 3. Upload additional files to an existing project
 4. Navigate to Portfolio page
-5. Observe files appear as portfolio items instead of being integrated into the project
+5. Observe files appear as part of portfolio items instead of being integrated into the project
 
 **Additional related issue:**
 1. Delete a project from the Projects page
