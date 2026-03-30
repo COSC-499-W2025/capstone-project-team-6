@@ -272,6 +272,7 @@ No major blockers this week
 - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/492
 - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/464
 - https://github.com/COSC-499-W2025/capstone-project-team-6/pull/458
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/501
 
 ## Plan for next week
 
