@@ -142,5 +142,76 @@ If I have time, I also want to improve the existing feature that lets users upda
 
 # Mohamed Sakr
 
+![Mithish Week 10](../term2/mohamedt2w12.png)
+
+## Date Range
+March 16 - 29
+
+## Goals for this week (planned last sprint)
+
+- Finalize Milestone 3 core requirements, including analysis bugs and documentation.
+- Fix Bugs with LLM analysis
+- Construction of a Fully Autonomous Job Application AI Agent
+
+
+## What went well
+
+Successfuly fixed issues related to retrying analysis in the event of failure. Prior, when an analysis fails, the retry button us not functional. Now the button restarts the analysis project. Also, we were able to fix all bugs with LLM analysis.
+
+
+## Coding tasks
+
+- **Gate LLM execution on explicit user opt-in** (`task_manager.py`): Add a condition so LLM analysis only runs when both user consent is present **and** `analysis_type == "llm"`, preventing LLM from running for consented users who didn't check the LLM checkbox.
+
+- **Expose `analysis_type` through the projects API** (`curation.py` + `ProjectsPage.jsx`): Include `analysis_type` in the `GET /api/projects` SQL query response, then conditionally render `LlmAnalysisPanel` in the frontend only when `p.analysis_type === 'llm'`.
+
+- **Fix loading screen phase messaging and upload state passing** (`AnalyzePage.jsx` + `Upload.jsx`): Update phase message logic to check both `analysisPhase` and `analysisType` so the correct label ("LLM" vs "Non-LLM") always displays, and ensure `effectiveAnalysisType` is consistently passed via navigation state and `sessionStorage` for multi-file uploads.
+
+- Fix "Retry" button to navigate to /upload instead of re-polling (AnalyzePage.jsx): Replace the beginPolling() call with a navigation to /upload, since failed tasks are in a terminal backend state and cannot be restarted — and rename the button label from "Retry" to "Try Again" to accurately reflect the behavior.
+
+- Document/stub the non-functional reanalyze endpoint (portfolios.py or equivalent): Note that /api/analysis/portfolios/{id}/reanalyze remains 501 Not Implemented and does not retain original files, so re-upload is the only valid recovery path until a true restart mechanism is built.
+
+- • **Build `applypilot`, a 6-stage autonomous job application CLI** (`cli.py`, `pipeline.py`, `discovery/`, `llm.py`, `database.py`, `scoring/validator.py`, `apply/launcher.py`, `config.py`): Implement the full pipeline — scraping 80+ job sources, enriching descriptions via a 3-tier cascade, LLM scoring against a user profile, per-job resume/cover letter tailoring with fabrication detection, and Claude Code + Playwright MCP-driven form submission — orchestrated via Typer CLI with SQLite-backed resumable state, a live Rich dashboard, and a dependency-gated tier system.
+
+**IMPORTANT: The AI agent feature was an experimentation. The agent is full functional (tested by applying to 200+ jobs in 2 days). Yet due to time constraint, we were not able to integrate it into the complete application. All that's left is include it in the frontend and connect API endpoints. The PR is open if needed for future development.**
+
+## Testing or debugging tasks
+- Verified that the retry button works for all types of failed analysis.
+- Verified that llm analysis only runs when consented and selected per project
+
+
+## Document tasks
+- **Milestone 3 Documentation:** Projects page. 
+
+## Reviewing or collaboration tasks
+
+- Approved PR moving logout button into the shared Navigation component (accessible from any page), removing redundant logout logic from `Dashboard.jsx`.
+- Approved PR fixing account deletion in Docker by splitting the `delete_user_account` function to use separate DB connections for `analysis.db` (analyses, uploads, user_profile, user_resumes) and `myapp.db` (users, user_consent), resolving a `no such table` error caused by the two databases being at different paths in Docker but the same path locally.
+- Approved PR improving the Curate page UX: clearer language, renamed "Comparison Attributes" to "Project Comparison Fields", added guidance text and a "Go to Portfolio" shortcut, removed the confusing Project Order section, and cleaned up Portfolio comparison table behavior.
+- Approved PR adding a frontend test report to the docs folder.
+- Approved PR updating architecture and data flow diagrams.
+
+## Issues / Blockers
+
+No major blockers this week
+
+## PR's initiated
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/506
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/498
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/474 (**IMPORTANT: The AI agent feature was an experimentation. The agent is full functional (tested by applying to 200+ jobs in 2 days). Yet due to time constraint, we were not able to integrate it into the complete application. All that's left is include it in the frontend and connect API endpoints. The PR is open if needed for future development.**)
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/470
+
+## PR's reviewed
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/496
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/495
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/492
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/464
+- https://github.com/COSC-499-W2025/capstone-project-team-6/pull/458
+
+## Plan for next week
+
+- Fix any other bugs found during testing
+- Milestone complete.
+
 # Ansh Rastogi
 
