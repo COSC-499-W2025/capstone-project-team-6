@@ -45,7 +45,7 @@ const ConsentPage = () => {
           color: '#666',
           margin: 0
         }}>
-          Mining Digital Work Artifacts
+          Blume
         </p>
       </div>
 

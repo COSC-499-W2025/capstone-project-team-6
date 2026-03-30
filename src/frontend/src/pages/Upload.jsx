@@ -713,40 +713,7 @@ const Upload = () => {
                 />
               </div>
 
-              {/* Description */}
-              <div style={{ marginBottom: '24px' }}>
-                <label style={{
-                  display: 'block',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  color: '#1a1a1a',
-                  marginBottom: '8px',
-                }}>
-                  Description (Optional)
-                </label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Describe your project..."
-                  rows={3}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    border: '1px solid #e5e5e5',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    color: '#1a1a1a',
-                    backgroundColor: '#fafafa',
-                    outline: 'none',
-                    transition: 'border-color 0.2s ease',
-                    boxSizing: 'border-box',
-                    resize: 'vertical',
-                    fontFamily: 'inherit',
-                  }}
-                  onFocus={(e) => e.target.style.borderColor = '#1a1a1a'}
-                  onBlur={(e) => e.target.style.borderColor = '#e5e5e5'}
-                />
-              </div>
+             
 
               {/* AI-enhanced analysis (requires consent) */}
               <div style={{ marginBottom: '24px' }}>

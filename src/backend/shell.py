@@ -13,7 +13,7 @@ from .traversal import Folder_traversal_fs
 class MDAShell(cmd.Cmd):
     intro = """
 ============================================================
-Welcome to Mining Digital Artifacts CLI - Interactive Mode
+Welcome to Blume CLI - Interactive Mode
 Type 'help' or '?' to list commands.
 Type 'exit' to quit.
 ============================================================
