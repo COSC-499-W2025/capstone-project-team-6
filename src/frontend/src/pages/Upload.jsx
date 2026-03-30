@@ -8,6 +8,42 @@ import { consentAPI, portfoliosAPI } from '../services/api';
 const MAX_FILE_SIZE_MB = 500;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
+/** Incremental upload: show project name(s) first, then date, analysis type, and count (matches Portfolio page intent). */
+const formatIncrementalPortfolioOptionLabel = (portfolio) => {
+  const projectNames = Array.isArray(portfolio.project_names)
+    ? portfolio.project_names.filter(Boolean)
+    : [];
+
+  let primaryLabel;
+  if (projectNames.length === 0) {
+    const base = (portfolio.zip_file || '').replace(/\\/g, '/').split('/').pop() || '';
+    primaryLabel = base.replace(/\.zip$/i, '') || 'Unnamed project';
+  } else if (projectNames.length === 1) {
+    primaryLabel = projectNames[0];
+  } else if (projectNames.length <= 3) {
+    primaryLabel = projectNames.join(', ');
+  } else {
+    primaryLabel = `${projectNames.slice(0, 2).join(', ')} + ${projectNames.length - 2} more`;
+  }
+
+  const date = new Date(portfolio.analysis_timestamp);
+  const dateTimeStr = Number.isNaN(date.getTime())
+    ? (portfolio.analysis_timestamp || '—')
+    : date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+
+  const typeStr = (portfolio.analysis_type || '').toUpperCase() || '—';
+  const n = portfolio.total_projects ?? 0;
+  const projectsStr = `${n} project${n !== 1 ? 's' : ''}`;
+
+  return `${primaryLabel} — ${dateTimeStr} · ${typeStr} · ${projectsStr}`;
+};
+
 const Upload = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -86,8 +122,8 @@ const Upload = () => {
       // API returns array directly, not wrapped in object
       setPortfolios(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error('Error loading portfolios:', err);
-      setError('Failed to load portfolios');
+      console.error('Error loading projects for incremental upload:', err);
+      setError('Failed to load projects');
     } finally {
       setLoadingPortfolios(false);
     }
@@ -274,7 +310,7 @@ const Upload = () => {
 
     if (activeTab === 'incremental') {
       if (!selectedPortfolio) {
-        setError('Please select a portfolio to add to');
+        setError('Please select a project to add to');
         return;
       }
       if (!incrementalFile) {
@@ -385,7 +421,7 @@ const Upload = () => {
         }
         multipleSkippedDuplicates = duplicates;
       } else if (activeTab === 'incremental') {
-        // Upload to existing portfolio
+        // Upload to existing analysis (selected project)
         const response = await portfoliosAPI.addToPortfolio(selectedPortfolio, incrementalFile);
         
         // Poll for task completion and show results
@@ -795,18 +831,18 @@ const Upload = () => {
                   color: '#1a1a1a',
                   margin: '0 0 4px 0',
                 }}>
-                  Add to Existing Portfolio
+                  Add to Existing Project
                 </h2>
                 <p style={{
                   fontSize: '14px',
                   color: '#737373',
                   margin: 0,
                 }}>
-                  Upload additional projects to an existing portfolio
+                  Upload additional projects to an existing project
                 </p>
               </div>
 
-              {/* Portfolio Selector */}
+              {/* Project selector (existing analysis to extend) */}
               <div style={{ marginBottom: '24px' }}>
                 <label style={{
                   display: 'block',
@@ -815,7 +851,7 @@ const Upload = () => {
                   color: '#1a1a1a',
                   marginBottom: '8px',
                 }}>
-                  Select Portfolio
+                  Select Project
                 </label>
                 {loadingPortfolios ? (
                   <div style={{
@@ -825,7 +861,7 @@ const Upload = () => {
                     fontSize: '14px',
                     color: '#737373',
                   }}>
-                    Loading portfolios...
+                    Loading projects...
                   </div>
                 ) : portfolios.length === 0 ? (
                   <div style={{
@@ -836,7 +872,7 @@ const Upload = () => {
                     fontSize: '14px',
                     color: '#dc2626',
                   }}>
-                    No portfolios found. Please create a portfolio first by uploading a project.
+                    No projects found. Please create a project first by uploading one.
                   </div>
                 ) : (
                   <select
@@ -858,18 +894,12 @@ const Upload = () => {
                     onFocus={(e) => e.target.style.borderColor = '#1a1a1a'}
                     onBlur={(e) => e.target.style.borderColor = '#e5e5e5'}
                   >
-                    <option value="">-- Select a portfolio --</option>
-                    {portfolios.map((portfolio) => {
-                      const date = new Date(portfolio.analysis_timestamp);
-                      const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                      const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-                      const displayName = `${portfolio.analysis_type.toUpperCase()} - ${dateStr} at ${timeStr}`;
-                      return (
-                        <option key={portfolio.analysis_uuid} value={portfolio.analysis_uuid}>
-                          {displayName} ({portfolio.total_projects} project{portfolio.total_projects !== 1 ? 's' : ''})
-                        </option>
-                      );
-                    })}
+                    <option value="">-- Select a project --</option>
+                    {portfolios.map((portfolio) => (
+                      <option key={portfolio.analysis_uuid} value={portfolio.analysis_uuid}>
+                        {formatIncrementalPortfolioOptionLabel(portfolio)}
+                      </option>
+                    ))}
                   </select>
                 )}
               </div>
@@ -1180,7 +1210,7 @@ const Upload = () => {
               ? (uploadProgress.total > 1 ? `Uploading ${uploadProgress.current}/${uploadProgress.total}...` : 'Uploading...')
               : hasDuplicates 
                 ? 'Remove Duplicates to Continue'
-                : (activeTab === 'incremental' ? 'Add to Portfolio' : activeTab === 'single' ? 'Analyze Project' : 'Analyze Projects')}
+                : (activeTab === 'incremental' ? 'Add to Project' : activeTab === 'single' ? 'Analyze Project' : 'Analyze Projects')}
           </button>
         </div>
       </div>
@@ -1214,7 +1244,7 @@ const Upload = () => {
               marginTop: 0,
               marginBottom: '16px',
             }}>
-              {incrementalResults.completed ? 'Portfolio Updated' : 'Upload Processing'}
+              {incrementalResults.completed ? 'Project Updated' : 'Upload Processing'}
             </h2>
             
             {incrementalResults.completed && incrementalResults.details ? (
@@ -1227,7 +1257,7 @@ const Upload = () => {
                   marginBottom: '24px',
                 }}>
                   <p style={{ fontSize: '14px', color: '#15803d', margin: 0, fontWeight: '500' }}>
-                    Successfully updated portfolio!
+                    Successfully updated project!
                   </p>
                 </div>
 
@@ -1319,12 +1349,12 @@ const Upload = () => {
                   marginBottom: '24px',
                 }}>
                   <p style={{ fontSize: '14px', color: '#737373', margin: '0 0 8px 0' }}>
-                    Your portfolio is being updated in the background. The system will:
+                    Your project is being updated in the background. The system will:
                   </p>
                   <ul style={{ fontSize: '14px', color: '#1a1a1a', margin: 0, paddingLeft: '20px' }}>
                     <li style={{ marginBottom: '4px' }}>Add new projects found in the ZIP file</li>
-                    <li style={{ marginBottom: '4px' }}>Update existing projects if changes exceed 30%</li>
-                    <li style={{ marginBottom: '4px' }}>Skip projects with minor changes (less than 30%)</li>
+                    <li style={{ marginBottom: '4px' }}>Update existing projects if changes exceed about 5%</li>
+                    <li style={{ marginBottom: '4px' }}>Skip projects with smaller detected changes (about 5% or less)</li>
                   </ul>
                 </div>
               </>

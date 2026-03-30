@@ -510,7 +510,10 @@ class TaskManager:
         """Process an incremental upload to existing portfolio."""
         from .analysis_database import get_analysis_by_uuid, get_connection
         from .cli import analyze_folder
-        from .project_comparison import process_incremental_projects
+        from .project_comparison import (
+            DEFAULT_INCREMENTAL_CHANGE_THRESHOLD,
+            process_incremental_projects,
+        )
 
         # Get existing portfolio
         existing_portfolio = get_analysis_by_uuid(task.portfolio_id, task.username)
@@ -531,13 +534,14 @@ class TaskManager:
 
         task.progress = 60
 
-        # Process projects: add new, update existing with >50% change
+        # Process projects: add new, update existing when change > threshold (~5%)
         existing_projects = existing_portfolio.get("projects", [])
         new_projects = new_analysis.get("projects", [])
 
-        # Use utility function to process incremental projects
         result = process_incremental_projects(
-            existing_projects=existing_projects, new_projects=new_projects, change_threshold=30.0
+            existing_projects=existing_projects,
+            new_projects=new_projects,
+            change_threshold=DEFAULT_INCREMENTAL_CHANGE_THRESHOLD,
         )
 
         merged_projects = result["merged_projects"]
