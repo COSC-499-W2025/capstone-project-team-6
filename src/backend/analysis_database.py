@@ -15,6 +15,30 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 logger = logging.getLogger(__name__)
 
 VALID_ANALYSIS_TYPES = {"llm", "non_llm"}
+DEFAULT_PORTFOLIO_SETTINGS: Dict[str, Any] = {
+    "showHeatmap": True,
+    "showSkills": True,
+    "showProjectDetails": True,
+    "showPortfolioItems": True,
+    "showProjects": True,
+    "showProfileSummary": True,
+    "skillsDisplayLimit": 10,
+    "projectDisplayMode": "full",
+    "heatmapTimeRange": "auto",
+    "theme": "default",
+    "shareAllProjects": True,
+    "publicProjectKeys": [],
+}
+
+
+def _normalize_project_share_key(value: Any) -> str:
+    return str(value or "").strip().lower()
+
+
+def build_public_project_key(project: Dict[str, Any]) -> str:
+    name = _normalize_project_share_key(project.get("project_name") or project.get("name"))
+    path = _normalize_project_share_key(project.get("project_path"))
+    return f"{name}::{path}"
 
 
 def _default_db_path() -> Path:
@@ -120,6 +144,17 @@ def init_db() -> None:
             """
         )
 
+        # Per-user portfolio presentation settings (used by private preview and public view)
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_portfolio_settings (
+                username TEXT PRIMARY KEY REFERENCES users(username) ON DELETE CASCADE,
+                settings_json TEXT NOT NULL,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS uploads (
@@ -152,6 +187,8 @@ def init_db() -> None:
                 summary_frameworks TEXT,
                 llm_summary TEXT,
                 username TEXT REFERENCES users(username),
+                is_public INTEGER NOT NULL DEFAULT 0 CHECK(is_public IN (0, 1)),
+                published_at TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
             """
@@ -176,9 +213,21 @@ def init_db() -> None:
         if "llm_error" not in existing_columns:
             conn.execute("ALTER TABLE analyses ADD COLUMN llm_error TEXT;")
             conn.commit()
+        existing_columns = {row["name"] for row in conn.execute("PRAGMA table_info(analyses)")}
+        if "is_public" not in existing_columns:
+            conn.execute("ALTER TABLE analyses ADD COLUMN is_public INTEGER NOT NULL DEFAULT 0 CHECK(is_public IN (0, 1));")
+            conn.commit()
+        existing_columns = {row["name"] for row in conn.execute("PRAGMA table_info(analyses)")}
+        if "published_at" not in existing_columns:
+            conn.execute("ALTER TABLE analyses ADD COLUMN published_at TEXT;")
+            conn.commit()
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_analyses_hash_user "
             "ON analyses (zip_file_hash, username) WHERE zip_file_hash IS NOT NULL;"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_analyses_public_published "
+            "ON analyses (is_public, published_at DESC);"
         )
 
         conn.execute(
@@ -1952,7 +2001,7 @@ def get_all_analyses_for_user(username: str) -> List[Dict[str, Any]]:
         rows = conn.execute(
             """
             SELECT analysis_uuid, analysis_type, zip_file, analysis_timestamp, 
-                   total_projects, raw_json
+                   total_projects, raw_json, is_public, published_at
             FROM analyses 
             WHERE username = ?
             ORDER BY created_at DESC
@@ -1986,10 +2035,535 @@ def get_all_analyses_for_user(username: str) -> List[Dict[str, Any]]:
                     "analysis_timestamp": row["analysis_timestamp"],
                     "total_projects": row["total_projects"],
                     "project_names": project_names,
+                    "is_public": bool(row["is_public"]),
+                    "published_at": row["published_at"],
                 }
             )
 
         return payloads
+
+
+def get_user_portfolio_settings(username: str) -> Dict[str, Any]:
+    """Get persisted portfolio settings for a user, merged with defaults."""
+    if not username:
+        return dict(DEFAULT_PORTFOLIO_SETTINGS)
+
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT settings_json
+            FROM user_portfolio_settings
+            WHERE username = ?
+            """,
+            (username,),
+        ).fetchone()
+
+    if not row or not row["settings_json"]:
+        return dict(DEFAULT_PORTFOLIO_SETTINGS)
+
+    try:
+        parsed = json.loads(row["settings_json"])
+    except json.JSONDecodeError:
+        parsed = {}
+
+    if not isinstance(parsed, dict):
+        parsed = {}
+
+    merged = dict(DEFAULT_PORTFOLIO_SETTINGS)
+    merged.update(parsed)
+    return merged
+
+
+def upsert_user_portfolio_settings(username: str, settings: Dict[str, Any]) -> Dict[str, Any]:
+    """Save portfolio settings for a user and return the merged payload."""
+    if not username:
+        raise ValueError("username is required")
+
+    merged = dict(DEFAULT_PORTFOLIO_SETTINGS)
+    if isinstance(settings, dict):
+        merged.update(settings)
+
+    with get_connection() as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+        conn.execute("INSERT OR IGNORE INTO users (username) VALUES (?)", (username,))
+        conn.execute(
+            """
+            INSERT INTO user_portfolio_settings (username, settings_json)
+            VALUES (?, ?)
+            ON CONFLICT(username) DO UPDATE SET
+                settings_json = excluded.settings_json,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (username, json.dumps(merged, separators=(",", ":"))),
+        )
+        conn.commit()
+
+    return merged
+
+
+def set_portfolio_visibility(analysis_uuid: str, username: str, is_public: bool) -> bool:
+    """
+    Toggle public visibility for one portfolio.
+
+    If publishing, unpublish any other public portfolio for the same user to keep a single
+    active public portfolio per user.
+    """
+    with get_connection() as conn:
+        owned = conn.execute(
+            "SELECT id FROM analyses WHERE analysis_uuid = ? AND username = ?",
+            (analysis_uuid, username),
+        ).fetchone()
+        if not owned:
+            return False
+
+        now_iso = datetime.now().isoformat()
+        if is_public:
+            conn.execute(
+                """
+                UPDATE analyses
+                SET is_public = 0, published_at = NULL
+                WHERE username = ? AND analysis_uuid != ?
+                """,
+                (username, analysis_uuid),
+            )
+            conn.execute(
+                """
+                UPDATE analyses
+                SET is_public = 1, published_at = ?
+                WHERE analysis_uuid = ? AND username = ?
+                """,
+                (now_iso, analysis_uuid, username),
+            )
+        else:
+            conn.execute(
+                """
+                UPDATE analyses
+                SET is_public = 0, published_at = NULL
+                WHERE analysis_uuid = ? AND username = ?
+                """,
+                (analysis_uuid, username),
+            )
+        conn.commit()
+        return True
+
+
+def _extract_public_portfolio_card(row: sqlite3.Row, portfolio_settings: Dict[str, Any]) -> Dict[str, Any]:
+    projects = row.get("aggregated_projects", []) if isinstance(row, dict) else []
+    skills = row.get("aggregated_skills", []) if isinstance(row, dict) else []
+
+    project_names: List[str] = []
+    project_types: List[str] = []
+    top_languages: List[str] = []
+    has_tests = False
+    language_set = set()
+    project_type_set = set()
+
+    if isinstance(projects, list) and portfolio_settings.get("showProjects", True):
+        for project in projects:
+            if not isinstance(project, dict):
+                continue
+            name = project.get("project_name") or project.get("name")
+            if isinstance(name, str) and name.strip():
+                project_names.append(name.strip())
+
+            role = project.get("curated_role") or project.get("predicted_role")
+            if isinstance(role, str) and role.strip():
+                normalized = role.strip()
+                if normalized not in project_type_set:
+                    project_type_set.add(normalized)
+                    project_types.append(normalized)
+
+            lang = project.get("primary_language")
+            if isinstance(lang, str) and lang.strip():
+                normalized_lang = lang.strip()
+                if normalized_lang not in language_set:
+                    language_set.add(normalized_lang)
+                    top_languages.append(normalized_lang)
+
+            if bool(project.get("has_tests")):
+                has_tests = True
+
+    top_skills: List[str] = []
+    if isinstance(skills, list) and portfolio_settings.get("showSkills", True):
+        for skill in skills:
+            if isinstance(skill, dict):
+                name = skill.get("skill") or skill.get("name")
+            else:
+                name = skill
+            if isinstance(name, str) and name.strip():
+                top_skills.append(name.strip())
+            if len(top_skills) >= 8:
+                break
+
+    return {
+        "analysis_uuid": row["analysis_uuid"],
+        "username": row["username"],
+        "analysis_type": row["analysis_type"],
+        "analysis_timestamp": row["analysis_timestamp"],
+        "published_at": row["published_at"],
+        "total_projects": row.get("aggregated_total_projects", row["total_projects"]) if isinstance(row, dict) else row["total_projects"],
+        "project_names": project_names[:8],
+        "project_types": project_types[:8],
+        "top_languages": top_languages[:8],
+        "top_skills": top_skills,
+        "has_tests": has_tests,
+    }
+
+
+def _selected_project_keys_from_settings(portfolio_settings: Dict[str, Any]) -> Optional[set]:
+    if portfolio_settings.get("shareAllProjects", True):
+        return None
+    raw_keys = portfolio_settings.get("publicProjectKeys")
+    if not isinstance(raw_keys, list):
+        return set()
+    return {
+        _normalize_project_share_key(k)
+        for k in raw_keys
+        if isinstance(k, str) and k.strip()
+    }
+
+
+def _derive_skills_from_items(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    counts: Dict[str, int] = {}
+    for item in items:
+        raw = item.get("skills_exercised")
+        if isinstance(raw, list):
+            skills = raw
+        elif isinstance(raw, str):
+            skills = [s.strip() for s in raw.split(",")]
+        else:
+            skills = []
+        for skill in skills:
+            if not isinstance(skill, str) or not skill.strip():
+                continue
+            key = skill.strip()
+            counts[key] = counts.get(key, 0) + 1
+    return [
+        {"skill": name, "count": count}
+        for name, count in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0].lower()))
+    ]
+
+
+def _filter_aggregate_for_settings(aggregate: Dict[str, Any], portfolio_settings: Dict[str, Any]) -> Dict[str, Any]:
+    selected = _selected_project_keys_from_settings(portfolio_settings)
+    if selected is None:
+        return aggregate
+
+    all_projects = aggregate.get("projects", [])
+    projects = [
+        p for p in all_projects
+        if _normalize_project_share_key(p.get("public_project_key")) in selected
+    ]
+
+    # If settings reference stale keys that match nothing, fall back to all
+    if not projects and all_projects:
+        return aggregate
+
+    shared_names = {
+        _normalize_project_share_key(p.get("project_name") or p.get("name"))
+        for p in projects
+    }
+    portfolio_items = [
+        item for item in aggregate.get("portfolio_items", [])
+        if _normalize_project_share_key(item.get("project_name")) in shared_names
+    ]
+    skills = _derive_skills_from_items(portfolio_items)
+
+    return {
+        **aggregate,
+        "projects": projects,
+        "portfolio_items": portfolio_items,
+        "skills": skills,
+        "total_projects": len(projects),
+    }
+
+
+def _aggregate_user_public_portfolio(conn: sqlite3.Connection, username: str) -> Dict[str, Any]:
+    rows = conn.execute(
+        """
+        SELECT analysis_uuid, analysis_timestamp, raw_json
+        FROM analyses
+        WHERE username = ?
+        ORDER BY created_at DESC
+        """,
+        (username,),
+    ).fetchall()
+
+    db_project_rows = conn.execute(
+        """
+        SELECT p.*, a.analysis_uuid
+        FROM projects p
+        JOIN analyses a ON a.id = p.analysis_id
+        WHERE a.username = ?
+        ORDER BY p.id DESC
+        """,
+        (username,),
+    ).fetchall()
+
+    project_seen: set = set()
+    projects: List[Dict[str, Any]] = []
+    skill_counts: Dict[str, int] = {}
+    analysis_timestamps: List[str] = []
+    portfolio_items: List[Dict[str, Any]] = []
+
+    for db_proj in db_project_rows:
+        proj = dict(db_proj)
+        share_key = build_public_project_key(proj)
+        if share_key in project_seen:
+            continue
+        project_seen.add(share_key)
+        proj["public_project_key"] = share_key
+        projects.append(proj)
+
+    for row in rows:
+        if row["analysis_timestamp"]:
+            analysis_timestamps.append(row["analysis_timestamp"])
+        raw_json = row["raw_json"]
+        parsed = {}
+        if raw_json:
+            try:
+                maybe = json.loads(raw_json)
+                if isinstance(maybe, dict):
+                    parsed = maybe
+            except json.JSONDecodeError:
+                parsed = {}
+
+        for skill in parsed.get("skills", []) if isinstance(parsed.get("skills"), list) else []:
+            if isinstance(skill, dict):
+                skill_name = skill.get("skill") or skill.get("name")
+                skill_count = skill.get("count") or 1
+            else:
+                skill_name = skill
+                skill_count = 1
+            if not isinstance(skill_name, str) or not skill_name.strip():
+                continue
+            normalized = skill_name.strip()
+            try:
+                as_int = int(skill_count)
+            except Exception:
+                as_int = 1
+            skill_counts[normalized] = skill_counts.get(normalized, 0) + max(as_int, 1)
+
+        try:
+            portfolio_items.extend(get_portfolio_items_for_analysis(row["analysis_uuid"], username))
+        except Exception:
+            continue
+
+    skills = [
+        {"skill": name, "count": count}
+        for name, count in sorted(skill_counts.items(), key=lambda kv: (-kv[1], kv[0].lower()))
+    ]
+
+    return {
+        "projects": projects,
+        "skills": skills,
+        "analysis_timestamps": analysis_timestamps,
+        "portfolio_items": portfolio_items,
+        "total_projects": len(projects),
+    }
+
+
+def list_public_portfolios(
+    q: Optional[str] = None,
+    username: Optional[str] = None,
+    project_type: Optional[str] = None,
+    language: Optional[str] = None,
+    has_tests: Optional[bool] = None,
+    sort: str = "newest",
+    page: int = 1,
+    page_size: int = 12,
+) -> Dict[str, Any]:
+    """List public portfolio cards with search/filter/pagination.
+
+    Resolved bugs (Requirement 2 – public mode):
+    - Developer Profile (primary role, core skills, languages) now included in public view.
+    - Fixed: new accounts' public portfolios not appearing — caused by stale
+      user_portfolio_settings surviving account deletion, and a variable-shadowing
+      bug where the loop variable ``username`` overwrote the filter parameter,
+      silently dropping every card whose username didn't contain the last-iterated
+      value.
+    """
+    page = max(1, page)
+    page_size = min(max(1, page_size), 50)
+
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT analysis_uuid, username, analysis_type, analysis_timestamp, total_projects,
+                   raw_json, published_at
+            FROM analyses
+            WHERE is_public = 1
+            ORDER BY COALESCE(published_at, analysis_timestamp) DESC
+            """
+        ).fetchall()
+        setting_rows = conn.execute(
+            """
+            SELECT username, settings_json
+            FROM user_portfolio_settings
+            """
+        ).fetchall()
+
+    settings_by_user: Dict[str, Dict[str, Any]] = {}
+    for row in setting_rows:
+        parsed = {}
+        raw = row["settings_json"]
+        if raw:
+            try:
+                maybe_dict = json.loads(raw)
+                if isinstance(maybe_dict, dict):
+                    parsed = maybe_dict
+            except json.JSONDecodeError:
+                parsed = {}
+        merged = dict(DEFAULT_PORTFOLIO_SETTINGS)
+        merged.update(parsed)
+        settings_by_user[row["username"]] = merged
+
+    cards: List[Dict[str, Any]] = []
+    with get_connection() as conn:
+        for row in rows:
+            row_user = row["username"]
+            aggregate = _aggregate_user_public_portfolio(conn, row_user)
+            filtered_aggregate = _filter_aggregate_for_settings(
+                aggregate,
+                settings_by_user.get(row_user, dict(DEFAULT_PORTFOLIO_SETTINGS)),
+            )
+            row_payload = {
+                "analysis_uuid": row["analysis_uuid"],
+                "username": row_user,
+                "analysis_type": row["analysis_type"],
+                "analysis_timestamp": row["analysis_timestamp"],
+                "published_at": row["published_at"],
+                "total_projects": row["total_projects"],
+                "aggregated_total_projects": filtered_aggregate["total_projects"],
+                "aggregated_projects": filtered_aggregate["projects"],
+                "aggregated_skills": filtered_aggregate["skills"],
+            }
+            cards.append(
+                _extract_public_portfolio_card(
+                    row_payload,
+                    settings_by_user.get(row_user, dict(DEFAULT_PORTFOLIO_SETTINGS)),
+                )
+            )
+
+    q_norm = (q or "").strip().lower()
+    username_norm = (username or "").strip().lower()
+    project_type_norm = (project_type or "").strip().lower()
+    language_norm = (language or "").strip().lower()
+
+    def matches(card: Dict[str, Any]) -> bool:
+        if username_norm and username_norm not in card["username"].lower():
+            return False
+        if project_type_norm:
+            types = [value.lower() for value in card.get("project_types", []) if isinstance(value, str)]
+            if project_type_norm not in types:
+                return False
+        if language_norm:
+            langs = [value.lower() for value in card.get("top_languages", []) if isinstance(value, str)]
+            if language_norm not in langs:
+                return False
+        if has_tests is not None and bool(card.get("has_tests")) != has_tests:
+            return False
+        if q_norm:
+            haystack = " ".join(
+                [
+                    card.get("username", ""),
+                    " ".join(card.get("project_names", [])),
+                    " ".join(card.get("project_types", [])),
+                    " ".join(card.get("top_languages", [])),
+                    " ".join(card.get("top_skills", [])),
+                ]
+            ).lower()
+            if q_norm not in haystack:
+                return False
+        return True
+
+    filtered = [card for card in cards if matches(card)]
+
+    if sort == "oldest":
+        filtered.sort(key=lambda x: x.get("published_at") or x.get("analysis_timestamp") or "")
+    elif sort == "projects_desc":
+        filtered.sort(key=lambda x: x.get("total_projects") or 0, reverse=True)
+    elif sort == "username":
+        filtered.sort(key=lambda x: x.get("username") or "")
+    else:
+        filtered.sort(
+            key=lambda x: x.get("published_at") or x.get("analysis_timestamp") or "",
+            reverse=True,
+        )
+
+    total = len(filtered)
+    start = (page - 1) * page_size
+    end = start + page_size
+    return {
+        "items": filtered[start:end],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
+
+
+def get_public_portfolio_detail(analysis_uuid: str) -> Optional[Dict[str, Any]]:
+    """Return portfolio detail for a publicly visible portfolio."""
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT analysis_uuid, analysis_type, zip_file, analysis_timestamp,
+                   total_projects, raw_json, username, published_at
+            FROM analyses
+            WHERE analysis_uuid = ? AND is_public = 1
+            """,
+            (analysis_uuid,),
+        ).fetchone()
+
+        if not row:
+            return None
+        aggregate = _aggregate_user_public_portfolio(conn, row["username"])
+
+    portfolio_settings = get_user_portfolio_settings(row["username"])
+    filtered_aggregate = _filter_aggregate_for_settings(aggregate, portfolio_settings)
+    skills = filtered_aggregate["skills"] if portfolio_settings.get("showSkills", True) else []
+    projects = filtered_aggregate["projects"] if portfolio_settings.get("showProjects", True) else []
+    portfolio_items = filtered_aggregate["portfolio_items"] if portfolio_settings.get("showPortfolioItems", True) else []
+
+    if portfolio_settings.get("projectDisplayMode") == "summary":
+        condensed_projects: List[Dict[str, Any]] = []
+        for project in projects if isinstance(projects, list) else []:
+            if not isinstance(project, dict):
+                continue
+            condensed_projects.append(
+                {
+                    "project_name": project.get("project_name") or project.get("name"),
+                    "primary_language": project.get("primary_language"),
+                    "total_files": project.get("total_files"),
+                    "summary": project.get("summary"),
+                    "predicted_role": project.get("predicted_role"),
+                    "predicted_role_confidence": project.get("predicted_role_confidence"),
+                    "curated_role": project.get("curated_role"),
+                }
+            )
+        projects = condensed_projects
+
+    summary = None
+    if portfolio_settings.get("showProfileSummary", True):
+        # Use public analysis summary as hero summary while still aggregating projects/skills.
+        raw_data = json.loads(row["raw_json"]) if row["raw_json"] else {}
+        summary = raw_data.get("summary")
+
+    return {
+        "analysis_uuid": row["analysis_uuid"],
+        "analysis_type": row["analysis_type"],
+        "zip_file": row["zip_file"],
+        "analysis_timestamp": row["analysis_timestamp"],
+        "published_at": row["published_at"],
+        "username": row["username"],
+        "total_projects": filtered_aggregate["total_projects"],
+        "projects": projects,
+        "skills": skills,
+        "summary": summary,
+        "portfolio_items": portfolio_items,
+        "portfolio_settings": portfolio_settings,
+        "analysis_timestamps": aggregate["analysis_timestamps"],
+    }
 
 
 def get_analysis_by_uuid(uuid_str: str, username: str = None) -> Optional[Dict[str, Any]]:

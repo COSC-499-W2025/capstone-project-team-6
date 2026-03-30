@@ -23,6 +23,11 @@ vi.mock('../../services/api', () => {
     portfoliosAPI: {
       listPortfolios: vi.fn(),
       getPortfolioDetail: vi.fn(),
+      getPortfolioSettings: vi.fn(),
+      savePortfolioSettings: vi.fn(),
+      setVisibility: vi.fn(),
+      deletePortfolio: vi.fn(),
+      cleanupEmptyPortfolios: vi.fn(),
     },
     curationAPI: {
       getSettings: vi.fn().mockResolvedValue({}),
@@ -136,9 +141,12 @@ describe('Portfolio page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
-    portfoliosAPI.listPortfolios.mockReset();
-    portfoliosAPI.getPortfolioDetail.mockReset();
-    curationAPI.getSettings.mockReset();
+    portfoliosAPI.listPortfolios.mockResolvedValue([]);
+    portfoliosAPI.getPortfolioDetail.mockResolvedValue({});
+    portfoliosAPI.getPortfolioSettings.mockResolvedValue({});
+    portfoliosAPI.savePortfolioSettings.mockResolvedValue({});
+    portfoliosAPI.setVisibility.mockResolvedValue({ analysis_uuid: 'run-1', is_public: true });
+    portfoliosAPI.deletePortfolio.mockResolvedValue({});
     curationAPI.getSettings.mockResolvedValue({});
   });
 
@@ -182,6 +190,8 @@ describe('Portfolio page', () => {
       expect(screen.getAllByText('Python').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Alpha').length).toBeGreaterThan(0);
       expect(screen.getByText('Alpha highlight')).toBeInTheDocument();
+      expect(screen.getAllByText(/Python/).length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Alpha').length).toBeGreaterThan(0);
       expect(screen.getByText(/Quality score: 45/)).toBeInTheDocument();
       expect(screen.getByText(/Sophistication: intermediate/)).toBeInTheDocument();
     });
