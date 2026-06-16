@@ -1,8 +1,4 @@
 
-# Architecture 
-![architecture diagram](docs/BLUME_architecture.png)
-
-
 
 ## Quick Start
 
