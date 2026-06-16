@@ -18,8 +18,6 @@ A comprehensive list of bugs for the future development team can be found [here]
 # Architecture diagram
 ![architecture](docs/Images/architectureM2.png)
 
-# Dataflow diagram
-![dataflow](docs/Images/DFDM2.png)
 
 
 # Project Work Breakdown Structure 
